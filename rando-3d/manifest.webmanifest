@@ -1,0 +1,30 @@
+{
+  "name": "Replay Rando 3D",
+  "short_name": "Rando 3D",
+  "description": "Rejoue tes randonnées GPX en 3D sur la carte IGN.",
+  "lang": "fr",
+  "start_url": "./rando-3d.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1b2729",
+  "theme_color": "#1f3f5e",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
