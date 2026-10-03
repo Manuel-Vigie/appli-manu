@@ -1,0 +1,18 @@
+{
+  "name": "Carnet de Santé",
+  "short_name": "Carnet Santé",
+  "description": "Mon carnet de santé, stocké uniquement sur mon téléphone.",
+  "lang": "fr",
+  "id": "./carnet-sante.html",
+  "start_url": "./carnet-sante.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f6f9",
+  "theme_color": "#1a3c6e",
+  "icons": [
+    {"src": "carnet-sante-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "carnet-sante-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "carnet-sante-icon-masque-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

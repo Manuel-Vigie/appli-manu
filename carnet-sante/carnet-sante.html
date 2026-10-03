@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Carnet de Santé</title>
+<link rel="manifest" href="carnet-sante-manifest.webmanifest">
+<meta name="theme-color" content="#1a3c6e">
+<link rel="icon" type="image/png" href="carnet-sante-icon-192.png">
+<link rel="apple-touch-icon" href="carnet-sante-apple-touch-icon.png">
+<style>
+  :root{ --bleu:#1a3c6e; --fond:#f4f6f9; --texte:#1c2530; --carte:#fff; --doux:#5b6878; --rouge:#b3261e; --ligne:#d9dfe7; }
+  @media (prefers-color-scheme: dark){
+    :root{ --fond:#10151c; --texte:#e8edf3; --carte:#18202a; --doux:#9aa7b6; --ligne:#2a3542; --bleu:#6b95d6; }
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; background:var(--fond); color:var(--texte);
+    font:17px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main{ min-height:100%; display:flex; align-items:center; justify-content:center;
+    padding:max(20px,env(safe-area-inset-top)) 20px max(20px,env(safe-area-inset-bottom)); }
+  .carte{ width:100%; max-width:440px; background:var(--carte); border:1px solid var(--ligne);
+    border-radius:20px; padding:28px 24px; text-align:center; }
+  .logo{ width:72px; height:72px; margin:0 auto 12px; border-radius:18px; display:block; }
+  h1{ font-size:1.5rem; margin:0 0 6px; }
+  p{ margin:10px 0; color:var(--doux); }
+  .gros{ display:block; width:100%; margin:18px 0 0; padding:16px; border:0; border-radius:14px;
+    background:#1a3c6e; color:#fff; font:inherit; font-weight:600; cursor:pointer; }
+  .gros.secondaire{ background:transparent; color:var(--bleu); border:2px solid var(--bleu); margin-top:12px; }
+  .gros.danger{ background:transparent; color:var(--rouge); border:2px solid var(--rouge); margin-top:12px; }
+  .erreur{ color:var(--rouge); font-weight:600; }
+  .petit{ font-size:.85rem; }
+  input[type=file]{ display:none; }
+  #cadre{ position:fixed; inset:0; width:100%; height:100%; border:0; background:#fff; }
+  #reglages{ position:fixed; left:max(8px,env(safe-area-inset-left)); bottom:max(8px,env(safe-area-inset-bottom));
+    width:36px; height:36px; border-radius:50%; border:1px solid var(--ligne); background:var(--carte);
+    color:var(--doux); font-size:18px; line-height:1; opacity:.55; z-index:5; cursor:pointer; }
+  [hidden]{ display:none !important; }
+</style>
+</head>
+<body>
+
+<main id="accueil" hidden>
+  <div class="carte">
+    <img class="logo" src="carnet-sante-icon-192.png" alt="">
+    <h1>Carnet de Santé</h1>
+    <div id="vue-import">
+      <p>Choisissez votre fichier <b>carnet-sante.html</b> (dans le dossier Téléchargements).</p>
+      <p class="petit">Il reste <b>uniquement sur ce téléphone</b>. Il n'est envoyé nulle part. Vous ne le ferez qu'une fois.</p>
+      <label class="gros" for="fichier">Choisir mon fichier</label>
+      <input type="file" id="fichier" accept=".html,.htm,text/html">
+      <p class="erreur" id="erreur" role="alert" hidden></p>
+    </div>
+    <div id="vue-reglages" hidden>
+      <p>Votre carnet est enregistré sur ce téléphone.</p>
+      <p class="petit" id="info"></p>
+      <button class="gros" id="retour" type="button">Retour à mon carnet</button>
+      <label class="gros secondaire" for="fichier2">Remplacer par un nouveau fichier</label>
+      <input type="file" id="fichier2" accept=".html,.htm,text/html">
+      <button class="gros danger" id="effacer" type="button">Effacer mes données de ce téléphone</button>
+      <p class="erreur" id="erreur2" role="alert" hidden></p>
+    </div>
+    <button class="gros secondaire" id="installer" type="button" hidden>Installer l'application</button>
+  </div>
+</main>
+
+<iframe id="cadre" title="Mon carnet de santé" hidden></iframe>
+<button id="reglages" type="button" aria-label="Réglages" hidden>⚙</button>
+
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var BASE = "carnet-sante-coffre", MAGASIN = "k", CLE = "fichier";
+  var urlCadre = null, invit = null;
+
+  /* --- petit coffre dans le navigateur (IndexedDB) --- */
+  function ouvrirBase(){
+    return new Promise(function(ok, ko){
+      var r = indexedDB.open(BASE, 1);
+      r.onupgradeneeded = function(){ r.result.createObjectStore(MAGASIN); };
+      r.onsuccess = function(){ ok(r.result); };
+      r.onerror = function(){ ko(r.error); };
+    });
+  }
+  function acces(mode, f){
+    return ouvrirBase().then(function(db){
+      return new Promise(function(ok, ko){
+        var t = db.transaction(MAGASIN, mode), s = t.objectStore(MAGASIN), r = f(s);
+        t.oncomplete = function(){ db.close(); ok(r && r.result); };
+        t.onerror = t.onabort = function(){ db.close(); ko(t.error); };
+      });
+    });
+  }
+  function lire(){ return acces("readonly", function(s){ return s.get(CLE); }); }
+  function ecrire(v){ return acces("readwrite", function(s){ return s.put(v, CLE); }); }
+  function supprimer(){ return acces("readwrite", function(s){ return s.delete(CLE); }); }
+
+  /* --- affichage --- */
+  function montrer(vue){
+    $("accueil").hidden = (vue === "carnet");
+    $("cadre").hidden = (vue !== "carnet");
+    $("reglages").hidden = (vue !== "carnet");
+    $("vue-import").hidden = (vue !== "import");
+    $("vue-reglages").hidden = (vue !== "reglages");
+    $("installer").hidden = !invit || vue === "carnet";
+  }
+  function ouvrir(donnees){
+    if (urlCadre) URL.revokeObjectURL(urlCadre);
+    urlCadre = URL.createObjectURL(new Blob([donnees.html], {type: "text/html"}));
+    $("cadre").src = urlCadre;
+    montrer("carnet");
+  }
+  function erreur(id, msg){ var e = $(id); e.textContent = msg; e.hidden = !msg; }
+
+  function importer(fichier, idErreur){
+    erreur(idErreur, "");
+    if (!fichier) return;
+    fichier.text().then(function(txt){
+      if (!/<title>\s*Carnet de Sant/i.test(txt)){
+        erreur(idErreur, "Ce fichier n'est pas votre carnet de santé. Choisissez carnet-sante.html.");
+        return;
+      }
+      var donnees = {html: txt, nom: fichier.name, taille: fichier.size, date: new Date().toISOString()};
+      return ecrire(donnees).then(function(){ ouvrir(donnees); });
+    }).catch(function(){
+      erreur(idErreur, "Impossible d'enregistrer le fichier sur ce téléphone (stockage refusé ou plein).");
+    });
+  }
+
+  $("fichier").addEventListener("change", function(e){ importer(e.target.files[0], "erreur"); e.target.value = ""; });
+  $("fichier2").addEventListener("change", function(e){ importer(e.target.files[0], "erreur2"); e.target.value = ""; });
+
+  $("reglages").addEventListener("click", function(){
+    lire().then(function(d){
+      $("info").textContent = d ? ("Fichier : " + d.nom + " — " + Math.round(d.taille/1024/102.4)/10 + " Mo — ajouté le " +
+        new Date(d.date).toLocaleDateString("fr-FR")) : "";
+      montrer("reglages");
+    });
+  });
+  $("retour").addEventListener("click", function(){ montrer("carnet"); });
+
+  $("effacer").addEventListener("click", function(){
+    if (!confirm("Effacer votre carnet de ce téléphone ?\n\nLe fichier et les scans ajoutés ici seront supprimés. Votre fichier dans Téléchargements n'est pas touché.")) return;
+    supprimer().then(function(){
+      try {
+        Object.keys(localStorage).forEach(function(k){
+          if (/^(imagerie|analyses|ordonnances)/.test(k)) localStorage.removeItem(k);
+        });
+      } catch(e){}
+      $("cadre").removeAttribute("src");
+      montrer("import");
+    });
+  });
+
+  /* --- installation --- */
+  window.addEventListener("beforeinstallprompt", function(e){
+    e.preventDefault(); invit = e;
+    if (!$("accueil").hidden) $("installer").hidden = false;
+  });
+  $("installer").addEventListener("click", function(){
+    if (!invit) return;
+    invit.prompt(); invit = null; $("installer").hidden = true;
+  });
+
+  if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){
+    addEventListener("load", function(){ navigator.serviceWorker.register("carnet-sante-sw.js").catch(function(){}); });
+  }
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch(e){}
+
+  /* --- démarrage --- */
+  lire().then(function(d){ if (d && d.html) ouvrir(d); else montrer("import"); })
+        .catch(function(){ montrer("import"); });
+})();
+</script>
+</body>
+</html>
