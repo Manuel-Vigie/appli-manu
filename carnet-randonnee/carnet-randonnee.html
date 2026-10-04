@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Carnet rando">
 <script>
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEventListener('load',function(){navigator.serviceWorker.register('carnet-sw.js').catch(function(){})})}
+<script>window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__invite=e;document.dispatchEvent(new Event('invite-prete'))});</script>
 </script>
 <link id="icone-appli" rel="icon" href="carnet-icone-192.png">
 <link id="icone-tactile" rel="apple-touch-icon" href="carnet-icone-192.png">
@@ -877,6 +878,10 @@ body.partage .coupe-video{display:none}
 .pastille-classer{right:auto;left:.6rem;font-size:.8rem;padding:.5rem .8rem;color:#F0E9D7}
 body.cinema .pastille-classer,body.partage .pastille-classer,body.biblio-ouverte .pastille-classer{display:none}
 body.classer .note{bottom:auto;top:6.2rem}
+.pastille-installer{position:fixed;left:50%;transform:translateX(-50%);top:calc(3.7rem + env(safe-area-inset-top));white-space:nowrap;z-index:230;
+  align-items:center;gap:.4rem;font:700 .9rem/1 var(--sans);padding:.7rem 1.1rem;border-radius:2rem;border:1px solid #8fd0aa;color:#fff;
+  background:#2f6f4f;box-shadow:0 10px 24px -8px #000c;cursor:pointer}
+body.cinema .pastille-installer,body.partage-bib:not(.biblio-ouverte) .pastille-installer{display:none!important}
 .pastille-maj:hover{background:#2c3a29f0}
 .pastille-maj .fleche-maj{font-size:.85rem;line-height:1}
 body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj{display:none}
@@ -904,9 +909,10 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton plein" id="btn-retouche">Retoucher</button>
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
+<button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V42 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V43 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -6056,6 +6062,30 @@ var LECTEUR_SW="const C='lecteur-rando-v1';\n"
   [["env-f1",function(){ envoyerBibliotheque(false); }],["env-f2",function(){ envoyerBibliotheque(true); }],
    ["env-l1",function(){ envoyerBibliothequeSite(false); }],["env-l2",function(){ envoyerBibliothequeSite(true); }]]
   .forEach(function(x){ document.getElementById(x[0]).addEventListener("click",function(){ ferme(); x[1](); }); });
+})();
+
+/* ---------- Installer sur le bureau (application de lecture hébergée) ---------- */
+(function(){
+  var b=document.getElementById("btn-installer");
+  if(!b) return;
+  function installe(){ return (window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone; }
+  function montrer(){
+    if(!document.body.hasAttribute("data-lecture")) return;
+    if(!/^https?:$/.test(location.protocol)||installe()) return;
+    b.style.display="flex";
+  }
+  document.addEventListener("invite-prete",montrer);
+  window.addEventListener("appinstalled",function(){ b.style.display="none"; });
+  montrer();
+  b.addEventListener("click",function(){
+    var inv=window.__invite;
+    if(inv){
+      inv.prompt();
+      inv.userChoice.then(function(c){ if(c&&c.outcome==="accepted") b.style.display="none"; window.__invite=null; });
+    }else{
+      alert("Pour l'installer : ouvre le menu de ton navigateur (les 3 points ⋮, ou le bouton Partager) et choisis « Installer » ou « Sur l'écran d'accueil ».");
+    }
+  });
 })();
 
 /* Remet le fichier fabriqué : partage direct si le téléphone le propose,
