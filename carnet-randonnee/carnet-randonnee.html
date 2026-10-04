@@ -533,7 +533,8 @@ body.arranger.outils .note{bottom:calc(var(--ar-h,320px) + 1.2rem)}
 .cl-boutons .bouton.actif{background:#2f6f4f;color:#fff}
 .cl-bas{display:flex;gap:.5rem}
 .cl-bas .bouton{flex:1;padding:.6rem}
-.ar-etapes[hidden],.ar-etiq[hidden],#ar-etiq-ouvrir[hidden]{display:none}
+.ar-etapes[hidden],.ar-etiq[hidden]{display:none}
+#ar-etapes,#ar-trier,#ar-classeur-ouvrir{display:none!important}
 .ar-etiq{display:flex;flex-direction:column;gap:.45rem}
 .ar-etiq-grille{display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
 .ar-etiq-grille .bouton{padding:.6rem .3rem;font-size:.85rem;font-weight:600}
@@ -850,7 +851,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V19 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V20 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -911,7 +912,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     <button class="fleche" id="ar-plier" aria-label="Plier ou déplier le menu" title="Plier / déplier le menu">▾</button>
     <button class="bouton plein" id="ar-fin">Terminé</button>
   </div>
-  <button class="bouton" id="ar-etiq-ouvrir" hidden>🏷 Étiqueter les photos (Départ, Montée, Grotte…)</button>
+  <button class="bouton plein" id="ar-etiq-ouvrir">✨ Ranger les photos tout seul</button>
   <div class="ar-etiq" id="ar-etiq" hidden>
     <div class="ar-etiq-grille" id="ar-etiq-grille"></div>
     <div class="ar-etiq-bas">
@@ -3109,7 +3110,7 @@ document.getElementById("ar-texte-champ").addEventListener("keydown",function(e)
 
 /* Le livre laisse la place à la barre d'édition et se redessine à sa
    nouvelle taille, sans perdre la photo en cours. */
-var ETAPES=["Départ","Montée","Presque arrivé","Préparation","Grotte","Sortie de grotte","Retour"];
+var ETAPES=["Départ","Grotte","Retour"];
 var porte=null;
 var etiq={on:false,cur:null};
 var plie=false, hauteurBarre=0, minuteurBarre=null;
@@ -3182,7 +3183,6 @@ function selectionner(c){
 
 function majInfoArrangement(){
   if(etiq.on){ etiqInfo(); return; }
-  document.getElementById("ar-etiq-ouvrir").hidden=!!(choisi&&choisi._media);
   var z=document.getElementById("arrange-info");
   var outils=document.getElementById("ar-outils");
   var champ=document.getElementById("ar-legende");
@@ -3533,7 +3533,7 @@ function fermerEtiquetage(){
     etiq.cur=b.dataset.et; compteEtiq(); etiqInfo();
   });
 })();
-document.getElementById("ar-etiq-ouvrir").addEventListener("click",ouvrirEtiquetage);
+document.getElementById("ar-etiq-ouvrir").addEventListener("click",function(){ rangerAuto(); });
 document.getElementById("ar-classeur-ouvrir").addEventListener("click",ouvrirEtiquetage);
 document.getElementById("ar-etiq-fermer").addEventListener("click",fermerEtiquetage);
 document.getElementById("ar-etiq-ranger").addEventListener("click",function(){
@@ -3545,6 +3545,72 @@ document.getElementById("ar-etiq-ranger").addEventListener("click",function(){
     note("Album rangé par étape et par heure.");
   });
 });
+
+/* Rangement automatique : par heure, puis la grotte = la série de photos sombres. */
+function luminance(m){
+  return lire("media",m.id).then(function(b){
+    return new Promise(function(res){
+      var src=(m.type==="video")?m.poster:null, url=null;
+      if(!src){ if(!b){ res(null); return; } url=URL.createObjectURL(b); src=url; }
+      if(!src){ res(null); return; }
+      var im=new Image();
+      im.onload=function(){
+        try{
+          var c=document.createElement("canvas"); c.width=c.height=16;
+          var x=c.getContext("2d"); x.drawImage(im,0,0,16,16);
+          var d=x.getImageData(0,0,16,16).data, t=0;
+          for(var i=0;i<d.length;i+=4) t+=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+          res(t/(d.length/4));
+        }catch(e){ res(null); }
+        if(url) URL.revokeObjectURL(url);
+      };
+      im.onerror=function(){ if(url) URL.revokeObjectURL(url); res(null); };
+      im.src=src;
+    });
+  });
+}
+function mediane(a){ var t=a.slice().sort(function(x,y){return x-y;}); return t[Math.floor(t.length/2)]; }
+function rangerAuto(){
+  var r=etiqSortie();
+  if(!r||(r.medias||[]).length<3){ note("Va sur une page de ta sortie (au moins 3 photos)."); return; }
+  if(!confirm("Ranger toutes les photos de cette sortie toutes seules : Départ, Grotte, Retour ?\n\nL'ordre actuel sera remplacé."))return;
+  note("Rangement en cours…");
+  r.medias.forEach(function(m){ delete m.etape; });
+  trierSortieParHeure(r).then(function(){
+    var L=r.medias.slice();
+    return Promise.all(L.map(luminance)).then(function(lum){
+      var n=L.length, v=lum.map(function(x){ return x===null?128:x; });
+      var s=v.map(function(x,i){ return mediane([v[Math.max(0,i-1)],x,v[Math.min(n-1,i+1)]]); });
+      var tri=s.slice().sort(function(a,b){return a-b;});
+      var p20=tri[Math.floor(n*0.2)], p80=tri[Math.min(n-1,Math.floor(n*0.8))];
+      var a=-1,b=-1;
+      if(p80-p20>25){
+        var T=(p20+p80)/2, best=0, cur=0, d=0;
+        for(var i=0;i<n;i++){
+          var g=T-s[i];
+          if(cur<=0){ cur=g; d=i; } else cur+=g;
+          if(cur>best){ best=cur; a=d; b=i; }
+        }
+        if(a<0||b-a<1||(a===0&&b===n-1)) a=b=-1;
+      }
+      if(a<0){
+        // pas de grotte sombre repérée : on coupe aux 2 plus longues pauses
+        var tr=[]; for(var k=1;k<n;k++) tr.push({i:k,d:(L[k].prise||0)-(L[k-1].prise||0)});
+        tr.sort(function(x,y){ return y.d-x.d; });
+        var c=tr.slice(0,2).map(function(t){return t.i;}).sort(function(x,y){return x-y;});
+        a=c[0]; b=c[1]-1;
+      }
+      var nd=0,ng=0,nr=0;
+      L.forEach(function(m,i){
+        if(i<a){ m.etape="Départ"; nd++; }
+        else if(i<=b){ m.etape="Grotte"; ng++; }
+        else{ m.etape="Retour"; nr++; }
+      });
+      sauver(); rafraichir(true);
+      note("Rangé : Départ "+nd+" · Grotte "+ng+" · Retour "+nr+".");
+    });
+  });
+}
 
 /* Déplacer une photo loin : on la prend, on va à l'endroit voulu, on la pose avant ou après une autre. */
 function majPorte(){
