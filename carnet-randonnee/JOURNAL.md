@@ -66,3 +66,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 04/10/2026 — V24 : étape « Préparation » reconnue par le tri. Premier classement par Claude appliqué sur « Ma première Grotte » (99 photos) via carnet-classement.json. Cache : carnet-app-V24.
 - 04/10/2026 — V25 : « Appliquer le classement » affiche maintenant une fenêtre de résultat (ou d'erreur précise) et ouvre l'album à la première photo. Cache : carnet-app-V25.
 - 04/10/2026 — V26 : menu Retoucher simplifié (boutons masqués : ✨ ranger, pencher, photos par page, Replacer, + Une photo, étapes, Trier). Reste : Envoyer à Claude / Appliquer le classement, légende, − +, ‹ ›, 🗑, Déplacer, + Ajouter des photos. Cache : carnet-app-V26.
+- 04/10/2026 — V27 : le choix « Photos sur cette page » (1, 2, 3, 4, auto) est de retour dans le menu Retoucher. Cache : carnet-app-V27.
