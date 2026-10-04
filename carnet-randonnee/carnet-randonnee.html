@@ -851,7 +851,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V20 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V21 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -3569,45 +3569,66 @@ function luminance(m){
     });
   });
 }
-function mediane(a){ var t=a.slice().sort(function(x,y){return x-y;}); return t[Math.floor(t.length/2)]; }
+/* Seuil clair/sombre automatique (méthode d'Otsu) sur les luminosités des photos. */
+function seuilSombre(v){
+  var h=[],i,n=v.length; for(i=0;i<256;i++) h.push(0);
+  v.forEach(function(x){ h[Math.max(0,Math.min(255,Math.round(x)))]++; });
+  var tot=0; for(i=0;i<256;i++) tot+=i*h[i];
+  var sB=0,wB=0,best=-1,seuil=60;
+  for(i=0;i<256;i++){
+    wB+=h[i]; if(!wB) continue;
+    var wF=n-wB; if(!wF) break;
+    sB+=i*h[i];
+    var mB=sB/wB, mF=(tot-sB)/wF, ent=wB*wF*(mB-mF)*(mB-mF);
+    if(ent>best){ best=ent; seuil=i; }
+  }
+  return seuil;
+}
 function rangerAuto(){
   var r=etiqSortie();
   if(!r||(r.medias||[]).length<3){ note("Va sur une page de ta sortie (au moins 3 photos)."); return; }
-  if(!confirm("Ranger toutes les photos de cette sortie toutes seules : Départ, Grotte, Retour ?\n\nL'ordre actuel sera remplacé."))return;
+  if(!confirm("Ranger toutes les photos de cette sortie toutes seules : Départ, Grotte, Retour ?\n\nLes photos sombres vont dans la grotte, les autres avant ou après selon l'heure."))return;
   note("Rangement en cours…");
   r.medias.forEach(function(m){ delete m.etape; });
   trierSortieParHeure(r).then(function(){
     var L=r.medias.slice();
     return Promise.all(L.map(luminance)).then(function(lum){
-      var n=L.length, v=lum.map(function(x){ return x===null?128:x; });
-      var s=v.map(function(x,i){ return mediane([v[Math.max(0,i-1)],x,v[Math.min(n-1,i+1)]]); });
-      var tri=s.slice().sort(function(a,b){return a-b;});
-      var p20=tri[Math.floor(n*0.2)], p80=tri[Math.min(n-1,Math.floor(n*0.8))];
-      var a=-1,b=-1;
-      if(p80-p20>25){
-        var T=(p20+p80)/2, best=0, cur=0, d=0;
-        for(var i=0;i<n;i++){
-          var g=T-s[i];
-          if(cur<=0){ cur=g; d=i; } else cur+=g;
-          if(cur>best){ best=cur; a=d; b=i; }
-        }
-        if(a<0||b-a<1||(a===0&&b===n-1)) a=b=-1;
-      }
-      if(a<0){
-        // pas de grotte sombre repérée : on coupe aux 2 plus longues pauses
-        var tr=[]; for(var k=1;k<n;k++) tr.push({i:k,d:(L[k].prise||0)-(L[k-1].prise||0)});
-        tr.sort(function(x,y){ return y.d-x.d; });
-        var c=tr.slice(0,2).map(function(t){return t.i;}).sort(function(x,y){return x-y;});
-        a=c[0]; b=c[1]-1;
-      }
+      var v=lum.map(function(x){ return x===null?128:x; });
+      var seuil=seuilSombre(v);
+      var moy=v.reduce(function(a,b){return a+b;},0)/v.length;
+      var min=Math.min.apply(null,v), max=Math.max.apply(null,v);
+      // pas de vrai contraste : on prend un seuil fixe prudent
+      if(max-min<40) seuil=Math.min(seuil,70);
+      var sombre=v.map(function(x){ return x<seuil+1; });
+      var ts=[]; L.forEach(function(m,i){ if(sombre[i]) ts.push(m.prise||0); });
+      ts.sort(function(a,b){return a-b;});
       var nd=0,ng=0,nr=0;
-      L.forEach(function(m,i){
-        if(i<a){ m.etape="Départ"; nd++; }
-        else if(i<=b){ m.etape="Grotte"; ng++; }
-        else{ m.etape="Retour"; nr++; }
+      if(ts.length){
+        // la grotte = le plus gros groupe de photos sombres prises à la suite (pauses < 2 h)
+        var grp=[[ts[0]]];
+        for(var q=1;q<ts.length;q++){
+          if(ts[q]-ts[q-1]>2*3600*1000) grp.push([ts[q]]); else grp[grp.length-1].push(ts[q]);
+        }
+        grp.sort(function(x,y){ return y.length-x.length; });
+        var debut=grp[0][0], fin=grp[0][grp[0].length-1];
+        L.forEach(function(m,i){
+          var t=m.prise||0;
+          if(sombre[i]||(t>=debut&&t<=fin)){ m.etape="Grotte"; ng++; }
+          else if(t<debut){ m.etape="Départ"; nd++; }
+          else{ m.etape="Retour"; nr++; }
+        });
+      }else{
+        // aucune photo sombre : trois parties égales dans l'ordre de l'heure
+        L.forEach(function(m,i){
+          var k=Math.floor(i*3/L.length);
+          m.etape=["Départ","Grotte","Retour"][k];
+          if(k===0) nd++; else if(k===1) ng++; else nr++;
+        });
+      }
+      return trierSortieParHeure(r).then(function(){
+        sauver(); rafraichir(true);
+        note("Rangé : Départ "+nd+" · Grotte "+ng+" · Retour "+nr+".");
       });
-      sauver(); rafraichir(true);
-      note("Rangé : Départ "+nd+" · Grotte "+ng+" · Retour "+nr+".");
     });
   });
 }
