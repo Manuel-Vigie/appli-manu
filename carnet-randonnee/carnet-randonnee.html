@@ -507,6 +507,9 @@ body.partage #biblio-suppr,body.partage #biblio-nouveau,body.partage #biblio-env
 .envoi-boite p{margin:.2rem 0 .6rem;font-size:.85rem;line-height:1.35;color:#c9d3c5}
 .envoi-boite .rangee-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.9rem}
 .envoi-boite .bouton{flex:1}
+.env-liste{display:flex;flex-direction:column;gap:.35rem;margin:.2rem 0 .9rem}
+.env-liste label{display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border:1px solid #ffffff2e;border-radius:.6rem;font-size:.95rem;cursor:pointer}
+.env-liste input{width:1.3rem;height:1.3rem;accent-color:#2f6f4f;flex:0 0 auto}
 
 /* ---------- arrangement libre des photos ---------- */
 .barre-arrange{
@@ -901,7 +904,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 </header>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V38 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V39 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -941,8 +944,9 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 
 <div class="envoi" id="envoi">
   <div class="envoi-boite">
-    <h3>Envoyer toute la bibliothèque</h3>
-    <p>La personne pourra lire tous tes albums, sans rien pouvoir changer.</p>
+    <h3>Envoyer des albums</h3>
+    <p>Coche les albums que la personne pourra lire. Elle ne pourra rien changer.</p>
+    <div id="env-liste" class="env-liste"></div>
     <h3>1. Un fichier</h3>
     <p>Un seul fichier à envoyer (WhatsApp, mail…). Elle l'enregistre sur son bureau et l'ouvre : c'est tout.</p>
     <div class="rangee-actions">
@@ -5861,9 +5865,14 @@ function squelettePage(){
    "#fichier-pret",".note"].forEach(function(sel){
     [].forEach.call(copie.querySelectorAll(sel),function(n){ n.remove(); });
   });
-  ["#etagere","#panneau-corps","#sommaire"].forEach(function(sel){
+  ["#etagere","#plateau","#env-liste","#panneau-corps","#sommaire"].forEach(function(sel){
     var e=copie.querySelector(sel); if(e) e.innerHTML=""; 
   });
+
+  // le titre de l'album ouvert chez l'envoyeur ne doit pas rester dans le fichier
+  [].forEach.call(copie.querySelectorAll(".tranche-texte,.dos-texte"),function(n){ n.innerHTML=""; });
+  var ti=copie.querySelector("title"); if(ti) ti.textContent="Carnet de rando";
+  var tb=copie.querySelector("#titre-barre"); if(tb) tb.textContent="Carnet de rando";
 
   // tout ce qui était ouvert se referme dans la copie
   var corpsCopie=copie.querySelector("body");
@@ -5893,14 +5902,19 @@ function squelettePage(){
 }
 
 /* ---------- Envoyer toute la bibliothèque (lecture seule) ---------- */
+var envoiCoches={};
+function albumsAEnvoyer(){
+  var l=biblio.albums.filter(function(a){ return envoiCoches[a.id]!==false; });
+  return l;
+}
 function copieBiblio(){
-  var albums=JSON.parse(JSON.stringify(biblio.albums));
+  var albums=JSON.parse(JSON.stringify(albumsAEnvoyer()));
   albums.forEach(function(a){ a.randos.forEach(function(r){ delete r._page; }); a.exemples=false; });
   return albums;
 }
 function listeMediasBiblio(avecVideos){
   var l=[];
-  biblio.albums.forEach(function(a){
+  albumsAEnvoyer().forEach(function(a){
     a.randos.forEach(function(r){ (r.medias||[]).forEach(function(m){
       if(m.type==="video"&&!avecVideos) return;
       l.push(m);
@@ -5916,6 +5930,7 @@ function nettoyerBiblio(albums,gardes){
   });
 }
 function envoyerBibliotheque(avecVideos){
+  if(!albumsAEnvoyer().length){ note("Coche au moins un album."); return; }
   var albums=copieBiblio();
   var aFaire=listeMediasBiblio(avecVideos);
   if(!aFaire.length){ note("Aucune photo à envoyer."); return; }
@@ -5943,7 +5958,7 @@ function envoyerBibliotheque(avecVideos){
   });
   return suite.then(function(){
     nettoyerBiblio(albums,gardes);
-    morceaux.push('},"bibliotheque":'+JSON.stringify({albums:albums,courant:biblio.courant}).replace(/<\//g,"<\\/")+'}');
+    morceaux.push('},"bibliotheque":'+JSON.stringify({albums:albums,courant:0}).replace(/<\//g,"<\\/")+'}');
     morceaux.push('<\/script>\n'); morceaux.push(page.apres);
     if(perdus) note(perdus+" fichier(s) illisible(s) laissés de côté.");
     return remettreFichier(new Blob(morceaux,{type:"text/html"}),"CarnetRando - Bibliotheque - "+new Date().toISOString().slice(0,10)+".html");
@@ -5952,9 +5967,10 @@ function envoyerBibliotheque(avecVideos){
   });
 }
 function envoyerBibliothequeSite(avecVideos){
+  if(!albumsAEnvoyer().length){ note("Coche au moins un album."); return; }
   note("Préparation du dossier…");
   var albums=copieBiblio();
-  var paquet={format:"carnet-partage",version:2,bibliotheque:{albums:albums,courant:biblio.courant},medias:{}};
+  var paquet={format:"carnet-partage",version:2,bibliotheque:{albums:albums,courant:0},medias:{}};
   var entrees=[],suite=Promise.resolve(),vus={};
   listeMediasBiblio(avecVideos).forEach(function(m){
     suite=suite.then(function(){
@@ -6016,7 +6032,18 @@ var LECTEUR_SW="const C='lecteur-rando-v1';\n"
 (function(){
   var f=document.getElementById("envoi");
   function ferme(){ f.classList.remove("ouvert"); }
-  document.getElementById("biblio-envoyer").addEventListener("click",function(){ f.classList.add("ouvert"); });
+  document.getElementById("biblio-envoyer").addEventListener("click",function(){
+    var L=document.getElementById("env-liste"); L.innerHTML="";
+    biblio.albums.forEach(function(a,i){
+      var lab=document.createElement("label"), c=document.createElement("input");
+      c.type="checkbox";
+      c.checked=(envoiCoches[a.id]!==false);
+      c.addEventListener("change",function(){ envoiCoches[a.id]=c.checked; });
+      var t=document.createElement("span"); t.textContent=a.titre||"Sans titre";
+      lab.appendChild(c); lab.appendChild(t); L.appendChild(lab);
+    });
+    f.classList.add("ouvert");
+  });
   document.getElementById("env-fermer").addEventListener("click",ferme);
   f.addEventListener("click",function(e){ if(e.target===f) ferme(); });
   [["env-f1",function(){ envoyerBibliotheque(false); }],["env-f2",function(){ envoyerBibliotheque(true); }],
