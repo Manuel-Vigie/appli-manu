@@ -534,7 +534,20 @@ body.arranger.outils .note{bottom:calc(var(--ar-h,320px) + 1.2rem)}
 .cl-bas{display:flex;gap:.5rem}
 .cl-bas .bouton{flex:1;padding:.6rem}
 .ar-etapes[hidden],.ar-etiq[hidden]{display:none}
-#ar-etapes,#ar-trier,#ar-classeur-ouvrir,#ar-etiq-ouvrir,#ar-gauche,#ar-droite,#ar-reset,#ar-ajouter{display:none!important}
+#ar-etapes,#ar-trier,#ar-classeur-ouvrir,#ar-gauche,#ar-droite,#ar-reset,#ar-ajouter,.ar-ia,#ar-deplace,#ar-pose{display:none!important}
+.cls-chips{display:none;position:absolute;left:.2rem;right:.2rem;bottom:.2rem;z-index:7;flex-wrap:wrap;gap:.2rem;justify-content:center}
+body.classer .cls-chips{display:flex}
+.cls-chip{border:1px solid #ffffff55;background:#000000b8;color:#fff;border-radius:1rem;padding:.2rem .45rem;font:600 .62rem/1.2 system-ui,sans-serif;white-space:nowrap}
+.cls-chip.actif{background:#2f6f4f;border-color:#8fd0aa}
+.barre-classer{position:fixed;left:0;right:0;bottom:0;z-index:300;display:none;flex-direction:column;gap:.5rem;background:#0d120df2;border-top:1px solid #ffffff24;padding:.6rem .8rem;padding-bottom:max(.7rem,env(safe-area-inset-bottom));box-shadow:0 -12px 30px -18px #000}
+body.classer .barre-classer{display:flex}
+body.classer .pied{display:none}
+body.classer .scene{padding-bottom:7rem}
+body.classer .note{bottom:9rem}
+.bc-ligne{display:flex;gap:.5rem;align-items:center}
+.bc-ligne .bouton{flex:1;padding:.7rem}
+.bc-ligne .fleche{width:2.6rem;height:2.6rem;flex:0 0 auto}
+#bc-compte{flex:1;text-align:center;font-size:.9rem;color:#F5F0E3}
 .ar-etiq{display:flex;flex-direction:column;gap:.45rem}
 .ar-etiq-grille{display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
 .ar-etiq-grille .bouton{padding:.6rem .3rem;font-size:.85rem;font-weight:600}
@@ -852,7 +865,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V27 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V28 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -905,6 +918,18 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <p class="biblio-aide">Glisse l'étagère ou touche la tranche d'un carnet pour l'ouvrir.</p>
 </div>
 
+<div class="barre-classer" id="barre-classer">
+  <div class="bc-ligne">
+    <button class="fleche" id="bc-prec" aria-label="Page précédente">‹</button>
+    <span id="bc-compte"></span>
+    <button class="fleche" id="bc-suiv" aria-label="Page suivante">›</button>
+  </div>
+  <div class="bc-ligne">
+    <button class="bouton plein" id="bc-valider">Valider</button>
+    <button class="bouton" id="bc-annuler">Annuler</button>
+  </div>
+</div>
+
 <div class="barre-arrange" id="barre-arrange">
   <div class="ar-tete">
     <button class="fleche" id="ar-page-prec" aria-label="Page précédente">‹</button>
@@ -913,7 +938,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     <button class="fleche" id="ar-plier" aria-label="Plier ou déplier le menu" title="Plier / déplier le menu">▾</button>
     <button class="bouton plein" id="ar-fin">Terminé</button>
   </div>
-  <button class="bouton plein" id="ar-etiq-ouvrir">✨ Ranger les photos tout seul</button>
+  <button class="bouton plein" id="ar-etiq-ouvrir">🏷 Classer les photos</button>
   <div class="ar-ia">
     <button class="bouton" id="ia-export">📤 Envoyer à Claude</button>
     <button class="bouton" id="ia-import">📥 Appliquer le classement</button>
@@ -1087,6 +1112,8 @@ function albumVierge(titre){
            couleur:TEINTES[0].c, randos:[], exemples:true };
 }
 var biblio={ albums:[], courant:0 };
+var ETAPES=["Départ","Parcours 1","Parcours 2","Parcours 3","Grotte","Départ des grottes","Arrivée"];
+var LIBELLE_ETAPE={"Départ des grottes":"Départ grottes"};
 var carnet=null;   // raccourci vers l'album ouvert
 var urls={};           // id média -> objectURL
 var pages=[];          // pages calculées
@@ -1808,11 +1835,29 @@ function poserCoins(trou){
   ["hg","hd","bg","bd"].forEach(function(cl){ trou.appendChild(el("div","coin "+cl)); });
 }
 
+/* Mode Classer : sur chaque photo, une rangée de boutons d'étape. */
+function puces(m){
+  var d=el("div","cls-chips");
+  ETAPES.forEach(function(n){
+    var b=el("button","cls-chip"+(m.etape===n?" actif":""),LIBELLE_ETAPE[n]||n);
+    b.type="button"; b.dataset.et=n;
+    b.addEventListener("click",function(e){
+      e.stopPropagation();
+      if(m.etape===n) delete m.etape; else m.etape=n;
+      [].forEach.call(d.children,function(x){ x.classList.toggle("actif",x.dataset.et===m.etape); });
+      sauver(); majCompteClasser();
+    });
+    d.appendChild(b);
+  });
+  d.addEventListener("pointerdown",function(e){ e.stopPropagation(); });
+  return d;
+}
 function caseMedia(m,avecLegende){
   var c=el("div","case");
   c.dataset.id=m.id;
   c._media=m;
   if(m.etape) c.appendChild(el("span","badge-etape",m.etape));
+  c.appendChild(puces(m));
   if(m===porte) c.classList.add("porte");
   var trou=el("div","trou");
   // proportions connues dès le départ : la page ne se réajuste plus ensuite
@@ -3115,7 +3160,6 @@ document.getElementById("ar-texte-champ").addEventListener("keydown",function(e)
 
 /* Le livre laisse la place à la barre d'édition et se redessine à sa
    nouvelle taille, sans perdre la photo en cours. */
-var ETAPES=["Départ","Préparation","Grotte","Retour"];
 var porte=null;
 var etiq={on:false,cur:null};
 var plie=false, hauteurBarre=0, minuteurBarre=null;
@@ -3538,7 +3582,48 @@ function fermerEtiquetage(){
     etiq.cur=b.dataset.et; compteEtiq(); etiqInfo();
   });
 })();
-document.getElementById("ar-etiq-ouvrir").addEventListener("click",function(){ rangerAuto(); });
+var cls={on:false,snap:null};
+function majCompteClasser(){
+  var tot=0,ok=0;
+  carnet.randos.forEach(function(r){ (r.medias||[]).forEach(function(m){ tot++; if(ETAPES.indexOf(m.etape)>=0) ok++; }); });
+  document.getElementById("bc-compte").textContent="Classées : "+ok+" / "+tot;
+}
+function relireLivre(){
+  dimensionner(); rendreLivre();
+}
+function ouvrirClasser(){
+  if(arranger) quitterArrangement();
+  cls.snap={};
+  carnet.randos.forEach(function(r){ (r.medias||[]).forEach(function(m){
+    cls.snap[m.id]=m.etape;
+    if(ETAPES.indexOf(m.etape)<0) delete m.etape;
+  }); });
+  cls.on=true; document.body.classList.add("classer");
+  majCompteClasser(); relireLivre();
+  note("Touche une étape sur chaque photo. Tourne les pages, puis « Valider ».");
+}
+function fermerClasser(restaurer){
+  if(restaurer&&cls.snap) carnet.randos.forEach(function(r){ (r.medias||[]).forEach(function(m){
+    if(cls.snap[m.id]===undefined) delete m.etape; else m.etape=cls.snap[m.id];
+  }); });
+  cls.on=false; cls.snap=null;
+  document.body.classList.remove("classer");
+  sauver(); relireLivre();
+}
+document.getElementById("ar-etiq-ouvrir").addEventListener("click",ouvrirClasser);
+document.getElementById("bc-prec").addEventListener("click",function(){ tourner(-1); });
+document.getElementById("bc-suiv").addEventListener("click",function(){ tourner(1); });
+document.getElementById("bc-annuler").addEventListener("click",function(){ fermerClasser(true); note("Annulé."); });
+document.getElementById("bc-valider").addEventListener("click",function(){
+  var sans=0;
+  carnet.randos.forEach(function(r){ (r.medias||[]).forEach(function(m){ if(ETAPES.indexOf(m.etape)<0) sans++; }); });
+  if(sans&&!confirm(sans+" photos n'ont pas d'étape. Elles iront à la fin de l'album.\n\nValider quand même ?")) return;
+  note("Rangement…");
+  Promise.all(carnet.randos.map(trierSortieParHeure)).then(function(){
+    fermerClasser(false);
+    note("Album rangé par étape. Les boutons sont partis.");
+  });
+});
 document.getElementById("ar-classeur-ouvrir").addEventListener("click",ouvrirEtiquetage);
 document.getElementById("ar-etiq-fermer").addEventListener("click",fermerEtiquetage);
 document.getElementById("ar-etiq-ranger").addEventListener("click",function(){
@@ -3751,6 +3836,7 @@ document.getElementById("ar-pose-annule").addEventListener("click",function(){
 document.getElementById("ar-plier").addEventListener("click",function(){ plierMenu(!plie); });
 
 document.getElementById("btn-retouche").addEventListener("click",function(){
+  if(cls.on){ fermerClasser(false); return; }
   if(arranger) quitterArrangement();
   else entrerArrangement();
 });
