@@ -521,7 +521,7 @@ body.arranger.outils .scene{padding-bottom:11.2rem}
 body.arranger .note{bottom:5.4rem}
 body.arranger.outils .note{bottom:12rem}
 .ar-pied{display:flex;gap:.5rem}
-.ar-pied .bouton{flex:1}
+.ar-pied .bouton{flex:1;padding:.38rem .2rem;font-size:.72rem;white-space:nowrap}
 .pioche-date{position:fixed;left:-9999px;top:0;opacity:0;width:1px;height:1px}
 body.arranger [data-champ]{
   outline:1px dashed #2E5D4652;outline-offset:4px;border-radius:2px;cursor:pointer;
@@ -822,7 +822,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V10 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V11 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -911,6 +911,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     <button class="bouton" id="ar-ajouter">+ Une photo</button>
     <button class="bouton" id="ar-ajouter-lot">+ Plusieurs</button>
     <button class="bouton" id="ar-reset">Replacer</button>
+    <button class="bouton" id="ar-trier">Trier par heure</button>
   </div>
 </div>
 
@@ -3304,6 +3305,21 @@ document.getElementById("ar-reset").addEventListener("click",function(){
   note("Cadrage d'origine rétabli.");
 });
 
+document.getElementById("ar-trier").addEventListener("click",function(){
+  var r=null, m=(choisi&&choisi._media)||null;
+  if(m){ var ou=situerSouvenir(m); if(ou) r=ou.rando; }
+  else if(carnet.randos.length===1) r=carnet.randos[0];
+  else if(randoEnCours) r=randoEnCours;
+  if(!r||!(r.medias||[]).length){ note("Touchez d'abord une photo de la sortie à ranger."); return; }
+  if(!confirm("Ranger toutes les photos de cette sortie par date et heure de prise de vue ?\n\nL'ordre actuel sera remplacé."))return;
+  note("Tri en cours…");
+  trierSortieParHeure(r).then(function(){
+    sauver();
+    if(m) redessinerEnGardant(m); else rafraichir(true);
+    note("Photos rangées par date et heure.");
+  });
+});
+
 function ajouterIci(uneSeule){
   if(choisi&&choisi._media){
     var ou=situerSouvenir(choisi._media);
@@ -4641,6 +4657,86 @@ function choisirFichiersPour(rando,position,uneSeule){
   input.click();
 }
 
+/* ---- Date et heure de prise de vue (pour ranger les photos dans l'ordre) ---- */
+function exifDate(buf){
+  try{
+    var v=new DataView(buf);
+    if(v.getUint16(0)!==0xFFD8) return null;
+    var o=2;
+    while(o+4<v.byteLength){
+      var mk=v.getUint16(o), len=v.getUint16(o+2);
+      if(mk===0xFFE1 && v.getUint32(o+4)===0x45786966){
+        var t=o+10, le=(v.getUint16(t)===0x4949);
+        var u16=function(a){ return v.getUint16(a,le); }, u32=function(a){ return v.getUint32(a,le); };
+        var txt=function(a){ var r=""; for(var i=0;i<19;i++) r+=String.fromCharCode(v.getUint8(a+i)); return r; };
+        var ifd=t+u32(t+4), n=u16(ifd), exif=0, d132=null;
+        for(var i=0;i<n;i++){
+          var e=ifd+2+i*12, tag=u16(e);
+          if(tag===0x8769) exif=t+u32(e+8);
+          if(tag===0x0132) d132=txt(t+u32(e+8));
+        }
+        var res=null;
+        if(exif){
+          var n2=u16(exif);
+          for(var j=0;j<n2;j++){
+            var e2=exif+2+j*12, tg=u16(e2);
+            if(tg===0x9003||(tg===0x9004&&!res)) res=txt(t+u32(e2+8));
+          }
+        }
+        res=res||d132;
+        var m=res&&/^(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)/.exec(res);
+        if(!m||m[1]==="0000") return null;
+        return new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]).getTime();
+      }
+      if((mk&0xFF00)!==0xFF00) break;
+      o+=2+len;
+    }
+  }catch(e){}
+  return null;
+}
+function dateDuNom(nom){
+  var m=/(20\d\d)[-_.]?(0[1-9]|1[0-2])[-_.]?([0-2]\d|3[01])[-_. T]?([01]\d|2[0-3])([0-5]\d)([0-5]\d)/.exec(nom||"");
+  if(m) return new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]).getTime();
+  m=/(20\d\d)(0[1-9]|1[0-2])([0-2]\d|3[01])/.exec(nom||"");
+  if(m) return new Date(+m[1],+m[2]-1,+m[3],0,0,0).getTime();
+  return null;
+}
+/* EXIF (appareil photo) > date dans le nom du fichier > date du fichier */
+function lirePrise(f,nom){
+  var secours=function(){
+    var d=dateDuNom(nom||f.name);
+    return d!==null?d:(f.lastModified||0);
+  };
+  if(!/^image\/jpe?g$/i.test(f.type)&&!/\.jpe?g$/i.test(nom||f.name||"")) return Promise.resolve(secours());
+  return new Promise(function(res){
+    try{
+      var l=new FileReader();
+      l.onload=function(){ var d=exifDate(l.result); res(d!==null?d:secours()); };
+      l.onerror=function(){ res(secours()); };
+      l.readAsArrayBuffer(f.slice(0,262144));
+    }catch(e){ res(secours()); }
+  });
+}
+/* Remet dans l'ordre (heure croissante) les cases de la liste qui sont dans r.medias.
+   À heure égale, l'ordre d'avant est gardé. */
+function trierFiches(r,fiches){
+  var places=fiches.map(function(m){ return r.medias.indexOf(m); }).filter(function(i){ return i>=0; }).sort(function(a,b){ return a-b; });
+  var ordre=places.map(function(i){ return r.medias[i]; });
+  var rang=ordre.map(function(m,i){ return {m:m,i:i}; });
+  rang.sort(function(a,b){ return ((a.m.prise||0)-(b.m.prise||0))||(a.i-b.i); });
+  rang.forEach(function(x,k){ r.medias[places[k]]=x.m; });
+}
+/* Toute une sortie : relit la date des photos déjà enregistrées, puis trie. */
+function trierSortieParHeure(r){
+  var sans=(r.medias||[]).filter(function(m){ return !m.prise; });
+  return Promise.all(sans.map(function(m){
+    return lire("media",m.id).then(function(b){
+      if(!b) return;
+      return lirePrise(b,m.nom).then(function(t){ m.prise=t; });
+    });
+  })).then(function(){ trierFiches(r,r.medias.slice()); });
+}
+
 function ajouterMedias(fichiers,cible,position){
   var r=cible||randoEnCours;
   if(!r) return;
@@ -4657,6 +4753,7 @@ function ajouterMedias(fichiers,cible,position){
     var id=uid();
     var fiche={ id:id, type:estVideo?"video":"image", legende:"", nom:f.name, grande:false };
     nouvelles.push(fiche);
+    taches.push(lirePrise(f).then(function(t){ fiche.prise=t; }));
     taches.push(
       ecrire("media",id,f)
         .then(function(ok){ return ok?verifierMedia(id):false; })
@@ -4680,6 +4777,8 @@ function ajouterMedias(fichiers,cible,position){
 
   note(nb>1?("Import de "+nb+" souvenirs…"):"Import du souvenir…");
   Promise.all(taches).then(function(){
+    // plusieurs photos ajoutées d'un coup : rangées par heure de prise de vue
+    if(nouvelles.length>1) trierFiches(r,nouvelles);
     var rates=r.medias.filter(function(m){ return m.echec; });
     if(rates.length){
       rates.forEach(function(m){ effacer("media",m.id); });

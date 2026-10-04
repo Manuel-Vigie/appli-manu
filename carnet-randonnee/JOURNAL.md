@@ -50,3 +50,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 02/10/2026 — V9 : section Sauvegarde plus claire, date de dernière sauvegarde, avertissement sur l'effacement des données.
 - 02/10/2026 — Rangement dans `carnet-randonnee/` (avant : fichiers à la racine). V9 placée ici le 04/10/2026.
 - 04/10/2026 — V10 : en-tête de « Ma bibliothèque » corrigé (le bouton « Ouvrir » sortait de l'écran sur téléphone étroit). Les zones invisibles de changement de page sur les bords ont été vérifiées : elles ne volent pas les appuis.
+- 04/10/2026 — V11 : photos rangées par date et heure de prise de vue (EXIF, sinon date dans le nom du fichier, sinon date du fichier). Automatique quand on ajoute plusieurs photos ; bouton « Trier par heure » (barre Retoucher) pour toute une sortie. Cache : carnet-app-V11.
