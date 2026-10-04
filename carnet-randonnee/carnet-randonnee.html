@@ -533,7 +533,14 @@ body.arranger.outils .note{bottom:calc(var(--ar-h,320px) + 1.2rem)}
 .cl-boutons .bouton.actif{background:#2f6f4f;color:#fff}
 .cl-bas{display:flex;gap:.5rem}
 .cl-bas .bouton{flex:1;padding:.6rem}
-.ar-etapes[hidden]{display:none}
+.ar-etapes[hidden],.ar-etiq[hidden],#ar-etiq-ouvrir[hidden]{display:none}
+.ar-etiq{display:flex;flex-direction:column;gap:.45rem}
+.ar-etiq-grille{display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
+.ar-etiq-grille .bouton{padding:.6rem .3rem;font-size:.85rem;font-weight:600}
+.ar-etiq-grille .bouton.actif{background:#2f6f4f;color:#fff;border-color:#4c8a68}
+.ar-etiq-bas{display:flex;gap:.5rem}.ar-etiq-bas .bouton{flex:1}
+body.etiquetage .ar-outils,body.etiquetage .ar-pied{display:none!important}
+.flash-etiq{filter:brightness(1.35)}
 .case.porte{outline:3px dashed #e8b84a;outline-offset:-3px}
 .etape-bandeau{position:absolute;top:.5rem;left:50%;transform:translateX(-50%);z-index:3;padding:.15rem .8rem;border-radius:1rem;background:rgba(40,30,20,.78);color:#fff;font:600 .8rem/1.3 system-ui,sans-serif;letter-spacing:.04em;pointer-events:none}
 .badge-etape{display:none;position:absolute;left:.3rem;bottom:.3rem;z-index:4;padding:.05rem .45rem;border-radius:1rem;background:#2f6f4f;color:#fff;font:600 .65rem/1.4 system-ui,sans-serif;pointer-events:none}
@@ -843,7 +850,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V18 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V19 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -896,22 +903,6 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <p class="biblio-aide">Glisse l'étagère ou touche la tranche d'un carnet pour l'ouvrir.</p>
 </div>
 
-<div class="classeur" id="classeur" hidden>
-  <div class="cl-tete"><span id="cl-compte"></span><button class="bouton" id="cl-fin">Terminer</button></div>
-  <div class="cl-image" id="cl-image"></div>
-  <div class="cl-etat" id="cl-etat"></div>
-  <div class="cl-boutons">
-    <button class="bouton" data-cl="Départ">Départ</button>
-    <button class="bouton" data-cl="Préparation">Préparation</button>
-    <button class="bouton" data-cl="Grotte">Grotte</button>
-    <button class="bouton" data-cl="Retour">Retour</button>
-  </div>
-  <div class="cl-bas">
-    <button class="bouton" id="cl-prec">‹ Revenir</button>
-    <button class="bouton" id="cl-passer">Passer ›</button>
-  </div>
-</div>
-
 <div class="barre-arrange" id="barre-arrange">
   <div class="ar-tete">
     <button class="fleche" id="ar-page-prec" aria-label="Page précédente">‹</button>
@@ -919,6 +910,14 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     <button class="fleche" id="ar-page-suiv" aria-label="Page suivante">›</button>
     <button class="fleche" id="ar-plier" aria-label="Plier ou déplier le menu" title="Plier / déplier le menu">▾</button>
     <button class="bouton plein" id="ar-fin">Terminé</button>
+  </div>
+  <button class="bouton" id="ar-etiq-ouvrir" hidden>🏷 Étiqueter les photos (Départ, Montée, Grotte…)</button>
+  <div class="ar-etiq" id="ar-etiq" hidden>
+    <div class="ar-etiq-grille" id="ar-etiq-grille"></div>
+    <div class="ar-etiq-bas">
+      <button class="bouton plein" id="ar-etiq-ranger">Ranger l'album</button>
+      <button class="bouton" id="ar-etiq-fermer">Fermer</button>
+    </div>
   </div>
   <div class="ar-outils" id="ar-outils">
     <input type="text" id="ar-legende" placeholder="Écrire une légende…" autocomplete="off">
@@ -954,7 +953,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
       <button class="bouton" data-etape="Préparation">Préparation</button>
       <button class="bouton" data-etape="Grotte">Grotte</button>
       <button class="bouton" data-etape="Retour">Retour</button>
-      <button class="bouton" id="ar-classeur-ouvrir" style="flex-basis:100%">▶ Classer en regardant les photos</button>
+      <button class="bouton" id="ar-classeur-ouvrir" style="flex-basis:100%">🏷 Étiqueter les photos</button>
       <button class="bouton" id="ar-auto-etapes">✨ Classer tout seul</button>
     </div>
   </div>
@@ -3110,7 +3109,9 @@ document.getElementById("ar-texte-champ").addEventListener("keydown",function(e)
 
 /* Le livre laisse la place à la barre d'édition et se redessine à sa
    nouvelle taille, sans perdre la photo en cours. */
+var ETAPES=["Départ","Montée","Presque arrivé","Préparation","Grotte","Sortie de grotte","Retour"];
 var porte=null;
+var etiq={on:false,cur:null};
 var plie=false, hauteurBarre=0, minuteurBarre=null;
 /* La page s'adapte à la vraie hauteur du menu, quelle que soit la taille du texte du téléphone. */
 (function(){
@@ -3172,6 +3173,7 @@ function situerSouvenir(m){
 }
 
 function selectionner(c){
+  if(etiq.on){ if(c&&c._media) appliquerEtiquette(c); return; }
   if(choisi&&choisi!==c) choisi.classList.remove("actif");
   choisi=c;
   if(c) c.classList.add("actif");
@@ -3179,6 +3181,8 @@ function selectionner(c){
 }
 
 function majInfoArrangement(){
+  if(etiq.on){ etiqInfo(); return; }
+  document.getElementById("ar-etiq-ouvrir").hidden=!!(choisi&&choisi._media);
   var z=document.getElementById("arrange-info");
   var outils=document.getElementById("ar-outils");
   var champ=document.getElementById("ar-legende");
@@ -3260,6 +3264,7 @@ function quitterArrangement(){
     document.getElementById("ar-texte").classList.remove("visible");
   }
   arranger=false; replie=false; plie=false; porte=null; majPorte();
+  etiq.on=false; document.body.classList.remove("etiquetage"); document.getElementById("ar-etiq").hidden=true;
   document.body.classList.remove("ar-plie");
   document.getElementById("ar-plier").textContent="▾";
   document.body.classList.remove("arranger","outils");
@@ -3474,60 +3479,72 @@ function ajouterIci(uneSeule){
 document.getElementById("ar-ajouter").addEventListener("click",function(){ ajouterIci(true); });
 document.getElementById("ar-ajouter-lot").addEventListener("click",function(){ ajouterIci(false); });
 
-/* Classer en regardant : une photo à la fois en grand, un seul appui sur l'étape, on passe à la suivante.
-   Le rangement se fait une seule fois, à la fin. */
-var cl={r:null,liste:[],i:0,url:null};
-function clMontrer(){
-  var m=cl.liste[cl.i];
-  var zone=document.getElementById("cl-image");
-  if(cl.url){ URL.revokeObjectURL(cl.url); cl.url=null; }
-  zone.innerHTML="";
-  if(!m){ clFinir(); return; }
-  document.getElementById("cl-compte").textContent="Photo "+(cl.i+1)+" / "+cl.liste.length;
-  document.getElementById("cl-etat").textContent=m.etape?("Étape actuelle : "+m.etape):"Pas encore classée";
-  [].forEach.call(document.querySelectorAll("#classeur [data-cl]"),function(b){ b.classList.toggle("actif",b.dataset.cl===m.etape); });
-  document.getElementById("cl-prec").disabled=cl.i===0;
-  var img=document.createElement("img");
-  zone.appendChild(img);
-  if(m.type==="video"&&m.poster){ img.src=m.poster; return; }
-  lire("media",m.id).then(function(b){
-    if(!b||cl.liste[cl.i]!==m) return;
-    cl.url=URL.createObjectURL(b); img.src=cl.url;
+/* Étiqueter : on choisit une étape en bas, puis on touche les photos. Rien ne bouge à l'écran ;
+   le rangement se fait quand on touche « Ranger l'album ». */
+function compteEtiq(){
+  var r=etiqSortie(); if(!r) return;
+  [].forEach.call(document.querySelectorAll("#ar-etiq-grille [data-et]"),function(b){
+    var n=r.medias.filter(function(m){ return m.etape===b.dataset.et; }).length;
+    b.textContent=b.dataset.et+(n?(" ("+n+")"):"");
+    b.classList.toggle("actif",b.dataset.et===etiq.cur);
   });
 }
-function clFinir(){
-  var r=cl.r;
-  document.getElementById("classeur").hidden=true;
-  if(cl.url){ URL.revokeObjectURL(cl.url); cl.url=null; }
-  if(!r) return;
-  note("Rangement en cours…");
+function etiqSortie(){
+  var pg=pages&&pages[pageCourante];
+  if(pg&&pg.rando) return pg.rando;
+  return carnet&&carnet.randos.length===1?carnet.randos[0]:null;
+}
+function etiqInfo(){
+  document.getElementById("arrange-info").textContent=etiq.cur?("« "+etiq.cur+" » : touche les photos"):"Choisis une étape, puis touche les photos";
+}
+function appliquerEtiquette(c){
+  var m=c._media;
+  if(!etiq.cur){ note("Choisis d'abord une étape en bas."); return; }
+  if(m.etape===etiq.cur) delete m.etape; else m.etape=etiq.cur;
+  var vieux=c.querySelector(".badge-etape"); if(vieux) vieux.remove();
+  if(m.etape){ var b=document.createElement("span"); b.className="badge-etape"; b.textContent=m.etape; c.appendChild(b); }
+  c.classList.add("flash-etiq"); setTimeout(function(){ c.classList.remove("flash-etiq"); },250);
+  sauver(); compteEtiq();
+}
+function ouvrirEtiquetage(){
+  if(!arranger) entrerArrangement();
+  selectionner(null);
+  etiq.on=true; etiq.cur=etiq.cur||ETAPES[0];
+  document.body.classList.add("etiquetage");
+  document.getElementById("ar-etiq").hidden=false;
+  document.getElementById("ar-etiq-ouvrir").hidden=true;
+  replierPour(true);
+  compteEtiq(); etiqInfo();
+}
+function fermerEtiquetage(){
+  etiq.on=false;
+  document.body.classList.remove("etiquetage");
+  document.getElementById("ar-etiq").hidden=true;
+  majInfoArrangement();
+}
+(function(){
+  var g=document.getElementById("ar-etiq-grille");
+  ETAPES.forEach(function(n){
+    var b=document.createElement("button"); b.className="bouton"; b.dataset.et=n; b.textContent=n; g.appendChild(b);
+  });
+  if(ETAPES.length%2) g.lastChild.style.gridColumn="1 / -1";
+  g.addEventListener("click",function(e){
+    var b=e.target.closest("[data-et]"); if(!b) return;
+    etiq.cur=b.dataset.et; compteEtiq(); etiqInfo();
+  });
+})();
+document.getElementById("ar-etiq-ouvrir").addEventListener("click",ouvrirEtiquetage);
+document.getElementById("ar-classeur-ouvrir").addEventListener("click",ouvrirEtiquetage);
+document.getElementById("ar-etiq-fermer").addEventListener("click",fermerEtiquetage);
+document.getElementById("ar-etiq-ranger").addEventListener("click",function(){
+  var r=etiqSortie();
+  if(!r||!(r.medias||[]).length){ note("Va sur une page de ta sortie."); return; }
+  note("Rangement…");
   trierSortieParHeure(r).then(function(){
-    sauver(); rafraichir(true);
-    note("Photos rangées par étape et par heure.");
+    sauver(); rafraichir(true); compteEtiq();
+    note("Album rangé par étape et par heure.");
   });
-  cl.r=null;
-}
-document.getElementById("ar-classeur-ouvrir").addEventListener("click",function(){
-  var r=null, m=(choisi&&choisi._media)||null;
-  if(m){ var ou=situerSouvenir(m); if(ou) r=ou.rando; }
-  else if(carnet.randos.length===1) r=carnet.randos[0];
-  if(!r||!(r.medias||[]).length){ note("Touchez d'abord une photo de la sortie."); return; }
-  cl.r=r; cl.liste=r.medias.slice();
-  var d=0; for(var k=0;k<cl.liste.length;k++){ if(!cl.liste[k].etape){ d=k; break; } }
-  cl.i=d;
-  document.getElementById("classeur").hidden=false;
-  clMontrer();
 });
-document.getElementById("classeur").addEventListener("click",function(e){
-  var b=e.target.closest("[data-cl]");
-  if(!b) return;
-  cl.liste[cl.i].etape=b.dataset.cl;
-  sauver();
-  cl.i++; clMontrer();
-});
-document.getElementById("cl-passer").addEventListener("click",function(){ cl.i++; clMontrer(); });
-document.getElementById("cl-prec").addEventListener("click",function(){ if(cl.i>0){ cl.i--; clMontrer(); } });
-document.getElementById("cl-fin").addEventListener("click",clFinir);
 
 /* Déplacer une photo loin : on la prend, on va à l'endroit voulu, on la pose avant ou après une autre. */
 function majPorte(){
@@ -3582,6 +3599,7 @@ document.getElementById("btn-retouche").addEventListener("click",function(){
     }
     e.preventDefault();
     cible=c; selectionner(c);
+    if(etiq.on){ cible=null; return; }
     base=c._base||c.offsetWidth||200;
     hbase=c._baseH||c.offsetHeight||200;
     var k=cadreDe(c._media);
@@ -4951,19 +4969,14 @@ function lirePrise(f,nom){
     }catch(e){ res(secours()); }
   });
 }
-var ETAPES=["Départ","Montée","Presque arrivé","Préparation","Grotte","Sortie de grotte","Retour"];
 (function(){
-  var a=document.getElementById("ar-etapes"), c=document.querySelector("#classeur .cl-boutons");
+  var a=document.getElementById("ar-etapes");
   [].slice.call(a.querySelectorAll("[data-etape]")).forEach(function(b){ b.remove(); });
-  c.innerHTML="";
   var ref=document.getElementById("ar-classeur-ouvrir");
   ETAPES.forEach(function(n){
     var b=document.createElement("button"); b.className="bouton"; b.dataset.etape=n; b.textContent=n;
     a.insertBefore(b,ref);
-    var g=document.createElement("button"); g.className="bouton"; g.dataset.cl=n; g.textContent=n;
-    c.appendChild(g);
   });
-  if(ETAPES.length%2) c.lastChild.style.gridColumn="1 / -1";
 })();
 function rangEtape(m){ var i=ETAPES.indexOf(m.etape); return i<0?99:i; }
 /* Remet dans l'ordre (étape, puis heure croissante) les cases de la liste qui sont dans r.medias.
