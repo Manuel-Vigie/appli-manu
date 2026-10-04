@@ -81,3 +81,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 05/10 V39 : envoi album par album (cases à cocher), titres des albums non choisis retirés du fichier envoyé.
 - 05/10 V40 : la musique ne démarre plus tant que l'album n'est pas choisi ; changer d'album arrête l'ancienne musique.
 - 05/10 V41 : plateau — chaque album est noté Album 1, Album 2… au lieu de « N sorties ».
+- 05/10 V42 : fichier envoyé = lecture seule garantie (marqueur dans la page, lecture tardive de l'album embarqué) ; plus aucun bouton d'édition en haut.

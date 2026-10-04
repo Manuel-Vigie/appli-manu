@@ -499,7 +499,9 @@ body.partage .pied{padding:.18rem .5rem;padding-bottom:max(.18rem,env(safe-area-
 body.partage .pied .fleche{width:1.95rem;height:1.95rem}
 body.partage .compteur{font-size:.72rem}
 body.partage:not(.partage-bib) .marque{display:none}
-body.partage #biblio-suppr,body.partage #biblio-nouveau,body.partage #biblio-envoyer,body.partage .biblio-neuf{display:none!important}
+body.partage #biblio-suppr,body.partage #biblio-nouveau,body.partage #biblio-envoyer,body.partage .biblio-neuf,
+body[data-lecture] #biblio-suppr,body[data-lecture] #biblio-nouveau,body[data-lecture] #biblio-envoyer,body[data-lecture] .biblio-neuf,
+body[data-lecture] .pastille-maj,body[data-lecture] .pastille-classer,body[data-lecture] #btn-retouche,body[data-lecture] #btn-atelier{display:none!important}
 .envoi{position:fixed;inset:0;z-index:400;background:#000a;display:none;align-items:center;justify-content:center;padding:1rem}
 .envoi.ouvert{display:flex}
 .envoi-boite{background:#1b231a;color:#F0E9D7;border:1px solid #ffffff2e;border-radius:1rem;padding:1.1rem;max-width:26rem;width:100%;max-height:92vh;overflow:auto;font-family:var(--sans)}
@@ -904,7 +906,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 </header>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V41 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V42 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -5881,7 +5883,7 @@ function squelettePage(){
 
   // tout ce qui était ouvert se referme dans la copie
   var corpsCopie=copie.querySelector("body");
-  if(corpsCopie) corpsCopie.className="";
+  if(corpsCopie){ corpsCopie.className=""; corpsCopie.setAttribute("data-lecture","1"); }
   [["#voile","voile"],["#panneau","panneau"],["#sommaire","sommaire"],
    ["#commandes-cine","commandes-cine"],["#barre-arrange","barre-arrange"],
    ["#biblio","biblio"]].forEach(function(x){
@@ -6248,23 +6250,16 @@ function albumEmbarque(){
 }
 
 var recu=albumEmbarque();
-if(!recu && document.readyState==="loading"){
-  // l'album est placé avant ce programme ; si un navigateur en décide
-  // autrement, on retente dès que la page est entièrement lue
-  document.addEventListener("DOMContentLoaded",function(){
-    if(!partage && albumEmbarque()) location.reload();
-  },{once:true});
-}
-if(recu){
+function lireAlbumRecu(r){
   partage=true;
   document.body.classList.add("partage");
-  if(recu.bibliotheque&&recu.bibliotheque.albums&&recu.bibliotheque.albums.length){
-    biblio={albums:recu.bibliotheque.albums,courant:Math.min(recu.bibliotheque.courant||0,recu.bibliotheque.albums.length-1)};
+  if(r.bibliotheque&&r.bibliotheque.albums&&r.bibliotheque.albums.length){
+    biblio={albums:r.bibliotheque.albums,courant:Math.min(r.bibliotheque.courant||0,r.bibliotheque.albums.length-1)};
     if(biblio.albums.length>1) document.body.classList.add("partage-bib");
-  }else biblio={albums:[recu.album],courant:0};
+  }else biblio={albums:[r.album],courant:0};
   carnet=biblio.albums[biblio.courant];
-  Object.keys(recu.medias||{}).forEach(function(id){
-    var m=recu.medias[id];
+  Object.keys(r.medias||{}).forEach(function(id){
+    var m=r.medias[id];
     urls[id]=m.data||m.fichier;   // embarqué en base64, ou fichier voisin
   });
   sauver=function(){ return Promise.resolve(true); };   // rien à enregistrer
@@ -6276,11 +6271,25 @@ if(recu){
   dimensionner();
   rendreLivre();
   if(biblio.albums.length>1) ouvrirBibliotheque();
+}
+if(!recu && document.readyState==="loading"){
+  // l'album est placé avant ce programme ; si un navigateur en décide
+  // autrement, on le lit dès que la page est entièrement lue
+  document.addEventListener("DOMContentLoaded",function(){
+    var r=albumEmbarque();
+    if(!partage && r) lireAlbumRecu(r);
+  },{once:true});
+}
+if(recu){
+  lireAlbumRecu(recu);
 }else
 
 ouvrirBase().then(function(){
   return Promise.all([lire("meta","bibliotheque"),lire("meta","carnet"),lire("meta","vue")]);
 }).then(function(res){
+  var tardif=albumEmbarque();
+  if(tardif&&!partage){ lireAlbumRecu(tardif); return; }
+  if(partage) return;
   var b=res[0], ancien=res[1];
   if(res[2]==="simple"||res[2]==="double") vueForcee=res[2];
   else vueForcee=null;
