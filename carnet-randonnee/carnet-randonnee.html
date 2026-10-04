@@ -921,7 +921,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V45 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V46 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -5999,10 +5999,9 @@ function squelettePage(){
 }
 
 /* ---------- Envoyer toute la bibliothèque (lecture seule) ---------- */
-var envoiCoches={};
+var envoiCoches=[];
 function albumsAEnvoyer(){
-  var l=biblio.albums.filter(function(a){ return envoiCoches[a.id]!==false; });
-  return l;
+  return biblio.albums.filter(function(a,i){ return envoiCoches[i]!==false; });
 }
 function copieBiblio(){
   var albums=JSON.parse(JSON.stringify(albumsAEnvoyer()));
@@ -6065,7 +6064,7 @@ function envoyerBibliotheque(avecVideos){
 }
 function envoyerBibliothequeSite(avecVideos){
   if(!albumsAEnvoyer().length){ note("Coche au moins un album."); return; }
-  note("Préparation du dossier…");
+  note("Préparation du dossier… "+albumsAEnvoyer().length+" album(s)");
   var albums=copieBiblio();
   var paquet={format:"carnet-partage",version:2,bibliotheque:{albums:albums,courant:0},medias:{}};
   var entrees=[],suite=Promise.resolve(),vus={};
@@ -6168,14 +6167,17 @@ var LECTEUR_SW="const C='lecteur-rando-v1';\n"
   function ferme(){ f.classList.remove("ouvert"); }
   document.getElementById("biblio-envoyer").addEventListener("click",function(){
     var L=document.getElementById("env-liste"); L.innerHTML="";
+    envoiCoches=biblio.albums.map(function(){ return true; });
+    var resume=document.createElement("p"); resume.id="env-resume";
+    function majResume(){ var n=envoiCoches.filter(function(x){ return x; }).length; resume.textContent=n+" album"+(n>1?"s":"")+" sur "+biblio.albums.length+" seront envoyés."; }
     biblio.albums.forEach(function(a,i){
       var lab=document.createElement("label"), c=document.createElement("input");
-      c.type="checkbox";
-      c.checked=(envoiCoches[a.id]!==false);
-      c.addEventListener("change",function(){ envoiCoches[a.id]=c.checked; });
-      var t=document.createElement("span"); t.textContent=a.titre||"Sans titre";
+      c.type="checkbox"; c.checked=true;
+      c.addEventListener("change",function(){ envoiCoches[i]=c.checked; majResume(); });
+      var t=document.createElement("span"); t.textContent="Album "+(i+1)+" · "+(a.titre||"Sans titre");
       lab.appendChild(c); lab.appendChild(t); L.appendChild(lab);
     });
+    L.appendChild(resume); majResume();
     f.classList.add("ouvert");
   });
   document.getElementById("env-fermer").addEventListener("click",ferme);

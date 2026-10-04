@@ -85,3 +85,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 05/10 V43 : bouton « Installer sur le bureau » dans l'application de lecture hébergée.
 - 05/10 V44 : envoi Application avec vidéos — vidéos copiées sans conversion en mémoire, progression affichée.
 - 05/10 V45 : mot de passe pour l'application en ligne (contenu chiffré) ; corrige l'enregistrement du programme de cache cassé depuis V43.
+- 05/10 V46 : fenêtre d'envoi — tous les albums cochés à chaque ouverture, compteur « N albums sur N seront envoyés ».
