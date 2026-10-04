@@ -539,7 +539,7 @@ body.arranger.outils .note{bottom:calc(var(--ar-h,320px) + 1.2rem)}
 .badge-etape{display:none;position:absolute;left:.3rem;bottom:.3rem;z-index:4;padding:.05rem .45rem;border-radius:1rem;background:#2f6f4f;color:#fff;font:600 .65rem/1.4 system-ui,sans-serif;pointer-events:none}
 body.arranger .badge-etape{display:block}
 .ar-etapes{display:flex;flex-wrap:wrap;gap:.3rem;align-items:center;margin-top:.4rem;font-size:.78rem}
-.ar-etapes .bouton{flex:1 1 auto;padding:.3rem .3rem;font-size:.72rem;white-space:nowrap}
+.ar-etapes .bouton{flex:1 1 auto;padding:.3rem .35rem;font-size:.72rem;white-space:nowrap}
 .ar-etapes .bouton.actif{background:#2f6f4f;color:#fff}
 .ar-pied{display:flex;gap:.5rem}
 .ar-pied .bouton{flex:1;padding:.38rem .2rem;font-size:.72rem;white-space:nowrap}
@@ -843,7 +843,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V17 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V18 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -3422,14 +3422,14 @@ document.getElementById("ar-etapes").addEventListener("click",function(e){
 function etapesAuto(r){
   return trierSortieParHeure(r).then(function(){
     var L=r.medias.slice();
-    if(L.length<4) return false;
+    if(L.length<ETAPES.length) return false;
     var trous=[];
     for(var i=1;i<L.length;i++) trous.push({i:i,d:(L[i].prise||0)-(L[i-1].prise||0)});
     trous.sort(function(a,b){ return b.d-a.d; });
-    var coupes=trous.slice(0,3).map(function(t){ return t.i; }).sort(function(a,b){ return a-b; });
+    var coupes=trous.slice(0,ETAPES.length-1).map(function(t){ return t.i; }).sort(function(a,b){ return a-b; });
     var e=0;
     L.forEach(function(m,i){
-      while(e<3&&i>=coupes[e]) e++;
+      while(e<ETAPES.length-1&&i>=coupes[e]) e++;
       m.etape=ETAPES[e];
     });
     return true;
@@ -3439,8 +3439,8 @@ document.getElementById("ar-auto-etapes").addEventListener("click",function(){
   var r=null, m=(choisi&&choisi._media)||null;
   if(m){ var ou=situerSouvenir(m); if(ou) r=ou.rando; }
   else if(carnet.randos.length===1) r=carnet.randos[0];
-  if(!r||(r.medias||[]).length<4){ note("Touchez d'abord une photo de la sortie."); return; }
-  if(!confirm("Classer les photos tout seul en 4 étapes (Départ, Préparation, Grotte, Retour) d'après les pauses entre les photos ?\n\nVous pourrez corriger ensuite photo par photo."))return;
+  if(!r||(r.medias||[]).length<ETAPES.length){ note("Touchez d'abord une photo de la sortie."); return; }
+  if(!confirm("Classer les photos tout seul en "+ETAPES.length+" étapes d'après les pauses entre les photos ?\n\nVous pourrez corriger ensuite photo par photo."))return;
   note("Classement en cours…");
   etapesAuto(r).then(function(){
     sauver();
@@ -3455,7 +3455,7 @@ document.getElementById("ar-trier").addEventListener("click",function(){
   else if(carnet.randos.length===1) r=carnet.randos[0];
   else if(randoEnCours) r=randoEnCours;
   if(!r||!(r.medias||[]).length){ note("Touchez d'abord une photo de la sortie à ranger."); return; }
-  if(!confirm("Ranger les photos de cette sortie par étape (Départ, Préparation, Grotte, Retour), puis par heure de prise de vue ?\n\nL'ordre actuel sera remplacé."))return;
+  if(!confirm("Ranger les photos de cette sortie par étape ("+ETAPES.join(", ")+"), puis par heure de prise de vue ?\n\nL'ordre actuel sera remplacé."))return;
   note("Tri en cours…");
   trierSortieParHeure(r).then(function(){
     sauver();
@@ -4951,7 +4951,20 @@ function lirePrise(f,nom){
     }catch(e){ res(secours()); }
   });
 }
-var ETAPES=["Départ","Préparation","Grotte","Retour"];
+var ETAPES=["Départ","Montée","Presque arrivé","Préparation","Grotte","Sortie de grotte","Retour"];
+(function(){
+  var a=document.getElementById("ar-etapes"), c=document.querySelector("#classeur .cl-boutons");
+  [].slice.call(a.querySelectorAll("[data-etape]")).forEach(function(b){ b.remove(); });
+  c.innerHTML="";
+  var ref=document.getElementById("ar-classeur-ouvrir");
+  ETAPES.forEach(function(n){
+    var b=document.createElement("button"); b.className="bouton"; b.dataset.etape=n; b.textContent=n;
+    a.insertBefore(b,ref);
+    var g=document.createElement("button"); g.className="bouton"; g.dataset.cl=n; g.textContent=n;
+    c.appendChild(g);
+  });
+  if(ETAPES.length%2) c.lastChild.style.gridColumn="1 / -1";
+})();
 function rangEtape(m){ var i=ETAPES.indexOf(m.etape); return i<0?99:i; }
 /* Remet dans l'ordre (étape, puis heure croissante) les cases de la liste qui sont dans r.medias.
    À heure égale, l'ordre d'avant est gardé. */
