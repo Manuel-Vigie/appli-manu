@@ -852,7 +852,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V24 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V25 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -3682,7 +3682,8 @@ document.getElementById("ia-import").addEventListener("click",function(){
   inp.onchange=function(){
     var f=inp.files[0]; if(!f) return;
     f.text().then(function(txt){
-      var d=JSON.parse(txt);
+      var d;
+      try{ d=JSON.parse(txt); }catch(e){ alert("Ce fichier est illisible.\n\nChoisis bien « carnet-classement.json » dans Téléchargements (pas un PDF)."); return; }
       if(d.format!=="carnet-classement"||(!d.etapes&&!d.cadres)) throw new Error("format");
       d.etapes=d.etapes||{}; d.cadres=d.cadres||{};
       var nc=0;
@@ -3705,9 +3706,11 @@ document.getElementById("ia-import").addEventListener("click",function(){
       });
       return Promise.all(touches.map(trierSortieParHeure)).then(function(){
         sauver(); rafraichir(true);
-        note((nb||nc)?("Classement appliqué : "+nb+" photos rangées, "+nc+" recadrées."):"Aucune photo ne correspond à ce fichier.");
+        var msg=(nb||nc)?("Classement appliqué : "+nb+" photos rangées, "+nc+" recadrées."):("Aucune photo de cet album ne correspond à ce fichier ("+Object.keys(d.etapes).length+" photos dans le fichier). Le fichier vient peut-être d'un autre album.");
+        note(msg); alert(msg);
+        if(nb||nc){ var pr=carnet.randos.filter(function(r){ return (r.medias||[]).some(function(m){ return d.etapes[m.id]; }); })[0]; if(pr&&pr.medias.length) setTimeout(function(){ allerVersSouvenir(pr.medias[0]); },200); }
       });
-    }).catch(function(){ note("Ce fichier n'est pas un classement de Claude."); });
+    }).catch(function(){ alert("Ce fichier n'est pas un classement de Claude."); });
   };
   inp.click();
 });

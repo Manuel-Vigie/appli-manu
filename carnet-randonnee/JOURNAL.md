@@ -64,3 +64,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 04/10/2026 — V22 : classement par Claude. « 📤 Miniatures pour Claude » enregistre carnet-miniatures.json (petites images + heures) ; Claude renvoie carnet-classement.json ({format:'carnet-classement', etapes:{id:étape}, ordre:[ids]}) ; « 📥 Appliquer le classement » l'applique. Cache : carnet-app-V22.
 - 04/10/2026 — V23 : le fichier de classement de Claude peut aussi contenir « cadres » : {id:{x,y,z}} (point de visée 0-100 et zoom 1-3) pour recadrer les photos. Cache : carnet-app-V23.
 - 04/10/2026 — V24 : étape « Préparation » reconnue par le tri. Premier classement par Claude appliqué sur « Ma première Grotte » (99 photos) via carnet-classement.json. Cache : carnet-app-V24.
+- 04/10/2026 — V25 : « Appliquer le classement » affiche maintenant une fenêtre de résultat (ou d'erreur précise) et ouvre l'album à la première photo. Cache : carnet-app-V25.
