@@ -852,7 +852,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V22 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V23 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -3683,11 +3683,17 @@ document.getElementById("ia-import").addEventListener("click",function(){
     var f=inp.files[0]; if(!f) return;
     f.text().then(function(txt){
       var d=JSON.parse(txt);
-      if(d.format!=="carnet-classement"||!d.etapes) throw new Error("format");
+      if(d.format!=="carnet-classement"||(!d.etapes&&!d.cadres)) throw new Error("format");
+      d.etapes=d.etapes||{}; d.cadres=d.cadres||{};
+      var nc=0;
       var touches=[], nb=0;
       carnet.randos.forEach(function(r){
         var ch=false;
-        (r.medias||[]).forEach(function(m){ if(d.etapes[m.id]){ m.etape=d.etapes[m.id]; ch=true; nb++; } });
+        (r.medias||[]).forEach(function(m){
+          if(d.etapes[m.id]){ m.etape=d.etapes[m.id]; ch=true; nb++; }
+          var k=d.cadres[m.id];
+          if(k){ m.cadre={x:Math.max(0,Math.min(100,+k.x||50)),y:Math.max(0,Math.min(100,+k.y||50)),z:Math.max(1,Math.min(3,+k.z||1))}; nc++; }
+        });
         if(ch){
           if(d.ordre&&d.ordre.length){
             var par={}; r.medias.forEach(function(m){ par[m.id]=m; });
@@ -3699,7 +3705,7 @@ document.getElementById("ia-import").addEventListener("click",function(){
       });
       return Promise.all(touches.map(trierSortieParHeure)).then(function(){
         sauver(); rafraichir(true);
-        note(nb?("Classement appliqué à "+nb+" photos."):"Aucune photo ne correspond à ce fichier.");
+        note((nb||nc)?("Classement appliqué : "+nb+" photos rangées, "+nc+" recadrées."):"Aucune photo ne correspond à ce fichier.");
       });
     }).catch(function(){ note("Ce fichier n'est pas un classement de Claude."); });
   };
