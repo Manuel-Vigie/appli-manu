@@ -1,0 +1,36 @@
+# Journal — Replay Rando 3D
+
+## Identité
+Rejoue des randonnées GPX en 3D sur la carte IGN. Fonctionne hors connexion (PWA).
+
+## Adresse
+https://manuel-vigie.github.io/appli-manu/rando-3d/rando-3d.html
+(l'adresse du dossier `…/rando-3d/` marche aussi grâce à `index.html`)
+
+## Fichiers (tous dans ce dossier)
+| Fichier | Rôle |
+|---|---|
+| `rando-3d.html` | L'appli entière |
+| `index.html` | **Copie identique** de `rando-3d.html`, uniquement pour que l'adresse du dossier marche |
+| `manifest.webmanifest` | Nom, icônes, `start_url: ./rando-3d.html` |
+| `sw.js` | Mode hors connexion. Contient `VERSION = 'rr3d-v2'` |
+| `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`, `favicon.png` | Icônes |
+
+## Installer sur le téléphone (Android)
+Ouvrir l'adresse dans Chrome (pas un fichier du dossier Téléchargements), puis **⋮ → Installer l'application**.
+
+## Mettre à jour
+1. Modifier `rando-3d.html`, puis **recopier le résultat dans `index.html`** (les deux doivent rester identiques).
+2. **Changer `VERSION` dans `sw.js`** (rr3d-v2 → rr3d-v3…) pour forcer le rechargement.
+3. Sur le téléphone : fermer et rouvrir l'appli deux fois.
+
+## Où sont les données
+Dans le navigateur : `localStorage`, clés `rr3d-*` (`rr3d-lib` bibliothèque, `rr3d-places:`, `rr3d-relief`, `rr3d-pace`, `rr3d-area`, `rr3d-fs`). Caches : `rr3d-v2-app`, `rr3d-libs`, `rr3d-tiles`.
+Vider les données de sites de Chrome les efface. Aucune fonction de sauvegarde n'a été vérifiée dans l'appli : à regarder avant de promettre une restauration.
+
+## Pièges connus
+- Il existe à la racine du dépôt une **autre copie** de cette appli (`index.html`, `manifest.webmanifest`, `sw.js`, icônes, `rando-3d-pwa.zip`, envoyée le 02/10/2026). Ne pas installer celle-là : deux installations de la même appli au même endroit se gênent.
+- Le 02/10/2026, la suppression de `rando-3d/index.html` a cassé l'adresse du dossier (« disparu » sur le téléphone). Remis le 03/10/2026.
+
+## Historique
+- 02/10/2026 — Rangement dans `rando-3d/` (`index.html` retiré par erreur, remis le 03/10).
