@@ -2,7 +2,7 @@
 
 ## Identité
 Appli de carnets de randonnée (albums photos, musique, pages). Fonctionne hors connexion (PWA).
-Version actuelle : **V9 · 02/10/2026** (affichée dans la pastille ↻ en haut de l'appli).
+Version actuelle : **V10 · 04/10/2026** (affichée dans la pastille ↻ en haut de l'appli).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
 |---|---|
 | `carnet-randonnee.html` | L'appli entière |
 | `carnet-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V9'` |
+| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V10'` |
 | `carnet-icone-192.png`, `carnet-icone-512.png`, `carnet-icone-masque-512.png` | Icônes |
 
 Le manifest, le sw et les icônes servent **uniquement** à cette appli.
@@ -23,7 +23,7 @@ Le manifest, le sw et les icônes servent **uniquement** à cette appli.
 
 ## Mettre à jour
 1. Changer le contenu de `carnet-randonnee.html` (et la version dans `id="version-appli"`).
-2. **Changer le nom `SHELL` dans `carnet-sw.js`** (V9 → V9-b, V10…) : c'est ce qui force les téléphones à recharger.
+2. **Changer le nom `SHELL` dans `carnet-sw.js`** (V10 → V10-b, V11…) : c'est ce qui force les téléphones à recharger.
 3. Sur le téléphone : toucher la pastille ↻, ou fermer et rouvrir l'appli deux fois.
 Les albums ne sont pas touchés par une mise à jour.
 
@@ -42,10 +42,11 @@ Dans le navigateur du téléphone : IndexedDB `carnet-rando` (magasins `meta` et
 - Anciennes adresses (plus à jour) : `…/appli-manu/carnet-de-rando.html` (racine du dépôt, copie V9 encore présente) et `…/carnet-de-rando/` (supprimée).
 
 ## Test rapide avant de publier
-Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'installabilité (hors « navigation privée »), cache `carnet-app-V9` rempli.
+Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'installabilité (hors « navigation privée »), cache `carnet-app-V10` rempli. Tester aussi l'affichage à 320, 360 et 412 px de large : aucun bouton coupé ni chevauché (l'en-tête de la bibliothèque est le point sensible).
 
 ## Historique
 - 28/09/2026 — V3 (zip à la racine, supprimé).
 - 30/09/2026 — V8.
 - 02/10/2026 — V9 : section Sauvegarde plus claire, date de dernière sauvegarde, avertissement sur l'effacement des données.
 - 02/10/2026 — Rangement dans `carnet-randonnee/` (avant : fichiers à la racine). V9 placée ici le 04/10/2026.
+- 04/10/2026 — V10 : en-tête de « Ma bibliothèque » corrigé (le bouton « Ouvrir » sortait de l'écran sur téléphone étroit). Les zones invisibles de changement de page sur les bords ont été vérifiées : elles ne volent pas les appuis.
