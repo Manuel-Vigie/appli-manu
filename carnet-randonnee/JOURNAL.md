@@ -79,3 +79,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 05/10 V37 : accueil en plateau tournant (glisser, flèches, toucher l'album du devant pour l'ouvrir).
 - 05/10 V38 : envoi bibliothèque en application installable (manifeste + programme de cache, mise à jour par renvoi du dossier).
 - 05/10 V39 : envoi album par album (cases à cocher), titres des albums non choisis retirés du fichier envoyé.
+- 05/10 V40 : la musique ne démarre plus tant que l'album n'est pas choisi ; changer d'album arrête l'ancienne musique.

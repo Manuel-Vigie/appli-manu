@@ -904,7 +904,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 </header>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V39 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V40 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -3202,6 +3202,10 @@ document.getElementById("biblio-suppr").addEventListener("click",function(){ sup
 
 function choisirAlbum(i){
   if(i<0||i>=biblio.albums.length) return;
+  if(biblio.albums[i]!==carnet){
+    // un autre album : la musique de l'ancien s'arrête, celle du nouveau démarrera au premier geste
+    try{ arreterMusique(); arreterMorceau(); musiqueTentee=false; majBoutonMusique(); }catch(err){}
+  }
   biblio.courant=i;
   carnet=biblio.albums[i];
   if(!partage) Object.keys(urls).forEach(function(k){ URL.revokeObjectURL(urls[k]); delete urls[k]; });
@@ -4153,6 +4157,7 @@ function laisserEcranSeteindre(){
    en grand. Le destinataire n'a rien à chercher. */
 document.addEventListener("pointerup",function(e){
   if(arranger||champEnCours) return;
+  if(document.body.classList.contains("biblio-ouverte")) return;   // on choisit encore l'album : ni musique ni plein écran
   if(e.target.closest&&e.target.closest(".barre, .pied, .commandes-cine, .panneau, .biblio, .pastille-classer")) return;
   demarrerLecture();
   lancerMusiqueAuGeste();
@@ -4618,6 +4623,7 @@ document.getElementById("cine-musique").addEventListener("click",function(){
    n'autorisent le son qu'après une action de la personne. */
 var musiqueTentee=false;
 function lancerMusiqueAuGeste(){
+  if(document.body.classList.contains("biblio-ouverte")) return;
   if(musiqueTentee||musiqueCoupee) return;
   if(musique||lecteurMorceau) return;
   if(!carnet||!carnet.musique) return;      // sans morceau choisi, rien ne se lance seul
