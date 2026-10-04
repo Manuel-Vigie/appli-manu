@@ -904,7 +904,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 </header>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V40 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V41 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -2943,8 +2943,7 @@ function rendrePlateau(){
     c.style.background="linear-gradient(160deg,"+teinter(a.couleur||"#37493C",.18)+","+(a.couleur||"#37493C")+" 55%,"+teinter(a.couleur||"#37493C",-.3)+")";
     var t=document.createElement("b"); t.textContent=a.titre||"Sans titre"; c.appendChild(t);
     if(a.sous_titre){ var st=document.createElement("i"); st.textContent=a.sous_titre; c.appendChild(st); }
-    var nb=a.randos.length;
-    c.appendChild(el("small",null,nb?(nb+(nb>1?" sorties":" sortie")):"Vide"));
+    c.appendChild(el("small",null,"Album "+(i+1)));
     c._i=i; P.appendChild(c); plateau.cartes.push(c);
   });
   var nom=el("div","pl-nom"); nom.id="pl-nom"; P.appendChild(nom);
