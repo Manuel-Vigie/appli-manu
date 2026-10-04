@@ -520,6 +520,12 @@ body.arranger .scene{padding-bottom:4.6rem}
 body.arranger.outils .scene{padding-bottom:11.2rem}
 body.arranger .note{bottom:5.4rem}
 body.arranger.outils .note{bottom:12rem}
+.etape-bandeau{position:absolute;top:.5rem;left:50%;transform:translateX(-50%);z-index:3;padding:.15rem .8rem;border-radius:1rem;background:rgba(40,30,20,.78);color:#fff;font:600 .8rem/1.3 system-ui,sans-serif;letter-spacing:.04em;pointer-events:none}
+.badge-etape{display:none;position:absolute;left:.3rem;bottom:.3rem;z-index:4;padding:.05rem .45rem;border-radius:1rem;background:#2f6f4f;color:#fff;font:600 .65rem/1.4 system-ui,sans-serif;pointer-events:none}
+body.arranger .badge-etape{display:block}
+.ar-etapes{display:flex;flex-wrap:wrap;gap:.3rem;align-items:center;margin-top:.4rem;font-size:.78rem}
+.ar-etapes .bouton{flex:1 1 auto;padding:.3rem .3rem;font-size:.72rem;white-space:nowrap}
+.ar-etapes .bouton.actif{background:#2f6f4f;color:#fff}
 .ar-pied{display:flex;gap:.5rem}
 .ar-pied .bouton{flex:1;padding:.38rem .2rem;font-size:.72rem;white-space:nowrap}
 .pioche-date{position:fixed;left:-9999px;top:0;opacity:0;width:1px;height:1px}
@@ -822,7 +828,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V11 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V12 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -901,6 +907,13 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
       <button class="fleche" id="ar-n4">4</button>
       <button class="fleche" id="ar-nauto" title="Laisser le carnet décider">auto</button>
     </div>
+    <div class="ar-etapes" id="ar-etapes">
+      <span>Étape</span>
+      <button class="bouton" data-etape="Départ">Départ</button>
+      <button class="bouton" data-etape="Préparation">Préparation</button>
+      <button class="bouton" data-etape="Grotte">Grotte</button>
+      <button class="bouton" data-etape="Retour">Retour</button>
+    </div>
   </div>
   <div class="ar-texte" id="ar-texte">
     <label id="ar-texte-label" for="ar-texte-champ">Texte</label>
@@ -911,7 +924,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     <button class="bouton" id="ar-ajouter">+ Une photo</button>
     <button class="bouton" id="ar-ajouter-lot">+ Plusieurs</button>
     <button class="bouton" id="ar-reset">Replacer</button>
-    <button class="bouton" id="ar-trier">Trier par heure</button>
+    <button class="bouton" id="ar-trier">Trier</button>
   </div>
 </div>
 
@@ -1354,7 +1367,7 @@ function composerAlbum(medias){
     // un choix fait à la main l'emporte sur le rythme automatique
     var n = m.parPage ? m.parPage : (m.grande ? 1 : cycle[rythme++%cycle.length]);
     var k=0;
-    while(k<n && k<file.length && !(k>0 && (file[k].grande||file[k].parPage))) k++;
+    while(k<n && k<file.length && !(k>0 && (file[k].grande||file[k].parPage||(file[k].etape||"")!==(m.etape||"")))) k++;
     var lot=file.splice(0,Math.max(1,k));
     res.push({mise:choisirMise(lot),items:lot});
   }
@@ -1720,6 +1733,8 @@ function dessinerPage(p,numero){
                   );
     items.forEach(function(m){ grille.appendChild(caseMedia(m,items.length<=2)); });
     d.appendChild(grille);
+    var tous=p.rando.medias||[], avant=tous[tous.indexOf(items[0])-1];
+    if(items[0].etape&&(!avant||avant.etape!==items[0].etape)) d.appendChild(el("div","etape-bandeau",items[0].etape));
     d.appendChild(el("div","folio",folio(numero)));
     var plus=el("button","ajout-page","+");
     plus.title="Ajouter des photos ici";
@@ -1749,6 +1764,7 @@ function caseMedia(m,avecLegende){
   var c=el("div","case");
   c.dataset.id=m.id;
   c._media=m;
+  if(m.etape) c.appendChild(el("span","badge-etape",m.etape));
   var trou=el("div","trou");
   // proportions connues dès le départ : la page ne se réajuste plus ensuite
   trou.style.aspectRatio=((m.w&&m.h)?(m.w/m.h):1.5).toFixed(4);
@@ -3110,6 +3126,9 @@ function majInfoArrangement(){
     document.getElementById("ar-n"+k).classList.toggle("actif",combien===k);
   });
   document.getElementById("ar-nauto").classList.toggle("actif",!impose);
+  [].forEach.call(document.querySelectorAll("#ar-etapes [data-etape]"),function(b){
+    b.classList.toggle("actif",b.dataset.etape===m.etape);
+  });
   document.getElementById("ar-avant").disabled=!ou||ou.rang===0;
   document.getElementById("ar-apres").disabled=!ou||ou.rang===ou.rando.medias.length-1;
 }
@@ -3305,18 +3324,28 @@ document.getElementById("ar-reset").addEventListener("click",function(){
   note("Cadrage d'origine rétabli.");
 });
 
+document.getElementById("ar-etapes").addEventListener("click",function(e){
+  var b=e.target.closest("[data-etape]");
+  if(!b||!choisi||!choisi._media) return;
+  var m=choisi._media;
+  if(m.etape===b.dataset.etape) delete m.etape; else m.etape=b.dataset.etape;
+  sauver();
+  redessinerEnGardant(m);
+  note(m.etape?("Étape « "+m.etape+" ». Pensez à « Trier » pour regrouper."):"Étape retirée.");
+});
+
 document.getElementById("ar-trier").addEventListener("click",function(){
   var r=null, m=(choisi&&choisi._media)||null;
   if(m){ var ou=situerSouvenir(m); if(ou) r=ou.rando; }
   else if(carnet.randos.length===1) r=carnet.randos[0];
   else if(randoEnCours) r=randoEnCours;
   if(!r||!(r.medias||[]).length){ note("Touchez d'abord une photo de la sortie à ranger."); return; }
-  if(!confirm("Ranger toutes les photos de cette sortie par date et heure de prise de vue ?\n\nL'ordre actuel sera remplacé."))return;
+  if(!confirm("Ranger les photos de cette sortie par étape (Départ, Préparation, Grotte, Retour), puis par heure de prise de vue ?\n\nL'ordre actuel sera remplacé."))return;
   note("Tri en cours…");
   trierSortieParHeure(r).then(function(){
     sauver();
     if(m) redessinerEnGardant(m); else rafraichir(true);
-    note("Photos rangées par date et heure.");
+    note("Photos rangées par étape et par heure.");
   });
 });
 
@@ -4717,13 +4746,15 @@ function lirePrise(f,nom){
     }catch(e){ res(secours()); }
   });
 }
-/* Remet dans l'ordre (heure croissante) les cases de la liste qui sont dans r.medias.
+var ETAPES=["Départ","Préparation","Grotte","Retour"];
+function rangEtape(m){ var i=ETAPES.indexOf(m.etape); return i<0?99:i; }
+/* Remet dans l'ordre (étape, puis heure croissante) les cases de la liste qui sont dans r.medias.
    À heure égale, l'ordre d'avant est gardé. */
 function trierFiches(r,fiches){
   var places=fiches.map(function(m){ return r.medias.indexOf(m); }).filter(function(i){ return i>=0; }).sort(function(a,b){ return a-b; });
   var ordre=places.map(function(i){ return r.medias[i]; });
   var rang=ordre.map(function(m,i){ return {m:m,i:i}; });
-  rang.sort(function(a,b){ return ((a.m.prise||0)-(b.m.prise||0))||(a.i-b.i); });
+  rang.sort(function(a,b){ return (rangEtape(a.m)-rangEtape(b.m))||((a.m.prise||0)-(b.m.prise||0))||(a.i-b.i); });
   rang.forEach(function(x,k){ r.medias[places[k]]=x.m; });
 }
 /* Toute une sortie : relit la date des photos déjà enregistrées, puis trie. */
