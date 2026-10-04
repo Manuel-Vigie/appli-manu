@@ -1,5 +1,6 @@
-// Carnet de rando V2 — mise en cache pour usage hors connexion
-const SHELL = 'carnet-app-V2-c';
+// Carnet de rando V9 — mise en cache pour usage hors connexion
+// Pour forcer une mise à jour chez tout le monde : changer ce nom (V9-b, V10…)
+const SHELL = 'carnet-app-V9';
 const LIBS = 'carnet-libs';
 const TILES = 'carnet-tuiles';
 const MAX_TILES = 3000;
@@ -7,7 +8,7 @@ const SHELL_FILES = ['./carnet-randonnee.html', './carnet-manifest.webmanifest',
   './carnet-icone-192.png', './carnet-icone-512.png', './carnet-icone-masque-512.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(SHELL).then(c => c.addAll(SHELL_FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(SHELL).then(c => Promise.all(SHELL_FILES.map(f => c.add(new Request(f, {cache: 'reload'})).catch(() => {})))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
   e.waitUntil((async () => {
@@ -27,7 +28,7 @@ self.addEventListener('fetch', e => {
   if (req.mode === 'navigate' && url.origin === location.origin) {
     e.respondWith((async () => {
       try {
-        const r = await fetch(req);
+        const r = await fetch(new Request(req, {cache: 'no-cache'}));
         if (r.ok) (await caches.open(SHELL)).put(req, r.clone());
         return r;
       } catch (_) {
@@ -38,10 +39,22 @@ self.addEventListener('fetch', e => {
   }
   if (url.origin === location.origin || isLib(url)) {
     e.respondWith((async () => {
+      const same = url.origin === location.origin;
+      if (same) {
+        try {
+          const r = await fetch(new Request(req, {cache: 'no-cache'}));
+          if (r.ok) (await caches.open(SHELL)).put(req, r.clone());
+          return r;
+        } catch (_) {
+          const hit = await caches.match(req);
+          if (hit) return hit;
+          throw _;
+        }
+      }
       const hit = await caches.match(req);
       if (hit) return hit;
       const r = await fetch(req);
-      if (r.ok || r.type === 'opaque') (await caches.open(url.origin === location.origin ? SHELL : LIBS)).put(req, r.clone());
+      if (r.ok || r.type === 'opaque') (await caches.open(LIBS)).put(req, r.clone());
       return r;
     })());
     return;

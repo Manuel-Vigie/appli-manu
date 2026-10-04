@@ -1,24 +1,24 @@
 {
   "name": "Carnet de rando",
   "short_name": "Carnet rando",
-  "description": "Mon carnet de randonnées.",
   "lang": "fr",
   "start_url": "./carnet-randonnee.html",
   "scope": "./",
-  "display": "fullscreen",
-  "orientation": "any",
+  "display": "standalone",
   "background_color": "#20291F",
   "theme_color": "#20291F",
   "icons": [
     {
       "src": "carnet-icone-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "carnet-icone-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "carnet-icone-masque-512.png",
@@ -26,9 +26,5 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ],
-  "display_override": [
-    "fullscreen",
-    "standalone"
   ]
 }

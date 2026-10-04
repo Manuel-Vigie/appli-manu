@@ -816,7 +816,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V8 · 30/09 06:38</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V9 · 02/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -4268,13 +4268,16 @@ function sectionPartage(){
 
   io.appendChild(el("div","sep"));
   io.appendChild(el("h3","titre-section","Sauvegarde"));
-  io.appendChild(el("p","aide","Le carnet est enregistré dans ce navigateur. Pour le mettre à l'abri ou le transporter, exporte un fichier de sauvegarde."));
+  io.appendChild(el("p","aide","Le carnet est enregistré dans ce navigateur : si tu effaces les données du site dans Chrome, tout disparaît. La sauvegarde complète contient TOUS les albums, leur musique, les photos et les vidéos. Le fichier créé reste sur ton téléphone même si tu effaces Chrome ; copie-le aussi sur Google Drive."));
+  var dateSauv=el("p","aide","Dernière sauvegarde complète : aucune sur cet appareil."); dateSauv.style.fontWeight="700";
+  io.appendChild(dateSauv);
+  lire("meta","derniereSauvegarde").then(function(t){ if(t) dateSauv.textContent="Dernière sauvegarde complète : "+new Date(t).toLocaleString("fr-FR")+"."; });
   var rang=el("div","rangee-actions"); rang.style.marginTop=".7rem";
-  var e1=el("button","bouton","Exporter avec les médias");
+  var e1=el("button","bouton","Sauvegarder TOUTE la bibliothèque (avec musique et médias)");
   e1.addEventListener("click",function(){ exporter(true); });
-  var e2=el("button","bouton","Exporter le texte seul");
+  var e2=el("button","bouton","Sauvegarde légère (texte seul, sans médias)");
   e2.addEventListener("click",function(){ exporter(false); });
-  var e3=el("button","bouton","Importer une sauvegarde");
+  var e3=el("button","bouton","Restaurer une sauvegarde");
   e3.addEventListener("click",function(){ document.getElementById("pioche-import").click(); });
   rang.appendChild(e1); rang.appendChild(e2); rang.appendChild(e3);
   io.appendChild(rang);
@@ -4746,7 +4749,12 @@ function exporter(avecMedias){
   suite.then(function(){
     var texte=JSON.stringify(paquet);
     var blob=new Blob([texte],{type:"application/json"});
-    telechargerBlob(blob,nomFichier(avecMedias?"sauvegarde":"sauvegarde texte","json"));
+    var nb=biblio.albums.length;
+    var nom="CarnetRando - Bibliotheque complete ("+nb+" album"+(nb>1?"s":"")+(avecMedias?"":", texte seul")+") "+new Date().toISOString().slice(0,10)+".json";
+    telechargerBlob(blob,nom);
+    ecrire("meta","derniereSauvegarde",Date.now());
+  }).catch(function(){
+    note("La sauvegarde a échoué (mémoire du téléphone insuffisante ?). Essaie « texte seul », ou dis-le à Claude.");
   });
 }
 
