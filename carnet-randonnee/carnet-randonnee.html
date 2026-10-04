@@ -497,7 +497,7 @@ body.partage #biblio-suppr,body.partage #biblio-nouveau,body.partage #biblio-env
   position:fixed;left:0;right:0;bottom:0;z-index:300;display:none;
   flex-direction:column;gap:.5rem;
   background:#0d120df2;border-top:1px solid #ffffff24;
-  padding:.6rem .8rem;padding-bottom:max(.7rem,env(safe-area-inset-bottom));
+  padding:.4rem .6rem;padding-bottom:max(.45rem,env(safe-area-inset-bottom));
   box-shadow:0 -12px 30px -18px #000;
   max-height:78vh;max-height:78dvh;overflow-y:auto;overscroll-behavior:contain;
 }
@@ -551,17 +551,18 @@ body.classer .ajout-page,body.classer .ajout-grand{display:none!important}
 .cls-badge.fait{background:#2f6f4f;border-color:#8fd0aa}
 .cls-chip{border:1px solid #ffffff66;background:#000000c8;color:#fff;border-radius:.6rem;padding:.3rem .15rem;min-height:2.3rem;font:600 .68rem/1.05 system-ui,sans-serif;white-space:normal;text-align:center}
 .cls-chip.actif{background:#2f6f4f;border-color:#8fd0aa}
-.barre-classer{position:fixed;left:0;right:0;bottom:0;z-index:300;display:none;flex-direction:column;gap:.5rem;background:#0d120df2;border-top:1px solid #ffffff24;padding:.6rem .8rem;padding-bottom:max(.7rem,env(safe-area-inset-bottom));box-shadow:0 -12px 30px -18px #000}
+.barre-classer{position:fixed;left:0;right:0;bottom:0;z-index:300;display:none;flex-direction:column;gap:.3rem;background:#0d120df2;border-top:1px solid #ffffff24;padding:.6rem .8rem;padding-bottom:max(.7rem,env(safe-area-inset-bottom));box-shadow:0 -12px 30px -18px #000}
 body.classer .barre-classer{display:flex}
 body.classer .pied{display:none}
-body.classer .scene{padding-bottom:19.5rem}
+body.classer .scene{padding-bottom:7.6rem}
 body.classer .zone-bord{pointer-events:none}
 body.classer .case.cls-sel{outline:3px solid #e8b84a;outline-offset:-3px}
 .bc-lib{font-size:.72rem;color:#b9c7b5;flex:0 0 auto}
-.bc-ligne.bc-move .fleche{flex:1;width:auto;max-width:none;height:2.6rem}
-.bc-ligne{display:flex;gap:.5rem;align-items:center}
-.bc-ligne .bouton{flex:1;padding:.7rem}
-.bc-ligne .fleche{width:2.6rem;height:2.6rem;flex:0 0 auto}
+.bc-ligne{display:flex;gap:.4rem;align-items:center}
+.bc-ligne #bc-compte{flex:1;text-align:center;font-size:.85rem}
+.bc-ligne [data-bcn]{flex:1;width:auto}
+.bc-ligne .bouton{flex:1;padding:.4rem;min-height:2.3rem}
+.bc-ligne .fleche{width:2.3rem;height:2.1rem;flex:0 0 auto;font-size:.9rem}
 #bc-compte{flex:1;text-align:center;font-size:.9rem;color:#F5F0E3}
 .ar-etiq{display:flex;flex-direction:column;gap:.45rem}
 .ar-etiq-grille{display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
@@ -884,7 +885,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 </header>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V34 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V35 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -962,13 +963,11 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     <button class="fleche" id="bc-prec" aria-label="Page précédente">‹</button>
     <span id="bc-compte"></span>
     <button class="fleche" id="bc-suiv" aria-label="Page suivante">›</button>
-  </div>
-  <div class="bc-ligne bc-move">
     <button class="fleche" id="bc-moins" aria-label="Réduire">−</button>
     <button class="fleche" id="bc-plus" aria-label="Agrandir">+</button>
   </div>
-  <div class="bc-ligne bc-move">
-    <span class="bc-lib">Photos par page</span>
+  <div class="bc-ligne">
+    <span class="bc-lib">Par page</span>
     <button class="fleche" data-bcn="1">1</button>
     <button class="fleche" data-bcn="2">2</button>
     <button class="fleche" data-bcn="3">3</button>

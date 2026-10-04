@@ -1,6 +1,6 @@
 // Carnet de rando V10 — mise en cache pour usage hors connexion
 // Pour forcer une mise à jour chez tout le monde : changer ce nom (V9-b, V10…)
-const SHELL = 'carnet-app-V34';
+const SHELL = 'carnet-app-V35';
 const LIBS = 'carnet-libs';
 const TILES = 'carnet-tuiles';
 const MAX_TILES = 3000;
