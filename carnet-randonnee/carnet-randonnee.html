@@ -885,7 +885,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 </header>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V35 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V36 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -1895,6 +1895,7 @@ function puces(m){
     b.style.gridColumn="span "+(SPAN_ETAPE[n]||3);
     b.addEventListener("click",function(e){
       e.stopPropagation();
+      if(cls.cur!==m||Date.now()-(cls.t||0)<600) return;   // touche trop tôt : c'était pour choisir la photo
       if(m.etape===n) delete m.etape; else m.etape=n;
       [].forEach.call(d.children,function(x){ x.classList.toggle("actif",x.dataset.et===m.etape); });
       majBadge(m); choisirClasser(m); sauver(); majCompteClasser();
@@ -3661,6 +3662,7 @@ function majCompteClasser(){
   document.getElementById("bc-compte").textContent="Classées : "+ok+" / "+tot;
 }
 function choisirClasser(m){
+  if(cls.cur!==m) cls.t=Date.now();   // les boutons viennent d'apparaître : on les laisse « dormir » un instant
   cls.cur=m;
   [].forEach.call(livre.querySelectorAll(".case"),function(c){ c.classList.toggle("cls-sel",c._media===m); });
 }

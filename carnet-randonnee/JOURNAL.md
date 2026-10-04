@@ -75,3 +75,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 04/10 V33 : bouton 📤 Envoyer à l'accueil (bibliothèque complète en un fichier ou en dossier-lien, lecture seule).
 - 04/10 V34 : Classer — étapes rangées en lignes, affichées seulement sur la photo touchée (pastille d'étape sur les autres), la page ne dépasse plus de l'écran.
 - 04/10 V35 : barre du bas de Classer compactée (3 lignes), photos plus grandes.
+- 05/10 V36 : Classer — un tap sur la photo n'active plus par accident un bouton d'étape (délai de sécurité).
