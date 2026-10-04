@@ -539,6 +539,7 @@ body.arranger.outils .note{bottom:calc(var(--ar-h,320px) + 1.2rem)}
 .ar-etiq-grille{display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
 .ar-etiq-grille .bouton{padding:.6rem .3rem;font-size:.85rem;font-weight:600}
 .ar-etiq-grille .bouton.actif{background:#2f6f4f;color:#fff;border-color:#4c8a68}
+.ar-ia{display:flex;gap:.4rem}.ar-ia .bouton{flex:1;font-size:.74rem;padding:.45rem .3rem}
 .ar-etiq-bas{display:flex;gap:.5rem}.ar-etiq-bas .bouton{flex:1}
 body.etiquetage .ar-outils,body.etiquetage .ar-pied{display:none!important}
 .flash-etiq{filter:brightness(1.35)}
@@ -851,7 +852,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V21 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V22 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -913,6 +914,10 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     <button class="bouton plein" id="ar-fin">Terminé</button>
   </div>
   <button class="bouton plein" id="ar-etiq-ouvrir">✨ Ranger les photos tout seul</button>
+  <div class="ar-ia">
+    <button class="bouton" id="ia-export">📤 Miniatures pour Claude</button>
+    <button class="bouton" id="ia-import">📥 Appliquer le classement</button>
+  </div>
   <div class="ar-etiq" id="ar-etiq" hidden>
     <div class="ar-etiq-grille" id="ar-etiq-grille"></div>
     <div class="ar-etiq-bas">
@@ -3632,6 +3637,74 @@ function rangerAuto(){
     });
   });
 }
+
+/* Classement par Claude : on lui envoie de petites images, il renvoie un fichier de classement. */
+function miniature(m){
+  return lire("media",m.id).then(function(b){
+    return new Promise(function(res){
+      var url=null, src=(m.type==="video")?m.poster:null;
+      if(!src){ if(!b){ res(null); return; } url=URL.createObjectURL(b); src=url; }
+      if(!src){ res(null); return; }
+      var im=new Image();
+      im.onload=function(){
+        try{
+          var k=Math.min(1,256/Math.max(im.naturalWidth,im.naturalHeight));
+          var c=document.createElement("canvas");
+          c.width=Math.max(1,Math.round(im.naturalWidth*k)); c.height=Math.max(1,Math.round(im.naturalHeight*k));
+          c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+          res(c.toDataURL("image/jpeg",0.6));
+        }catch(e){ res(null); }
+        if(url) URL.revokeObjectURL(url);
+      };
+      im.onerror=function(){ if(url) URL.revokeObjectURL(url); res(null); };
+      im.src=src;
+    });
+  });
+}
+document.getElementById("ia-export").addEventListener("click",function(){
+  var r=etiqSortie();
+  if(!r||!(r.medias||[]).length){ note("Va sur une page de ta sortie."); return; }
+  note("Préparation des miniatures…");
+  var L=r.medias.slice();
+  Promise.all(L.map(function(m,i){
+    return Promise.all([miniature(m), m.prise?Promise.resolve(m.prise):lire("media",m.id).then(function(b){ return b?lirePrise(b,m.nom):0; })])
+      .then(function(x){ return {id:m.id,n:i+1,nom:m.nom,type:m.type,prise:x[1]?new Date(x[1]).toISOString():null,miniature:x[0]}; });
+  })).then(function(photos){
+    var blob=new Blob([JSON.stringify({format:"carnet-miniatures",sortie:r.titre||"",photos:photos})],{type:"application/json"});
+    var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="carnet-miniatures.json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); },60000);
+    note("Fichier « carnet-miniatures.json » enregistré (Téléchargements). Envoie-le à Claude.");
+  });
+});
+document.getElementById("ia-import").addEventListener("click",function(){
+  var inp=document.createElement("input"); inp.type="file"; inp.accept=".json,application/json";
+  inp.onchange=function(){
+    var f=inp.files[0]; if(!f) return;
+    f.text().then(function(txt){
+      var d=JSON.parse(txt);
+      if(d.format!=="carnet-classement"||!d.etapes) throw new Error("format");
+      var touches=[], nb=0;
+      carnet.randos.forEach(function(r){
+        var ch=false;
+        (r.medias||[]).forEach(function(m){ if(d.etapes[m.id]){ m.etape=d.etapes[m.id]; ch=true; nb++; } });
+        if(ch){
+          if(d.ordre&&d.ordre.length){
+            var par={}; r.medias.forEach(function(m){ par[m.id]=m; });
+            var nouv=[]; d.ordre.forEach(function(id){ if(par[id]){ nouv.push(par[id]); delete par[id]; } });
+            r.medias.forEach(function(m){ if(par[m.id]) nouv.push(m); });
+            r.medias=nouv;
+          }else touches.push(r);
+        }
+      });
+      return Promise.all(touches.map(trierSortieParHeure)).then(function(){
+        sauver(); rafraichir(true);
+        note(nb?("Classement appliqué à "+nb+" photos."):"Aucune photo ne correspond à ce fichier.");
+      });
+    }).catch(function(){ note("Ce fichier n'est pas un classement de Claude."); });
+  };
+  inp.click();
+});
 
 /* Déplacer une photo loin : on la prend, on va à l'endroit voulu, on la pose avant ou après une autre. */
 function majPorte(){
