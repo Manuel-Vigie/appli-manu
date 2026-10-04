@@ -869,7 +869,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V30 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V31 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -929,10 +929,6 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     <button class="fleche" id="bc-suiv" aria-label="Page suivante">›</button>
   </div>
   <div class="bc-ligne bc-move">
-    <button class="fleche" id="bc-g" aria-label="Déplacer la photo vers la gauche">←</button>
-    <button class="fleche" id="bc-h" aria-label="Monter la photo">↑</button>
-    <button class="fleche" id="bc-b" aria-label="Descendre la photo">↓</button>
-    <button class="fleche" id="bc-d" aria-label="Déplacer la photo vers la droite">→</button>
     <button class="fleche" id="bc-moins" aria-label="Réduire">−</button>
     <button class="fleche" id="bc-plus" aria-label="Agrandir">+</button>
   </div>
@@ -1132,7 +1128,7 @@ function albumVierge(titre){
            couleur:TEINTES[0].c, randos:[], exemples:true };
 }
 var biblio={ albums:[], courant:0 };
-var ETAPES=["Départ","Parcours 1","Parcours 2","Parcours 3","Grotte","Départ des grottes","Arrivée"];
+var ETAPES=["Départ","Parcours 1","Parcours 2","Parcours 3","Parcours 4","Parcours 5","Grotte","Départ des grottes","Arrivée"];
 var LIBELLE_ETAPE={"Départ des grottes":"Départ grottes"};
 var cls={on:false,snap:null,cur:null};
 var carnet=null;   // raccourci vers l'album ouvert
@@ -3630,10 +3626,6 @@ function bougerClasser(dx,dy,dz){
   [].forEach.call(livre.querySelectorAll(".case"),function(c){ if(c._media===m) appliquerCadre(m,c); });
   sauver();
 }
-document.getElementById("bc-g").addEventListener("click",function(){ bougerClasser(8,0,0); });
-document.getElementById("bc-d").addEventListener("click",function(){ bougerClasser(-8,0,0); });
-document.getElementById("bc-h").addEventListener("click",function(){ bougerClasser(0,8,0); });
-document.getElementById("bc-b").addEventListener("click",function(){ bougerClasser(0,-8,0); });
 document.getElementById("bc-moins").addEventListener("click",function(){ bougerClasser(0,0,-0.15); });
 document.getElementById("bc-plus").addEventListener("click",function(){ bougerClasser(0,0,0.15); });
 function relireLivre(){
