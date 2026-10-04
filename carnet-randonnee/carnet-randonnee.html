@@ -542,10 +542,11 @@ body.classer .cls-chips{display:flex}
 .barre-classer{position:fixed;left:0;right:0;bottom:0;z-index:300;display:none;flex-direction:column;gap:.5rem;background:#0d120df2;border-top:1px solid #ffffff24;padding:.6rem .8rem;padding-bottom:max(.7rem,env(safe-area-inset-bottom));box-shadow:0 -12px 30px -18px #000}
 body.classer .barre-classer{display:flex}
 body.classer .pied{display:none}
-body.classer .scene{padding-bottom:13.5rem}
-body.classer .note{bottom:15rem}
+body.classer .scene{padding-bottom:16.5rem}
+body.classer .note{bottom:18rem}
 body.classer .zone-bord{pointer-events:none}
 body.classer .case.cls-sel{outline:3px solid #e8b84a;outline-offset:-3px}
+.bc-lib{font-size:.72rem;color:#b9c7b5;flex:0 0 auto}
 .bc-ligne.bc-move .fleche{flex:1;width:auto;max-width:none;height:2.6rem}
 .bc-ligne{display:flex;gap:.5rem;align-items:center}
 .bc-ligne .bouton{flex:1;padding:.7rem}
@@ -868,7 +869,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V29 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V30 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -934,6 +935,14 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     <button class="fleche" id="bc-d" aria-label="Déplacer la photo vers la droite">→</button>
     <button class="fleche" id="bc-moins" aria-label="Réduire">−</button>
     <button class="fleche" id="bc-plus" aria-label="Agrandir">+</button>
+  </div>
+  <div class="bc-ligne bc-move">
+    <span class="bc-lib">Photos par page</span>
+    <button class="fleche" data-bcn="1">1</button>
+    <button class="fleche" data-bcn="2">2</button>
+    <button class="fleche" data-bcn="3">3</button>
+    <button class="fleche" data-bcn="4">4</button>
+    <button class="fleche" data-bcn="0">Auto</button>
   </div>
   <div class="bc-ligne">
     <button class="bouton plein" id="bc-valider">Valider</button>
@@ -3403,8 +3412,9 @@ function blocDe(m){
 }
 
 function reglerParPage(n){
-  if(!choisi||!choisi._media) return;
-  var m=choisi._media, bloc=blocDe(m);
+  var m=(cls.on&&cls.cur)?cls.cur:(choisi&&choisi._media);
+  if(!m) return;
+  var bloc=blocDe(m);
   var tete=bloc?bloc.items[0]:m;
   var ou=situerSouvenir(tete);
   if(!ou) return;
@@ -3436,6 +3446,9 @@ function reglerParPage(n){
   else note("Cette page contient "+reel+" photo"+(reel>1?"s":"")+".");
 }
 
+[].forEach.call(document.querySelectorAll("[data-bcn]"),function(b){
+  b.addEventListener("click",function(){ reglerParPage(+b.dataset.bcn); });
+});
 document.getElementById("ar-n1").addEventListener("click",function(){ reglerParPage(1); });
 document.getElementById("ar-n2").addEventListener("click",function(){ reglerParPage(2); });
 document.getElementById("ar-n3").addEventListener("click",function(){ reglerParPage(3); });

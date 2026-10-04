@@ -69,3 +69,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 04/10/2026 — V27 : le choix « Photos sur cette page » (1, 2, 3, 4, auto) est de retour dans le menu Retoucher. Cache : carnet-app-V27.
 - 04/10/2026 — V28 : nouveau mode « 🏷 Classer les photos » (Retoucher). Sur chaque photo de tout l'album : Départ, Parcours 1, 2, 3, Grotte, Départ des grottes, Arrivée. Barre du bas : ‹ › pages, compteur, Valider (range tout l'album par étape puis heure, boutons retirés), Annuler. Menu Retoucher réduit (Claude, Déplacer cachés). Cache : carnet-app-V28.
 - 04/10 V29 : boutons Classer plus gros (plus de page qui tourne), flèches ← ↑ ↓ → et − + pour cadrer la photo choisie.
+- 04/10 V30 : choix du nombre de photos par page (1 à 4, Auto) dans la barre Classer.
