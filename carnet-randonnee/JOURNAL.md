@@ -73,3 +73,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 04/10 V31 : Parcours 4 et 5 ajoutés, flèches de déplacement retirées (reste − +).
 - 04/10 V32 : étapes Parcours 6, Devant la grotte, Départ 1, Départ 2 ; bouton flottant 🏷 Classer / ▾ Replier toujours visible.
 - 04/10 V33 : bouton 📤 Envoyer à l'accueil (bibliothèque complète en un fichier ou en dossier-lien, lecture seule).
+- 04/10 V34 : Classer — étapes rangées en lignes, affichées seulement sur la photo touchée (pastille d'étape sur les autres), la page ne dépasse plus de l'écran.

@@ -543,9 +543,13 @@ body.arranger.outils .note{bottom:calc(var(--ar-h,320px) + 1.2rem)}
 .cl-bas .bouton{flex:1;padding:.6rem}
 .ar-etapes[hidden],.ar-etiq[hidden]{display:none}
 #ar-etapes,#ar-trier,#ar-classeur-ouvrir,#ar-gauche,#ar-droite,#ar-reset,#ar-ajouter,.ar-ia,#ar-deplace,#ar-pose{display:none!important}
-.cls-chips{display:none;position:absolute;left:.2rem;right:.2rem;bottom:.2rem;z-index:7;flex-wrap:wrap;gap:.3rem;justify-content:center}
-body.classer .cls-chips{display:flex}
-.cls-chip{border:1px solid #ffffff66;background:#000000c8;color:#fff;border-radius:1.2rem;padding:.5rem .6rem;min-height:2.3rem;font:600 .72rem/1.1 system-ui,sans-serif;white-space:nowrap}
+.cls-chips{display:none;position:absolute;left:.25rem;right:.25rem;bottom:.25rem;z-index:7;grid-template-columns:repeat(12,1fr);gap:.25rem;padding:.3rem;border-radius:.7rem;background:#000000a6}
+body.classer .case.cls-sel .cls-chips{display:grid}
+.cls-badge{display:none;position:absolute;left:.4rem;bottom:.4rem;z-index:7;padding:.35rem .6rem;border-radius:1rem;background:#000000c8;color:#fff;font:600 .72rem/1.1 system-ui,sans-serif;border:1px solid #ffffff66}
+body.classer .case:not(.cls-sel) .cls-badge{display:block}
+body.classer .ajout-page,body.classer .ajout-grand{display:none!important}
+.cls-badge.fait{background:#2f6f4f;border-color:#8fd0aa}
+.cls-chip{border:1px solid #ffffff66;background:#000000c8;color:#fff;border-radius:.6rem;padding:.3rem .15rem;min-height:2.3rem;font:600 .68rem/1.05 system-ui,sans-serif;white-space:normal;text-align:center}
 .cls-chip.actif{background:#2f6f4f;border-color:#8fd0aa}
 .barre-classer{position:fixed;left:0;right:0;bottom:0;z-index:300;display:none;flex-direction:column;gap:.5rem;background:#0d120df2;border-top:1px solid #ffffff24;padding:.6rem .8rem;padding-bottom:max(.7rem,env(safe-area-inset-bottom));box-shadow:0 -12px 30px -18px #000}
 body.classer .barre-classer{display:flex}
@@ -880,7 +884,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 </header>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V33 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V34 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -1889,16 +1893,25 @@ function puces(m){
   ETAPES.forEach(function(n){
     var b=el("button","cls-chip"+(m.etape===n?" actif":""),LIBELLE_ETAPE[n]||n);
     b.type="button"; b.dataset.et=n;
+    b.style.gridColumn="span "+(SPAN_ETAPE[n]||3);
     b.addEventListener("click",function(e){
       e.stopPropagation();
       if(m.etape===n) delete m.etape; else m.etape=n;
       [].forEach.call(d.children,function(x){ x.classList.toggle("actif",x.dataset.et===m.etape); });
-      choisirClasser(m); sauver(); majCompteClasser();
+      majBadge(m); choisirClasser(m); sauver(); majCompteClasser();
     });
     d.appendChild(b);
   });
   d.addEventListener("pointerdown",function(e){ e.stopPropagation(); });
   return d;
+}
+var SPAN_ETAPE={"Départ":3,"Parcours 1":3,"Parcours 2":3,"Parcours 3":3,"Parcours 4":4,"Parcours 5":4,"Parcours 6":4,
+  "Arrivée devant la grotte":6,"Grotte":6,"Départ des grottes":3,"Départ 1":3,"Départ 2":3,"Arrivée":3};
+function majBadge(m){
+  [].forEach.call(document.querySelectorAll('.case[data-id="'+m.id+'"] .cls-badge'),function(b){
+    b.textContent=m.etape?(LIBELLE_ETAPE[m.etape]||m.etape):"Touche pour classer";
+    b.classList.toggle("fait",!!m.etape);
+  });
 }
 function caseMedia(m,avecLegende){
   var c=el("div","case");
@@ -1906,6 +1919,8 @@ function caseMedia(m,avecLegende){
   c._media=m;
   if(m.etape) c.appendChild(el("span","badge-etape",m.etape));
   c.appendChild(puces(m));
+  var bdg=el("div","cls-badge"); c.appendChild(bdg);
+  bdg.textContent=m.etape?(LIBELLE_ETAPE[m.etape]||m.etape):"Touche pour classer"; bdg.classList.toggle("fait",!!m.etape);
   if(cls.on&&m===cls.cur) c.classList.add("cls-sel");
   if(m===porte) c.classList.add("porte");
   var trou=el("div","trou");
@@ -2335,6 +2350,10 @@ function dimensionner(){
   var scene=document.getElementById("scene");
   var marge=pleinEcran?2:6;
   var dispoL=scene.clientWidth-marge, dispoH=scene.clientHeight-marge;
+  if(document.body.classList.contains("classer")){
+    var cs=getComputedStyle(scene);
+    dispoH-=(parseFloat(cs.paddingTop)||0)+(parseFloat(cs.paddingBottom)||0);
+  }
   // une seule page uniquement sur un écran étroit tenu à la verticale :
   // dès que l'écran est en paysage, le livre s'ouvre en grand
   var nouveauMono = (vueForcee==="simple") ? true
