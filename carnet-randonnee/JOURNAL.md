@@ -83,3 +83,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 05/10 V41 : plateau — chaque album est noté Album 1, Album 2… au lieu de « N sorties ».
 - 05/10 V42 : fichier envoyé = lecture seule garantie (marqueur dans la page, lecture tardive de l'album embarqué) ; plus aucun bouton d'édition en haut.
 - 05/10 V43 : bouton « Installer sur le bureau » dans l'application de lecture hébergée.
+- 05/10 V44 : envoi Application avec vidéos — vidéos copiées sans conversion en mémoire, progression affichée.

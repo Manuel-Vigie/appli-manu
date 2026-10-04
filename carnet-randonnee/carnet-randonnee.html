@@ -912,7 +912,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V43 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V44 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -5633,6 +5633,20 @@ function crc32(u8){
   for(var i=0;i<u8.length;i++) c=tableCRC[(c^u8[i])&0xFF]^(c>>>8);
   return (c^0xFFFFFFFF)>>>0;
 }
+/* Somme de contrôle d'un gros fichier, lu par tranches : rien n'est gardé en mémoire. */
+function crcBlob(blob){
+  var c=0xFFFFFFFF, pos=0, PAS=2*1048576;
+  return new Promise(function(res,rej){
+    (function suite(){
+      if(pos>=blob.size){ res((c^0xFFFFFFFF)>>>0); return; }
+      blob.slice(pos,pos+PAS).arrayBuffer().then(function(t){
+        var u=new Uint8Array(t);
+        for(var i=0;i<u.length;i++) c=tableCRC[(c^u[i])&0xFF]^(c>>>8);
+        pos+=PAS; setTimeout(suite,0);
+      }).catch(rej);
+    })();
+  });
+}
 function mot(n){ return new Uint8Array([n&255,(n>>8)&255]); }
 function quad(n){ return new Uint8Array([n&255,(n>>8)&255,(n>>16)&255,(n>>>24)&255]); }
 
@@ -5643,11 +5657,13 @@ function fabriquerZip(entrees){
   var heureDos=(d.getHours()<<11)|(d.getMinutes()<<5)|Math.floor(d.getSeconds()/2);
   var morceaux=[], central=[], decalage=0;
   entrees.forEach(function(e){
-    var nom=enc.encode(e.nom), somme=crc32(e.donnees), taille=e.donnees.length;
+    var nom=enc.encode(e.nom);
+    var somme=(e.somme!==undefined)?e.somme:crc32(e.donnees);
+    var taille=(e.taille!==undefined)?e.taille:e.donnees.length;
     var tete=[quad(0x04034b50),mot(20),mot(0x0800),mot(0),mot(heureDos),mot(dateDos),
               quad(somme),quad(taille),quad(taille),mot(nom.length),mot(0),nom];
     tete.forEach(function(x){ morceaux.push(x); });
-    morceaux.push(e.donnees);
+    morceaux.push(e.blob||e.donnees);
     var entete=0; tete.forEach(function(x){ entete+=x.length; });
     central.push({nom:nom,somme:somme,taille:taille,pos:decalage});
     decalage+=entete+taille;
@@ -5985,11 +6001,21 @@ function envoyerBibliothequeSite(avecVideos){
   var albums=copieBiblio();
   var paquet={format:"carnet-partage",version:2,bibliotheque:{albums:albums,courant:0},medias:{}};
   var entrees=[],suite=Promise.resolve(),vus={};
-  listeMediasBiblio(avecVideos).forEach(function(m){
+  var liste=listeMediasBiblio(avecVideos), fait=0;
+  liste.forEach(function(m){
     suite=suite.then(function(){
       if(vus[m.id]) return; vus[m.id]=true;
       return lire("media",m.id).then(function(b){
         if(!b||!b.arrayBuffer) return;
+        var gros=(m.type==="video"||m.type==="audio"||!/^image\//.test(b.type||""));
+        if(gros){
+          // vidéo, musique : le fichier part tel quel, sans être relu en entier
+          var chemin="medias/"+m.id+"."+extensionDe(b.type,m.nom);
+          return crcBlob(b).then(function(somme){
+            entrees.push({nom:chemin,blob:b,somme:somme,taille:b.size});
+            paquet.medias[m.id]={fichier:chemin,type:b.type||""};
+          });
+        }
         return donneesPourPartage(m,b,1800).then(function(d){
           var source=d?fetch(d).then(function(r){ return r.blob(); }):Promise.resolve(b);
           return source.then(function(fin){
@@ -6000,6 +6026,9 @@ function envoyerBibliothequeSite(avecVideos){
             });
           });
         });
+      }).catch(function(){}).then(function(){
+        fait++;
+        if(fait%2===0||fait===liste.length) note("Préparation… "+fait+" / "+liste.length);
       });
     });
   });
@@ -6027,7 +6056,7 @@ function envoyerBibliothequeSite(avecVideos){
       var zip=fabriquerZip(entrees);
       telechargerBlob(zip,"CarnetRando - Bibliotheque - application "+new Date().toISOString().slice(0,10)+".zip",Math.round(zip.size/1048576));
     });
-  }).catch(function(){ note("La préparation a échoué. Essaie sans les vidéos."); });
+  }).catch(function(e){ note("La préparation a échoué"+(e&&e.name?(" ("+e.name+")"):"")+". Essaie « photos seules »."); });
 }
 /* Le programme de cache de l'application de lecture : la page se met à jour
    toute seule dès qu'il y a du réseau ; les photos, déjà vues, restent sur l'appareil. */
