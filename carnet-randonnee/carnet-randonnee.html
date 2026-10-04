@@ -491,6 +491,7 @@ body.partage .marque{display:none}
   background:#0d120df2;border-top:1px solid #ffffff24;
   padding:.6rem .8rem;padding-bottom:max(.7rem,env(safe-area-inset-bottom));
   box-shadow:0 -12px 30px -18px #000;
+  max-height:78vh;max-height:78dvh;overflow-y:auto;overscroll-behavior:contain;
 }
 body.arranger .barre-arrange{display:flex}
 body.arranger .pied{display:none}
@@ -517,12 +518,10 @@ body.saisie .ar-outils,body.saisie .ar-pied{display:none!important}
 .barre-arrange .fleche.danger:hover{background:#7a2f2f}
 .barre-arrange .fleche.actif{background:var(--sapin);border-color:#4c8a68;color:#F5F0E3}
 body.arranger .scene{padding-bottom:4.6rem}
-body.arranger.outils .scene{padding-bottom:20.5rem}
-body.arranger.outils.ar-plie .scene{padding-bottom:4.6rem}
+body.arranger.outils .scene{padding-bottom:calc(var(--ar-h,320px) + .6rem)}
 body.ar-plie .ar-outils,body.ar-plie .ar-pied{display:none!important}
 body.arranger .note{bottom:5.4rem}
-body.arranger.outils .note{bottom:21rem}
-body.arranger.outils.ar-plie .note{bottom:5.4rem}
+body.arranger.outils .note{bottom:calc(var(--ar-h,320px) + 1.2rem)}
 .etape-bandeau{position:absolute;top:.5rem;left:50%;transform:translateX(-50%);z-index:3;padding:.15rem .8rem;border-radius:1rem;background:rgba(40,30,20,.78);color:#fff;font:600 .8rem/1.3 system-ui,sans-serif;letter-spacing:.04em;pointer-events:none}
 .badge-etape{display:none;position:absolute;left:.3rem;bottom:.3rem;z-index:4;padding:.05rem .45rem;border-radius:1rem;background:#2f6f4f;color:#fff;font:600 .65rem/1.4 system-ui,sans-serif;pointer-events:none}
 body.arranger .badge-etape{display:block}
@@ -831,7 +830,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V14 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V15 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -3071,7 +3070,29 @@ document.getElementById("ar-texte-champ").addEventListener("keydown",function(e)
 
 /* Le livre laisse la place à la barre d'édition et se redessine à sa
    nouvelle taille, sans perdre la photo en cours. */
-var plie=false;
+var plie=false, hauteurBarre=0, minuteurBarre=null;
+/* La page s'adapte à la vraie hauteur du menu, quelle que soit la taille du texte du téléphone. */
+(function(){
+  var bar=document.getElementById("barre-arrange");
+  function mesure(){
+    var h=bar.offsetHeight;
+    if(!h||Math.abs(h-hauteurBarre)<3) return;
+    hauteurBarre=h;
+    document.documentElement.style.setProperty("--ar-h",h+"px");
+    clearTimeout(minuteurBarre);
+    minuteurBarre=setTimeout(function(){
+      if(!arranger) return;
+      var m=choisi?choisi._media:null;
+      dimensionner(); rendreLivre();
+      if(m){
+        var trouve=null;
+        [].forEach.call(livre.querySelectorAll(".case"),function(c){ if(c._media===m) trouve=c; });
+        if(trouve){ choisi=trouve; trouve.classList.add("actif"); }
+      }
+    },120);
+  }
+  if(window.ResizeObserver) new ResizeObserver(mesure).observe(bar);
+})();
 function plierMenu(p){
   plie=p;
   document.body.classList.toggle("ar-plie",p);

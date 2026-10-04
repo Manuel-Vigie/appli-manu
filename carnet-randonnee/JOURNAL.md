@@ -54,3 +54,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 04/10/2026 — V12 : étapes (Départ, Préparation, Grotte, Retour). Sur une photo (Retoucher) on touche une étape ; le bouton « Trier » regroupe par étape puis par heure. Chaque étape commence sur une nouvelle page avec un bandeau. Cache : carnet-app-V12.
 - 04/10/2026 — V13 : bouton « ✨ Classer tout seul » : range par heure puis coupe aux 3 plus longues pauses = 4 étapes. Cache : carnet-app-V13.
 - 04/10/2026 — V14 : bouton ▾/▴ dans la barre de Retoucher pour plier / déplier le menu (la page reste visible en grand). Cache : carnet-app-V14.
+- 04/10/2026 — V15 : le menu Retoucher se déplie en entier (la page s'adapte à la vraie hauteur du menu ; le menu défile s'il est plus haut que l'écran). Cache : carnet-app-V15.
