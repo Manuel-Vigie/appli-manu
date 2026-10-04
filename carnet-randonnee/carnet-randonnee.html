@@ -473,7 +473,7 @@ body.biblio-ouverte .barre,body.biblio-ouverte .pied{visibility:hidden}
 /* ---------- album reçu : lecture seule ---------- */
 body.partage #btn-atelier,
 body.partage #btn-retouche,
-body.partage #btn-biblio,
+body.partage:not(.partage-bib) #btn-biblio,
 body.partage .barre-arrange{display:none!important}
 
 /* on rend au livre chaque millimètre disponible */
@@ -482,7 +482,15 @@ body.partage .barre .bouton{padding:.34rem .5rem;font-size:.86rem}
 body.partage .pied{padding:.18rem .5rem;padding-bottom:max(.18rem,env(safe-area-inset-bottom))}
 body.partage .pied .fleche{width:1.95rem;height:1.95rem}
 body.partage .compteur{font-size:.72rem}
-body.partage .marque{display:none}
+body.partage:not(.partage-bib) .marque{display:none}
+body.partage #biblio-suppr,body.partage #biblio-nouveau,body.partage #biblio-envoyer,body.partage .biblio-neuf{display:none!important}
+.envoi{position:fixed;inset:0;z-index:400;background:#000a;display:none;align-items:center;justify-content:center;padding:1rem}
+.envoi.ouvert{display:flex}
+.envoi-boite{background:#1b231a;color:#F0E9D7;border:1px solid #ffffff2e;border-radius:1rem;padding:1.1rem;max-width:26rem;width:100%;max-height:92vh;overflow:auto;font-family:var(--sans)}
+.envoi-boite h3{margin:.2rem 0 .3rem;font-size:1.05rem}
+.envoi-boite p{margin:.2rem 0 .6rem;font-size:.85rem;line-height:1.35;color:#c9d3c5}
+.envoi-boite .rangee-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.9rem}
+.envoi-boite .bouton{flex:1}
 
 /* ---------- arrangement libre des photos ---------- */
 .barre-arrange{
@@ -841,7 +849,7 @@ body.partage .coupe-video{display:none}
   padding:.32rem .55rem;border-radius:1rem;border:1px solid #ffffff2e;color:#E8C98A;
   background:#20291Ff0;box-shadow:0 6px 16px -8px #000a;cursor:pointer;transition:background .15s}
 .pastille-classer{right:auto;left:.6rem;font-size:.8rem;padding:.5rem .8rem;color:#F0E9D7}
-body.cinema .pastille-classer,body.partage .pastille-classer{display:none}
+body.cinema .pastille-classer,body.partage .pastille-classer,body.biblio-ouverte .pastille-classer{display:none}
 body.classer .note{bottom:auto;top:6.2rem}
 .pastille-maj:hover{background:#2c3a29f0}
 .pastille-maj .fleche-maj{font-size:.85rem;line-height:1}
@@ -872,7 +880,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 </header>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V32 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V33 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -910,10 +918,30 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="fleche" id="suiv" aria-label="Page suivante">›</button>
 </nav>
 
+<div class="envoi" id="envoi">
+  <div class="envoi-boite">
+    <h3>Envoyer toute la bibliothèque</h3>
+    <p>La personne pourra lire tous tes albums, sans rien pouvoir changer.</p>
+    <h3>1. Un fichier</h3>
+    <p>Un seul fichier à envoyer (WhatsApp, mail…). Elle l'enregistre sur son bureau et l'ouvre : c'est tout.</p>
+    <div class="rangee-actions">
+      <button class="bouton plein" id="env-f1">Photos seules</button>
+      <button class="bouton" id="env-f2">Avec les vidéos</button>
+    </div>
+    <h3>2. Un lien</h3>
+    <p>Prépare un dossier à déposer sur internet. Une fois déposé, tu obtiens une adresse à envoyer.</p>
+    <div class="rangee-actions">
+      <button class="bouton" id="env-l1">Dossier — photos seules</button>
+      <button class="bouton" id="env-l2">Dossier — avec vidéos</button>
+    </div>
+    <div class="rangee-actions"><button class="bouton" id="env-fermer">Fermer</button></div>
+  </div>
+</div>
 <div class="biblio" id="biblio">
   <div class="biblio-tete">
     <h2>Ma bibliothèque</h2>
     <button class="bouton danger" id="biblio-suppr">Supprimer</button>
+    <button class="bouton" id="biblio-envoyer">📤 Envoyer</button>
     <button class="bouton" id="biblio-nouveau">Nouvel album</button>
     <button class="bouton plein" id="biblio-fermer">Ouvrir</button>
   </div>
@@ -3027,9 +3055,9 @@ function choisirAlbum(i){
   if(i<0||i>=biblio.albums.length) return;
   biblio.courant=i;
   carnet=biblio.albums[i];
-  Object.keys(urls).forEach(function(k){ URL.revokeObjectURL(urls[k]); delete urls[k]; });
+  if(!partage) Object.keys(urls).forEach(function(k){ URL.revokeObjectURL(urls[k]); delete urls[k]; });
   feuillet=0; pageCourante=0;
-  if(location.hash) { try{ location.hash="a="+carnet.id; }catch(e){} }
+  if(location.hash && !partage) { try{ location.hash="a="+carnet.id; }catch(e){} }
   majIdentite();
   sauver();
   rendreBibliotheque();
@@ -5715,6 +5743,109 @@ function squelettePage(){
   return {avant:page.slice(0,coupe), apres:page.slice(coupe)};
 }
 
+/* ---------- Envoyer toute la bibliothèque (lecture seule) ---------- */
+function copieBiblio(){
+  var albums=JSON.parse(JSON.stringify(biblio.albums));
+  albums.forEach(function(a){ a.randos.forEach(function(r){ delete r._page; }); a.exemples=false; });
+  return albums;
+}
+function listeMediasBiblio(avecVideos){
+  var l=[];
+  biblio.albums.forEach(function(a){
+    a.randos.forEach(function(r){ (r.medias||[]).forEach(function(m){
+      if(m.type==="video"&&!avecVideos) return;
+      l.push(m);
+    }); });
+    if(a.musique) l.push({id:a.musique.id,type:"audio"});
+  });
+  return l;
+}
+function nettoyerBiblio(albums,gardes){
+  albums.forEach(function(a){
+    a.randos.forEach(function(r){ r.medias=(r.medias||[]).filter(function(m){ return !!gardes[m.id]; }); });
+    if(a.musique&&!gardes[a.musique.id]) delete a.musique;
+  });
+}
+function envoyerBibliotheque(avecVideos){
+  var albums=copieBiblio();
+  var aFaire=listeMediasBiblio(avecVideos);
+  if(!aFaire.length){ note("Aucune photo à envoyer."); return; }
+  var cote=aFaire.length>250?1000:(aFaire.length>120?1200:(aFaire.length>60?1400:1700));
+  var page=squelettePage();
+  var morceaux=[page.avant,'<script id="carnet-embarque" type="application/json">','{"format":"carnet-partage","version":2,"medias":{'];
+  var gardes={},fait=0,perdus=0,premier=true;
+  note("Préparation… 0 / "+aFaire.length);
+  var suite=Promise.resolve();
+  aFaire.forEach(function(m){
+    suite=suite.then(function(){
+      if(gardes[m.id]) return;
+      return lire("media",m.id).then(function(b){
+        if(!b){ perdus++; return; }
+        return donneesPourPartage(m,b,cote).then(function(d){
+          if(!d){ perdus++; return; }
+          morceaux.push(new Blob([(premier?"":",")+JSON.stringify(m.id)+':{"type":'+JSON.stringify(b.type||"")+',"data":"',d,'"}']));
+          premier=false; gardes[m.id]=true; d=null;
+        });
+      }).catch(function(){ perdus++; }).then(function(){
+        fait++;
+        if(fait%2===0||fait===aFaire.length) note("Préparation… "+fait+" / "+aFaire.length);
+      });
+    });
+  });
+  return suite.then(function(){
+    nettoyerBiblio(albums,gardes);
+    morceaux.push('},"bibliotheque":'+JSON.stringify({albums:albums,courant:biblio.courant}).replace(/<\//g,"<\\/")+'}');
+    morceaux.push('<\/script>\n'); morceaux.push(page.apres);
+    if(perdus) note(perdus+" fichier(s) illisible(s) laissés de côté.");
+    return remettreFichier(new Blob(morceaux,{type:"text/html"}),"CarnetRando - Bibliotheque - "+new Date().toISOString().slice(0,10)+".html");
+  }).catch(function(e){
+    note("La préparation a échoué. Essaie « Photos seules ».");
+  });
+}
+function envoyerBibliothequeSite(avecVideos){
+  note("Préparation du dossier…");
+  var albums=copieBiblio();
+  var paquet={format:"carnet-partage",version:2,bibliotheque:{albums:albums,courant:biblio.courant},medias:{}};
+  var entrees=[],suite=Promise.resolve(),vus={};
+  listeMediasBiblio(avecVideos).forEach(function(m){
+    suite=suite.then(function(){
+      if(vus[m.id]) return; vus[m.id]=true;
+      return lire("media",m.id).then(function(b){
+        if(!b||!b.arrayBuffer) return;
+        return donneesPourPartage(m,b,1800).then(function(d){
+          var source=d?fetch(d).then(function(r){ return r.blob(); }):Promise.resolve(b);
+          return source.then(function(fin){
+            return fin.arrayBuffer().then(function(t){
+              var chemin="medias/"+m.id+"."+extensionDe(fin.type||b.type,m.nom);
+              entrees.push({nom:chemin,donnees:new Uint8Array(t)});
+              paquet.medias[m.id]={fichier:chemin,type:fin.type||b.type||""};
+            });
+          });
+        });
+      });
+    });
+  });
+  return suite.then(function(){
+    var gardes={}; Object.keys(paquet.medias).forEach(function(k){ gardes[k]=true; });
+    nettoyerBiblio(albums,gardes);
+    return pageAvecAlbum(paquet).arrayBuffer().then(function(t){
+      entrees.unshift({nom:"index.html",donnees:new Uint8Array(t)});
+      var zip=fabriquerZip(entrees);
+      telechargerBlob(zip,"CarnetRando - Bibliotheque - site "+new Date().toISOString().slice(0,10)+".zip",Math.round(zip.size/1048576));
+    });
+  }).catch(function(){ note("La préparation a échoué. Essaie sans les vidéos."); });
+}
+(function(){
+  var f=document.getElementById("envoi");
+  function ferme(){ f.classList.remove("ouvert"); }
+  document.getElementById("biblio-envoyer").addEventListener("click",function(){ f.classList.add("ouvert"); });
+  document.getElementById("env-fermer").addEventListener("click",ferme);
+  f.addEventListener("click",function(e){ if(e.target===f) ferme(); });
+  [["env-f1",function(){ envoyerBibliotheque(false); }],["env-f2",function(){ envoyerBibliotheque(true); }],
+   ["env-l1",function(){ envoyerBibliothequeSite(false); }],["env-l2",function(){ envoyerBibliothequeSite(true); }]]
+  .forEach(function(x){ document.getElementById(x[0]).addEventListener("click",function(){ ferme(); x[1](); }); });
+})();
+
 /* Remet le fichier fabriqué : partage direct si le téléphone le propose,
    sinon téléchargement, avec un lien de secours toujours affiché. */
 function remettreFichier(blob,nom){
@@ -5901,7 +6032,7 @@ function albumEmbarque(){
   if(!balise) return null;
   try{
     var p=JSON.parse(balise.textContent);
-    if(!p||p.format!=="carnet-partage"||!p.album) return null;
+    if(!p||p.format!=="carnet-partage"||!(p.album||p.bibliotheque)) return null;
     return p;
   }catch(e){ return null; }
 }
@@ -5917,8 +6048,11 @@ if(!recu && document.readyState==="loading"){
 if(recu){
   partage=true;
   document.body.classList.add("partage");
-  biblio={albums:[recu.album],courant:0};
-  carnet=recu.album;
+  if(recu.bibliotheque&&recu.bibliotheque.albums&&recu.bibliotheque.albums.length){
+    biblio={albums:recu.bibliotheque.albums,courant:Math.min(recu.bibliotheque.courant||0,recu.bibliotheque.albums.length-1)};
+    if(biblio.albums.length>1) document.body.classList.add("partage-bib");
+  }else biblio={albums:[recu.album],courant:0};
+  carnet=biblio.albums[biblio.courant];
   Object.keys(recu.medias||{}).forEach(function(id){
     var m=recu.medias[id];
     urls[id]=m.data||m.fichier;   // embarqué en base64, ou fichier voisin
@@ -5931,6 +6065,7 @@ if(recu){
   pret=true;
   dimensionner();
   rendreLivre();
+  if(biblio.albums.length>1) ouvrirBibliotheque();
 }else
 
 ouvrirBase().then(function(){
