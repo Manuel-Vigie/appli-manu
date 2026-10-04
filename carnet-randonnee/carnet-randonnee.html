@@ -828,7 +828,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V12 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V13 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -913,6 +913,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
       <button class="bouton" data-etape="Préparation">Préparation</button>
       <button class="bouton" data-etape="Grotte">Grotte</button>
       <button class="bouton" data-etape="Retour">Retour</button>
+      <button class="bouton" id="ar-auto-etapes">✨ Classer tout seul</button>
     </div>
   </div>
   <div class="ar-texte" id="ar-texte">
@@ -3332,6 +3333,38 @@ document.getElementById("ar-etapes").addEventListener("click",function(e){
   sauver();
   redessinerEnGardant(m);
   note(m.etape?("Étape « "+m.etape+" ». Pensez à « Trier » pour regrouper."):"Étape retirée.");
+});
+
+/* Classement automatique : on range par heure, puis on coupe la journée aux
+   3 plus longues pauses entre deux photos = 4 étapes dans l'ordre. */
+function etapesAuto(r){
+  return trierSortieParHeure(r).then(function(){
+    var L=r.medias.slice();
+    if(L.length<4) return false;
+    var trous=[];
+    for(var i=1;i<L.length;i++) trous.push({i:i,d:(L[i].prise||0)-(L[i-1].prise||0)});
+    trous.sort(function(a,b){ return b.d-a.d; });
+    var coupes=trous.slice(0,3).map(function(t){ return t.i; }).sort(function(a,b){ return a-b; });
+    var e=0;
+    L.forEach(function(m,i){
+      while(e<3&&i>=coupes[e]) e++;
+      m.etape=ETAPES[e];
+    });
+    return true;
+  });
+}
+document.getElementById("ar-auto-etapes").addEventListener("click",function(){
+  var r=null, m=(choisi&&choisi._media)||null;
+  if(m){ var ou=situerSouvenir(m); if(ou) r=ou.rando; }
+  else if(carnet.randos.length===1) r=carnet.randos[0];
+  if(!r||(r.medias||[]).length<4){ note("Touchez d'abord une photo de la sortie."); return; }
+  if(!confirm("Classer les photos tout seul en 4 étapes (Départ, Préparation, Grotte, Retour) d'après les pauses entre les photos ?\n\nVous pourrez corriger ensuite photo par photo."))return;
+  note("Classement en cours…");
+  etapesAuto(r).then(function(){
+    sauver();
+    if(m) redessinerEnGardant(m); else rafraichir(true);
+    note("Classé. Vérifiez et corrigez si besoin.");
+  });
 });
 
 document.getElementById("ar-trier").addEventListener("click",function(){
