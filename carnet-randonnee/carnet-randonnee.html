@@ -533,6 +533,8 @@ body.arranger.outils .note{bottom:calc(var(--ar-h,320px) + 1.2rem)}
 .cl-boutons .bouton.actif{background:#2f6f4f;color:#fff}
 .cl-bas{display:flex;gap:.5rem}
 .cl-bas .bouton{flex:1;padding:.6rem}
+.ar-etapes[hidden]{display:none}
+.case.porte{outline:3px dashed #e8b84a;outline-offset:-3px}
 .etape-bandeau{position:absolute;top:.5rem;left:50%;transform:translateX(-50%);z-index:3;padding:.15rem .8rem;border-radius:1rem;background:rgba(40,30,20,.78);color:#fff;font:600 .8rem/1.3 system-ui,sans-serif;letter-spacing:.04em;pointer-events:none}
 .badge-etape{display:none;position:absolute;left:.3rem;bottom:.3rem;z-index:4;padding:.05rem .45rem;border-radius:1rem;background:#2f6f4f;color:#fff;font:600 .65rem/1.4 system-ui,sans-serif;pointer-events:none}
 body.arranger .badge-etape{display:block}
@@ -841,7 +843,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V16 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V17 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -936,6 +938,15 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
       <button class="fleche" id="ar-n3">3</button>
       <button class="fleche" id="ar-n4">4</button>
       <button class="fleche" id="ar-nauto" title="Laisser le carnet décider">auto</button>
+    </div>
+    <div class="ar-etapes" id="ar-deplace">
+      <button class="bouton" id="ar-prendre" style="flex-basis:100%">✋ Déplacer cette photo ailleurs</button>
+    </div>
+    <div class="ar-etapes" id="ar-pose" hidden>
+      <span style="flex-basis:100%">Va à la page voulue (flèches ‹ ›), touche la photo à côté de laquelle la poser, puis :</span>
+      <button class="bouton" id="ar-pose-avant">Poser avant</button>
+      <button class="bouton" id="ar-pose-apres">Poser après</button>
+      <button class="bouton" id="ar-pose-annule">Annuler</button>
     </div>
     <div class="ar-etapes" id="ar-etapes">
       <span>Étape</span>
@@ -1797,6 +1808,7 @@ function caseMedia(m,avecLegende){
   c.dataset.id=m.id;
   c._media=m;
   if(m.etape) c.appendChild(el("span","badge-etape",m.etape));
+  if(m===porte) c.classList.add("porte");
   var trou=el("div","trou");
   // proportions connues dès le départ : la page ne se réajuste plus ensuite
   trou.style.aspectRatio=((m.w&&m.h)?(m.w/m.h):1.5).toFixed(4);
@@ -3098,6 +3110,7 @@ document.getElementById("ar-texte-champ").addEventListener("keydown",function(e)
 
 /* Le livre laisse la place à la barre d'édition et se redessine à sa
    nouvelle taille, sans perdre la photo en cours. */
+var porte=null;
 var plie=false, hauteurBarre=0, minuteurBarre=null;
 /* La page s'adapte à la vraie hauteur du menu, quelle que soit la taille du texte du téléphone. */
 (function(){
@@ -3246,7 +3259,7 @@ function quitterArrangement(){
     document.body.classList.remove("saisie");
     document.getElementById("ar-texte").classList.remove("visible");
   }
-  arranger=false; replie=false; plie=false;
+  arranger=false; replie=false; plie=false; porte=null; majPorte();
   document.body.classList.remove("ar-plie");
   document.getElementById("ar-plier").textContent="▾";
   document.body.classList.remove("arranger","outils");
@@ -3515,6 +3528,39 @@ document.getElementById("classeur").addEventListener("click",function(e){
 document.getElementById("cl-passer").addEventListener("click",function(){ cl.i++; clMontrer(); });
 document.getElementById("cl-prec").addEventListener("click",function(){ if(cl.i>0){ cl.i--; clMontrer(); } });
 document.getElementById("cl-fin").addEventListener("click",clFinir);
+
+/* Déplacer une photo loin : on la prend, on va à l'endroit voulu, on la pose avant ou après une autre. */
+function majPorte(){
+  document.getElementById("ar-deplace").hidden=!!porte;
+  document.getElementById("ar-pose").hidden=!porte;
+}
+document.getElementById("ar-prendre").addEventListener("click",function(){
+  if(!choisi||!choisi._media) return;
+  porte=choisi._media; majPorte();
+  [].forEach.call(livre.querySelectorAll(".case"),function(c){ c.classList.toggle("porte",c._media===porte); });
+  note("Photo prise. Va à l'endroit voulu, touche une photo, puis « Poser ».");
+});
+function poserPhoto(apres){
+  var cible=choisi&&choisi._media;
+  if(!porte) return;
+  if(!cible||cible===porte){ note("Touche d'abord une autre photo, à l'endroit voulu."); return; }
+  var a=situerSouvenir(porte), b=situerSouvenir(cible);
+  if(!a||!b||a.rando!==b.rando){ note("Choisis une photo de la même sortie."); return; }
+  a.rando.medias.splice(a.rang,1);
+  var j=a.rando.medias.indexOf(cible);
+  a.rando.medias.splice(j+(apres?1:0),0,porte);
+  var m=porte; porte=null; majPorte();
+  sauver();
+  redessinerEnGardant(m);
+  setTimeout(function(){ allerVersSouvenir(m); },150);
+  note("Photo déplacée.");
+}
+document.getElementById("ar-pose-avant").addEventListener("click",function(){ poserPhoto(false); });
+document.getElementById("ar-pose-apres").addEventListener("click",function(){ poserPhoto(true); });
+document.getElementById("ar-pose-annule").addEventListener("click",function(){
+  porte=null; majPorte();
+  [].forEach.call(livre.querySelectorAll(".case.porte"),function(c){ c.classList.remove("porte"); });
+});
 
 document.getElementById("ar-plier").addEventListener("click",function(){ plierMenu(!plie); });
 

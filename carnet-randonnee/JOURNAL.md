@@ -56,3 +56,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 04/10/2026 — V14 : bouton ▾/▴ dans la barre de Retoucher pour plier / déplier le menu (la page reste visible en grand). Cache : carnet-app-V14.
 - 04/10/2026 — V15 : le menu Retoucher se déplie en entier (la page s'adapte à la vraie hauteur du menu ; le menu défile s'il est plus haut que l'écran). Cache : carnet-app-V15.
 - 04/10/2026 — V16 : « ▶ Classer en regardant les photos » (Retoucher) : écran plein avec une photo à la fois et 4 gros boutons (Départ, Préparation, Grotte, Retour) ; un appui = étape donnée et photo suivante ; à la fin, rangement automatique par étape puis heure. Cache : carnet-app-V16.
+- 04/10/2026 — V17 : « ✋ Déplacer cette photo ailleurs » (Retoucher) : on prend la photo, on va à la page voulue, on touche une autre photo puis « Poser avant / après ». Même sortie seulement. Cache : carnet-app-V17.
