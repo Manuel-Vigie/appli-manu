@@ -542,8 +542,7 @@ body.classer .cls-chips{display:flex}
 .barre-classer{position:fixed;left:0;right:0;bottom:0;z-index:300;display:none;flex-direction:column;gap:.5rem;background:#0d120df2;border-top:1px solid #ffffff24;padding:.6rem .8rem;padding-bottom:max(.7rem,env(safe-area-inset-bottom));box-shadow:0 -12px 30px -18px #000}
 body.classer .barre-classer{display:flex}
 body.classer .pied{display:none}
-body.classer .scene{padding-bottom:16.5rem}
-body.classer .note{bottom:18rem}
+body.classer .scene{padding-bottom:19.5rem}
 body.classer .zone-bord{pointer-events:none}
 body.classer .case.cls-sel{outline:3px solid #e8b84a;outline-offset:-3px}
 .bc-lib{font-size:.72rem;color:#b9c7b5;flex:0 0 auto}
@@ -841,6 +840,9 @@ body.partage .coupe-video{display:none}
   font-family:var(--sans);font-weight:700;font-size:.68rem;letter-spacing:.04em;line-height:1;
   padding:.32rem .55rem;border-radius:1rem;border:1px solid #ffffff2e;color:#E8C98A;
   background:#20291Ff0;box-shadow:0 6px 16px -8px #000a;cursor:pointer;transition:background .15s}
+.pastille-classer{right:auto;left:.6rem;font-size:.8rem;padding:.5rem .8rem;color:#F0E9D7}
+body.cinema .pastille-classer,body.partage .pastille-classer{display:none}
+body.classer .note{bottom:auto;top:6.2rem}
 .pastille-maj:hover{background:#2c3a29f0}
 .pastille-maj .fleche-maj{font-size:.85rem;line-height:1}
 body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj{display:none}
@@ -868,8 +870,9 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton plein" id="btn-retouche">Retoucher</button>
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
+<button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V31 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V32 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -1128,8 +1131,8 @@ function albumVierge(titre){
            couleur:TEINTES[0].c, randos:[], exemples:true };
 }
 var biblio={ albums:[], courant:0 };
-var ETAPES=["Départ","Parcours 1","Parcours 2","Parcours 3","Parcours 4","Parcours 5","Grotte","Départ des grottes","Arrivée"];
-var LIBELLE_ETAPE={"Départ des grottes":"Départ grottes"};
+var ETAPES=["Départ","Parcours 1","Parcours 2","Parcours 3","Parcours 4","Parcours 5","Parcours 6","Arrivée devant la grotte","Grotte","Départ des grottes","Départ 1","Départ 2","Arrivée"];
+var LIBELLE_ETAPE={"Départ des grottes":"Départ grottes","Arrivée devant la grotte":"Devant la grotte"};
 var cls={on:false,snap:null,cur:null};
 var carnet=null;   // raccourci vers l'album ouvert
 var urls={};           // id média -> objectURL
@@ -3638,7 +3641,7 @@ function ouvrirClasser(){
     cls.snap[m.id]=m.etape;
     if(ETAPES.indexOf(m.etape)<0) delete m.etape;
   }); });
-  cls.on=true; document.body.classList.add("classer");
+  cls.on=true; document.body.classList.add("classer"); document.getElementById("btn-classer").textContent="▾ Replier";
   majCompteClasser(); relireLivre();
   note("Touche une étape sur chaque photo. Tourne les pages, puis « Valider ».");
 }
@@ -3646,11 +3649,15 @@ function fermerClasser(restaurer){
   if(restaurer&&cls.snap) carnet.randos.forEach(function(r){ (r.medias||[]).forEach(function(m){
     if(cls.snap[m.id]===undefined) delete m.etape; else m.etape=cls.snap[m.id];
   }); });
-  cls.on=false; cls.snap=null; cls.cur=null;
+  cls.on=false; cls.snap=null; cls.cur=null; document.getElementById("btn-classer").textContent="🏷 Classer";
   document.body.classList.remove("classer");
   sauver(); relireLivre();
 }
 document.getElementById("ar-etiq-ouvrir").addEventListener("click",ouvrirClasser);
+document.getElementById("btn-classer").addEventListener("click",function(){
+  if(cls.on){ fermerClasser(false); note("Replié. Tes choix sont gardés."); }
+  else ouvrirClasser();
+});
 document.getElementById("bc-prec").addEventListener("click",function(){ tourner(-1); });
 document.getElementById("bc-suiv").addEventListener("click",function(){ tourner(1); });
 document.getElementById("bc-annuler").addEventListener("click",function(){ fermerClasser(true); note("Annulé."); });
@@ -3965,7 +3972,7 @@ function laisserEcranSeteindre(){
    en grand. Le destinataire n'a rien à chercher. */
 document.addEventListener("pointerup",function(e){
   if(arranger||champEnCours) return;
-  if(e.target.closest&&e.target.closest(".barre, .pied, .commandes-cine, .panneau, .biblio")) return;
+  if(e.target.closest&&e.target.closest(".barre, .pied, .commandes-cine, .panneau, .biblio, .pastille-classer")) return;
   demarrerLecture();
   lancerMusiqueAuGeste();
 },{capture:true});

@@ -71,3 +71,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 04/10 V29 : boutons Classer plus gros (plus de page qui tourne), flèches ← ↑ ↓ → et − + pour cadrer la photo choisie.
 - 04/10 V30 : choix du nombre de photos par page (1 à 4, Auto) dans la barre Classer.
 - 04/10 V31 : Parcours 4 et 5 ajoutés, flèches de déplacement retirées (reste − +).
+- 04/10 V32 : étapes Parcours 6, Devant la grotte, Départ 1, Départ 2 ; bouton flottant 🏷 Classer / ▾ Replier toujours visible.
