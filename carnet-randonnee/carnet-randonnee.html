@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Carnet rando">
 <script>
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEventListener('load',function(){navigator.serviceWorker.register('carnet-sw.js').catch(function(){})})}
-<script>window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__invite=e;document.dispatchEvent(new Event('invite-prete'))});</script>
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__invite=e;document.dispatchEvent(new Event('invite-prete'))});
 </script>
 <link id="icone-appli" rel="icon" href="carnet-icone-192.png">
 <link id="icone-tactile" rel="apple-touch-icon" href="carnet-icone-192.png">
@@ -510,6 +510,15 @@ body[data-lecture] .pastille-maj,body[data-lecture] .pastille-classer,body[data-
 .envoi-boite p{margin:.2rem 0 .6rem;font-size:.85rem;line-height:1.35;color:#c9d3c5}
 .envoi-boite .rangee-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.9rem}
 .envoi-boite .bouton{flex:1}
+.mdp-ecran{position:fixed;inset:0;z-index:600;display:none;align-items:center;justify-content:center;padding:1rem;background:radial-gradient(130% 90% at 50% 0%,#3A4A3D 0%,#222B21 55%,#141913 100%)}
+.mdp-ecran.ouvert{display:flex}
+.mdp-boite{width:100%;max-width:22rem;color:#F0E9D7;font-family:var(--sans);text-align:center}
+.mdp-boite h2{font-family:var(--serif);font-weight:600;margin:0 0 .4rem}
+.mdp-boite input{width:100%;box-sizing:border-box;padding:.9rem;border-radius:.7rem;border:1px solid #ffffff44;background:#0d120d;color:#F0E9D7;font:1.1rem var(--sans);text-align:center;margin:.4rem 0}
+.mdp-boite .bouton{width:100%;padding:.8rem}
+.mdp-erreur{color:#f0a0a0;min-height:1.2rem;margin:.2rem 0}
+.env-mdp{width:100%;box-sizing:border-box;padding:.7rem .8rem;border-radius:.6rem;border:1px solid #ffffff44;background:#0d120d;color:#F0E9D7;font:1rem var(--sans);margin:.1rem 0 .3rem}
+.env-mdp-aide{font-size:.78rem!important;margin:.1rem 0 .7rem!important}
 .env-liste{display:flex;flex-direction:column;gap:.35rem;margin:.2rem 0 .9rem}
 .env-liste label{display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border:1px solid #ffffff2e;border-radius:.6rem;font-size:.95rem;cursor:pointer}
 .env-liste input{width:1.3rem;height:1.3rem;accent-color:#2f6f4f;flex:0 0 auto}
@@ -912,7 +921,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V44 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V45 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -950,6 +959,15 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="fleche" id="suiv" aria-label="Page suivante">›</button>
 </nav>
 
+<div class="mdp-ecran" id="mdp-ecran">
+  <div class="mdp-boite">
+    <h2>Bibliothèque protégée</h2>
+    <p>Entre le mot de passe qu'on t'a donné.</p>
+    <input type="password" id="mdp-champ" autocomplete="off" placeholder="Mot de passe">
+    <p class="mdp-erreur" id="mdp-erreur"></p>
+    <button class="bouton plein" id="mdp-ok">Ouvrir</button>
+  </div>
+</div>
 <div class="envoi" id="envoi">
   <div class="envoi-boite">
     <h3>Envoyer des albums</h3>
@@ -963,6 +981,8 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     </div>
     <h3>2. Une application avec mise à jour</h3>
     <p>La personne l'installe sur son bureau avec un lien, et elle se met à jour toute seule quand tu renvoies une nouvelle version. Prépare le dossier, puis donne-le à Claude pour le mettre en ligne.</p>
+    <input type="text" id="env-mdp" class="env-mdp" placeholder="Mot de passe (facultatif)" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <p class="env-mdp-aide">Avec un mot de passe, rien ne s'ouvre sans lui : même en ligne, les photos sont brouillées. Donne-le toi-même à la personne.</p>
     <div class="rangee-actions">
       <button class="bouton" id="env-l1">Application — photos seules</button>
       <button class="bouton" id="env-l2">Application — avec vidéos</button>
@@ -1236,8 +1256,56 @@ function teinter(hex,f){
   return "rgb("+part(0)+","+part(2)+","+part(4)+")";
 }
 
+/* ---------- Mot de passe : tout le contenu est chiffré (AES-GCM) avant d'être mis en ligne ---------- */
+var CHIFFRE_TRANCHE=4*1048576, CHIFFRE_ITER=200000;
+var cleLecture=null, mediasChiffres=null;
+function enOctets(t){ return new TextEncoder().encode(t); }
+function enB64(u8){ var s="",i; for(i=0;i<u8.length;i+=8192) s+=String.fromCharCode.apply(null,u8.subarray(i,i+8192)); return btoa(s); }
+function deB64(t){ var b=atob(t),u=new Uint8Array(b.length),i; for(i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }
+function cleDepuis(mdp,sel,iter){
+  return crypto.subtle.importKey("raw",enOctets(mdp),"PBKDF2",false,["deriveKey"]).then(function(k){
+    return crypto.subtle.deriveKey({name:"PBKDF2",salt:sel,iterations:iter,hash:"SHA-256"},k,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+  });
+}
+function chiffrerOctets(cle,u8){
+  var iv=crypto.getRandomValues(new Uint8Array(12));
+  return crypto.subtle.encrypt({name:"AES-GCM",iv:iv},cle,u8).then(function(ct){ return new Blob([iv,new Uint8Array(ct)]); });
+}
+function dechiffrerOctets(cle,u8){
+  return crypto.subtle.decrypt({name:"AES-GCM",iv:u8.slice(0,12)},cle,u8.slice(12));
+}
+/* un fichier est chiffré par tranches de 4 Mo : une vidéo ne remplit pas la mémoire d'un coup */
+function chiffrerBlob(cle,blob){
+  var parts=[], pos=0;
+  return new Promise(function(res,rej){
+    (function suite(){
+      if(pos>=blob.size&&parts.length){ res(new Blob(parts)); return; }
+      blob.slice(pos,pos+CHIFFRE_TRANCHE).arrayBuffer().then(function(t){
+        return chiffrerOctets(cle,new Uint8Array(t));
+      }).then(function(b){ parts.push(b); pos+=CHIFFRE_TRANCHE; setTimeout(suite,0); }).catch(rej);
+    })();
+  });
+}
+function dechiffrerBlob(cle,blob,type){
+  var parts=[], pos=0, TAILLE=CHIFFRE_TRANCHE+12+16;
+  return new Promise(function(res,rej){
+    (function suite(){
+      if(pos>=blob.size){ res(new Blob(parts,{type:type||""})); return; }
+      blob.slice(pos,pos+TAILLE).arrayBuffer().then(function(t){
+        return dechiffrerOctets(cle,new Uint8Array(t));
+      }).then(function(clair){ parts.push(new Uint8Array(clair)); pos+=TAILLE; setTimeout(suite,0); }).catch(rej);
+    })();
+  });
+}
+
 function urlMedia(id){
   if(urls[id]) return Promise.resolve(urls[id]);
+  if(mediasChiffres&&cleLecture&&mediasChiffres[id]){
+    var f=mediasChiffres[id];
+    return fetch(f.fichier).then(function(r){ if(!r.ok) throw 0; return r.blob(); }).then(function(b){
+      return dechiffrerBlob(cleLecture,b,f.type);
+    }).then(function(clair){ urls[id]=URL.createObjectURL(clair); return urls[id]; }).catch(function(){ return null; });
+  }
   return lire("media",id).then(function(blob){
     if(!blob) return null;
     urls[id]=URL.createObjectURL(blob);
@@ -6002,6 +6070,29 @@ function envoyerBibliothequeSite(avecVideos){
   var paquet={format:"carnet-partage",version:2,bibliotheque:{albums:albums,courant:0},medias:{}};
   var entrees=[],suite=Promise.resolve(),vus={};
   var liste=listeMediasBiblio(avecVideos), fait=0;
+  var champMdp=document.getElementById("env-mdp"), mdp=champMdp?champMdp.value.trim():"";
+  var cle=null, sel=null;
+  if(mdp){
+    if(!(window.crypto&&crypto.subtle)){ note("Le mot de passe n'est pas possible dans ce navigateur."); return; }
+    sel=crypto.getRandomValues(new Uint8Array(16));
+    suite=suite.then(function(){ return cleDepuis(mdp,sel,CHIFFRE_ITER).then(function(k){ cle=k; }); });
+  }
+  // un fichier prêt à partir : tel quel, ou brouillé si un mot de passe est demandé
+  function poser(chemin,blob,type,idm){
+    if(!cle){
+      return crcBlob(blob).then(function(somme){
+        entrees.push({nom:chemin,blob:blob,somme:somme,taille:blob.size});
+        paquet.medias[idm]={fichier:chemin,type:type||""};
+      });
+    }
+    var cch=chemin.replace(/\.[a-z0-9]+$/i,".bin");
+    return chiffrerBlob(cle,blob).then(function(c){
+      return crcBlob(c).then(function(somme){
+        entrees.push({nom:cch,blob:c,somme:somme,taille:c.size});
+        paquet.medias[idm]={fichier:cch,type:type||""};
+      });
+    });
+  }
   liste.forEach(function(m){
     suite=suite.then(function(){
       if(vus[m.id]) return; vus[m.id]=true;
@@ -6010,20 +6101,12 @@ function envoyerBibliothequeSite(avecVideos){
         var gros=(m.type==="video"||m.type==="audio"||!/^image\//.test(b.type||""));
         if(gros){
           // vidéo, musique : le fichier part tel quel, sans être relu en entier
-          var chemin="medias/"+m.id+"."+extensionDe(b.type,m.nom);
-          return crcBlob(b).then(function(somme){
-            entrees.push({nom:chemin,blob:b,somme:somme,taille:b.size});
-            paquet.medias[m.id]={fichier:chemin,type:b.type||""};
-          });
+          return poser("medias/"+m.id+"."+extensionDe(b.type,m.nom),b,b.type,m.id);
         }
         return donneesPourPartage(m,b,1800).then(function(d){
           var source=d?fetch(d).then(function(r){ return r.blob(); }):Promise.resolve(b);
           return source.then(function(fin){
-            return fin.arrayBuffer().then(function(t){
-              var chemin="medias/"+m.id+"."+extensionDe(fin.type||b.type,m.nom);
-              entrees.push({nom:chemin,donnees:new Uint8Array(t)});
-              paquet.medias[m.id]={fichier:chemin,type:fin.type||b.type||""};
-            });
+            return poser("medias/"+m.id+"."+extensionDe(fin.type||b.type,m.nom),fin,fin.type||b.type,m.id);
           });
         });
       }).catch(function(){}).then(function(){
@@ -6035,7 +6118,16 @@ function envoyerBibliothequeSite(avecVideos){
   return suite.then(function(){
     var gardes={}; Object.keys(paquet.medias).forEach(function(k){ gardes[k]=true; });
     nettoyerBiblio(albums,gardes);
-    return pageAvecAlbum(paquet).text().then(function(html){
+    var aEmbarquer=paquet, pre=Promise.resolve();
+    if(cle){
+      // la liste des albums et des photos part brouillée elle aussi
+      pre=chiffrerOctets(cle,enOctets(JSON.stringify({bibliotheque:paquet.bibliotheque,medias:paquet.medias}))).then(function(bl){
+        return bl.arrayBuffer();
+      }).then(function(t){
+        aEmbarquer={format:"carnet-partage",version:3,chiffre:{sel:enB64(sel),iter:CHIFFRE_ITER},donnees:enB64(new Uint8Array(t))};
+      });
+    }
+    return pre.then(function(){ return pageAvecAlbum(aEmbarquer).text(); }).then(function(html){
       // la page devient une vraie application installable : son propre manifeste et son propre programme de cache
       html=html.split("carnet-manifest.webmanifest").join("manifest.webmanifest").split("carnet-sw.js").join("sw.js");
       entrees.unshift({nom:"index.html",donnees:new TextEncoder().encode(html)});
@@ -6303,12 +6395,39 @@ function albumEmbarque(){
   if(!balise) return null;
   try{
     var p=JSON.parse(balise.textContent);
-    if(!p||p.format!=="carnet-partage"||!(p.album||p.bibliotheque)) return null;
+    if(!p||p.format!=="carnet-partage"||!(p.album||p.bibliotheque||p.chiffre)) return null;
     return p;
   }catch(e){ return null; }
 }
 
 var recu=albumEmbarque();
+/* Album protégé : on demande le mot de passe, puis on ouvre. */
+function ouvrirRecu(r){
+  if(!r.chiffre){ lireAlbumRecu(r); return; }
+  document.body.classList.add("partage");
+  var ecran=document.getElementById("mdp-ecran"), champ=document.getElementById("mdp-champ");
+  var err=document.getElementById("mdp-erreur"), ok=document.getElementById("mdp-ok");
+  function essayer(mdp,silencieux){
+    err.textContent="";
+    return cleDepuis(mdp,deB64(r.chiffre.sel),r.chiffre.iter).then(function(cle){
+      return dechiffrerOctets(cle,deB64(r.donnees)).then(function(t){
+        var d=JSON.parse(new TextDecoder().decode(new Uint8Array(t)));
+        try{ localStorage.setItem("lecteur-mdp",mdp); }catch(e){}
+        ecran.classList.remove("ouvert");
+        lireAlbumRecu({bibliotheque:d.bibliotheque,medias:d.medias,_cle:cle});
+        return true;
+      });
+    }).catch(function(){
+      if(!silencieux){ err.textContent="Mot de passe incorrect."; champ.select(); }
+      return false;
+    });
+  }
+  var memo=null; try{ memo=localStorage.getItem("lecteur-mdp"); }catch(e){}
+  function demander(){ ecran.classList.add("ouvert"); setTimeout(function(){ champ.focus(); },100); }
+  ok.onclick=function(){ if(champ.value) essayer(champ.value,false); };
+  champ.onkeydown=function(e){ if(e.key==="Enter") ok.onclick(); };
+  if(memo) essayer(memo,true).then(function(bon){ if(!bon) demander(); }); else demander();
+}
 function lireAlbumRecu(r){
   partage=true;
   document.body.classList.add("partage");
@@ -6317,7 +6436,8 @@ function lireAlbumRecu(r){
     if(biblio.albums.length>1) document.body.classList.add("partage-bib");
   }else biblio={albums:[r.album],courant:0};
   carnet=biblio.albums[biblio.courant];
-  Object.keys(r.medias||{}).forEach(function(id){
+  if(r._cle){ cleLecture=r._cle; mediasChiffres=r.medias; }
+  else Object.keys(r.medias||{}).forEach(function(id){
     var m=r.medias[id];
     urls[id]=m.data||m.fichier;   // embarqué en base64, ou fichier voisin
   });
@@ -6336,18 +6456,18 @@ if(!recu && document.readyState==="loading"){
   // autrement, on le lit dès que la page est entièrement lue
   document.addEventListener("DOMContentLoaded",function(){
     var r=albumEmbarque();
-    if(!partage && r) lireAlbumRecu(r);
+    if(!partage && r) ouvrirRecu(r);
   },{once:true});
 }
 if(recu){
-  lireAlbumRecu(recu);
+  ouvrirRecu(recu);
 }else
 
 ouvrirBase().then(function(){
   return Promise.all([lire("meta","bibliotheque"),lire("meta","carnet"),lire("meta","vue")]);
 }).then(function(res){
   var tardif=albumEmbarque();
-  if(tardif&&!partage){ lireAlbumRecu(tardif); return; }
+  if(tardif&&!partage){ ouvrirRecu(tardif); return; }
   if(partage) return;
   var b=res[0], ancien=res[1];
   if(res[2]==="simple"||res[2]==="double") vueForcee=res[2];
