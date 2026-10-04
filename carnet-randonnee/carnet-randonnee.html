@@ -901,7 +901,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 </header>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V37 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V38 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -949,11 +949,11 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
       <button class="bouton plein" id="env-f1">Photos seules</button>
       <button class="bouton" id="env-f2">Avec les vidéos</button>
     </div>
-    <h3>2. Un lien</h3>
-    <p>Prépare un dossier à déposer sur internet. Une fois déposé, tu obtiens une adresse à envoyer.</p>
+    <h3>2. Une application avec mise à jour</h3>
+    <p>La personne l'installe sur son bureau avec un lien, et elle se met à jour toute seule quand tu renvoies une nouvelle version. Prépare le dossier, puis donne-le à Claude pour le mettre en ligne.</p>
     <div class="rangee-actions">
-      <button class="bouton" id="env-l1">Dossier — photos seules</button>
-      <button class="bouton" id="env-l2">Dossier — avec vidéos</button>
+      <button class="bouton" id="env-l1">Application — photos seules</button>
+      <button class="bouton" id="env-l2">Application — avec vidéos</button>
     </div>
     <div class="rangee-actions"><button class="bouton" id="env-fermer">Fermer</button></div>
   </div>
@@ -5977,13 +5977,42 @@ function envoyerBibliothequeSite(avecVideos){
   return suite.then(function(){
     var gardes={}; Object.keys(paquet.medias).forEach(function(k){ gardes[k]=true; });
     nettoyerBiblio(albums,gardes);
-    return pageAvecAlbum(paquet).arrayBuffer().then(function(t){
-      entrees.unshift({nom:"index.html",donnees:new Uint8Array(t)});
+    return pageAvecAlbum(paquet).text().then(function(html){
+      // la page devient une vraie application installable : son propre manifeste et son propre programme de cache
+      html=html.split("carnet-manifest.webmanifest").join("manifest.webmanifest").split("carnet-sw.js").join("sw.js");
+      entrees.unshift({nom:"index.html",donnees:new TextEncoder().encode(html)});
+      entrees.push({nom:"manifest.webmanifest",donnees:new TextEncoder().encode(JSON.stringify({
+        name:"Bibliothèque de rando",short_name:"Rando",lang:"fr",start_url:"./",scope:"./",display:"standalone",
+        background_color:"#20291F",theme_color:"#20291F",
+        icons:[{src:"carnet-icone-192.png",sizes:"192x192",type:"image/png",purpose:"any"},
+               {src:"carnet-icone-512.png",sizes:"512x512",type:"image/png",purpose:"any"},
+               {src:"carnet-icone-masque-512.png",sizes:"512x512",type:"image/png",purpose:"maskable"}]},null,2))});
+      entrees.push({nom:"sw.js",donnees:new TextEncoder().encode(LECTEUR_SW)});
+      var icones=["carnet-icone-192.png","carnet-icone-512.png","carnet-icone-masque-512.png"];
+      return Promise.all(icones.map(function(n){
+        return fetch(n).then(function(r){ return r.ok?r.arrayBuffer():null; }).then(function(t){
+          if(t) entrees.push({nom:n,donnees:new Uint8Array(t)});
+        }).catch(function(){});
+      }));
+    }).then(function(){
       var zip=fabriquerZip(entrees);
-      telechargerBlob(zip,"CarnetRando - Bibliotheque - site "+new Date().toISOString().slice(0,10)+".zip",Math.round(zip.size/1048576));
+      telechargerBlob(zip,"CarnetRando - Bibliotheque - application "+new Date().toISOString().slice(0,10)+".zip",Math.round(zip.size/1048576));
     });
   }).catch(function(){ note("La préparation a échoué. Essaie sans les vidéos."); });
 }
+/* Le programme de cache de l'application de lecture : la page se met à jour
+   toute seule dès qu'il y a du réseau ; les photos, déjà vues, restent sur l'appareil. */
+var LECTEUR_SW="const C='lecteur-rando-v1';\n"
++"self.addEventListener('install',e=>{self.skipWaiting();});\n"
++"self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim());});\n"
++"self.addEventListener('fetch',e=>{\n"
++" const q=e.request; if(q.method!=='GET') return;\n"
++" const u=new URL(q.url); if(u.origin!==location.origin) return;\n"
++" if(u.pathname.indexOf('/medias/')>=0){\n"
++"  e.respondWith(caches.open(C).then(async c=>{const h=await c.match(q); if(h) return h; const r=await fetch(q); if(r.ok) c.put(q,r.clone()); return r;}));\n"
++"  return;}\n"
++" e.respondWith((async()=>{const c=await caches.open(C); try{const r=await fetch(q,{cache:'no-cache'}); if(r.ok) c.put(q,r.clone()); return r;}catch(_){return (await c.match(q,{ignoreSearch:true}))||(await c.match('./'))||(await c.match('index.html'));}})());\n"
++"});\n";
 (function(){
   var f=document.getElementById("envoi");
   function ferme(){ f.classList.remove("ouvert"); }
