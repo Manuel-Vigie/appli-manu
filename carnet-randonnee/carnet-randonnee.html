@@ -534,7 +534,7 @@ body.arranger.outils .note{bottom:calc(var(--ar-h,320px) + 1.2rem)}
 .cl-bas{display:flex;gap:.5rem}
 .cl-bas .bouton{flex:1;padding:.6rem}
 .ar-etapes[hidden],.ar-etiq[hidden]{display:none}
-#ar-etapes,#ar-trier,#ar-classeur-ouvrir{display:none!important}
+#ar-etapes,#ar-trier,#ar-classeur-ouvrir,#ar-etiq-ouvrir,#ar-gauche,#ar-droite,.ar-nb,#ar-reset,#ar-ajouter{display:none!important}
 .ar-etiq{display:flex;flex-direction:column;gap:.45rem}
 .ar-etiq-grille{display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
 .ar-etiq-grille .bouton{padding:.6rem .3rem;font-size:.85rem;font-weight:600}
@@ -852,7 +852,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="bouton" id="btn-atelier">Réglages</button>
 </header>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V25 · 04/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V26 · 04/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -915,7 +915,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   </div>
   <button class="bouton plein" id="ar-etiq-ouvrir">✨ Ranger les photos tout seul</button>
   <div class="ar-ia">
-    <button class="bouton" id="ia-export">📤 Miniatures pour Claude</button>
+    <button class="bouton" id="ia-export">📤 Envoyer à Claude</button>
     <button class="bouton" id="ia-import">📥 Appliquer le classement</button>
   </div>
   <div class="ar-etiq" id="ar-etiq" hidden>
@@ -970,7 +970,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   </div>
   <div class="ar-pied">
     <button class="bouton" id="ar-ajouter">+ Une photo</button>
-    <button class="bouton" id="ar-ajouter-lot">+ Plusieurs</button>
+    <button class="bouton plein" id="ar-ajouter-lot">+ Ajouter des photos</button>
     <button class="bouton" id="ar-reset">Replacer</button>
     <button class="bouton" id="ar-trier">Trier</button>
   </div>
