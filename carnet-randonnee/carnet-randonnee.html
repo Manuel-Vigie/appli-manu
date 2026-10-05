@@ -926,7 +926,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V51 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V52 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -2455,7 +2455,7 @@ function ajusterPlanche(grille,items){
     if(items[j]) appliquerCadre(items[j],c);
     // Photo seule en pleine page : si le format de la photo est très différent de celui de la
     // page (ex. photo verticale sur une page en paysage), on la montre ENTIÈRE au lieu de la couper.
-    // Un cadrage choisi à la main par la personne reste respecté.
+    // Dans ce cas, le zoom / cadrage éventuel est ignoré (c'est lui qui coupait la photo).
     var imP=t&&t.querySelector("img");
     if(pleine&&imP){
       (function(imP,lT,hT,it){
@@ -2463,7 +2463,10 @@ function ajusterPlanche(grille,items){
           if(!imP.naturalWidth) return;
           var rI=imP.naturalWidth/imP.naturalHeight, rS=lT/hT;
           var coupe=1-Math.min(rI,rS)/Math.max(rI,rS);
-          imP.style.objectFit=(!(it&&it.cadre)&&coupe>0.08)?"contain":"";
+          var entier=coupe>0.08;
+          imP.dataset.entier=entier?"1":"";
+          imP.style.objectFit=entier?"contain":"";
+          if(it) appliquerCadre(it,imP.closest(".case")||imP.parentNode.parentNode);
         };
         regler();
         if(!imP.complete) imP.addEventListener("load",regler,{once:true});
@@ -3370,6 +3373,8 @@ function cadreDe(m){
 function appliquerCadre(m,c){
   var im=c.querySelector(".trou img");
   if(!im) return;
+  // photo seule montrée entière : aucun zoom ni décalage (voir ajusterPlanche)
+  if(im.dataset.entier==="1"){ im.style.objectPosition=""; im.style.transformOrigin=""; im.style.transform=""; return; }
   var k=m.cadre;
   if(!k){ im.style.objectPosition=""; im.style.transform=""; return; }
   var x=Math.max(0,Math.min(100,k.x)), y=Math.max(0,Math.min(100,k.y));
