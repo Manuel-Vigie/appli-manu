@@ -926,7 +926,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V49 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V50 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -1305,8 +1305,19 @@ function dechiffrerBlob(cle,blob,type){
   });
 }
 
+var mediasBalises=null;   // album reçu : photos rangées dans des balises à part
 function urlMedia(id){
   if(urls[id]) return Promise.resolve(urls[id]);
+  if(mediasBalises&&mediasBalises[id]){
+    try{
+      var t=document.getElementById("m-"+id), txt=t?t.textContent:"";
+      var v=txt.indexOf(","), bin=atob(txt.slice(v+1)), o=new Uint8Array(bin.length);
+      for(var q=0;q<bin.length;q++) o[q]=bin.charCodeAt(q);
+      var mt=(txt.slice(5,v).split(";")[0])||mediasBalises[id].type||"";
+      urls[id]=URL.createObjectURL(new Blob([o],{type:mt}));
+      return Promise.resolve(urls[id]);
+    }catch(e){ return Promise.resolve(null); }
+  }
   if(mediasChiffres&&cleLecture&&mediasChiffres[id]){
     var f=mediasChiffres[id];
     return fetch(f.fichier).then(function(r){ if(!r.ok) throw 0; return r.blob(); }).then(function(b){
@@ -5913,11 +5924,10 @@ function partagerAlbum(avecVideos){
   var cote = aFaire.length>120 ? 1200 : (aFaire.length>60 ? 1400 : 1700);
 
   var page=squelettePage();
-  var morceaux=[page.avant,
-    '<script id="carnet-embarque" type="application/json">',
-    '{"format":"carnet-partage","version":1,"medias":{'];
+  var morceaux=[page.avant];
+  var metas={};
 
-  var gardes={}, fait=0, perdus=0, premier=true;
+  var gardes={}, fait=0, perdus=0;
   note("Préparation… 0 / "+aFaire.length);
 
   var suite=Promise.resolve();
@@ -5928,12 +5938,8 @@ function partagerAlbum(avecVideos){
         return donneesPourPartage(m,b,cote).then(function(d){
           if(!d){ perdus++; return; }
           // le texte de la photo part tout de suite dans un morceau de fichier
-          morceaux.push(new Blob([
-            (premier?"":",")+JSON.stringify(m.id)+':{"type":'+JSON.stringify(b.type||"")+',"data":"',
-            d,
-            '"}'
-          ]));
-          premier=false;
+          morceaux.push(new Blob(['<script type="text/plain" id="m-'+m.id+'">',d,'<\/script>\n']));
+          metas[m.id]={type:b.type||""};
           gardes[m.id]=true;
           d=null;
         });
@@ -5950,8 +5956,7 @@ function partagerAlbum(avecVideos){
       r.medias=(r.medias||[]).filter(function(m){ return !!gardes[m.id]; });
     });
     if(album.musique&&!gardes[album.musique.id]) delete album.musique;
-    morceaux.push('},"album":'+JSON.stringify(album).replace(/<\//g,"<\\/")+'}');
-    morceaux.push('<\/script>\n');
+    morceaux.push('<script id="carnet-embarque" type="application/json">'+JSON.stringify({format:"carnet-partage",version:4,medias:metas,album:album}).replace(/<\//g,"<\\/")+'<\/script>\n');
     morceaux.push(page.apres);
     if(perdus) note(perdus+" fichier(s) illisible(s) laissés de côté.");
     return remettreFichier(new Blob(morceaux,{type:"text/html"}),nomFichier("album","html"));
@@ -6040,8 +6045,8 @@ function envoyerBibliotheque(avecVideos){
   if(!aFaire.length){ note("Aucune photo à envoyer."); return; }
   var cote=aFaire.length>250?1000:(aFaire.length>120?1200:(aFaire.length>60?1400:1700));
   var page=squelettePage();
-  var morceaux=[page.avant,'<script id="carnet-embarque" type="application/json">','{"format":"carnet-partage","version":2,"medias":{'];
-  var gardes={},fait=0,perdus=0,premier=true;
+  var morceaux=[page.avant], metas={};
+  var gardes={},fait=0,perdus=0;
   note("Préparation… 0 / "+aFaire.length);
   var suite=Promise.resolve();
   aFaire.forEach(function(m){
@@ -6051,8 +6056,8 @@ function envoyerBibliotheque(avecVideos){
         if(!b){ perdus++; return; }
         return donneesPourPartage(m,b,cote).then(function(d){
           if(!d){ perdus++; return; }
-          morceaux.push(new Blob([(premier?"":",")+JSON.stringify(m.id)+':{"type":'+JSON.stringify(b.type||"")+',"data":"',d,'"}']));
-          premier=false; gardes[m.id]=true; d=null;
+          morceaux.push(new Blob(['<script type="text/plain" id="m-'+m.id+'">',d,'<\/script>\n']));
+          metas[m.id]={type:b.type||""}; gardes[m.id]=true; d=null;
         });
       }).catch(function(){ perdus++; }).then(function(){
         fait++;
@@ -6062,8 +6067,8 @@ function envoyerBibliotheque(avecVideos){
   });
   return suite.then(function(){
     nettoyerBiblio(albums,gardes);
-    morceaux.push('},"bibliotheque":'+JSON.stringify({albums:albums,courant:0}).replace(/<\//g,"<\\/")+'}');
-    morceaux.push('<\/script>\n'); morceaux.push(page.apres);
+    morceaux.push('<script id="carnet-embarque" type="application/json">'+JSON.stringify({format:"carnet-partage",version:4,medias:metas,bibliotheque:{albums:albums,courant:0}}).replace(/<\//g,"<\\/")+'<\/script>\n');
+    morceaux.push(page.apres);
     if(perdus) note(perdus+" fichier(s) illisible(s) laissés de côté.");
     return remettreFichier(new Blob(morceaux,{type:"text/html"}),"CarnetRando - Bibliotheque - "+new Date().toISOString().slice(0,10)+".html");
   }).catch(function(e){
@@ -6431,6 +6436,12 @@ function albumEmbarque(){
 }
 
 var recu=albumEmbarque();
+function erreurLecture(){
+  var d=document.createElement("div");
+  d.style.cssText="position:fixed;inset:0;z-index:99999;background:#1d2a22;color:#fff;padding:30px;font:20px/1.5 sans-serif;text-align:center;display:flex;flex-direction:column;justify-content:center";
+  d.innerHTML="<div style='font-size:46px'>😕</div><p>Ce fichier ne s'ouvre pas bien sur ce téléphone.</p><p style='font-size:16px;opacity:.8'>Demande à la personne de te renvoyer l'album, ou ouvre-le avec Chrome.</p>";
+  document.body.appendChild(d);
+}
 /* Album protégé : on demande le mot de passe, puis on ouvre. */
 function ouvrirRecu(r){
   if(!r.chiffre){ lireAlbumRecu(r); return; }
@@ -6467,6 +6478,7 @@ function lireAlbumRecu(r){
   }else biblio={albums:[r.album],courant:0};
   carnet=biblio.albums[biblio.courant];
   if(r._cle){ cleLecture=r._cle; mediasChiffres=r.medias; }
+  else if(r.version===4) mediasBalises=r.medias||{};
   else Object.keys(r.medias||{}).forEach(function(id){
     var m=r.medias[id];
     urls[id]=m.data||m.fichier;   // embarqué en base64, ou fichier voisin
@@ -6491,6 +6503,11 @@ if(!recu && document.readyState==="loading"){
 }
 if(recu){
   ouvrirRecu(recu);
+}else if(document.body.getAttribute("data-lecture")){
+  window.addEventListener("load",function(){
+    var r=albumEmbarque();
+    if(r) ouvrirRecu(r); else erreurLecture();
+  });
 }else
 
 ouvrirBase().then(function(){
