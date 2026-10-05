@@ -87,3 +87,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 05/10 V45 : mot de passe pour l'application en ligne (contenu chiffré) ; corrige l'enregistrement du programme de cache cassé depuis V43.
 - 05/10 V46 : fenêtre d'envoi — tous les albums cochés à chaque ouverture, compteur « N albums sur N seront envoyés ».
 - 05/10 V47 : case « fichier plus léger » (photos 1000 px) pour l'envoi application.
+- 05/10 V48 : envoi « Vidéos seules » pour compléter un lien déjà en ligne.

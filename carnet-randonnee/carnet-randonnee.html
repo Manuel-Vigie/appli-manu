@@ -923,7 +923,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V47 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V48 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -983,6 +983,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     </div>
     <h3>2. Une application avec mise à jour</h3>
     <p>La personne l'installe sur son bureau avec un lien, et elle se met à jour toute seule quand tu renvoies une nouvelle version. Prépare le dossier, puis donne-le à Claude pour le mettre en ligne.</p>
+    <label class="env-leger"><input type="checkbox" id="env-videos"> Vidéos seules — pour ajouter les vidéos à un lien déjà en ligne (coche un seul album)</label>
     <label class="env-leger"><input type="checkbox" id="env-leger"> Fichier plus léger (photos un peu réduites) — pour un envoi plus facile</label>
     <input type="text" id="env-mdp" class="env-mdp" placeholder="Mot de passe (facultatif)" autocomplete="off" autocapitalize="off" spellcheck="false">
     <p class="env-mdp-aide">Avec un mot de passe, rien ne s'ouvre sans lui : même en ligne, les photos sont brouillées. Donne-le toi-même à la personne.</p>
@@ -6072,6 +6073,8 @@ function envoyerBibliothequeSite(avecVideos){
   var albums=copieBiblio();
   var paquet={format:"carnet-partage",version:2,bibliotheque:{albums:albums,courant:0},medias:{}};
   var entrees=[],suite=Promise.resolve(),vus={};
+  var vs=document.getElementById("env-videos");
+  if(vs&&vs.checked) avecVideos=true;
   var liste=listeMediasBiblio(avecVideos), fait=0;
   var leger=!!(document.getElementById("env-leger")&&document.getElementById("env-leger").checked);
   var coteEnvoi=leger?1000:1800;
@@ -6084,7 +6087,14 @@ function envoyerBibliothequeSite(avecVideos){
     suite=suite.then(function(){ return cleDepuis(mdp,sel,CHIFFRE_ITER).then(function(k){ cle=k; }); });
   }
   // un fichier prêt à partir : tel quel, ou brouillé si un mot de passe est demandé
-  function poser(chemin,blob,type,idm){
+  var seulesVideos=!!(document.getElementById("env-videos")&&document.getElementById("env-videos").checked);
+  function poser(chemin,blob,type,idm,estVideo){
+    var garder=!seulesVideos||estVideo;
+    if(!garder){
+      // déjà en ligne : on garde seulement la référence, pour que la page connaisse la photo
+      paquet.medias[idm]={fichier:cle?chemin.replace(/\.[a-z0-9]+$/i,".bin"):chemin,type:type||""};
+      return Promise.resolve();
+    }
     if(!cle){
       return crcBlob(blob).then(function(somme){
         entrees.push({nom:chemin,blob:blob,somme:somme,taille:blob.size});
@@ -6107,12 +6117,12 @@ function envoyerBibliothequeSite(avecVideos){
         var gros=(m.type==="video"||m.type==="audio"||!/^image\//.test(b.type||""));
         if(gros){
           // vidéo, musique : le fichier part tel quel, sans être relu en entier
-          return poser("medias/"+m.id+"."+extensionDe(b.type,m.nom),b,b.type,m.id);
+          return poser("medias/"+m.id+"."+extensionDe(b.type,m.nom),b,b.type,m.id,m.type==="video");
         }
         return donneesPourPartage(m,b,coteEnvoi).then(function(d){
           var source=d?fetch(d).then(function(r){ return r.blob(); }):Promise.resolve(b);
           return source.then(function(fin){
-            return poser("medias/"+m.id+"."+extensionDe(fin.type||b.type,m.nom),fin,fin.type||b.type,m.id);
+            return poser("medias/"+m.id+"."+extensionDe(fin.type||b.type,m.nom),fin,fin.type||b.type,m.id,false);
           });
         });
       }).catch(function(){}).then(function(){
@@ -6153,7 +6163,7 @@ function envoyerBibliothequeSite(avecVideos){
     }).then(function(){
       qualiteJpeg=0.82;
       var zip=fabriquerZip(entrees);
-      telechargerBlob(zip,"CarnetRando - Bibliotheque - application "+new Date().toISOString().slice(0,10)+".zip",Math.round(zip.size/1048576));
+      telechargerBlob(zip,"CarnetRando - Bibliotheque - "+(seulesVideos?"VIDEOS":"application")+" "+new Date().toISOString().slice(0,10)+".zip",Math.round(zip.size/1048576));
     });
   }).catch(function(e){ note("La préparation a échoué"+(e&&e.name?(" ("+e.name+")"):"")+". Essaie « photos seules »."); });
 }
