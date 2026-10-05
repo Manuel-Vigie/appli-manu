@@ -98,3 +98,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - V56 : vidéo plein écran — bouton « Horizontal » (téléphone en vertical, la vidéo se couche) ; « Vertical » pour revenir.
 - V57 : bouton « Horizontal » — vrai plein écran + paysage verrouillé quand le téléphone l'accepte, sinon vidéo couchée par l'appli.
 - V58 : bouton « Horizontal » toujours visible sur la vidéo (même téléphone couché).
+- V59 : plein écran de l'album — bouton « Horizontal » en haut (verrouille le paysage même si la rotation auto du téléphone est coupée), « Vertical » pour revenir.
