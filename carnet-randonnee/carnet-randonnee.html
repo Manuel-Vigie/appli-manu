@@ -926,7 +926,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V55 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V56 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -2130,6 +2130,29 @@ function ouvrirVideo(m,surFin){
       });
       coin.appendChild(sup);
     }
+    if(estVideo){
+      /* Bouton « Horizontal » : le téléphone reste à la verticale mais la vidéo
+         se couche (écran tourné d'un quart de tour). Re-toucher pour revenir. */
+      var tourne=false;
+      var hz=el("button","bouton","Horizontal");
+      var calerTour=function(){
+        var W=window.innerWidth, H=window.innerHeight, portrait=H>W;
+        if(!portrait) tourne=false;
+        hz.style.display=portrait?"":"none";
+        if(tourne){
+          ov.style.cssText="top:0;left:"+W+"px;right:auto;bottom:auto;width:"+H+"px;height:"+W+"px;transform-origin:0 0;transform:rotate(90deg);";
+          hz.textContent="Vertical";
+        }else{
+          ov.style.cssText="";
+          hz.textContent="Horizontal";
+        }
+      };
+      hz.addEventListener("click",function(e){ e.stopPropagation(); tourne=!tourne; calerTour(); });
+      window.addEventListener("resize",calerTour);
+      ov._calerTour=calerTour;
+      coin.appendChild(hz);
+      setTimeout(calerTour,0);
+    }
     var f=el("button","bouton","Fermer");
     f.addEventListener("click",function(e){ e.stopPropagation(); fermerVideo(); });
     coin.appendChild(f);
@@ -2328,6 +2351,7 @@ function fermerVideo(){
   var s=videoOuverte;
   if(!s||s.clos) return;
   s.clos=true; videoOuverte=null;
+  if(s.boite._calerTour) window.removeEventListener("resize",s.boite._calerTour);
   baisserMusique(false);
   try{ if(s.video) s.video.pause(); }catch(e){}
   s.boite.classList.remove("visible");
