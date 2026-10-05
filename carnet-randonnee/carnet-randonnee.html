@@ -523,6 +523,9 @@ body[data-lecture] .pastille-maj,body[data-lecture] .pastille-classer,body[data-
 .env-mdp-aide{font-size:.78rem!important;margin:.1rem 0 .7rem!important}
 .env-liste{display:flex;flex-direction:column;gap:.35rem;margin:.2rem 0 .9rem}
 .env-liste label{display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border:1px solid #ffffff2e;border-radius:.6rem;font-size:.95rem;cursor:pointer}
+.env-nom{flex:1}
+.env-etat{font-size:.78rem;opacity:.6}
+.env-etat.oui{opacity:1;color:#8fd0aa;font-weight:700}
 .env-liste input{width:1.3rem;height:1.3rem;accent-color:#2f6f4f;flex:0 0 auto}
 
 /* ---------- arrangement libre des photos ---------- */
@@ -923,7 +926,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V48 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V49 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -6185,15 +6188,22 @@ var LECTEUR_SW="const C='lecteur-rando-v1';\n"
   function ferme(){ f.classList.remove("ouvert"); }
   document.getElementById("biblio-envoyer").addEventListener("click",function(){
     var L=document.getElementById("env-liste"); L.innerHTML="";
-    envoiCoches=biblio.albums.map(function(){ return true; });
+    // au départ, seul l'album du devant est choisi : on touche un autre pour l'ajouter
+    envoiCoches=biblio.albums.map(function(x,i){ return i===plateau.i; });
     var resume=document.createElement("p"); resume.id="env-resume";
-    function majResume(){ var n=envoiCoches.filter(function(x){ return x; }).length; resume.textContent=n+" album"+(n>1?"s":"")+" sur "+biblio.albums.length+" seront envoyés."; }
+    var etats=[];
+    function majResume(){
+      var n=envoiCoches.filter(function(x){ return x; }).length;
+      resume.textContent=n?(n+" album"+(n>1?"s":"")+" sur "+biblio.albums.length+" seront envoyés."):"Touche l'album à envoyer.";
+      etats.forEach(function(e,i){ e.textContent=envoiCoches[i]?"✔ envoyé":"non"; e.className="env-etat"+(envoiCoches[i]?" oui":""); });
+    }
     biblio.albums.forEach(function(a,i){
       var lab=document.createElement("label"), c=document.createElement("input");
-      c.type="checkbox"; c.checked=true;
+      c.type="checkbox"; c.checked=!!envoiCoches[i];
       c.addEventListener("change",function(){ envoiCoches[i]=c.checked; majResume(); });
-      var t=document.createElement("span"); t.textContent="Album "+(i+1)+" · "+(a.titre||"Sans titre");
-      lab.appendChild(c); lab.appendChild(t); L.appendChild(lab);
+      var t=document.createElement("span"); t.className="env-nom"; t.textContent="Album "+(i+1)+" · "+(a.titre||"Sans titre");
+      var e=document.createElement("span"); etats.push(e);
+      lab.appendChild(c); lab.appendChild(t); lab.appendChild(e); L.appendChild(lab);
     });
     L.appendChild(resume); majResume();
     f.classList.add("ouvert");
