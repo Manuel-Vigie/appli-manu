@@ -90,3 +90,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 05/10 V48 : envoi « Vidéos seules » pour compléter un lien déjà en ligne.
 - 05/10 V49 : fenêtre Envoyer — seul l'album du devant est choisi au départ (évite d'envoyer les deux autres par erreur).
 - V50 : l'album envoyé range chaque photo dans sa propre balise (plus léger à lire) ; si le fichier reçu est illisible, un message clair s'affiche au lieu de l'appli normale.
+- V51 : photo seule en pleine page (ex. portrait en mode paysage) : montrée entière au lieu d'être coupée, sauf si un cadrage a été choisi à la main.

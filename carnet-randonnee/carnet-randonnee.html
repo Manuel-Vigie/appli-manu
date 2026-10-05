@@ -926,7 +926,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V50 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V51 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -2453,6 +2453,22 @@ function ajusterPlanche(grille,items){
     else{ c.style.width=""; c.style.height=""; }
     c.style.transform = (pos&&pos.rot) ? ("rotate("+pos.rot+"deg)") : "";
     if(items[j]) appliquerCadre(items[j],c);
+    // Photo seule en pleine page : si le format de la photo est très différent de celui de la
+    // page (ex. photo verticale sur une page en paysage), on la montre ENTIÈRE au lieu de la couper.
+    // Un cadrage choisi à la main par la personne reste respecté.
+    var imP=t&&t.querySelector("img");
+    if(pleine&&imP){
+      (function(imP,lT,hT,it){
+        var regler=function(){
+          if(!imP.naturalWidth) return;
+          var rI=imP.naturalWidth/imP.naturalHeight, rS=lT/hT;
+          var coupe=1-Math.min(rI,rS)/Math.max(rI,rS);
+          imP.style.objectFit=(!(it&&it.cadre)&&coupe>0.08)?"contain":"";
+        };
+        regler();
+        if(!imP.complete) imP.addEventListener("load",regler,{once:true});
+      })(imP,lT,hT,items[j]);
+    }
   }
 }
 
