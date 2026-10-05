@@ -867,6 +867,18 @@ body.cinema .ajout-page,body.arranger .ajout-page{display:none!important}
 }
 body.partage .coupe-video{display:none}
 
+
+/* bouton rond « tourner l'écran » : présent sur tous les écrans */
+.tourne-ecran{
+  position:fixed;top:calc(3.15rem + env(safe-area-inset-top));left:.6rem;z-index:650;
+  width:2.5rem;height:2.5rem;border-radius:50%;padding:0;
+  display:flex;align-items:center;justify-content:center;
+  background:#0d120dd9;border:1px solid #ffffff44;color:#F0E9D7;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.tourne-ecran svg{width:1.45rem;height:1.45rem}
+.tourne-ecran.actif{background:#2E5D46;border-color:#8FCBA6}
+body.video-ouverte .tourne-ecran{top:max(.8rem,env(safe-area-inset-top))}
 @media (max-width:720px){
   .barre{gap:.35rem;padding:.45rem .45rem}
   .barre .bouton{padding:.4rem .55rem;font-size:.78rem}
@@ -926,12 +938,11 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V59 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V60 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
   <div class="cine-haut">
-    <button class="bouton" id="cine-horiz">Horizontal</button>
     <button class="bouton" id="cine-fin">Quitter</button>
   </div>
   <div class="cine-bas">
@@ -944,6 +955,9 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   </div>
 </div>
 
+<button type="button" class="tourne-ecran" id="tourne-ecran" aria-label="Tourner l'écran (horizontal / vertical)" title="Tourner l'écran">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9.2" y="7.5" width="5.6" height="9" rx="1.2"/><path d="M4.5 11a7.8 7.8 0 0 1 13.6-4.2"/><path d="M18.6 3.4v3.6h-3.6"/><path d="M19.5 13a7.8 7.8 0 0 1-13.6 4.2"/><path d="M5.4 20.6V17h3.6"/></svg>
+</button>
 <main class="scene" id="scene">
   <div class="livre ferme-debut" id="livre">
     <div class="contreplat g"></div>
@@ -2131,61 +2145,12 @@ function ouvrirVideo(m,surFin){
       });
       coin.appendChild(sup);
     }
-    if(estVideo){
-      /* Bouton « Horizontal » : vrai plein écran + écran verrouillé en paysage
-         quand le navigateur l'accepte (Chrome Android) ; sinon la vidéo est
-         couchée d'un quart de tour par l'appli. « Vertical » pour revenir. */
-      var mode="none", entreFs=false;
-      var hz=el("button","bouton","Horizontal");
-      var calerTour=function(){
-        var W=window.innerWidth, H=window.innerHeight, portrait=H>W;
-        if(mode==="css" && !portrait) mode="none";
-        if(mode==="css"){
-          ov.style.cssText="top:0;left:"+W+"px;right:auto;bottom:auto;width:"+H+"px;height:"+W+"px;transform-origin:0 0;transform:rotate(90deg);";
-        }else{
-          ov.style.cssText="";
-        }
-        hz.textContent=(mode==="none")?"Horizontal":"Vertical";
-      };
-      var sortirNatif=function(){
-        try{ if(screen.orientation&&screen.orientation.unlock) screen.orientation.unlock(); }catch(e){}
-        try{
-          if(entreFs&&(document.fullscreenElement||document.webkitFullscreenElement)){
-            var q=(document.exitFullscreen||document.webkitExitFullscreen).call(document);
-            if(q&&q.catch) q.catch(function(){});
-          }
-        }catch(e){}
-        entreFs=false;
-      };
-      var passerNatif=function(){
-        var demande=ov.requestFullscreen||ov.webkitRequestFullscreen;
-        var deja=document.fullscreenElement||document.webkitFullscreenElement;
-        var p1=deja?Promise.resolve():(demande?Promise.resolve().then(function(){ entreFs=true; return demande.call(ov); }):Promise.reject());
-        return p1.then(function(){
-          if(!(screen.orientation&&screen.orientation.lock)) return Promise.reject();
-          return screen.orientation.lock("landscape");
-        });
-      };
-      hz.addEventListener("click",function(e){
-        e.stopPropagation();
-        if(mode!=="none"){
-          if(mode==="native") sortirNatif();
-          mode="none"; calerTour(); return;
-        }
-        passerNatif().then(function(){ mode="native"; calerTour(); },function(){
-          sortirNatif(); mode="css"; calerTour();
-        });
-      });
-      window.addEventListener("resize",calerTour);
-      ov._calerTour=calerTour; ov._sortirNatif=sortirNatif;
-      coin.appendChild(hz);
-      setTimeout(calerTour,0);
-    }
     var f=el("button","bouton","Fermer");
     f.addEventListener("click",function(e){ e.stopPropagation(); fermerVideo(); });
     coin.appendChild(f);
     ov.appendChild(coin);
     document.body.appendChild(ov);
+    document.body.classList.add("video-ouverte");
     videoOuverte={boite:ov,video:v,fin:surFin,clos:false};
     if(estVideo) baisserMusique(true);
     requestAnimationFrame(function(){ ov.classList.add("visible"); });
@@ -2379,8 +2344,7 @@ function fermerVideo(){
   var s=videoOuverte;
   if(!s||s.clos) return;
   s.clos=true; videoOuverte=null;
-  if(s.boite._calerTour) window.removeEventListener("resize",s.boite._calerTour);
-  if(s.boite._sortirNatif) s.boite._sortirNatif();
+  document.body.classList.remove("video-ouverte");
   baisserMusique(false);
   try{ if(s.video) s.video.pause(); }catch(e){}
   s.boite.classList.remove("visible");
@@ -4713,18 +4677,22 @@ function entrerPleinEcran(){
   },400);
 }
 
-/* Bouton « Horizontal » du plein écran : verrouille l'écran en paysage (même
-   si la rotation automatique du téléphone est coupée), « Vertical » pour revenir. */
-var ecranVerrouille=false;
-function majBoutonHoriz(){
-  var b=document.getElementById("cine-horiz");
-  if(b) b.textContent=ecranVerrouille?"Vertical":"Horizontal";
+/* Bouton rond « tourner l'écran » (tous les écrans) : verrouille le paysage même si la
+   rotation automatique du téléphone est coupée ; re-toucher pour revenir à la verticale. */
+var ecranVerrouille=false, pleinEcranParBouton=false;
+function majBoutonTourne(){
+  var b=document.getElementById("tourne-ecran");
+  if(b) b.classList.toggle("actif",ecranVerrouille);
 }
 function deverrouillerEcran(){
-  if(!ecranVerrouille) return;
   ecranVerrouille=false;
   try{ if(screen.orientation&&screen.orientation.unlock) screen.orientation.unlock(); }catch(e){}
-  majBoutonHoriz();
+  if(pleinEcranParBouton&&!pleinEcran&&(document.fullscreenElement||document.webkitFullscreenElement)){
+    var sortie=document.exitFullscreen||document.webkitExitFullscreen;
+    if(sortie){ try{ var q=sortie.call(document); if(q&&q.catch) q.catch(function(){}); }catch(e){} }
+  }
+  pleinEcranParBouton=false;
+  majBoutonTourne();
 }
 function basculerHorizontal(){
   if(ecranVerrouille){ deverrouillerEcran(); return; }
@@ -4732,15 +4700,30 @@ function basculerHorizontal(){
     note("Ce téléphone ne veut pas tourner l'écran depuis l'appli. Active la rotation automatique dans ses réglages.");
   };
   if(!(screen.orientation&&screen.orientation.lock)){ echec(); return; }
+  var ok=function(){ ecranVerrouille=true; majBoutonTourne(); };
+  var verrouiller=function(){ return screen.orientation.lock("landscape"); };
   var pr;
-  try{ pr=screen.orientation.lock("landscape"); }catch(e){ echec(); return; }
-  if(pr&&pr.then) pr.then(function(){ ecranVerrouille=true; majBoutonHoriz(); },echec);
-  else{ ecranVerrouille=true; majBoutonHoriz(); }
+  try{ pr=verrouiller(); }catch(e){ pr=Promise.reject(e); }
+  Promise.resolve(pr).then(ok,function(){
+    // certains navigateurs n'acceptent le verrou qu'en plein écran : on l'active puis on réessaie
+    var e=document.documentElement, demande=e.requestFullscreen||e.webkitRequestFullscreen;
+    if(!demande||document.fullscreenElement||document.webkitFullscreenElement){ echec(); return; }
+    pleinEcranParBouton=true;
+    Promise.resolve().then(function(){ return demande.call(e); }).then(verrouiller).then(ok,function(){
+      pleinEcranParBouton=false;
+      var sortie=document.exitFullscreen||document.webkitExitFullscreen;
+      try{ if(sortie&&(document.fullscreenElement||document.webkitFullscreenElement)) sortie.call(document); }catch(x){}
+      echec();
+    });
+  });
 }
-document.getElementById("cine-horiz").addEventListener("click",function(e){ e.stopPropagation(); basculerHorizontal(); });
+document.getElementById("tourne-ecran").addEventListener("click",function(e){ e.stopPropagation(); basculerHorizontal(); });
+document.addEventListener("fullscreenchange",function(){
+  if(!document.fullscreenElement&&ecranVerrouille){ ecranVerrouille=false; pleinEcranParBouton=false; majBoutonTourne(); }
+});
+
 function quitterPleinEcran(){
   if(!pleinEcran) return;
-  deverrouillerEcran();
   pleinEcran=false; cinema=false; enPause=false; jetonCine++;
   clearTimeout(minuterieCine); clearTimeout(minuterieBarre);
   fermerVideo();
