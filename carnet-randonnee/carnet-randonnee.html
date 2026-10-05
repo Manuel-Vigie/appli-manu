@@ -926,7 +926,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V56 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V57 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -2131,25 +2131,53 @@ function ouvrirVideo(m,surFin){
       coin.appendChild(sup);
     }
     if(estVideo){
-      /* Bouton « Horizontal » : le téléphone reste à la verticale mais la vidéo
-         se couche (écran tourné d'un quart de tour). Re-toucher pour revenir. */
-      var tourne=false;
+      /* Bouton « Horizontal » : vrai plein écran + écran verrouillé en paysage
+         quand le navigateur l'accepte (Chrome Android) ; sinon la vidéo est
+         couchée d'un quart de tour par l'appli. « Vertical » pour revenir. */
+      var mode="none", entreFs=false;
       var hz=el("button","bouton","Horizontal");
       var calerTour=function(){
         var W=window.innerWidth, H=window.innerHeight, portrait=H>W;
-        if(!portrait) tourne=false;
-        hz.style.display=portrait?"":"none";
-        if(tourne){
+        if(mode==="css" && !portrait) mode="none";
+        hz.style.display=(portrait||mode!=="none")?"":"none";
+        if(mode==="css"){
           ov.style.cssText="top:0;left:"+W+"px;right:auto;bottom:auto;width:"+H+"px;height:"+W+"px;transform-origin:0 0;transform:rotate(90deg);";
-          hz.textContent="Vertical";
         }else{
           ov.style.cssText="";
-          hz.textContent="Horizontal";
         }
+        hz.textContent=(mode==="none")?"Horizontal":"Vertical";
       };
-      hz.addEventListener("click",function(e){ e.stopPropagation(); tourne=!tourne; calerTour(); });
+      var sortirNatif=function(){
+        try{ if(screen.orientation&&screen.orientation.unlock) screen.orientation.unlock(); }catch(e){}
+        try{
+          if(entreFs&&(document.fullscreenElement||document.webkitFullscreenElement)){
+            var q=(document.exitFullscreen||document.webkitExitFullscreen).call(document);
+            if(q&&q.catch) q.catch(function(){});
+          }
+        }catch(e){}
+        entreFs=false;
+      };
+      var passerNatif=function(){
+        var demande=ov.requestFullscreen||ov.webkitRequestFullscreen;
+        var deja=document.fullscreenElement||document.webkitFullscreenElement;
+        var p1=deja?Promise.resolve():(demande?Promise.resolve().then(function(){ entreFs=true; return demande.call(ov); }):Promise.reject());
+        return p1.then(function(){
+          if(!(screen.orientation&&screen.orientation.lock)) return Promise.reject();
+          return screen.orientation.lock("landscape");
+        });
+      };
+      hz.addEventListener("click",function(e){
+        e.stopPropagation();
+        if(mode!=="none"){
+          if(mode==="native") sortirNatif();
+          mode="none"; calerTour(); return;
+        }
+        passerNatif().then(function(){ mode="native"; calerTour(); },function(){
+          sortirNatif(); mode="css"; calerTour();
+        });
+      });
       window.addEventListener("resize",calerTour);
-      ov._calerTour=calerTour;
+      ov._calerTour=calerTour; ov._sortirNatif=sortirNatif;
       coin.appendChild(hz);
       setTimeout(calerTour,0);
     }
@@ -2352,6 +2380,7 @@ function fermerVideo(){
   if(!s||s.clos) return;
   s.clos=true; videoOuverte=null;
   if(s.boite._calerTour) window.removeEventListener("resize",s.boite._calerTour);
+  if(s.boite._sortirNatif) s.boite._sortirNatif();
   baisserMusique(false);
   try{ if(s.video) s.video.pause(); }catch(e){}
   s.boite.classList.remove("visible");
