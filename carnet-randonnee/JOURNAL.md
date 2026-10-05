@@ -93,3 +93,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - V51 : photo seule en pleine page (ex. portrait en mode paysage) : montrée entière au lieu d'être coupée, sauf si un cadrage a été choisi à la main.
 - V52 : photo seule en pleine page : montrée entière même si elle avait un zoom/cadrage (qui la coupait).
 - V53 : photo seule entière — le réglage se refait aussi quand l'image arrive en retard (chargement différé), ce qui manquait.
+- V54 : deux affichages — à l'horizontale (double page) la photo seule est montrée entière ; à la verticale (une page) elle reste zoomée et remplit la page, comme avant.

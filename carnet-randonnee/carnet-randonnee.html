@@ -926,7 +926,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V53 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V54 · 05/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -2405,7 +2405,7 @@ function mesurerImage(fichier){
   });
 }
 
-/* Photo seule en pleine page : si son format est très différent de celui de la page (ex. photo
+/* Photo seule en pleine page, livre à l'horizontale : si son format est très différent de celui de la page (ex. photo
    verticale sur une page en paysage), on la montre ENTIÈRE au lieu de la couper ; le zoom / cadrage
    éventuel est alors ignoré (c'est lui qui coupait). À rappeler quand l'image arrive en retard. */
 function regleEntier(c){
@@ -2416,7 +2416,8 @@ function regleEntier(c){
   var lT=parseFloat(t.style.width)||t.clientWidth, hT=parseFloat(t.style.height)||t.clientHeight;
   if(!lT||!hT) return;
   var rI=im.naturalWidth/im.naturalHeight, rS=lT/hT;
-  var entier=(1-Math.min(rI,rS)/Math.max(rI,rS))>0.08;
+  // Livre à l'horizontale (double page) : photo entière. Livre à la verticale (une page) : comme avant, photo zoomée qui remplit la page.
+  var entier=!mono&&(1-Math.min(rI,rS)/Math.max(rI,rS))>0.08;
   im.dataset.entier=entier?"1":"";
   im.style.objectFit=entier?"contain":"";
   if(c._media) appliquerCadre(c._media,c);
