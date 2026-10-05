@@ -97,3 +97,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - V55 : photo seule — entière à l'horizontale, zoomée à la verticale, décidé d'après l'orientation réelle de l'écran et refait à chaque rotation (tous les albums).
 - V56 : vidéo plein écran — bouton « Horizontal » (téléphone en vertical, la vidéo se couche) ; « Vertical » pour revenir.
 - V57 : bouton « Horizontal » — vrai plein écran + paysage verrouillé quand le téléphone l'accepte, sinon vidéo couchée par l'appli.
+- V58 : bouton « Horizontal » toujours visible sur la vidéo (même téléphone couché).
