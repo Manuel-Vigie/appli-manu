@@ -7,3 +7,4 @@ Tout se passe sur le téléphone : aucune photo n'est envoyée sur le serveur. F
 - 06/10/2026 : rendue installable (manifeste, icônes, service worker `biblio-photo-V1`, balises dans la page).
 - 06/10/2026 : icône recentrée, cache biblio-photo-V2.
 - 06/10/2026 : manifeste aligné sur celui de carnet-sante (id, description, orientation) ; cache V3. Installation encore refusée sur le téléphone de Manuel (« Impossible d'installer »), cause inconnue.
+- 06/10/2026 : V4, pastille de mise à jour en haut à droite (version, date, bouton Actualiser) ; `version.json` ajouté ; cache biblio-photo-V4. Mise à jour : modifier le html, `version.json`, puis `python3 outils/poser-pastille.py bibliotheque-photo`.

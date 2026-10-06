@@ -1,5 +1,5 @@
 // Replay Rando 3D — service worker (mise en cache pour usage hors connexion)
-const VERSION = 'rr3d-v2';
+const VERSION = 'rr3d-v3';
 const SHELL = VERSION + '-app';
 const LIBS = 'rr3d-libs';
 const TILES = 'rr3d-tiles';
@@ -43,6 +43,8 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  // Fichier de version : toujours lu en ligne (sert à afficher « Nouvelle version »)
+  if (url.origin === location.origin && url.pathname.endsWith('/version.json')) return;
 
   // Page de l'app : réseau d'abord (pour recevoir les mises à jour), sinon cache
   if (req.mode === 'navigate' && url.origin === location.origin) {

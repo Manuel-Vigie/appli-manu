@@ -13,7 +13,8 @@ https://manuel-vigie.github.io/appli-manu/rando-3d/rando-3d.html
 | `rando-3d.html` | L'appli entière |
 | `index.html` | **Copie identique** de `rando-3d.html`, uniquement pour que l'adresse du dossier marche |
 | `manifest.webmanifest` | Nom, icônes, `start_url: ./rando-3d.html` |
-| `sw.js` | Mode hors connexion. Contient `VERSION = 'rr3d-v2'` |
+| `sw.js` | Mode hors connexion. Contient `VERSION = 'rr3d-v3'` (laisse passer `version.json` sans cache) |
+| `version.json` | Version, date et nouveautés affichées par la pastille ↻ (voir CLAUDE.md) |
 | `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`, `favicon.png` | Icônes |
 
 ## Installer sur le téléphone (Android)
@@ -21,8 +22,8 @@ Ouvrir l'adresse dans Chrome (pas un fichier du dossier Téléchargements), puis
 
 ## Mettre à jour
 1. Modifier `rando-3d.html`, puis **recopier le résultat dans `index.html`** (les deux doivent rester identiques).
-2. **Changer `VERSION` dans `sw.js`** (rr3d-v2 → rr3d-v3…) pour forcer le rechargement.
-3. Sur le téléphone : fermer et rouvrir l'appli deux fois.
+2. Mettre à jour `version.json` (version, date, nouveautés, `sw.cache`) puis lancer `python3 outils/poser-pastille.py rando-3d`.
+3. Sur le téléphone : toucher la pastille ↻ en haut à droite → **Actualiser**.
 
 ## Où sont les données
 Dans le navigateur : `localStorage`, clés `rr3d-*` (`rr3d-lib` bibliothèque, `rr3d-places:`, `rr3d-relief`, `rr3d-pace`, `rr3d-area`, `rr3d-fs`). Caches : `rr3d-v2-app`, `rr3d-libs`, `rr3d-tiles`.
@@ -34,3 +35,4 @@ Vider les données de sites de Chrome les efface. Aucune fonction de sauvegarde 
 
 ## Historique
 - 02/10/2026 — Rangement dans `rando-3d/` (`index.html` retiré par erreur, remis le 03/10).
+- 06/10/2026 — V3 : pastille de mise à jour en haut à droite (version, date, bouton Actualiser, devient verte si une nouvelle version est en ligne). Cache rr3d-v3.

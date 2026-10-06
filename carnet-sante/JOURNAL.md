@@ -15,14 +15,15 @@ https://manuel-vigie.github.io/appli-manu/carnet-sante/carnet-sante.html
 |---|---|
 | `carnet-sante.html` | La coquille (écran d'import, cadre, bouton ⚙) |
 | `carnet-sante-manifest.webmanifest` | Nom, icônes, démarrage |
-| `carnet-sante-sw.js` | Cache de la coquille seulement (`carnet-sante-app-v1`) |
+| `carnet-sante-sw.js` | Cache de la coquille seulement (`carnet-sante-app-v2`) |
+| `version.json` | Version, date et nouveautés affichées par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-sante-icon-192.png`, `-512.png`, `-masque-512.png`, `-apple-touch-icon.png` | Icônes |
 
 ## Installer sur le téléphone
 1. Ouvrir l'adresse dans Chrome. 2. **Choisir mon fichier** → `carnet-sante.html` (Téléchargements). 3. **⋮ → Installer l'application**.
 
 ## Mettre à jour
-- **La coquille** : modifier le html, changer `CACHE` dans `carnet-sante-sw.js` (v1 → v2).
+- **La coquille** : modifier le html, mettre à jour `version.json` puis lancer `python3 outils/poser-pastille.py carnet-sante`. Sur le téléphone : pastille ↻ → Actualiser (en bas à gauche, à côté de ⚙, quand le carnet est ouvert).
 - **Le contenu santé** (fichier privé) : sur le téléphone, **⚙ → Remplacer par un nouveau fichier**. Rien à publier.
 - Le fichier privé est vérifié à l'import : il doit contenir `<title>Carnet de Santé`.
 
@@ -47,3 +48,4 @@ Servir le dossier en local, importer un fichier de test, vérifier : cadre visib
 - 01–02/10/2026 — Ancienne version : archive `carnet-sante.zip` publique contenant des données privées. Retirée, dépôt recréé pour effacer l'historique.
 - 03/10/2026 — Coquille vide en ligne.
 - 04/10/2026 — Fichier privé v2.20 (boutons Imprimer / Envoyer).
+- 06/10/2026 — Coquille V2 : pastille de mise à jour (en haut à droite à l'accueil, en bas à côté de ⚙ quand le carnet est ouvert). Cache carnet-sante-app-v2. Le fichier privé n'est pas touché.

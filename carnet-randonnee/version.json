@@ -1,0 +1,17 @@
+{
+  "nom": "Carnet de rando",
+  "version": "V61",
+  "date": "06/10/2026",
+  "nouveautes": [
+    "La pastille ↻ devient verte quand une nouvelle version est en ligne."
+  ],
+  "cache": "carnet-app-",
+  "sw": {
+    "fichier": "carnet-sw.js",
+    "cache": "carnet-app-V61"
+  },
+  "fichiers": [
+    "carnet-randonnee.html"
+  ],
+  "pastille": false
+}

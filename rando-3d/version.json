@@ -1,0 +1,18 @@
+{
+  "nom": "Replay Rando 3D",
+  "version": "V3",
+  "date": "06/10/2026",
+  "nouveautes": [
+    "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser.",
+    "Rangement de l'appli dans son propre dossier rando-3d/."
+  ],
+  "cache": "rr3d-v",
+  "sw": {
+    "fichier": "sw.js",
+    "cache": "rr3d-v3"
+  },
+  "fichiers": [
+    "rando-3d.html",
+    "index.html"
+  ]
+}

@@ -172,5 +172,105 @@
         .catch(function(){ montrer("import"); });
 })();
 </script>
+<!-- MAJ:debut — pastille de mise à jour commune à toutes les applis (modèle : outils/pastille-maj.html, ne pas modifier ici à la main) -->
+<style>
+#maj-pastille{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:2147483000;
+  display:flex;align-items:center;gap:5px;margin:0;padding:5px 9px;border-radius:99px;border:1px solid rgba(255,255,255,.25);
+  background:rgba(22,30,36,.86);color:#fff;font:700 11.5px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.02em;
+  box-shadow:0 4px 14px -6px rgba(0,0,0,.6);cursor:pointer;-webkit-tap-highlight-color:transparent;backdrop-filter:blur(6px)}
+#maj-pastille .maj-fl{font-size:13px}
+#maj-pastille.maj-nouvelle{background:#1d7a45;border-color:#7fd6a3;animation:maj-pulse 2s ease-in-out infinite}
+@keyframes maj-pulse{50%{box-shadow:0 0 0 5px rgba(29,122,69,.25)}}
+@media (prefers-reduced-motion:reduce){#maj-pastille.maj-nouvelle{animation:none}}
+#maj-panneau{position:fixed;inset:0;z-index:2147483001;display:flex;align-items:flex-start;justify-content:center;
+  padding:calc(52px + env(safe-area-inset-top,0px)) 16px 16px;background:rgba(0,0,0,.45);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#maj-panneau[hidden]{display:none}
+#maj-panneau .maj-boite{width:100%;max-width:360px;max-height:100%;overflow:auto;background:#fff;color:#16202a;border-radius:14px;padding:16px 16px 14px;box-shadow:0 20px 50px -10px rgba(0,0,0,.6)}
+#maj-panneau .maj-nom{font-weight:800;font-size:18px;margin:0 0 2px}
+#maj-panneau .maj-ver{color:#4b5a68;font-size:13.5px;margin:0}
+#maj-panneau .maj-dispo{margin:10px 0 0;padding:8px 10px;border-radius:9px;background:#e3f4ea;color:#14532d;font-weight:600;font-size:13.5px}
+#maj-panneau .maj-t{margin:12px 0 4px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6a7884}
+#maj-panneau ul{margin:0;padding:0 0 0 18px;font-size:13.5px;color:#26323d}
+#maj-panneau li{margin:3px 0}
+#maj-panneau .maj-actions{display:flex;gap:8px;margin-top:14px}
+#maj-panneau button{flex:1;min-height:44px;border-radius:10px;border:1px solid #c9d2da;background:#f3f6f8;color:#16202a;font:700 15px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;cursor:pointer}
+#maj-panneau button.maj-ok{background:#1f4f7a;border-color:#1f4f7a;color:#fff}
+#maj-panneau .maj-msg{margin:10px 0 0;font-size:13px;color:#8a3b12}
+#maj-panneau .maj-msg:empty{display:none}
+@media print{#maj-pastille,#maj-panneau{display:none!important}}
+#cadre:not([hidden])~#maj-pastille{top:auto;right:auto;left:calc(52px + env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));opacity:.8}
+</style>
+<script>
+window.MAJ_APPLI={"nom": "Carnet de Santé", "version": "V2", "date": "06/10/2026", "cache": "carnet-sante-app-", "nouveautes": ["Pastille de mise à jour : version, date et bouton Actualiser (en bas, à côté de ⚙, quand le carnet est ouvert).", "Coquille vide en ligne : vos données restent uniquement sur le téléphone."]};
+(function(){
+  "use strict";
+  var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
+  var enLigne=/^https?:$/.test(location.protocol), distante=null;
+  /* nettoie l'adresse après une actualisation (?maj=...) */
+  if(/[?&]maj=/.test(location.search)){ try{ history.replaceState(null,"",location.pathname+location.hash); }catch(e){} }
+
+  var b=document.createElement("button");
+  b.type="button"; b.id="maj-pastille"; b.title=A.nom+" — version et mise à jour";
+  b.innerHTML='<span class="maj-fl" aria-hidden="true">↻</span><span class="maj-txt"></span>';
+  var txt=b.querySelector(".maj-txt");
+  function court(d){ return String(d||"").slice(0,5); }
+  function majTexte(){
+    if(distante&&distante.version!==A.version){ b.classList.add("maj-nouvelle"); txt.textContent="Nouvelle version"; }
+    else { b.classList.remove("maj-nouvelle"); txt.textContent=A.version+" · "+court(A.date); }
+  }
+
+  var p=document.createElement("div");
+  p.id="maj-panneau"; p.hidden=true; p.setAttribute("role","dialog"); p.setAttribute("aria-modal","true"); p.setAttribute("aria-label","Mise à jour");
+  p.innerHTML='<div class="maj-boite"><p class="maj-nom"></p><p class="maj-ver"></p><p class="maj-dispo" hidden></p>'+
+    '<p class="maj-t">Dernières nouveautés</p><ul></ul>'+
+    '<div class="maj-actions"><button type="button" class="maj-ok">↻ Actualiser</button><button type="button" class="maj-fermer">Fermer</button></div>'+
+    '<p class="maj-msg" role="status"></p></div>';
+  var q=function(s){ return p.querySelector(s); };
+  q(".maj-nom").textContent=A.nom;
+  q(".maj-ver").textContent="Version "+A.version+" · mise à jour le "+A.date;
+  (A.nouveautes||[]).slice(0,4).forEach(function(n){ var li=document.createElement("li"); li.textContent=n; q("ul").appendChild(li); });
+
+  function ouvrir(){
+    var d=q(".maj-dispo");
+    if(distante&&distante.version!==A.version){ d.hidden=false; d.textContent="Nouvelle version en ligne : "+distante.version+(distante.date?" du "+distante.date:"")+". Touchez Actualiser."; }
+    else d.hidden=true;
+    q(".maj-msg").textContent=""; p.hidden=false; verifier(true);
+  }
+  function fermer(){ p.hidden=true; }
+  b.addEventListener("click",ouvrir);
+  q(".maj-fermer").addEventListener("click",fermer);
+  p.addEventListener("click",function(e){ if(e.target===p) fermer(); });
+  document.addEventListener("keydown",function(e){ if(e.key==="Escape"&&!p.hidden) fermer(); });
+
+  q(".maj-ok").addEventListener("click",function(){
+    var msg=q(".maj-msg");
+    if(!enLigne){ msg.textContent="Cette page est un fichier ouvert sur l'appareil : ouvrez plutôt l'adresse en ligne."; return; }
+    if(navigator.onLine===false){ msg.textContent="Pas de connexion internet : réessayez plus tard."; return; }
+    msg.textContent="Mise à jour en cours…";
+    var go=function(){ setTimeout(function(){ location.replace(location.pathname+"?maj="+Date.now()+location.hash); },300); };
+    Promise.resolve().then(function(){
+      if(!("serviceWorker" in navigator)) return;
+      return navigator.serviceWorker.getRegistrations().then(function(rs){ return Promise.all(rs.map(function(r){ return r.update().catch(function(){}); })); });
+    }).catch(function(){}).then(function(){
+      if(!("caches" in window)||!A.cache) return;
+      return caches.keys().then(function(ks){ return Promise.all(ks.filter(function(k){ return k.indexOf(A.cache)===0; }).map(function(k){ return caches.delete(k); })); });
+    }).catch(function(){}).then(go,go);
+  });
+
+  var dernier=0;
+  function verifier(force){
+    if(!enLigne||navigator.onLine===false) return;
+    var t=Date.now(); if(!force&&t-dernier<5*60*1000) return; dernier=t;
+    fetch("version.json",{cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(j){
+      if(j&&j.version){ distante=j; majTexte();
+        if(!p.hidden&&j.version!==A.version){ var d=q(".maj-dispo"); d.hidden=false; d.textContent="Nouvelle version en ligne : "+j.version+(j.date?" du "+j.date:"")+". Touchez Actualiser."; } }
+    }).catch(function(){});
+  }
+  function poser(){ document.body.appendChild(b); document.body.appendChild(p); majTexte(); setTimeout(function(){ verifier(true); },1500); }
+  if(document.body) poser(); else document.addEventListener("DOMContentLoaded",poser);
+  document.addEventListener("visibilitychange",function(){ if(!document.hidden) verifier(false); });
+})();
+</script>
+<!-- MAJ:fin -->
 </body>
 </html>

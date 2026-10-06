@@ -910,6 +910,7 @@ body.classer .note{bottom:auto;top:6.2rem}
 body.cinema .pastille-installer,body.partage-bib:not(.biblio-ouverte) .pastille-installer{display:none!important}
 .pastille-maj:hover{background:#2c3a29f0}
 .pastille-maj .fleche-maj{font-size:.85rem;line-height:1}
+.pastille-maj.maj-nouvelle{background:#1d7a45f2;border-color:#7fd6a3;color:#fff}
 body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj{display:none}
 @media (max-width:720px){
   .pastille-maj{top:calc(2.95rem + env(safe-area-inset-top));font-size:.64rem;padding:.28rem .5rem}
@@ -938,7 +939,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V60 · 05/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V61 · 06/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -4892,6 +4893,27 @@ document.getElementById("btn-maj").addEventListener("click",function(){
     .catch(function(){})
     .then(recharger,recharger);
 });
+
+/* Pastille : devient verte « Nouvelle version » quand version.json (en ligne)
+   annonce une autre version que celle affichée. */
+(function(){
+  if(!/^https?:$/.test(location.protocol)) return;
+  if(/[?&]maj=/.test(location.search)){ try{ history.replaceState(null,"",location.pathname+location.hash); }catch(e){} }
+  var dernier=0, lbl=document.getElementById("version-appli"), btn=document.getElementById("btn-maj");
+  var ici=(lbl.textContent.split("·")[0]||"").trim();
+  function verifier(force){
+    if(navigator.onLine===false) return;
+    var t=Date.now(); if(!force&&t-dernier<300000) return; dernier=t;
+    fetch("version.json",{cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(j){
+      if(j&&j.version&&j.version!==ici){
+        btn.classList.add("maj-nouvelle"); lbl.textContent="Nouvelle version";
+        btn.title="Nouvelle version "+j.version+(j.date?" du "+j.date:"")+" : toucher pour l'installer";
+      }
+    }).catch(function(){});
+  }
+  setTimeout(function(){ verifier(true); },1500);
+  document.addEventListener("visibilitychange",function(){ if(!document.hidden) verifier(false); });
+})();
 
 /* =====================================================================
    10. Sommaire

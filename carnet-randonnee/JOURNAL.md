@@ -2,7 +2,7 @@
 
 ## Identité
 Appli de carnets de randonnée (albums photos, musique, pages). Fonctionne hors connexion (PWA).
-Version actuelle : **V10 · 04/10/2026** (affichée dans la pastille ↻ en haut de l'appli).
+Version actuelle : **V61 · 06/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
@@ -12,7 +12,8 @@ https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
 |---|---|
 | `carnet-randonnee.html` | L'appli entière |
 | `carnet-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V10'` |
+| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V61'` |
+| `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-icone-192.png`, `carnet-icone-512.png`, `carnet-icone-masque-512.png` | Icônes |
 
 Le manifest, le sw et les icônes servent **uniquement** à cette appli.
@@ -22,8 +23,8 @@ Le manifest, le sw et les icônes servent **uniquement** à cette appli.
 2. Menu **⋮ → Installer l'application**.
 
 ## Mettre à jour
-1. Changer le contenu de `carnet-randonnee.html` (et la version dans `id="version-appli"`).
-2. **Changer le nom `SHELL` dans `carnet-sw.js`** (V10 → V10-b, V11…) : c'est ce qui force les téléphones à recharger.
+1. Changer le contenu de `carnet-randonnee.html`.
+2. Mettre à jour `version.json` (version, date, nouveautés, `sw.cache`) puis lancer `python3 outils/poser-pastille.py carnet-randonnee` : il change l'étiquette `id="version-appli"` et le nom `SHELL` de `carnet-sw.js`.
 3. Sur le téléphone : toucher la pastille ↻, ou fermer et rouvrir l'appli deux fois.
 Les albums ne sont pas touchés par une mise à jour.
 
@@ -100,3 +101,5 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - V58 : bouton « Horizontal » toujours visible sur la vidéo (même téléphone couché).
 - V59 : plein écran de l'album — bouton « Horizontal » en haut (verrouille le paysage même si la rotation auto du téléphone est coupée), « Vertical » pour revenir.
 - V60 : bouton rond « tourner l'écran » sur tous les écrans (bibliothèque, album, plein écran, vidéo) ; remplace les boutons « Horizontal » de V56-V59.
+- 05/10 → 06/10 — V39 à V60 : non détaillées dans ce journal.
+- 06/10/2026 — V61 : la pastille ↻ devient verte « Nouvelle version » quand une mise à jour est en ligne (lecture de `version.json`). Cache carnet-app-V61.

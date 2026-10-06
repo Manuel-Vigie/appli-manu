@@ -1,0 +1,18 @@
+{
+  "nom": "Bibliothèque Photo",
+  "version": "V4",
+  "date": "06/10/2026",
+  "nouveautes": [
+    "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser.",
+    "Appli installable sur le téléphone (icône, mode hors connexion)."
+  ],
+  "cache": "biblio-photo-",
+  "sw": {
+    "fichier": "bibliotheque-sw.js",
+    "cache": "biblio-photo-V4"
+  },
+  "fichiers": [
+    "bibliotheque-photo.html"
+  ],
+  "css": "#maj-pastille{top:calc(24px + env(safe-area-inset-top,0px));right:24px}"
+}

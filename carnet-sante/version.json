@@ -1,0 +1,18 @@
+{
+  "nom": "Carnet de Santé",
+  "version": "V2",
+  "date": "06/10/2026",
+  "nouveautes": [
+    "Pastille de mise à jour : version, date et bouton Actualiser (en bas, à côté de ⚙, quand le carnet est ouvert).",
+    "Coquille vide en ligne : vos données restent uniquement sur le téléphone."
+  ],
+  "cache": "carnet-sante-app-",
+  "sw": {
+    "fichier": "carnet-sante-sw.js",
+    "cache": "carnet-sante-app-v2"
+  },
+  "fichiers": [
+    "carnet-sante.html"
+  ],
+  "css": "#cadre:not([hidden])~#maj-pastille{top:auto;right:auto;left:calc(52px + env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));opacity:.8}"
+}
