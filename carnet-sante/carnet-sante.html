@@ -34,6 +34,26 @@
   #reglages{ position:fixed; left:max(8px,env(safe-area-inset-left)); bottom:max(8px,env(safe-area-inset-bottom));
     width:36px; height:36px; border-radius:50%; border:1px solid var(--ligne); background:var(--carte);
     color:var(--doux); font-size:18px; line-height:1; opacity:.55; z-index:5; cursor:pointer; }
+  .coche{ display:flex; align-items:center; gap:12px; margin:16px 0 0; text-align:left; color:var(--texte);
+    font-size:.95rem; cursor:pointer; }
+  .coche input{ width:26px; height:26px; flex:none; accent-color:var(--bleu); }
+  /* recadrage des photos */
+  #scan{ position:fixed; inset:0; z-index:2147483002; display:flex; flex-direction:column; gap:8px;
+    padding:max(10px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));
+    background:#0b0f14; color:#fff; font:15px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-user-select:none; user-select:none; overscroll-behavior:contain; }
+  .scan-haut{ display:flex; justify-content:space-between; align-items:baseline; font-size:17px; }
+  #scan-compte{ color:#9fb0c3; font-size:14px; }
+  #scan .scan-aide{ margin:0; color:#c3cfdb; font-size:14px; min-height:20px; }
+  .scan-zone{ flex:1; min-height:0; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  #scan-canvas{ display:block; touch-action:none; background:#000; border-radius:4px; }
+  .scan-barre{ display:flex; flex-direction:column; gap:8px; }
+  .scan-ligne{ display:flex; gap:8px; }
+  .scan-b{ flex:1; min-height:50px; padding:8px 6px; border-radius:12px; border:1px solid #3a4a5c; background:#1a2430;
+    color:#fff; font:600 14px/1.2 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; cursor:pointer; }
+  .scan-b.p{ background:#2f6fd0; border-color:#2f6fd0; }
+  .scan-b.sel{ background:#fff; color:#0b0f14; border-color:#fff; }
+  #scan.occ .scan-barre{ opacity:.45; pointer-events:none; }
   [hidden]{ display:none !important; }
 </style>
 </head>
@@ -53,6 +73,7 @@
     <div id="vue-reglages" hidden>
       <p>Votre carnet est enregistré sur ce téléphone.</p>
       <p class="petit" id="info"></p>
+      <label class="coche"><input type="checkbox" id="scan-actif"><span>Recadrer et améliorer mes photos avant de les ajouter (ordonnances, analyses…)</span></label>
       <button class="gros" id="retour" type="button">Retour à mon carnet</button>
       <label class="gros secondaire" for="fichier2">Remplacer par un nouveau fichier</label>
       <input type="file" id="fichier2" accept=".html,.htm,text/html">
@@ -65,6 +86,34 @@
 
 <iframe id="cadre" title="Mon carnet de santé" hidden></iframe>
 <button id="reglages" type="button" aria-label="Réglages" hidden>⚙</button>
+
+<div id="scan" hidden role="dialog" aria-modal="true" aria-labelledby="scan-titre">
+  <div class="scan-haut"><b id="scan-titre">Recadrer la photo</b><span id="scan-compte"></span></div>
+  <p class="scan-aide" id="scan-aide" role="status"></p>
+  <div class="scan-zone" id="scan-zone"><canvas id="scan-canvas"></canvas></div>
+  <div class="scan-barre" id="scan-e1">
+    <div class="scan-ligne">
+      <button type="button" class="scan-b" id="scan-tourner">↻ Tourner</button>
+      <button type="button" class="scan-b" id="scan-auto">Détecter la feuille</button>
+    </div>
+    <div class="scan-ligne">
+      <button type="button" class="scan-b" id="scan-annuler">Annuler</button>
+      <button type="button" class="scan-b" id="scan-origine">Sans retouche</button>
+      <button type="button" class="scan-b p" id="scan-suite">Suivant ›</button>
+    </div>
+  </div>
+  <div class="scan-barre" id="scan-e2" hidden>
+    <div class="scan-ligne">
+      <button type="button" class="scan-b sel" data-f="document">Document</button>
+      <button type="button" class="scan-b" data-f="couleur">Couleur</button>
+      <button type="button" class="scan-b" data-f="original">Original</button>
+    </div>
+    <div class="scan-ligne">
+      <button type="button" class="scan-b" id="scan-retour">‹ Retour</button>
+      <button type="button" class="scan-b p" id="scan-valider">Valider ✓</button>
+    </div>
+  </div>
+</div>
 
 <script>
 (function(){
@@ -172,6 +221,501 @@
         .catch(function(){ montrer("import"); });
 })();
 </script>
+
+<script>
+/* --- Recadrage et amélioration des photos (ordonnances, analyses…) ---
+   Chaque photo ajoutée dans le carnet passe d'abord ici : recadrage sur les 4 coins, redressement,
+   aspect « document ». Tout se passe sur le téléphone, rien n'est envoyé. Réglage dans ⚙. */
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var CLE = "carnet-sante-scan-actif", MAX_TRAVAIL = 3000, MAX_SORTIE = 1800, QUALITE = 0.85;
+  var S = null;   /* photo en cours de retouche */
+
+  function actif(){ try { return localStorage.getItem(CLE) !== "0"; } catch(e){ return true; } }
+
+  /* ===== 1. On se place devant les choix de fichier faits dans le carnet ===== */
+  function accrocher(el){
+    if (el.__scanAcc) return;
+    el.__scanAcc = true;
+    el.addEventListener("input", intercepter, true);
+    el.addEventListener("change", intercepter, true);
+  }
+  function brancher(){
+    var doc, W;
+    try { doc = $("cadre").contentDocument; W = doc && doc.defaultView; } catch(e){ return; }
+    if (!doc || !W || doc.__scanBranche) return;
+    doc.__scanBranche = true;
+    doc.addEventListener("input", intercepter, true);
+    doc.addEventListener("change", intercepter, true);
+    try {   /* champs créés « à la volée » par le carnet (hors de la page) */
+      var P = W.HTMLInputElement.prototype, clic = P.click, choisir = P.showPicker;
+      P.click = function(){ if (this.type === "file") accrocher(this); return clic.apply(this, arguments); };
+      if (choisir) P.showPicker = function(){ if (this.type === "file") accrocher(this); return choisir.apply(this, arguments); };
+    } catch(e){}
+  }
+  $("cadre").addEventListener("load", brancher);
+
+  function intercepter(e){
+    var el = e.target;
+    if (!el || el.tagName !== "INPUT" || el.type !== "file" || el.__scanPasse || !actif()) return;
+    var liste = Array.prototype.slice.call(el.files || []), i;
+    if (!liste.length) return;
+    for (i = 0; i < liste.length; i++){
+      if (!/^image\/(jpeg|png|webp|heic|heif)$/i.test(liste[i].type)) return;   /* ZIP, sauvegarde… : on laisse passer */
+    }
+    e.stopImmediatePropagation();
+    if (el.__scanOccupe) return;
+    el.__scanOccupe = true;
+    traiterListe(liste).then(null, function(){ return liste; }).then(function(res){
+      el.__scanOccupe = false;
+      if (!res){ try { el.value = ""; } catch(_){} return; }   /* Annuler */
+      renvoyer(el, res);
+    });
+  }
+
+  function renvoyer(el, res){
+    var W = el.ownerDocument.defaultView;
+    try {
+      var dt = new W.DataTransfer();
+      res.forEach(function(r){
+        dt.items.add(r && r.blob ? new W.File([r.blob], r.nom, {type: "image/jpeg", lastModified: Date.now()}) : r);
+      });
+      el.files = dt.files;
+    } catch(e){}
+    el.__scanPasse = true;
+    try {
+      el.dispatchEvent(new W.Event("input", {bubbles: true}));
+      el.dispatchEvent(new W.Event("change", {bubbles: true}));
+    } finally { el.__scanPasse = false; }
+  }
+
+  function traiterListe(liste){
+    var sortie = [], i = 0, n = liste.length;
+    function suite(){
+      if (i >= n) return Promise.resolve(sortie);
+      var f = liste[i++];
+      return editer(f, i, n).then(null, function(){ return f; }).then(function(r){
+        if (r === null) return null;
+        sortie.push(r);
+        return suite();
+      });
+    }
+    return suite();
+  }
+
+  /* ===== 2. L'écran de retouche ===== */
+  function editer(f, rang, total){
+    return decoder(f).then(function(base){
+      return new Promise(function(fini){
+        S = {fichier: f, base: base, pts: detecter(base) || cadreParDefaut(base), etape: 1, drag: -1, k: 1,
+             filtre: "document", redr: null, cache: {}, affiche: null, fini: fini};
+        $("scan-compte").textContent = total > 1 ? ("Photo " + rang + " sur " + total) : "";
+        $("scan").classList.remove("occ");
+        $("scan").hidden = false;
+        etape(1);
+      });
+    });
+  }
+  function finir(res){
+    var s = S; if (!s) return;
+    S = null;
+    $("scan").hidden = true;
+    try {
+      s.base.width = 1;
+      if (s.redr) s.redr.width = 1;
+      Object.keys(s.cache).forEach(function(k){ s.cache[k].width = 1; });
+    } catch(e){}
+    s.fini(res);
+  }
+  function etape(n){
+    S.etape = n;
+    $("scan-e1").hidden = (n !== 1);
+    $("scan-e2").hidden = (n !== 2);
+    $("scan-titre").textContent = n === 1 ? "Recadrer la photo" : "Améliorer la photo";
+    $("scan-aide").textContent = n === 1 ? "Glissez les 4 coins sur les bords de la feuille."
+                                         : "Choisissez l'aspect le plus lisible, puis validez.";
+    requestAnimationFrame(dessiner);
+  }
+  function occupe(oui){
+    if (!S) return;
+    $("scan").classList.toggle("occ", oui);
+    if (oui) $("scan-aide").textContent = "Un instant…";
+    else $("scan-aide").textContent = S.etape === 1 ? "Glissez les 4 coins sur les bords de la feuille."
+                                                    : "Choisissez l'aspect le plus lisible, puis validez.";
+  }
+  function montrerFiltre(nom){
+    S.filtre = nom;
+    Array.prototype.forEach.call(document.querySelectorAll("#scan-e2 [data-f]"), function(b){
+      b.classList.toggle("sel", b.getAttribute("data-f") === nom);
+    });
+    if (!S.cache[nom]) S.cache[nom] = (nom === "original") ? S.redr : amelio(S.redr, nom);
+    S.affiche = S.cache[nom];
+    dessiner();
+  }
+
+  /* boutons */
+  $("scan-annuler").addEventListener("click", function(){ finir(null); });
+  $("scan-origine").addEventListener("click", function(){ if (S) finir(S.fichier); });
+  $("scan-tourner").addEventListener("click", function(){
+    if (!S) return;
+    var b = S.base, H = b.height, c = document.createElement("canvas");
+    c.width = H; c.height = b.width;
+    var x = c.getContext("2d", {willReadFrequently: true});
+    x.translate(H, 0); x.rotate(Math.PI / 2); x.drawImage(b, 0, 0);
+    var r = S.pts.map(function(p){ return [H - p[1], p[0]]; });
+    S.pts = [r[3], r[0], r[1], r[2]];
+    b.width = 1; S.base = c;
+    dessiner();
+  });
+  $("scan-auto").addEventListener("click", function(){ if (S){ S.pts = detecter(S.base) || cadreParDefaut(S.base); dessiner(); } });
+  $("scan-suite").addEventListener("click", function(){
+    if (!S) return;
+    occupe(true);
+    setTimeout(function(){
+      if (!S) return;
+      try {
+        S.redr = redresser(S.base, S.pts);
+        S.cache = {};
+        occupe(false);
+        etape(2);
+        montrerFiltre(S.filtre);
+      } catch(e){ finir(S && S.fichier); }
+    }, 40);
+  });
+  $("scan-retour").addEventListener("click", function(){ if (S){ etape(1); } });
+  Array.prototype.forEach.call(document.querySelectorAll("#scan-e2 [data-f]"), function(b){
+    b.addEventListener("click", function(){
+      if (!S) return;
+      var nom = b.getAttribute("data-f");
+      occupe(true);
+      setTimeout(function(){ if (!S) return; try { montrerFiltre(nom); } finally { occupe(false); } }, 40);
+    });
+  });
+  $("scan-valider").addEventListener("click", function(){
+    if (!S || !S.affiche) return;
+    var s = S;
+    occupe(true);
+    s.affiche.toBlob(function(blob){
+      if (S !== s) return;
+      if (!blob){ finir(s.fichier); return; }
+      finir({blob: blob, nom: (s.fichier.name || "photo").replace(/\.[^.]*$/, "") + "-scan.jpg"});
+    }, "image/jpeg", QUALITE);
+  });
+  document.addEventListener("keydown", function(e){ if (e.key === "Escape" && S) finir(null); });
+  window.addEventListener("resize", dessiner);
+
+  /* réglage dans ⚙ */
+  $("reglages").addEventListener("click", function(){ $("scan-actif").checked = actif(); });
+  $("scan-actif").addEventListener("change", function(){
+    try { localStorage.setItem(CLE, this.checked ? "1" : "0"); } catch(e){}
+  });
+
+  /* ===== 3. Dessin : photo, cadre, coins, loupe ===== */
+  function dessiner(){
+    if (!S) return;
+    var z = $("scan-zone"), c = $("scan-canvas"), img = (S.etape === 1) ? S.base : S.affiche;
+    var zw = z.clientWidth, zh = z.clientHeight;
+    if (!img || !zw || !zh) return;
+    var k = Math.min(zw / img.width, zh / img.height);
+    var cw = Math.max(1, Math.floor(img.width * k)), ch = Math.max(1, Math.floor(img.height * k));
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.style.width = cw + "px"; c.style.height = ch + "px";
+    if (c.width !== Math.round(cw * dpr) || c.height !== Math.round(ch * dpr)){
+      c.width = Math.round(cw * dpr); c.height = Math.round(ch * dpr);
+    }
+    var x = c.getContext("2d");
+    x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    x.clearRect(0, 0, cw, ch);
+    x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high";
+    x.drawImage(img, 0, 0, cw, ch);
+    S.k = cw / img.width;
+    if (S.etape === 1) poignees(x, cw, ch);
+  }
+  function poignees(x, cw, ch){
+    var p = S.pts.map(function(q){ return [q[0] * S.k, q[1] * S.k]; }), i;
+    x.save();
+    x.fillStyle = "rgba(0,0,0,.5)";
+    x.beginPath(); x.rect(0, 0, cw, ch);
+    x.moveTo(p[0][0], p[0][1]); for (i = 1; i < 4; i++) x.lineTo(p[i][0], p[i][1]);
+    x.closePath(); x.fill("evenodd");
+    x.strokeStyle = "#4da3ff"; x.lineWidth = 2;
+    x.beginPath(); x.moveTo(p[0][0], p[0][1]); for (i = 1; i < 4; i++) x.lineTo(p[i][0], p[i][1]);
+    x.closePath(); x.stroke();
+    for (i = 0; i < 4; i++){
+      x.beginPath(); x.arc(p[i][0], p[i][1], S.drag === i ? 16 : 13, 0, 6.2832);
+      x.fillStyle = "rgba(77,163,255,.35)"; x.fill();
+      x.strokeStyle = "#fff"; x.lineWidth = 2.5; x.stroke();
+    }
+    if (S.drag >= 0) loupe(x, cw, p[S.drag], S.pts[S.drag]);
+    x.restore();
+  }
+  function loupe(x, cw, pd, pb){
+    var R = 52, Z = 2.5, lx = R + 8, ly = R + 8;
+    if (Math.abs(pd[0] - lx) < R * 2 + 20 && Math.abs(pd[1] - ly) < R * 2 + 20) lx = cw - R - 8;
+    var demi = R / (S.k * Z);
+    x.save();
+    x.beginPath(); x.arc(lx, ly, R, 0, 6.2832); x.clip();
+    x.fillStyle = "#000"; x.fillRect(lx - R, ly - R, 2 * R, 2 * R);
+    x.drawImage(S.base, pb[0] - demi, pb[1] - demi, 2 * demi, 2 * demi, lx - R, ly - R, 2 * R, 2 * R);
+    x.restore();
+    x.strokeStyle = "#fff"; x.lineWidth = 3; x.beginPath(); x.arc(lx, ly, R, 0, 6.2832); x.stroke();
+    x.strokeStyle = "#ff4d4d"; x.lineWidth = 1.5; x.beginPath();
+    x.moveTo(lx - 10, ly); x.lineTo(lx + 10, ly); x.moveTo(lx, ly - 10); x.lineTo(lx, ly + 10); x.stroke();
+  }
+
+  /* déplacement des coins au doigt */
+  (function(){
+    var c = $("scan-canvas");
+    function pos(e){ var r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+    c.addEventListener("pointerdown", function(e){
+      if (!S || S.etape !== 1) return;
+      var q = pos(e), best = -1, bd = 1e12;
+      S.pts.forEach(function(p, i){
+        var dx = p[0] * S.k - q[0], dy = p[1] * S.k - q[1], d = dx * dx + dy * dy;
+        if (d < bd){ bd = d; best = i; }
+      });
+      if (bd > 60 * 60) return;
+      S.drag = best;
+      S.dec = [S.pts[best][0] * S.k - q[0], S.pts[best][1] * S.k - q[1]];
+      try { c.setPointerCapture(e.pointerId); } catch(_){}
+      e.preventDefault();
+      dessiner();
+    });
+    c.addEventListener("pointermove", function(e){
+      if (!S || S.drag < 0) return;
+      var q = pos(e), b = S.base;
+      S.pts[S.drag] = [Math.max(0, Math.min(b.width, (q[0] + S.dec[0]) / S.k)),
+                       Math.max(0, Math.min(b.height, (q[1] + S.dec[1]) / S.k))];
+      e.preventDefault();
+      dessiner();
+    });
+    function lacher(){ if (S && S.drag >= 0){ S.drag = -1; dessiner(); } }
+    c.addEventListener("pointerup", lacher);
+    c.addEventListener("pointercancel", lacher);
+  })();
+
+  /* ===== 4. Lecture de la photo et détection de la feuille ===== */
+  function chargerImg(f){
+    return new Promise(function(ok, ko){
+      var u = URL.createObjectURL(f), im = new Image();
+      im.onload = function(){ URL.revokeObjectURL(u); ok(im); };
+      im.onerror = function(){ URL.revokeObjectURL(u); ko(new Error("image")); };
+      im.src = u;
+    });
+  }
+  function decoder(f){
+    var p;
+    if (window.createImageBitmap){
+      p = createImageBitmap(f, {imageOrientation: "from-image"}).then(null, function(){ return createImageBitmap(f); })
+            .then(null, function(){ return chargerImg(f); });
+    } else p = chargerImg(f);
+    return p.then(function(img){
+      var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+      if (!w || !h) throw new Error("vide");
+      var k = Math.min(1, MAX_TRAVAIL / Math.max(w, h));
+      var c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+      c.getContext("2d", {willReadFrequently: true}).drawImage(img, 0, 0, c.width, c.height);
+      if (img.close) img.close();
+      return c;
+    });
+  }
+  function cadreParDefaut(b){
+    var w = b.width, h = b.height;
+    return [[w * .06, h * .06], [w * .94, h * .06], [w * .94, h * .94], [w * .06, h * .94]];
+  }
+  /* cherche la grande zone claire (la feuille) et en prend les 4 coins ; renvoie null si doute */
+  function detecter(base){
+    try {
+      var k = 240 / Math.max(base.width, base.height);
+      var w = Math.max(8, Math.round(base.width * k)), h = Math.max(8, Math.round(base.height * k));
+      var t = document.createElement("canvas"); t.width = w; t.height = h;
+      var cx = t.getContext("2d", {willReadFrequently: true});
+      cx.drawImage(base, 0, 0, w, h);
+      var d = cx.getImageData(0, 0, w, h).data, n = w * h, g = new Uint8Array(n), hist = new Array(256), i;
+      for (i = 0; i < 256; i++) hist[i] = 0;
+      for (i = 0; i < n; i++){ g[i] = (0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]) | 0; hist[g[i]]++; }
+      /* seuil d'Otsu : sépare le clair (feuille) du foncé (table) */
+      var sum = 0, sB = 0, wB = 0, meilleur = -1, seuil = 128;
+      for (i = 0; i < 256; i++) sum += i * hist[i];
+      for (i = 0; i < 256; i++){
+        wB += hist[i]; if (!wB) continue;
+        var wF = n - wB; if (!wF) break;
+        sB += i * hist[i];
+        var mB = sB / wB, mF = (sum - sB) / wF, ec = wB * wF * (mB - mF) * (mB - mF);
+        if (ec > meilleur){ meilleur = ec; seuil = i; }
+      }
+      /* plus grande zone claire d'un seul tenant */
+      var lab = new Int32Array(n), q = new Int32Array(n), id = 0, best = 0, bestId = 0, s;
+      for (s = 0; s < n; s++){
+        if (g[s] <= seuil || lab[s]) continue;
+        id++;
+        var a = 0, b = 0, cnt = 0;
+        q[b++] = s; lab[s] = id;
+        while (a < b){
+          var pp = q[a++], px = pp % w, py = (pp - px) / w; cnt++;
+          if (px > 0 && g[pp - 1] > seuil && !lab[pp - 1]){ lab[pp - 1] = id; q[b++] = pp - 1; }
+          if (px < w - 1 && g[pp + 1] > seuil && !lab[pp + 1]){ lab[pp + 1] = id; q[b++] = pp + 1; }
+          if (py > 0 && g[pp - w] > seuil && !lab[pp - w]){ lab[pp - w] = id; q[b++] = pp - w; }
+          if (py < h - 1 && g[pp + w] > seuil && !lab[pp + w]){ lab[pp + w] = id; q[b++] = pp + w; }
+        }
+        if (cnt > best){ best = cnt; bestId = id; }
+      }
+      if (best < n * 0.12 || best > n * 0.96) return null;
+      var hg = null, bd = null, hd = null, bg = null, mn1 = 1e9, mx1 = -1e9, mx2 = -1e9, mn2 = 1e9;
+      for (s = 0; s < n; s++){
+        if (lab[s] !== bestId) continue;
+        var x = s % w, y = (s - x) / w, p1 = x + y, p2 = x - y;
+        if (p1 < mn1){ mn1 = p1; hg = [x, y]; }
+        if (p1 > mx1){ mx1 = p1; bd = [x + 1, y + 1]; }
+        if (p2 > mx2){ mx2 = p2; hd = [x + 1, y]; }
+        if (p2 < mn2){ mn2 = p2; bg = [x, y + 1]; }
+      }
+      var r = [hg, hd, bd, bg].map(function(p){ return [p[0] / k, p[1] / k]; });
+      /* on rentre un peu chaque coin vers l'intérieur pour ne pas garder un liseré de table */
+      var mx = (r[0][0] + r[1][0] + r[2][0] + r[3][0]) / 4, my = (r[0][1] + r[1][1] + r[2][1] + r[3][1]) / 4;
+      r = r.map(function(p){
+        var dx = mx - p[0], dy = my - p[1], L = Math.sqrt(dx * dx + dy * dy) || 1, e = 1.5 / k;
+        return [p[0] + dx / L * e, p[1] + dy / L * e];
+      });
+      var aire = Math.abs((r[0][0] * r[1][1] - r[1][0] * r[0][1]) + (r[1][0] * r[2][1] - r[2][0] * r[1][1]) +
+                          (r[2][0] * r[3][1] - r[3][0] * r[2][1]) + (r[3][0] * r[0][1] - r[0][0] * r[3][1])) / 2;
+      if (aire < base.width * base.height * 0.1) return null;
+      return r;
+    } catch(e){ return null; }
+  }
+
+  /* ===== 5. Redressement (perspective) ===== */
+  function homographie(p){   /* carré (0,0)(1,0)(1,1)(0,1) -> les 4 coins p */
+    var u = [0, 1, 1, 0], v = [0, 0, 1, 1], A = [], i, j, c;
+    for (i = 0; i < 4; i++){
+      var x = p[i][0], y = p[i][1];
+      A.push([u[i], v[i], 1, 0, 0, 0, -u[i] * x, -v[i] * x, x]);
+      A.push([0, 0, 0, u[i], v[i], 1, -u[i] * y, -v[i] * y, y]);
+    }
+    for (c = 0; c < 8; c++){
+      var m = c;
+      for (i = c + 1; i < 8; i++) if (Math.abs(A[i][c]) > Math.abs(A[m][c])) m = i;
+      var tmp = A[c]; A[c] = A[m]; A[m] = tmp;
+      if (Math.abs(A[c][c]) < 1e-12) return null;
+      for (i = 0; i < 8; i++){
+        if (i === c) continue;
+        var f = A[i][c] / A[c][c];
+        for (j = c; j < 9; j++) A[i][j] -= f * A[c][j];
+      }
+    }
+    var h = []; for (i = 0; i < 8; i++) h.push(A[i][8] / A[i][i]);
+    return h;
+  }
+  function redresser(base, p){
+    var dist = function(a, b){ return Math.sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1])); };
+    var W = (dist(p[0], p[1]) + dist(p[3], p[2])) / 2, H = (dist(p[0], p[3]) + dist(p[1], p[2])) / 2;
+    var k = Math.min(1, MAX_SORTIE / Math.max(W, H, 1));
+    W = Math.max(16, Math.round(W * k)); H = Math.max(16, Math.round(H * k));
+    var h = homographie(p);
+    if (!h) throw new Error("cadre");
+    var sw = base.width, sh = base.height;
+    var src = base.getContext("2d").getImageData(0, 0, sw, sh).data;
+    var out = document.createElement("canvas"); out.width = W; out.height = H;
+    var cx = out.getContext("2d", {willReadFrequently: true}), im = cx.createImageData(W, H), d = im.data;
+    for (var j = 0; j < H; j++){
+      var v = (j + 0.5) / H;
+      for (var i = 0; i < W; i++){
+        var u = (i + 0.5) / W, z = h[6] * u + h[7] * v + 1;
+        var x = (h[0] * u + h[1] * v + h[2]) / z - 0.5, y = (h[3] * u + h[4] * v + h[5]) / z - 0.5;
+        if (x < 0) x = 0; else if (x > sw - 1) x = sw - 1;
+        if (y < 0) y = 0; else if (y > sh - 1) y = sh - 1;
+        var x0 = x | 0, y0 = y | 0, x1 = x0 + 1 < sw ? x0 + 1 : x0, y1 = y0 + 1 < sh ? y0 + 1 : y0;
+        var fx = x - x0, fy = y - y0, w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy), w01 = (1 - fx) * fy, w11 = fx * fy;
+        var a = (y0 * sw + x0) * 4, b = (y0 * sw + x1) * 4, c = (y1 * sw + x0) * 4, e = (y1 * sw + x1) * 4, o = (j * W + i) * 4;
+        d[o]     = src[a]     * w00 + src[b]     * w10 + src[c]     * w01 + src[e]     * w11;
+        d[o + 1] = src[a + 1] * w00 + src[b + 1] * w10 + src[c + 1] * w01 + src[e + 1] * w11;
+        d[o + 2] = src[a + 2] * w00 + src[b + 2] * w10 + src[c + 2] * w01 + src[e + 2] * w11;
+        d[o + 3] = 255;
+      }
+    }
+    cx.putImageData(im, 0, 0);
+    return out;
+  }
+
+  /* ===== 6. Aspect « document » : on enlève les ombres, on blanchit le papier, on fonce l'encre ===== */
+  /* fond du papier : plus clair de chaque bloc, puis lissage */
+  function fondGrille(arr, pas, dec, w, h){
+    var f = Math.max(2, Math.round(Math.max(w, h) / 100)), sw = Math.ceil(w / f), sh = Math.ceil(h / f);
+    var m = new Float32Array(sw * sh), x, y;
+    for (y = 0; y < h; y++){
+      var by = ((y / f) | 0) * sw;
+      for (x = 0; x < w; x++){
+        var v = arr[(y * w + x) * pas + dec], bi = by + ((x / f) | 0);
+        if (v > m[bi]) m[bi] = v;
+      }
+    }
+    function flou(a){
+      var t = new Float32Array(a.length), r = new Float32Array(a.length), xx, yy, k, s, c, q;
+      for (yy = 0; yy < sh; yy++) for (xx = 0; xx < sw; xx++){
+        s = 0; c = 0;
+        for (k = -2; k <= 2; k++){ q = xx + k; if (q < 0 || q >= sw) continue; s += a[yy * sw + q]; c++; }
+        t[yy * sw + xx] = s / c;
+      }
+      for (yy = 0; yy < sh; yy++) for (xx = 0; xx < sw; xx++){
+        s = 0; c = 0;
+        for (k = -2; k <= 2; k++){ q = yy + k; if (q < 0 || q >= sh) continue; s += t[q * sw + xx]; c++; }
+        r[yy * sw + xx] = s / c;
+      }
+      return r;
+    }
+    return {f: f, sw: sw, sh: sh, m: flou(flou(m))};
+  }
+  function amelio(src, mode){
+    var w = src.width, h = src.height, cx = src.getContext("2d", {willReadFrequently: true});
+    var im = cx.getImageData(0, 0, w, h), d = im.data, n = w * h, i, x, y;
+    /* table de correspondance : rapport « pixel / fond » -> niveau final */
+    var NOIR = 0.40, BLANC = 0.86, GAMMA = mode === "document" ? 1.25 : 1.1, LUT = new Uint8Array(1281);
+    for (i = 0; i <= 1280; i++){
+      var t = (i / 1000 - NOIR) / (BLANC - NOIR);
+      LUT[i] = Math.round(255 * Math.pow(t < 0 ? 0 : t > 1 ? 1 : t, GAMMA));
+    }
+    var G = [], lum = null;
+    if (mode === "document"){
+      lum = new Uint8Array(n);
+      for (i = 0; i < n; i++) lum[i] = (0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]) | 0;
+      G.push(fondGrille(lum, 1, 0, w, h));
+    } else {
+      for (i = 0; i < 3; i++) G.push(fondGrille(d, 4, i, w, h));
+    }
+    var f = G[0].f, sw = G[0].sw, sh = G[0].sh;
+    var cx0 = new Int32Array(w), cx1 = new Int32Array(w), cfx = new Float32Array(w);
+    for (x = 0; x < w; x++){
+      var gx = (x + 0.5) / f - 0.5; if (gx < 0) gx = 0; if (gx > sw - 1) gx = sw - 1;
+      cx0[x] = gx | 0; cx1[x] = cx0[x] + 1 < sw ? cx0[x] + 1 : cx0[x]; cfx[x] = gx - cx0[x];
+    }
+    for (y = 0; y < h; y++){
+      var gy = (y + 0.5) / f - 0.5; if (gy < 0) gy = 0; if (gy > sh - 1) gy = sh - 1;
+      var y0 = gy | 0, y1 = y0 + 1 < sh ? y0 + 1 : y0, fy = gy - y0, r0 = y0 * sw, r1 = y1 * sw;
+      for (x = 0; x < w; x++){
+        var o = (y * w + x) * 4, a = cx0[x], b = cx1[x], fx = cfx[x], ch, m, bg, idx;
+        if (mode === "document"){
+          m = G[0].m;
+          bg = (m[r0 + a] * (1 - fx) + m[r0 + b] * fx) * (1 - fy) + (m[r1 + a] * (1 - fx) + m[r1 + b] * fx) * fy;
+          idx = (lum[y * w + x] / (bg < 1 ? 1 : bg) * 1000 + 0.5) | 0; if (idx > 1280) idx = 1280;
+          d[o] = d[o + 1] = d[o + 2] = LUT[idx];
+        } else {
+          for (ch = 0; ch < 3; ch++){
+            m = G[ch].m;
+            bg = (m[r0 + a] * (1 - fx) + m[r0 + b] * fx) * (1 - fy) + (m[r1 + a] * (1 - fx) + m[r1 + b] * fx) * fy;
+            idx = (d[o + ch] / (bg < 1 ? 1 : bg) * 1000 + 0.5) | 0; if (idx > 1280) idx = 1280;
+            d[o + ch] = LUT[idx];
+          }
+        }
+      }
+    }
+    var out = document.createElement("canvas"); out.width = w; out.height = h;
+    out.getContext("2d", {willReadFrequently: true}).putImageData(im, 0, 0);
+    return out;
+  }
+})();
+</script>
 <!-- MAJ:debut — pastille de mise à jour commune à toutes les applis (modèle : outils/pastille-maj.html, ne pas modifier ici à la main) -->
 <style>
 #maj-pastille{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:2147483000;
@@ -201,7 +745,7 @@
 #cadre:not([hidden])~#maj-pastille{top:auto;right:auto;left:calc(52px + env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));opacity:.8}
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Carnet de Santé", "version": "V2", "date": "06/10/2026", "cache": "carnet-sante-app-", "nouveautes": ["Pastille de mise à jour : version, date et bouton Actualiser (en bas, à côté de ⚙, quand le carnet est ouvert).", "Coquille vide en ligne : vos données restent uniquement sur le téléphone."]};
+window.MAJ_APPLI={"nom": "Carnet de Santé", "version": "V3", "date": "06/10/2026", "cache": "carnet-sante-app-", "nouveautes": ["Photos : recadrage sur les 4 coins, redressement et aspect « document » avant l'ajout (réglable dans ⚙).", "Pastille de mise à jour : version, date et bouton Actualiser (en bas, à côté de ⚙, quand le carnet est ouvert).", "Coquille vide en ligne : vos données restent uniquement sur le téléphone."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;

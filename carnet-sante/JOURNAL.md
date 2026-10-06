@@ -15,7 +15,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-sante/carnet-sante.html
 |---|---|
 | `carnet-sante.html` | La coquille (écran d'import, cadre, bouton ⚙) |
 | `carnet-sante-manifest.webmanifest` | Nom, icônes, démarrage |
-| `carnet-sante-sw.js` | Cache de la coquille seulement (`carnet-sante-app-v2`) |
+| `carnet-sante-sw.js` | Cache de la coquille seulement (`carnet-sante-app-v3`) |
 | `version.json` | Version, date et nouveautés affichées par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-sante-icon-192.png`, `-512.png`, `-masque-512.png`, `-apple-touch-icon.png` | Icônes |
 
@@ -31,6 +31,13 @@ https://manuel-vigie.github.io/appli-manu/carnet-sante/carnet-sante.html
 Le fichier privé est copié dans le téléphone (IndexedDB). Les scans ajoutés dans l'appli sont dans `localStorage` (clés commençant par `imagerie`, `analyses`, `ordonnances`).
 Vider les données de sites de Chrome efface tout : il faut alors réimporter le fichier privé (**garder une copie dans Téléchargements ou sur le PC**). Les scans ajoutés après l'import ne sont alors pas récupérables.
 Le bouton **⚙ → Effacer mes données** supprime le fichier et les scans du téléphone, pas la copie dans Téléchargements.
+
+## Recadrage et amélioration des photos (dans la coquille, depuis la V3)
+Quand on ajoute une photo dans le carnet (ordonnances, analyses, imagerie), un écran s'ouvre avant l'enregistrement : **1.** on glisse les 4 coins sur les bords de la feuille (loupe pendant le déplacement, bouton « Détecter la feuille », bouton « Tourner ») ; **2.** on choisit l'aspect : **Document** (gris, fond blanchi, ombres retirées), **Couleur** (idem en couleur) ou **Original** (juste redressé). « Sans retouche » garde la photo telle quelle, « Annuler » ne l'ajoute pas. La photo enregistrée est un JPEG de 1800 px au plus (plus léger que la photo brute).
+- Réglage : **⚙ → case « Recadrer et améliorer mes photos avant de les ajouter »** (cochée par défaut ; clé `carnet-sante-scan-actif` dans localStorage).
+- Fonctionnement : le code est dans `carnet-sante.html` (script « Recadrage et amélioration des photos »). Le cadre qui contient le carnet privé est de même origine que la coquille : la coquille intercepte les évènements `input`/`change` des champs fichier (et les champs créés par `.click()`) qui reçoivent des images (jpeg, png, webp, heic), puis renvoie au carnet la photo retouchée dans le même champ. Les autres fichiers (ZIP, sauvegardes) passent sans être touchés. Le fichier privé n'est pas modifié.
+- Limite : si le carnet privé prenait la photo avec sa propre caméra (getUserMedia) au lieu d'un champ fichier, l'écran ne s'ouvrirait pas : il faudrait alors modifier le fichier privé.
+- Tout se fait sur le téléphone ; rien n'est envoyé.
 
 ## Fichier privé (hors GitHub) — version 2.20 (04/10/2026)
 Chaque section et chaque information dépliable a les boutons **Imprimer** (page propre dans un nouvel onglet, PDF possible) et **Envoyer par mail** (mail rédigé ; avec images : feuille de partage du téléphone, images jointes).
@@ -49,3 +56,4 @@ Servir le dossier en local, importer un fichier de test, vérifier : cadre visib
 - 03/10/2026 — Coquille vide en ligne.
 - 04/10/2026 — Fichier privé v2.20 (boutons Imprimer / Envoyer).
 - 06/10/2026 — Coquille V2 : pastille de mise à jour (en haut à droite à l'accueil, en bas à côté de ⚙ quand le carnet est ouvert). Cache carnet-sante-app-v2. Le fichier privé n'est pas touché.
+- 06/10/2026 — Coquille V3 : recadrage / redressement / aspect « document » des photos ajoutées dans le carnet (réglable dans ⚙). Cache carnet-sante-app-v3. Le fichier privé (affiche v2.23.0, « Photos en ZIP ») n'est pas touché.
