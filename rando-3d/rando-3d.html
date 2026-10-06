@@ -116,8 +116,29 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 .photo-card .cap{font-family:var(--display);font-weight:600;color:#26302f;font-size:15px;margin-top:8px;font-variant-numeric:tabular-nums}
 @keyframes pop{from{opacity:0;transform:translate(-50%,-50%) rotate(2deg) scale(.9)}}
 
-.drop{position:absolute;inset:12px;border:2px dashed var(--trail);border-radius:14px;display:grid;place-items:center;background:rgba(215,57,42,.12);font-family:var(--display);font-weight:700;font-size:26px;color:var(--ink);text-align:center;padding:16px;pointer-events:none}
-.toast{position:absolute;left:50%;top:16px;transform:translateX(-50%);background:var(--panel-solid);color:var(--ink);border-left:4px solid var(--trail);padding:10px 14px;border-radius:6px;box-shadow:var(--shadow);max-width:min(520px,calc(100% - 32px));z-index:5;font-size:13.5px}
+.drop{position:absolute;z-index:41;inset:12px;border:2px dashed var(--trail);border-radius:14px;display:grid;place-items:center;background:rgba(215,57,42,.12);font-family:var(--display);font-weight:700;font-size:26px;color:var(--ink);text-align:center;padding:16px;pointer-events:none}
+.toast{position:absolute;left:50%;top:16px;transform:translateX(-50%);background:var(--panel-solid);color:var(--ink);border-left:4px solid var(--trail);padding:10px 14px;border-radius:6px;box-shadow:var(--shadow);max-width:min(520px,calc(100% - 32px));z-index:40;font-size:13.5px}
+/* Page d'accueil : ciel bleu et nuages, sans 3D */
+.welcome{position:absolute;inset:0;z-index:12;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(64px + env(safe-area-inset-top,0px)) 20px calc(28px + env(safe-area-inset-bottom,0px));color:#14303f;
+  background:radial-gradient(circle at 82% 7%,rgba(255,250,225,.95) 0,rgba(255,244,200,.55) 6%,rgba(255,244,200,0) 28%),linear-gradient(180deg,#2f7fd0 0%,#6fb0e6 38%,#b9dcf3 72%,#eaf5fb 100%)}
+.w-clouds{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.w-cloud{position:absolute;left:0;aspect-ratio:260/110;height:auto;will-change:transform;animation:wdrift linear infinite}
+@keyframes wdrift{from{transform:translateX(-360px)}to{transform:translateX(calc(100vw + 80px))}}
+@media (prefers-reduced-motion:reduce){.w-cloud{animation:none;transform:translateX(var(--x,10vw))}}
+.w-card{position:relative;width:min(460px,100%);margin:auto 0;background:rgba(255,255,255,.9);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-radius:20px;padding:24px 20px 20px;box-shadow:0 18px 50px rgba(15,50,90,.28);text-align:center}
+.w-eye{font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#4d6a78;display:flex;justify-content:center;align-items:center;gap:8px}
+.w-card h1{font-family:var(--display);font-weight:700;font-size:40px;line-height:1;margin:8px 0 10px;color:#12303f;text-wrap:balance}
+.w-p{margin:0 0 14px;font-size:16px;line-height:1.45;color:#2d4a58}
+.w-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:0 0 18px;padding:0;list-style:none}
+.w-chips li{font-size:12.5px;font-weight:600;color:#1d5a8c;background:#e3f0fb;border-radius:99px;padding:4px 10px}
+.w-btn{display:flex;width:100%;align-items:center;justify-content:center;gap:10px;min-height:52px;border-radius:12px;border:1.5px solid #bcd3e2;background:#fff;color:#14303f;font:600 16px var(--body);cursor:pointer}
+.w-btn svg{width:20px;height:20px;flex:none}
+.w-btn.primary{min-height:58px;background:#d7392a;border-color:transparent;color:#fff;font-size:18px;box-shadow:0 8px 20px -6px rgba(215,57,42,.6)}
+.w-btn:hover{filter:brightness(.97)}
+.w-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.w-link{display:block;margin:14px auto 0;border:0;background:none;color:#1d5a8c;font:600 15px var(--body);text-decoration:underline;cursor:pointer;padding:6px 10px}
+.w-foot{margin:10px 0 0;font-size:12.5px;color:#587583}
+@media (max-width:420px){.w-card{padding:20px 16px 16px}.w-card h1{font-size:34px}.w-btn{font-size:15px}}
 .top,.bottom{transition:opacity .25s ease,transform .25s ease}
 #app.map-only .top{opacity:0;transform:translateY(-12px);pointer-events:none}
 #app.map-only .top>*{pointer-events:none}
@@ -275,6 +296,34 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
   <canvas id="scene" tabindex="0" aria-label="Vue 3D de la randonnée"></canvas>
   <div id="flash"></div>
   <div class="loading" id="loading">Modelage du relief…</div>
+
+  <div class="welcome" id="welcome" hidden>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="wcl" viewBox="0 0 260 110"><g fill="#fff"><ellipse cx="70" cy="78" rx="52" ry="26"/><circle cx="108" cy="52" r="38"/><circle cx="160" cy="58" r="32"/><ellipse cx="190" cy="82" rx="56" ry="24"/><ellipse cx="130" cy="86" rx="90" ry="22"/></g></symbol></svg>
+    <div class="w-clouds" aria-hidden="true">
+      <svg class="w-cloud" viewBox="0 0 260 110" style="top:5%;width:300px;opacity:.95;animation-duration:110s;animation-delay:-35s;--x:6vw"><use href="#wcl"/></svg>
+      <svg class="w-cloud" viewBox="0 0 260 110" style="top:17%;width:190px;opacity:.8;animation-duration:85s;animation-delay:-70s;--x:62vw"><use href="#wcl"/></svg>
+      <svg class="w-cloud" viewBox="0 0 260 110" style="top:34%;width:340px;opacity:.9;animation-duration:140s;animation-delay:-20s;--x:30vw"><use href="#wcl"/></svg>
+      <svg class="w-cloud" viewBox="0 0 260 110" style="top:56%;width:230px;opacity:.85;animation-duration:100s;animation-delay:-60s;--x:70vw"><use href="#wcl"/></svg>
+      <svg class="w-cloud" viewBox="0 0 260 110" style="top:72%;width:320px;opacity:.95;animation-duration:125s;animation-delay:-90s;--x:12vw"><use href="#wcl"/></svg>
+      <svg class="w-cloud" viewBox="0 0 260 110" style="top:86%;width:200px;opacity:.7;animation-duration:95s;animation-delay:-10s;--x:48vw"><use href="#wcl"/></svg>
+    </div>
+    <main class="w-card">
+      <div class="w-eye"><span class="gr" aria-hidden="true"></span>Replay Rando 3D</div>
+      <h1>Revis ta rando</h1>
+      <p class="w-p">Importe ta trace et regarde ta randonnée se rejouer sur la vraie carte, avec le relief, les pentes, la météo du jour et tes photos.</p>
+      <ul class="w-chips"><li>Relief réel</li><li>Pentes en couleur</li><li>Météo du jour</li><li>Photos</li><li>Vidéo</li></ul>
+      <button type="button" class="w-btn primary" id="wImport">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+        Importer ma trace
+      </button>
+      <div class="w-row">
+        <button type="button" class="w-btn" id="wPlan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8 18h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7"/></svg>Itinéraire</button>
+        <button type="button" class="w-btn" id="wLib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>Mes randos</button>
+      </div>
+      <button type="button" class="w-link" id="wDemo">Voir un exemple</button>
+      <p class="w-foot">Traces acceptées : GPX, FIT, TCX, KML</p>
+    </main>
+  </div>
 
   <header class="top">
     <div class="brand">
@@ -1797,7 +1846,7 @@ function frame(now){
   }
   if(T&&G.center){updateWeatherFx(dt,now,lookAt);updateSky(now);updateReveals(now);updateLiveSlope();if(bino)binoInfo(now)}
   frameViewOffset(now);
-  if(!REC||REC.phase)renderer.render(scene,camera);
+  if((!REC||REC.phase)&&!welcomeOn)renderer.render(scene,camera);
   if(REC){if(canvas.width!==REC.W||canvas.height!==REC.H){renderer.setPixelRatio(1);renderer.setSize(REC.W,REC.H,false);camera.aspect=REC.W/REC.H;camera.updateProjectionMatrix();renderer.render(scene,camera)}composeFrame(now)}
 }
 
@@ -1810,7 +1859,10 @@ function resize(){
 addEventListener('resize',resize);
 
 /* ---------- Loading a hike ---------- */
+let welcomeOn=false;
+function hideWelcome(){if(!welcomeOn)return;welcomeOn=false;$('welcome').hidden=true}
 function loadHike(raw){
+  if(!raw.sample)hideWelcome();
   const src=raw.pts.map(q=>({...q}));
   const tr=processTrack(raw);tr.src={name:raw.name,pts:src};
   // keep old photos? a new trace starts clean
@@ -3091,7 +3143,7 @@ if(fsOK){
   $('fsBtn').addEventListener('click',toggleFs);$('fsBtn2').addEventListener('click',toggleFs);
   addEventListener('pointerdown',e=>{
     if(!fsAuto||document.fullscreenElement)return;
-    if(e.target.closest('label[for],input,#fsBtn,#fsBtn2,a'))return; // file pickers & downloads leave full screen anyway
+    if(e.target.closest('label[for],input,#wImport,#fsBtn,#fsBtn2,a'))return; // file pickers & downloads leave full screen anyway
     enterFs();
   },true);
   document.addEventListener('fullscreenchange',()=>{const on=!!document.fullscreenElement;
@@ -3125,9 +3177,14 @@ const boot=()=>{
   }catch(e){toast('Erreur : '+e.message);try{loadHike(sampleHike())}catch(_){}}
   if(!pre&&window.RR_AUTOLOAD==='gr5')setTimeout(()=>{const have=libLoad().find(x=>x.gr&&x.gr.id==='gr5');if(have)loadGR(have.gr,0);else buildGR5()},800);
   $('loading').hidden=true;
+  // sans trace choisie : page d'accueil (ciel et nuages), pas de 3D derrière
+  if(!pre&&!window.RR_AUTOLOAD){welcomeOn=true;$('welcome').hidden=false;$('wImport').focus({preventScroll:true})}
   renderer.setAnimationLoop(frame);
-  if(!reduceMotion&&!pre&&!window.RR_AUTOLOAD)setTimeout(()=>setPlaying(true),1200);
 };
+$('wImport').addEventListener('click',()=>$('gpxInput').click());
+$('wPlan').addEventListener('click',()=>{hideWelcome();$('planBtn').click()});
+$('wLib').addEventListener('click',()=>$('libBtn').click());
+$('wDemo').addEventListener('click',()=>{hideWelcome();setPlaying(true)});
 Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(r=>setTimeout(r,1500))]).then(()=>requestAnimationFrame(boot));
 })();
 </script>
@@ -3160,7 +3217,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V3", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Pastille de mise à jour en haut à droite : version, date et bouton Actualiser.", "Rangement de l'appli dans son propre dossier rando-3d/."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V4", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Nouvelle page d'accueil claire : ciel bleu et nuages, sans 3D derrière.", "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser.", "Rangement de l'appli dans son propre dossier rando-3d/."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;

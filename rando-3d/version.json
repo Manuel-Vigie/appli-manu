@@ -1,15 +1,16 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V3",
+  "version": "V4",
   "date": "06/10/2026",
   "nouveautes": [
+    "Nouvelle page d'accueil claire : ciel bleu et nuages, sans 3D derrière.",
     "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser.",
     "Rangement de l'appli dans son propre dossier rando-3d/."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v3"
+    "cache": "rr3d-v4"
   },
   "fichiers": [
     "rando-3d.html",

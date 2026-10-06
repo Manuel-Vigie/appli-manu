@@ -13,7 +13,7 @@ https://manuel-vigie.github.io/appli-manu/rando-3d/rando-3d.html
 | `rando-3d.html` | L'appli entière |
 | `index.html` | **Copie identique** de `rando-3d.html`, uniquement pour que l'adresse du dossier marche |
 | `manifest.webmanifest` | Nom, icônes, `start_url: ./rando-3d.html` |
-| `sw.js` | Mode hors connexion. Contient `VERSION = 'rr3d-v3'` (laisse passer `version.json` sans cache) |
+| `sw.js` | Mode hors connexion. Contient `VERSION = 'rr3d-v4'` (laisse passer `version.json` sans cache) |
 | `version.json` | Version, date et nouveautés affichées par la pastille ↻ (voir CLAUDE.md) |
 | `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`, `favicon.png` | Icônes |
 
@@ -36,3 +36,4 @@ Vider les données de sites de Chrome les efface. Aucune fonction de sauvegarde 
 ## Historique
 - 02/10/2026 — Rangement dans `rando-3d/` (`index.html` retiré par erreur, remis le 03/10).
 - 06/10/2026 — V3 : pastille de mise à jour en haut à droite (version, date, bouton Actualiser, devient verte si une nouvelle version est en ligne). Cache rr3d-v3.
+- 06/10/2026 — V4 : nouvelle page d'accueil claire (ciel bleu, nuages qui défilent, boutons Importer / Itinéraire / Mes randos / Voir un exemple) à la place de la scène 3D de départ. Le replay 3D sur vraie carte est inchangé. Cache rr3d-v4.
