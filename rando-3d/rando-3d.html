@@ -3191,7 +3191,7 @@ function svStyleObj(){
     layers.push({id:'r-'+k,type:'raster',source:k,layout:{visibility:k===SV.style?'visible':'none'}});
   }
   layers.push({id:'hs',type:'hillshade',source:'demhs',paint:{'hillshade-exaggeration':.5,'hillshade-shadow-color':'rgba(10,20,30,.6)','hillshade-highlight-color':'rgba(255,255,255,.35)','hillshade-accent-color':'rgba(10,20,30,.3)'}});
-  return {version:8,sources,layers,...(SV.terrain?{terrain:{source:'dem',exaggeration:1.1}}:{}),
+  return {version:8,sources,layers,...(SV.terrain?{terrain:{source:'dem',exaggeration:1}}:{}),
     sky:{'sky-color':'#4f94d8','horizon-color':'#cfe6f6','fog-color':'#eaf4fb','sky-horizon-blend':.5,'horizon-fog-blend':.15,'fog-ground-blend':0}};
 }
 function svTrackData(){
@@ -3239,8 +3239,8 @@ function svSetup(){
   const empty={type:'FeatureCollection',features:[]};
   m.addSource('walked',{type:'geojson',data:empty});
   m.addSource('slopes',{type:'geojson',data:empty});
-  m.addLayer({id:'case',type:'line',source:'walked',layout:line,paint:{'line-color':'#ffffff','line-width':9,'line-opacity':.92}});
-  m.addLayer({id:'slopes',type:'line',source:'slopes',layout:line,paint:{'line-color':['get','col'],'line-width':5.5}});
+  m.addLayer({id:'case',type:'line',source:'walked',layout:line,paint:{'line-color':'#ffffff','line-width':5.5,'line-opacity':.9}});
+  m.addLayer({id:'slopes',type:'line',source:'slopes',layout:line,paint:{'line-color':['get','col'],'line-width':3.2}});
   const pin=(txt)=>{const e=document.createElement('div');e.className='ign-pin';e.innerHTML=`<span>${txt}</span>`;return e};
   SV.mStart=new maplibregl.Marker({element:pin('🏁')}).setLngLat(d.start).addTo(m);
   SV.mEnd=new maplibregl.Marker({element:pin('🏴')}).setLngLat(d.end).addTo(m);
@@ -3287,7 +3287,7 @@ async function openSurvol(){
   if(!SV.on)return;
   if(!SV.style)SV.style=(T.lat0>41&&T.lat0<51.5&&T.lon0>-5.5&&T.lon0<10)?'ortho':'sat';
   SV.zoom=T.total<15000?14.6:T.total<40000?14:T.total<120000?13.2:12.4;
-  if(SV.terrain){SV.zoom-=1.3;SV.pitch=50}else SV.pitch=64;
+  if(SV.terrain){SV.zoom-=1.3;SV.pitch=40}else SV.pitch=64;
   SV.follow=true;$('svFollow').hidden=true;svStyleUI();
   if(!SV.map){
     try{
@@ -3329,11 +3329,11 @@ $('svPlay').addEventListener('click',()=>{if(!T)return;if(f>=1)f=0;setPlaying(!p
 $('svRestart').addEventListener('click',()=>{f=0;SV.hd=null;holdUntil=0;$('photoCard').hidden=true});
 $('svRelief').addEventListener('click',()=>{
   SV.terrain=!SV.terrain;$('svRelief').setAttribute('aria-pressed',SV.terrain);
-  if(SV.map&&SV.ready)SV.map.setTerrain(SV.terrain?{source:'dem',exaggeration:1.1}:null);
+  if(SV.map&&SV.ready)SV.map.setTerrain(SV.terrain?{source:'dem',exaggeration:1}:null);
   if(SV.terrain)toast("Relief 3D activé. Si la carte devient vide, touche « Relief 3D » pour l'enlever.",6000);
 });
 // en relief, la caméra reste plus loin et moins penchée (sinon on filme la montagne de trop près)
-$('svRelief').addEventListener('click',()=>{if(SV.terrain){SV.zoom-=1.3;SV.pitch=50}else{SV.zoom+=1.3;SV.pitch=64}});
+$('svRelief').addEventListener('click',()=>{if(SV.terrain){SV.zoom-=1.3;SV.pitch=40}else{SV.zoom+=1.3;SV.pitch=64}});
 $('svFollow').addEventListener('click',()=>{SV.follow=true;SV.hd=null;$('svFollow').hidden=true});
 $('svScrub').addEventListener('pointerdown',()=>{scrubbing=true});
 ['pointerup','pointercancel'].forEach(n=>$('svScrub').addEventListener(n,()=>{scrubbing=false}));
@@ -3454,7 +3454,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V9", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte animée : relief 3D activé par défaut, caméra plus loin (fini l'écran tout bleu) et « Suivre le marcheur » garde ton zoom.", "Mode Suivi : le trait blanc de tout le parcours disparaît et les bornes km apparaissent au passage.", "Le bouton Survol (essai) devient « Carte animée (essai) » pour ne pas le confondre avec le mode Survol.", "Nouvelle page d'accueil claire : ciel bleu et nuages, sans 3D derrière."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V10", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte animée : tracé plus fin, caméra plus haute en relief pour éviter les zones sans photo.", "Carte animée : relief 3D activé par défaut, caméra plus loin (fini l'écran tout bleu) et « Suivre le marcheur » garde ton zoom.", "Mode Suivi : le trait blanc de tout le parcours disparaît et les bornes km apparaissent au passage.", "Le bouton Survol (essai) devient « Carte animée (essai) » pour ne pas le confondre avec le mode Survol."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
