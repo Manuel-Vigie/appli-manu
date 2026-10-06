@@ -111,7 +111,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 #profile{width:100%;height:92px;display:block;cursor:ew-resize;touch-action:none}
 
 /* Photo card */
-.photo-card{position:absolute;top:50%;left:50%;transform:translate(-50%,-58%) rotate(-1.5deg);background:#fff;padding:10px 10px 12px;box-shadow:0 20px 50px rgba(0,0,0,.35);border-radius:3px;width:min(360px,calc(100% - 32px));animation:pop .35s ease-out;cursor:pointer}
+.photo-card{position:absolute;z-index:29;top:50%;left:50%;transform:translate(-50%,-58%) rotate(-1.5deg);background:#fff;padding:10px 10px 12px;box-shadow:0 20px 50px rgba(0,0,0,.35);border-radius:3px;width:min(360px,calc(100% - 32px));animation:pop .35s ease-out;cursor:pointer}
 .photo-card img{display:block;width:100%;max-height:48vh;object-fit:cover;border-radius:1px}
 .photo-card .cap{font-family:var(--display);font-weight:600;color:#26302f;font-size:15px;margin-top:8px;font-variant-numeric:tabular-nums}
 @keyframes pop{from{opacity:0;transform:translate(-50%,-50%) rotate(2deg) scale(.9)}}
@@ -139,6 +139,29 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 .w-link{display:block;margin:14px auto 0;border:0;background:none;color:#1d5a8c;font:600 15px var(--body);text-decoration:underline;cursor:pointer;padding:6px 10px}
 .w-foot{margin:10px 0 0;font-size:12.5px;color:#587583}
 @media (max-width:420px){.w-card{padding:20px 16px 16px}.w-card h1{font-size:34px}.w-btn{font-size:15px}}
+/* Survol (essai) : carte MapLibre avec relief */
+.sv-panel{position:absolute;inset:0;z-index:27;background:#cfe3f2}
+#svMap{position:absolute;inset:0}
+.sv-top{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));left:8px;right:8px;display:flex;flex-direction:column;gap:6px;align-items:flex-start;pointer-events:none}
+.sv-top>*{pointer-events:auto}
+.sv-top .btn{box-shadow:var(--shadow)}
+.sv-row{display:flex;gap:6px;flex-wrap:wrap}
+.sv-top .btn[aria-pressed="true"]{background:var(--ink);color:var(--panel-solid)}
+.sv-top .seg{background:var(--panel-solid);box-shadow:var(--shadow);max-width:100%;overflow-x:auto}
+.sv-bottom{position:absolute;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+.sv-bottom>*{pointer-events:auto;width:100%;max-width:640px}
+.sv-bottom>.btn{width:auto}
+.sv-stats{display:grid;grid-template-columns:repeat(4,1fr);background:var(--panel);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-radius:10px;box-shadow:var(--shadow)}
+.sv-stats>div{padding:7px 10px;min-width:0;white-space:nowrap}.sv-stats>div+div{border-left:1px solid var(--line)}
+.sv-stats .lbl{display:block}
+.sv-stats b{font-family:var(--display);font-weight:700;font-size:22px;font-variant-numeric:tabular-nums}.sv-stats small{font-size:12px;color:var(--muted);margin-left:2px}
+.sv-ctl{display:flex;gap:8px;align-items:center;background:var(--panel);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-radius:10px;box-shadow:var(--shadow);padding:8px 10px}
+.sv-ctl input[type=range]{flex:1;min-width:40px;accent-color:var(--path)}
+.sv-ctl .seg{flex:none}
+.sv-attrib{font-size:10px;line-height:1.25;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.85);text-align:center}
+.sv-attrib:empty{display:none}
+.sv-dot{width:20px;height:20px;border-radius:50%;background:#1f7ae0;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.sv-load{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;font-family:var(--display);font-weight:600;font-size:20px;color:#12303f}
 .top,.bottom{transition:opacity .25s ease,transform .25s ease}
 #app.map-only .top{opacity:0;transform:translateY(-12px);pointer-events:none}
 #app.map-only .top>*{pointer-events:none}
@@ -351,6 +374,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
         <span class="blbl">Vidéo</span>
       </button>
       <button class="btn" id="ignBtn" type="button" aria-label="Carte IGN" title="Carte IGN"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg><span class="blbl">Carte IGN</span></button>
+      <button class="btn" id="survolBtn" type="button" aria-label="Survol (essai)" title="Survol (essai)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 11.5l19-8.5-8.5 19-2.2-8.3z"/></svg><span class="blbl">Survol</span></button>
       <button class="btn" id="libBtn" type="button" aria-label="Mes randos" title="Mes randos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg><span class="blbl">Mes randos</span></button>
     </div>
   </header>
@@ -490,6 +514,35 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
   <div class="report-panel" id="reportPanel" hidden>
     <div class="report-bar"><button type="button" class="btn" id="reportClose">← Retour</button><span class="grow"></span><button type="button" class="btn" id="reportPrint">Imprimer / PDF</button><button type="button" class="btn primary" id="reportSave">Enregistrer</button></div>
     <div id="reportBody"></div>
+  </div>
+  <div class="sv-panel" id="svPanel" hidden>
+    <div id="svMap"></div>
+    <div class="sv-load" id="svLoad">Chargement de la carte…</div>
+    <div class="sv-top">
+      <div class="sv-row"><button type="button" class="btn" id="svClose">← 3D</button><button type="button" class="btn" id="svRelief" aria-pressed="false" title="Vrai relief en 3D : à essayer, peut ne pas s'afficher sur certains téléphones">Relief 3D (essai)</button></div>
+      <div class="seg" id="svStyle" role="group" aria-label="Fond de carte du survol">
+        <button data-v="ortho" aria-pressed="false">Photos IGN</button><button data-v="sat" aria-pressed="false">Satellite</button><button data-v="scan" aria-pressed="false">TOP 25</button><button data-v="topo" aria-pressed="false">Topo</button>
+      </div>
+    </div>
+    <div class="sv-bottom">
+      <button type="button" class="btn" id="svFollow" hidden>Suivre le marcheur</button>
+      <div class="sv-stats" aria-label="Statistiques en direct">
+        <div><span class="lbl">Distance</span><b id="svDist">0,0</b><small>km</small></div>
+        <div><span class="lbl">Altitude</span><b id="svAlt">0</b><small>m</small></div>
+        <div><span class="lbl">D+</span><b id="svUp">0</b><small>m</small></div>
+        <div><span class="lbl">Temps</span><b id="svTime">0 h 00</b></div>
+      </div>
+      <div class="sv-ctl">
+        <button class="icon-btn play" id="svPlay" type="button" aria-label="Lecture">
+          <svg id="svIcoPlay" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>
+          <svg id="svIcoPause" viewBox="0 0 24 24" fill="currentColor" hidden><rect x="6" y="4.5" width="4" height="15" rx="1"/><rect x="14" y="4.5" width="4" height="15" rx="1"/></svg>
+        </button>
+        <button class="icon-btn" id="svRestart" type="button" aria-label="Revenir au départ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+        <input type="range" id="svScrub" min="0" max="1000" value="0" aria-label="Position sur le parcours">
+        <div class="seg" id="svSpeed" role="group" aria-label="Vitesse de lecture"><button data-v="1" aria-pressed="true">×1</button><button data-v="2" aria-pressed="false">×2</button><button data-v="4" aria-pressed="false">×4</button></div>
+      </div>
+      <div class="sv-attrib" id="svAttrib"></div>
+    </div>
   </div>
   <div class="ign-panel" id="ignPanel" hidden>
     <div class="ign-bar"><button type="button" class="btn" id="ignClose">← 3D</button>
@@ -1704,6 +1757,7 @@ function terrainY(X,Z){
 
 function setPlaying(p){
   playing=p;$('icoPlay').toggleAttribute('hidden',p);$('icoPause').toggleAttribute('hidden',!p);$('miniIcoPlay').toggleAttribute('hidden',p);$('miniIcoPause').toggleAttribute('hidden',!p);$('miniPlay').setAttribute('aria-label',p?'Pause':'Lecture');$('playBtn').setAttribute('aria-label',p?'Pause':'Lecture');
+  $('svIcoPlay').toggleAttribute('hidden',p);$('svIcoPause').toggleAttribute('hidden',!p);$('svPlay').setAttribute('aria-label',p?'Pause':'Lecture');
 }
 function setCam(m){
   camMode=m;[...$('camSeg').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===m));
@@ -1846,7 +1900,8 @@ function frame(now){
   }
   if(T&&G.center){updateWeatherFx(dt,now,lookAt);updateSky(now);updateReveals(now);updateLiveSlope();if(bino)binoInfo(now)}
   frameViewOffset(now);
-  if((!REC||REC.phase)&&!welcomeOn)renderer.render(scene,camera);
+  if(SV.on&&T)svFrame(dt,now);
+  if((!REC||REC.phase)&&!welcomeOn&&!SV.on)renderer.render(scene,camera);
   if(REC){if(canvas.width!==REC.W||canvas.height!==REC.H){renderer.setPixelRatio(1);renderer.setSize(REC.W,REC.H,false);camera.aspect=REC.W/REC.H;camera.updateProjectionMatrix();renderer.render(scene,camera)}composeFrame(now)}
 }
 
@@ -3105,6 +3160,162 @@ $('ignBtn').addEventListener('click',openIgn);
 $('ignClose').addEventListener('click',()=>$('ignPanel').hidden=true);
 $('ignSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setIgnLayer(b.dataset.v)});
 
+/* ---------- Survol (essai) : carte MapLibre avec relief, caméra qui suit la rando ---------- */
+const ML_VER='5.24.0';
+const SV={terrain:false,on:false,map:null,ready:false,follow:true,intro:false,hd:null,style:null,track:null,marker:null,mStart:null,mEnd:null,last:0,pLast:-1,zoom:14.2,pitch:64};
+const SV_STYLES={
+  ortho:{tiles:['https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/jpeg'],max:19,attr:'Photos aériennes © IGN'},
+  sat:{tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],max:19,attr:'Imagerie © Esri, Maxar, Earthstar Geographics'},
+  scan:{tiles:['https://data.geopf.fr/private/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.MAPS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/jpeg&apikey=ign_scan_ws'],max:16,attr:'Carte © IGN – TOP 25 (SCAN 25)'},
+  topo:{tiles:['a','b','c'].map(s=>`https://${s}.tile.opentopomap.org/{z}/{x}/{y}.png`),max:17,attr:'Carte © OpenTopoMap (CC-BY-SA) · données © OpenStreetMap'}
+};
+let mlP=null;
+function loadMapLibre(){
+  if(window.maplibregl)return Promise.resolve();
+  if(mlP)return mlP;
+  mlP=new Promise((res,rej)=>{
+    const css=document.createElement('link');css.rel='stylesheet';css.href=`https://cdn.jsdelivr.net/npm/maplibre-gl@${ML_VER}/dist/maplibre-gl.css`;document.head.appendChild(css);
+    const sc=document.createElement('script');sc.src=`https://cdn.jsdelivr.net/npm/maplibre-gl@${ML_VER}/dist/maplibre-gl.js`;sc.onload=()=>res();sc.onerror=()=>{mlP=null;rej(new Error('maplibre'))};document.head.appendChild(sc);
+  });
+  return mlP;
+}
+function svStyleObj(){
+  const demTiles=['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'];
+  // deux sources identiques : une pour le relief 3D, une pour l'ombrage (meilleur rendu)
+  const sources={dem:{type:'raster-dem',tiles:demTiles,encoding:'terrarium',tileSize:256,maxzoom:14},demhs:{type:'raster-dem',tiles:demTiles,encoding:'terrarium',tileSize:256,maxzoom:14}};
+  const layers=[{id:'bg',type:'background',paint:{'background-color':'#cfe3f2'}}];
+  for(const [k,s] of Object.entries(SV_STYLES)){
+    sources[k]={type:'raster',tiles:s.tiles,tileSize:256,maxzoom:s.max};
+    layers.push({id:'r-'+k,type:'raster',source:k,layout:{visibility:k===SV.style?'visible':'none'}});
+  }
+  layers.push({id:'hs',type:'hillshade',source:'demhs',paint:{'hillshade-exaggeration':.5,'hillshade-shadow-color':'rgba(10,20,30,.6)','hillshade-highlight-color':'rgba(255,255,255,.35)','hillshade-accent-color':'rgba(10,20,30,.3)'}});
+  return {version:8,sources,layers,...(SV.terrain?{terrain:{source:'dem',exaggeration:1.3}}:{}),
+    sky:{'sky-color':'#4f94d8','horizon-color':'#cfe6f6','fog-color':'#eaf4fb','sky-horizon-blend':.6,'horizon-fog-blend':.6,'fog-ground-blend':.4}};
+}
+function svTrackData(){
+  const A=areaFor(T),ll=i=>{const [la,lo]=A.ll(T.rx[i],T.rz[i]);return [lo,la]};
+  computeSlopes(T);
+  const feats=T.segsSlope.map(g=>{const c=[],st=Math.max(1,Math.floor((g.i1-g.i0)/120));for(let i=g.i0;i<=g.i1;i+=st)c.push(ll(i));c.push(ll(Math.min(T.N-1,g.i1+1)));
+    return {type:'Feature',properties:{col:SLOPE_CLS[g.cls].col},geometry:{type:'LineString',coordinates:c}}});
+  const full=[],st=Math.max(1,Math.floor(T.N/900));for(let i=0;i<T.N;i+=st)full.push(ll(i));full.push(ll(T.N-1));
+  return {slopes:{type:'FeatureCollection',features:feats},full:{type:'Feature',properties:{},geometry:{type:'LineString',coordinates:full}},start:ll(0),end:ll(T.N-1)};
+}
+// le marcheur est placé plus bas que le centre de l'écran : on vise un point un peu devant lui
+// (sans « padding » MapLibre, qui fait disparaître la carte quand le relief est actif)
+function svAim(la,lo,hd){
+  const off=300*Math.pow(2,14.6-SV.zoom),h=hd*Math.PI/180;
+  return [lo+Math.sin(h)*off/(111320*Math.cos(la*Math.PI/180)),la+Math.cos(h)*off/110540];
+}
+function svHeading(){
+  const N=T.N,sm=T.total/(N-1),i=f*(N-1),ia=Math.min(N-1,Math.round(i+500/sm)),ib=Math.max(0,Math.round(i-150/sm));
+  const dx=T.rx[ia]-T.rx[ib],dz=T.rz[ia]-T.rz[ib];
+  if(Math.hypot(dx,dz)<5)return SV.hd==null?0:SV.hd;
+  return Math.atan2(dx,-dz)*180/Math.PI;
+}
+function svFree(){SV.follow=false;$('svFollow').hidden=false}
+function svSetup(){
+  const m=SV.map,d=svTrackData(),line={'line-cap':'round','line-join':'round'};
+  m.addSource('slopes',{type:'geojson',data:d.slopes});
+  m.addSource('full',{type:'geojson',data:d.full,lineMetrics:true});
+  m.addLayer({id:'case',type:'line',source:'full',layout:line,paint:{'line-color':'#ffffff','line-width':9,'line-opacity':.9}});
+  m.addLayer({id:'slopes',type:'line',source:'slopes',layout:line,paint:{'line-color':['get','col'],'line-width':5.5}});
+  // la partie pas encore parcourue est voilée de blanc
+  m.addLayer({id:'rest',type:'line',source:'full',layout:line,paint:{'line-width':6,'line-gradient':['step',['line-progress'],'rgba(255,255,255,0)',0.0001,'rgba(255,255,255,.62)']}});
+  const pin=(txt)=>{const e=document.createElement('div');e.className='ign-pin';e.innerHTML=`<span>${txt}</span>`;return e};
+  SV.mStart=new maplibregl.Marker({element:pin('🏁')}).setLngLat(d.start).addTo(m);
+  SV.mEnd=new maplibregl.Marker({element:pin('🏴')}).setLngLat(d.end).addTo(m);
+  const dot=document.createElement('div');dot.className='sv-dot';
+  SV.marker=new maplibregl.Marker({element:dot}).setLngLat(d.start).addTo(m);
+  // dès que tu touches la carte (glisser, pincer, molette), la caméra arrête de suivre
+  const user=ev=>{if(ev.originalEvent&&SV.on)svFree()};
+  ['dragstart','zoomstart','pitchstart','rotatestart'].forEach(n=>m.on(n,user));
+  const box=$('svMap');let down=null,ptrs=0;
+  box.addEventListener('pointerdown',e=>{ptrs++;down=[e.clientX,e.clientY];if(ptrs>1&&SV.on)svFree()},true);
+  box.addEventListener('pointermove',e=>{if(down&&SV.on&&Math.hypot(e.clientX-down[0],e.clientY-down[1])>8)svFree()},true);
+  ['pointerup','pointercancel'].forEach(n=>box.addEventListener(n,()=>{ptrs=Math.max(0,ptrs-1);down=null},true));
+  box.addEventListener('wheel',()=>{if(SV.on)svFree()},{passive:true,capture:true});
+  SV.track=T;SV.pLast=-1;
+}
+function svUpdateTrack(){
+  const m=SV.map,d=svTrackData();
+  m.getSource('slopes').setData(d.slopes);m.getSource('full').setData(d.full);
+  SV.mStart.setLngLat(d.start);SV.mEnd.setLngLat(d.end);SV.track=T;SV.pLast=-1;
+}
+function svBegin(){
+  const m=SV.map,A=areaFor(T);
+  $('svLoad').hidden=true;m.resize();
+  const bb=new maplibregl.LngLatBounds();
+  for(let k=0;k<T.N;k+=Math.max(1,Math.floor(T.N/200))){const [la,lo]=A.ll(T.rx[k],T.rz[k]);bb.extend([lo,la])}
+  m.fitBounds(bb,{padding:{top:130,bottom:250,left:30,right:30},pitch:0,bearing:0,duration:0,maxZoom:15});
+  const [la,lo]=A.ll(val(T.rx,f),val(T.rz,f)),hd=svHeading();
+  SV.intro=true;SV.hd=null;
+  // départ vu d'en haut, puis la caméra descend vers le marcheur
+  setTimeout(()=>{
+    if(!SV.on)return;
+    m.once('moveend',()=>{SV.intro=false;SV.hd=hd;if(SV.on&&f<1)setPlaying(true)});
+    m.flyTo({center:svAim(la,lo,hd),zoom:SV.zoom,pitch:SV.pitch,bearing:hd,duration:reduceMotion?0:5000,curve:1.6,essential:true});
+  },900);
+}
+async function openSurvol(){
+  if(!T||T.planBase){toast("Charge d'abord une trace.");return}
+  setPlaying(false);$('photoCard').hidden=true;
+  SV.on=true;SV.intro=false;$('svPanel').hidden=false;$('svLoad').hidden=false;
+  try{await loadMapLibre()}catch(e){SV.on=false;$('svPanel').hidden=true;toast("Le survol a besoin d'internet pour se charger.",6000);return}
+  if(!SV.on)return;
+  if(!SV.style)SV.style=(T.lat0>41&&T.lat0<51.5&&T.lon0>-5.5&&T.lon0<10)?'ortho':'sat';
+  SV.zoom=T.total<15000?14.6:T.total<40000?14:T.total<120000?13.2:12.4;
+  SV.follow=true;$('svFollow').hidden=true;svStyleUI();
+  if(!SV.map){
+    try{
+      const A=areaFor(T);
+      SV.map=new maplibregl.Map({container:'svMap',style:svStyleObj(),center:[T.lon0,T.lat0],zoom:10,pitch:0,maxPitch:80,maxZoom:17.5,attributionControl:false,canvasContextAttributes:{antialias:true}});
+      SV.map.once('style.load',()=>{svSetup();SV.ready=true;if(SV.on)svBegin()});
+      SV.map.on('error',ev=>{if(ev&&ev.error&&!SV.ready&&/WebGL|context/i.test(ev.error.message||'')){closeSurvol();toast("Ton appareil n'arrive pas à afficher la carte en relief.",7000)}});
+    }catch(e){closeSurvol();toast("Ton appareil n'arrive pas à afficher la carte en relief.",7000);return}
+  }else{
+    if(SV.ready){if(SV.track!==T)svUpdateTrack();svBegin()}
+  }
+}
+function closeSurvol(){SV.on=false;SV.intro=false;$('svPanel').hidden=true;setPlaying(false);heading=null}
+function svStyleUI(){
+  [...$('svStyle').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===SV.style));
+  $('svAttrib').textContent=[SV_STYLES[SV.style].attr,DEM_ATTR,'Moteur : MapLibre'].join(' · ');
+}
+function svFrame(dt,now){
+  const m=SV.map;if(!m||!SV.ready||!SV.marker)return;
+  const A=areaFor(T),[la,lo]=A.ll(val(T.rx,f),val(T.rz,f));
+  SV.marker.setLngLat([lo,la]);
+  if(!SV.intro&&SV.follow){
+    const hd=svHeading();if(SV.hd==null)SV.hd=hd;
+    const d=((hd-SV.hd+540)%360)-180;SV.hd+=d*(1-Math.exp(-dt*0.8));
+    m.jumpTo({center:svAim(la,lo,SV.hd),bearing:SV.hd,pitch:SV.pitch,zoom:SV.zoom});
+  }
+  if(now-SV.last>150){
+    SV.last=now;
+    $('svDist').textContent=fmtKm(val(T.rd,f));$('svAlt').textContent=nf0.format(val(T.se,f));
+    $('svUp').textContent=nf0.format(val(T.up,f));$('svTime').textContent=fmtDur(val(T.time,f));
+    if(!scrubbing)$('svScrub').value=Math.round(f*1000);
+    const p=Math.max(0.0001,f);
+    if(Math.abs(p-SV.pLast)>0.001&&m.getLayer('rest')){SV.pLast=p;m.setPaintProperty('rest','line-gradient',['step',['line-progress'],'rgba(255,255,255,0)',p,'rgba(255,255,255,.62)'])}
+  }
+}
+$('survolBtn').addEventListener('click',openSurvol);
+$('svClose').addEventListener('click',closeSurvol);
+$('svPlay').addEventListener('click',()=>{if(!T)return;if(f>=1)f=0;setPlaying(!playing)});
+$('svRestart').addEventListener('click',()=>{f=0;SV.hd=null;holdUntil=0;$('photoCard').hidden=true});
+$('svRelief').addEventListener('click',()=>{
+  SV.terrain=!SV.terrain;$('svRelief').setAttribute('aria-pressed',SV.terrain);
+  if(SV.map&&SV.ready)SV.map.setTerrain(SV.terrain?{source:'dem',exaggeration:1.3}:null);
+  if(SV.terrain)toast("Relief 3D activé. Si la carte devient vide, touche « Relief 3D » pour l'enlever.",6000);
+});
+$('svFollow').addEventListener('click',()=>{SV.follow=true;SV.hd=null;$('svFollow').hidden=true});
+$('svScrub').addEventListener('pointerdown',()=>{scrubbing=true});
+['pointerup','pointercancel'].forEach(n=>$('svScrub').addEventListener(n,()=>{scrubbing=false}));
+$('svScrub').addEventListener('input',e=>{f=clamp(+e.target.value/1000,0,1);holdUntil=0;$('photoCard').hidden=true});
+$('svSpeed').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;speed=+b.dataset.v;[...$('svSpeed').children].forEach(x=>x.setAttribute('aria-pressed',x===b));[...$('speedSeg').children].forEach(x=>x.setAttribute('aria-pressed',+x.dataset.v===speed))});
+$('svStyle').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;SV.style=b.dataset.v;svStyleUI();
+  if(SV.map&&SV.ready)for(const k of Object.keys(SV_STYLES))SV.map.setLayoutProperty('r-'+k,'visibility',k===SV.style?'visible':'none')});
+
 /* ---------- Keep the screen on while the app is open ---------- */
 let wakeSentinel=null,awakeVideo=null,awakeStarted=false;
 async function makeAwakeVideo(){
@@ -3217,7 +3428,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V4", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Nouvelle page d'accueil claire : ciel bleu et nuages, sans 3D derrière.", "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser.", "Rangement de l'appli dans son propre dossier rando-3d/."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V5", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Nouveau bouton Survol (essai) : la caméra suit ta rando sur une carte réelle en relief.", "Nouvelle page d'accueil claire : ciel bleu et nuages, sans 3D derrière.", "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser.", "Rangement de l'appli dans son propre dossier rando-3d/."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
