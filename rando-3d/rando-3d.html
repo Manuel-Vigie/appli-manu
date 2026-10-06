@@ -519,7 +519,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
     <div id="svMap"></div>
     <div class="sv-load" id="svLoad">Chargement de la carte…</div>
     <div class="sv-top">
-      <div class="sv-row"><button type="button" class="btn" id="svClose">← 3D</button><button type="button" class="btn" id="svRelief" aria-pressed="false" title="Vrai relief en 3D : à essayer, peut ne pas s'afficher sur certains téléphones">Relief 3D (essai)</button></div>
+      <div class="sv-row"><button type="button" class="btn" id="svClose">← 3D</button><button type="button" class="btn" id="svRelief" aria-pressed="true" title="Vrai relief en 3D : à essayer, peut ne pas s'afficher sur certains téléphones">Relief 3D (essai)</button></div>
       <div class="seg" id="svStyle" role="group" aria-label="Fond de carte du survol">
         <button data-v="ortho" aria-pressed="false">Photos IGN</button><button data-v="sat" aria-pressed="false">Satellite</button><button data-v="scan" aria-pressed="false">TOP 25</button><button data-v="topo" aria-pressed="false">Topo</button>
       </div>
@@ -3164,7 +3164,7 @@ $('ignSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b
 
 /* ---------- Survol (essai) : carte MapLibre avec relief, caméra qui suit la rando ---------- */
 const ML_VER='5.24.0';
-const SV={terrain:false,on:false,map:null,ready:false,follow:true,intro:false,hd:null,style:null,track:null,marker:null,mStart:null,mEnd:null,last:0,pLast:-1,zoom:14.2,pitch:64};
+const SV={terrain:true,on:false,map:null,ready:false,follow:true,intro:false,hd:null,style:null,track:null,marker:null,mStart:null,mEnd:null,last:0,pLast:-1,zoom:14.2,pitch:64};
 const SV_STYLES={
   ortho:{tiles:['https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/jpeg'],max:19,attr:'Photos aériennes © IGN'},
   sat:{tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],max:19,attr:'Imagerie © Esri, Maxar, Earthstar Geographics'},
@@ -3191,8 +3191,8 @@ function svStyleObj(){
     layers.push({id:'r-'+k,type:'raster',source:k,layout:{visibility:k===SV.style?'visible':'none'}});
   }
   layers.push({id:'hs',type:'hillshade',source:'demhs',paint:{'hillshade-exaggeration':.5,'hillshade-shadow-color':'rgba(10,20,30,.6)','hillshade-highlight-color':'rgba(255,255,255,.35)','hillshade-accent-color':'rgba(10,20,30,.3)'}});
-  return {version:8,sources,layers,...(SV.terrain?{terrain:{source:'dem',exaggeration:1.3}}:{}),
-    sky:{'sky-color':'#4f94d8','horizon-color':'#cfe6f6','fog-color':'#eaf4fb','sky-horizon-blend':.6,'horizon-fog-blend':.6,'fog-ground-blend':.4}};
+  return {version:8,sources,layers,...(SV.terrain?{terrain:{source:'dem',exaggeration:1.1}}:{}),
+    sky:{'sky-color':'#4f94d8','horizon-color':'#cfe6f6','fog-color':'#eaf4fb','sky-horizon-blend':.5,'horizon-fog-blend':.15,'fog-ground-blend':0}};
 }
 function svTrackData(){
   const A=areaFor(T),ll=i=>{const [la,lo]=A.ll(T.rx[i],T.rz[i]);return [lo,la]};
@@ -3249,6 +3249,9 @@ function svSetup(){
   // dès que tu touches la carte (glisser, pincer, molette), la caméra arrête de suivre
   const user=ev=>{if(ev.originalEvent&&SV.on)svFree()};
   ['dragstart','zoomstart','pitchstart','rotatestart'].forEach(n=>m.on(n,user));
+  // on retient le zoom et l'inclinaison que tu choisis : « Suivre le marcheur » les garde
+  m.on('zoomend',ev=>{if(ev&&ev.originalEvent)SV.zoom=m.getZoom()});
+  m.on('pitchend',ev=>{if(ev&&ev.originalEvent)SV.pitch=m.getPitch()});
   const box=$('svMap');let down=null,ptrs=0;
   box.addEventListener('pointerdown',e=>{ptrs++;down=[e.clientX,e.clientY];if(ptrs>1&&SV.on)svFree()},true);
   box.addEventListener('pointermove',e=>{if(down&&SV.on&&Math.hypot(e.clientX-down[0],e.clientY-down[1])>8)svFree()},true);
@@ -3284,6 +3287,7 @@ async function openSurvol(){
   if(!SV.on)return;
   if(!SV.style)SV.style=(T.lat0>41&&T.lat0<51.5&&T.lon0>-5.5&&T.lon0<10)?'ortho':'sat';
   SV.zoom=T.total<15000?14.6:T.total<40000?14:T.total<120000?13.2:12.4;
+  if(SV.terrain){SV.zoom-=1.3;SV.pitch=50}else SV.pitch=64;
   SV.follow=true;$('svFollow').hidden=true;svStyleUI();
   if(!SV.map){
     try{
@@ -3325,9 +3329,11 @@ $('svPlay').addEventListener('click',()=>{if(!T)return;if(f>=1)f=0;setPlaying(!p
 $('svRestart').addEventListener('click',()=>{f=0;SV.hd=null;holdUntil=0;$('photoCard').hidden=true});
 $('svRelief').addEventListener('click',()=>{
   SV.terrain=!SV.terrain;$('svRelief').setAttribute('aria-pressed',SV.terrain);
-  if(SV.map&&SV.ready)SV.map.setTerrain(SV.terrain?{source:'dem',exaggeration:1.3}:null);
+  if(SV.map&&SV.ready)SV.map.setTerrain(SV.terrain?{source:'dem',exaggeration:1.1}:null);
   if(SV.terrain)toast("Relief 3D activé. Si la carte devient vide, touche « Relief 3D » pour l'enlever.",6000);
 });
+// en relief, la caméra reste plus loin et moins penchée (sinon on filme la montagne de trop près)
+$('svRelief').addEventListener('click',()=>{if(SV.terrain){SV.zoom-=1.3;SV.pitch=50}else{SV.zoom+=1.3;SV.pitch=64}});
 $('svFollow').addEventListener('click',()=>{SV.follow=true;SV.hd=null;$('svFollow').hidden=true});
 $('svScrub').addEventListener('pointerdown',()=>{scrubbing=true});
 ['pointerup','pointercancel'].forEach(n=>$('svScrub').addEventListener(n,()=>{scrubbing=false}));
@@ -3448,7 +3454,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V8", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Mode Suivi : le trait blanc de tout le parcours disparaît et les bornes km apparaissent au passage.", "Le bouton Survol (essai) devient « Carte animée (essai) » pour ne pas le confondre avec le mode Survol.", "Nouvelle page d'accueil claire : ciel bleu et nuages, sans 3D derrière.", "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V9", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte animée : relief 3D activé par défaut, caméra plus loin (fini l'écran tout bleu) et « Suivre le marcheur » garde ton zoom.", "Mode Suivi : le trait blanc de tout le parcours disparaît et les bornes km apparaissent au passage.", "Le bouton Survol (essai) devient « Carte animée (essai) » pour ne pas le confondre avec le mode Survol.", "Nouvelle page d'accueil claire : ciel bleu et nuages, sans 3D derrière."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
