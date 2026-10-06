@@ -13,7 +13,7 @@ https://manuel-vigie.github.io/appli-manu/rando-3d/rando-3d.html
 | `rando-3d.html` | L'appli entière |
 | `index.html` | **Copie identique** de `rando-3d.html`, uniquement pour que l'adresse du dossier marche |
 | `manifest.webmanifest` | Nom, icônes, `start_url: ./rando-3d.html` |
-| `sw.js` | Mode hors connexion. Contient `VERSION = 'rr3d-v6'` (laisse passer `version.json` sans cache) |
+| `sw.js` | Mode hors connexion. Contient `VERSION = 'rr3d-v7'` (laisse passer `version.json` sans cache) |
 | `version.json` | Version, date et nouveautés affichées par la pastille ↻ (voir CLAUDE.md) |
 | `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`, `favicon.png` | Icônes |
 
@@ -37,5 +37,6 @@ Vider les données de sites de Chrome les efface. Aucune fonction de sauvegarde 
 - 02/10/2026 — Rangement dans `rando-3d/` (`index.html` retiré par erreur, remis le 03/10).
 - 06/10/2026 — V3 : pastille de mise à jour en haut à droite (version, date, bouton Actualiser, devient verte si une nouvelle version est en ligne). Cache rr3d-v3.
 - 06/10/2026 — V4 : nouvelle page d'accueil claire (ciel bleu, nuages qui défilent, boutons Importer / Itinéraire / Mes randos / Voir un exemple) à la place de la scène 3D de départ. Le replay 3D sur vraie carte est inchangé. Cache rr3d-v4.
-- 06/10/2026 — V5 : bouton « Survol (essai) » : carte MapLibre 5.24 à vue inclinée avec ombrage du relief (Photos IGN, Satellite, TOP 25, Topo) où la caméra suit la rando, avec départ vu du ciel, stats, curseur et vitesses ; option « Relief 3D (essai) » (désactivée par défaut, non vérifiée sur un vrai téléphone). Le replay 3D (Three.js) reste inchangé. Cache rr3d-v6.
-- 06/10/2026 — V6 : dans le Survol, le tracé se dessine au fur et à mesure que le marcheur avance (plus de tracé complet affiché d'avance). Cache rr3d-v6.
+- 06/10/2026 — V5 : bouton « Survol (essai) » : carte MapLibre 5.24 à vue inclinée avec ombrage du relief (Photos IGN, Satellite, TOP 25, Topo) où la caméra suit la rando, avec départ vu du ciel, stats, curseur et vitesses ; option « Relief 3D (essai) » (désactivée par défaut, non vérifiée sur un vrai téléphone). Le replay 3D (Three.js) reste inchangé. Cache rr3d-v7.
+- 06/10/2026 — V6 : dans le Survol, le tracé se dessine au fur et à mesure que le marcheur avance (plus de tracé complet affiché d'avance). Cache rr3d-v7.
+- 06/10/2026 — V7 : Survol : le tracé n'est plus masqué par un dégradé (ne marchait pas sur le téléphone de Manuel) ; la carte ne reçoit que la partie déjà parcourue. Cache rr3d-v7.

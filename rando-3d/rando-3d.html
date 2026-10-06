@@ -3195,26 +3195,28 @@ function svStyleObj(){
 function svTrackData(){
   const A=areaFor(T),ll=i=>{const [la,lo]=A.ll(T.rx[i],T.rz[i]);return [lo,la]};
   computeSlopes(T);
-  const full=[],idx=[],st=Math.max(1,Math.floor(T.N/900));
-  for(let i=0;i<T.N;i+=st){full.push(ll(i));idx.push(i)}
-  if(idx[idx.length-1]!==T.N-1){full.push(ll(T.N-1));idx.push(T.N-1)}
-  // longueur cumulée (en mètres approx.) pour convertir « numéro de point » en « fraction du tracé »
-  const cum=[0],k=Math.cos(full[0][1]*Math.PI/180);
-  for(let j=1;j<full.length;j++)cum.push(cum[j-1]+Math.hypot((full[j][0]-full[j-1][0])*k,full[j][1]-full[j-1][1]));
-  const tot=cum[cum.length-1]||1;
-  const frac=i=>{let a=0,b=idx.length-1;while(b-a>1){const mid=(a+b)>>1;if(idx[mid]<=i)a=mid;else b=mid}
-    const t=idx[b]>idx[a]?(i-idx[a])/(idx[b]-idx[a]):0;return (cum[a]+(cum[b]-cum[a])*Math.min(1,Math.max(0,t)))/tot};
-  const stops=[];let last=-1;
-  T.segsSlope.forEach(g=>{const q=frac(g.i0);if(q>last+1e-6||!stops.length){stops.push({p:q,col:SLOPE_CLS[g.cls].col});last=q}});
-  return {stops,full:{type:'Feature',properties:{},geometry:{type:'LineString',coordinates:full}},start:ll(0),end:ll(T.N-1),frac};
+  // morceaux de pente (couleur + points avec leur numéro) : on n'en montrera que la partie déjà parcourue
+  const segs=T.segsSlope.map(g=>{const pts=[],st=Math.max(1,Math.floor((g.i1-g.i0)/120));
+    for(let i=g.i0;i<=g.i1;i+=st)pts.push([i,ll(i)]);
+    pts.push([Math.min(T.N-1,g.i1+1),ll(Math.min(T.N-1,g.i1+1))]);
+    return {col:SLOPE_CLS[g.cls].col,pts}});
+  return {segs,start:ll(0),end:ll(T.N-1),ll};
 }
-// couleur du tracé : seule la partie déjà parcourue (jusqu'à p) est dessinée, colorée selon la pente
-function svGrad(p,kind){
-  const none='rgba(255,255,255,0)',st=SV.stops||[];
-  const ex=['step',['line-progress'],kind==='case'?'rgba(255,255,255,.92)':(st[0]?st[0].col:none)];
-  if(kind!=='case')for(let j=1;j<st.length&&st[j].p<p;j++)ex.push(st[j].p,st[j].col);
-  if(p<1)ex.push(Math.max(p,1e-6),none);
-  return ex.length===3&&p>=1?ex[2]:ex;
+// tracé dessiné seulement jusqu'au marcheur (point numéro cur)
+function svWalked(cur){
+  const ll=SV.ll,feats=[],all=[];
+  for(const g of SV.segs){
+    if(g.pts[0][0]>cur)break;
+    const c=[];let cut=false;for(const [i,xy] of g.pts){if(i>cur){cut=true;break}c.push(xy)}
+    if(cut)c.push(ll(Math.min(T.N-1,Math.round(cur))));
+    if(c.length>1){feats.push({type:'Feature',properties:{col:g.col},geometry:{type:'LineString',coordinates:c}});all.push(...c)}
+  }
+  return {slopes:{type:'FeatureCollection',features:feats},
+    walked:{type:'Feature',properties:{},geometry:{type:'LineString',coordinates:all.length>1?all:[ll(0),ll(0)]}}};
+}
+function svSetWalked(cur){
+  const m=SV.map,w=svWalked(cur);
+  m.getSource('walked').setData(w.walked);m.getSource('slopes').setData(w.slopes);
 }
 // le marcheur est placé plus bas que le centre de l'écran : on vise un point un peu devant lui
 // (sans « padding » MapLibre, qui fait disparaître la carte quand le relief est actif)
@@ -3231,10 +3233,12 @@ function svHeading(){
 function svFree(){SV.follow=false;$('svFollow').hidden=false}
 function svSetup(){
   const m=SV.map,d=svTrackData(),line={'line-cap':'round','line-join':'round'};
-  SV.stops=d.stops;SV.frac=d.frac;
-  m.addSource('full',{type:'geojson',data:d.full,lineMetrics:true});
-  m.addLayer({id:'case',type:'line',source:'full',layout:line,paint:{'line-width':9,'line-gradient':svGrad(0,'case')}});
-  m.addLayer({id:'slopes',type:'line',source:'full',layout:line,paint:{'line-width':5.5,'line-gradient':svGrad(0,'col')}});
+  SV.segs=d.segs;SV.ll=d.ll;
+  const empty={type:'FeatureCollection',features:[]};
+  m.addSource('walked',{type:'geojson',data:empty});
+  m.addSource('slopes',{type:'geojson',data:empty});
+  m.addLayer({id:'case',type:'line',source:'walked',layout:line,paint:{'line-color':'#ffffff','line-width':9,'line-opacity':.92}});
+  m.addLayer({id:'slopes',type:'line',source:'slopes',layout:line,paint:{'line-color':['get','col'],'line-width':5.5}});
   const pin=(txt)=>{const e=document.createElement('div');e.className='ign-pin';e.innerHTML=`<span>${txt}</span>`;return e};
   SV.mStart=new maplibregl.Marker({element:pin('🏁')}).setLngLat(d.start).addTo(m);
   SV.mEnd=new maplibregl.Marker({element:pin('🏴')}).setLngLat(d.end).addTo(m);
@@ -3252,7 +3256,7 @@ function svSetup(){
 }
 function svUpdateTrack(){
   const m=SV.map,d=svTrackData();
-  SV.stops=d.stops;SV.frac=d.frac;m.getSource('full').setData(d.full);
+  SV.segs=d.segs;SV.ll=d.ll;
   SV.mStart.setLngLat(d.start);SV.mEnd.setLngLat(d.end);SV.track=T;SV.pLast=-1;
 }
 function svBegin(){
@@ -3309,8 +3313,8 @@ function svFrame(dt,now){
     $('svDist').textContent=fmtKm(val(T.rd,f));$('svAlt').textContent=nf0.format(val(T.se,f));
     $('svUp').textContent=nf0.format(val(T.up,f));$('svTime').textContent=fmtDur(val(T.time,f));
     if(!scrubbing)$('svScrub').value=Math.round(f*1000);
-    const p=SV.frac(f*(T.N-1));
-    if(Math.abs(p-SV.pLast)>0.0005&&m.getLayer('slopes')){SV.pLast=p;m.setPaintProperty('case','line-gradient',svGrad(p,'case'));m.setPaintProperty('slopes','line-gradient',svGrad(p,'col'))}
+    const cur=f*(T.N-1);
+    if(Math.abs(cur-SV.pLast)>=Math.max(1,T.N/1500)&&m.getSource('slopes')){SV.pLast=cur;svSetWalked(cur)}
   }
 }
 $('survolBtn').addEventListener('click',openSurvol);
@@ -3442,7 +3446,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V6", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Survol : le tracé se dessine au fur et à mesure que le marcheur avance.", "Nouveau bouton Survol (essai) : la caméra suit ta rando sur une carte réelle.", "Nouvelle page d'accueil claire : ciel bleu et nuages, sans 3D derrière.", "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V7", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Survol : le tracé n'existe plus d'avance, il se dessine vraiment derrière le marcheur.", "Nouveau bouton Survol (essai) : la caméra suit ta rando sur une carte réelle.", "Nouvelle page d'accueil claire : ciel bleu et nuages, sans 3D derrière.", "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
