@@ -3194,7 +3194,7 @@ function svStyleObj(){
     layers.push({id:'r-'+k,type:'raster',source:k,layout:{visibility:k===SV.style?'visible':'none'}});
   }
   layers.push({id:'hs',type:'hillshade',source:'demhs',paint:{'hillshade-exaggeration':.5,'hillshade-shadow-color':'rgba(10,20,30,.6)','hillshade-highlight-color':'rgba(255,255,255,.35)','hillshade-accent-color':'rgba(10,20,30,.3)'}});
-  return {version:8,sources,layers,...(SV.terrain?{terrain:{source:'dem',exaggeration:1}}:{}),
+  return {version:8,sources,layers,...(SV.terrain?{terrain:{source:'dem',exaggeration:1.8}}:{}),
     sky:{'sky-color':'#4f94d8','horizon-color':'#cfe6f6','fog-color':'#eaf4fb','sky-horizon-blend':.5,'horizon-fog-blend':.15,'fog-ground-blend':0}};
 }
 function svTrackData(){
@@ -3268,9 +3268,9 @@ function svSetup(){
   const empty={type:'FeatureCollection',features:[]};
   m.addSource('walked',{type:'geojson',data:empty});
   m.addSource('slopes',{type:'geojson',data:empty});
-  m.addLayer({id:'case',type:'line',source:'walked',layout:line,paint:{'line-color':'#ffffff','line-width':5.5,'line-opacity':.9}});
+  m.addLayer({id:'case',type:'line',source:'walked',layout:line,paint:{'line-color':'#ffffff','line-width':3.6,'line-opacity':.9}});
   m.addSource('kms',{type:'geojson',data:empty});
-  m.addLayer({id:'slopes',type:'line',source:'slopes',layout:line,paint:{'line-color':['get','col'],'line-width':3.2}});
+  m.addLayer({id:'slopes',type:'line',source:'slopes',layout:line,paint:{'line-color':['get','col'],'line-width':2.2}});
   m.addLayer({id:'kms',type:'symbol',source:'kms',layout:{'icon-image':['get','img'],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-size':1}});
   const pin=(txt)=>{const e=document.createElement('div');e.className='ign-pin';e.innerHTML=`<span>${txt}</span>`;return e};
   SV.mStart=new maplibregl.Marker({element:pin('🏁')}).setLngLat(d.start).addTo(m);
@@ -3295,20 +3295,33 @@ function svUpdateTrack(){
   SV.segs=d.segs;SV.ll=d.ll;SV.kms=d.kms;svKmClear();
   SV.mStart.setLngLat(d.start);SV.mEnd.setLngLat(d.end);SV.track=T;SV.pLast=-1;
 }
+function svBounds(){
+  const A=areaFor(T),bb=new maplibregl.LngLatBounds();
+  for(let k=0;k<T.N;k+=Math.max(1,Math.floor(T.N/200))){const [la,lo]=A.ll(T.rx[k],T.rz[k]);bb.extend([lo,la])}
+  return bb;
+}
+const SV_PAD={top:130,bottom:250,left:30,right:30};
+// vue d'ensemble : tout le parcours est montré (au début, avant le départ ; à la fin, une fois arrivé)
+function svShowFull(){
+  const m=SV.map,w=svWalked(T.N-1);
+  m.getSource('walked').setData(w.walked);m.getSource('slopes').setData(w.slopes);svKm(T.N-1);
+}
 function svBegin(){
   const m=SV.map,A=areaFor(T);
   $('svLoad').hidden=true;m.resize();
-  const bb=new maplibregl.LngLatBounds();
-  for(let k=0;k<T.N;k+=Math.max(1,Math.floor(T.N/200))){const [la,lo]=A.ll(T.rx[k],T.rz[k]);bb.extend([lo,la])}
-  m.fitBounds(bb,{padding:{top:130,bottom:250,left:30,right:30},pitch:0,bearing:0,duration:0,maxZoom:15});
-  const [la,lo]=A.ll(val(T.rx,f),val(T.rz,f)),hd=svHeading();
-  SV.intro=true;SV.hd=null;
-  // départ vu d'en haut, puis la caméra descend vers le marcheur
-  setTimeout(()=>{
+  m.stop();
+  m.fitBounds(svBounds(),{padding:SV_PAD,pitch:SV.terrain?35:0,bearing:0,duration:SV.ready&&SV.began?2500:0,maxZoom:15});
+  SV.began=true;SV.ended=false;
+  const [la,lo]=A.ll(val(T.rx,0),val(T.rz,0)),hd=svHeading();
+  SV.intro=true;SV.hd=null;SV.hold=true;svShowFull();
+  // vue d'ensemble du parcours, puis la caméra descend vers le marcheur et le tracé se vide
+  clearTimeout(SV.tIntro);
+  SV.tIntro=setTimeout(()=>{
     if(!SV.on)return;
+    SV.hold=false;SV.pLast=-1;svKmClear();
     m.once('moveend',()=>{SV.intro=false;SV.hd=hd;if(SV.on&&f<1)setPlaying(true)});
     m.flyTo({center:svAim(la,lo,hd),zoom:SV.zoom,pitch:SV.pitch,bearing:hd,duration:reduceMotion?0:5000,curve:1.6,essential:true});
-  },900);
+  },3200);
 }
 async function openSurvol(){
   if(!T||T.planBase){toast("Charge d'abord une trace.");return}
@@ -3340,7 +3353,13 @@ function svFrame(dt,now){
   const m=SV.map;if(!m||!SV.ready||!SV.marker)return;
   const A=areaFor(T),[la,lo]=A.ll(val(T.rx,f),val(T.rz,f));
   SV.marker.setLngLat([lo,la]);
-  if(!SV.intro&&SV.follow){
+  if(f>=1&&!SV.ended&&!SV.intro){
+    // arrivée : vue d'ensemble de tout le parcours
+    SV.ended=true;SV.intro=true;SV.pLast=-1;svSetWalked(T.N-1);
+    m.fitBounds(svBounds(),{padding:SV_PAD,pitch:SV.terrain?35:0,bearing:0,duration:reduceMotion?0:4500,maxZoom:15});
+    m.once('moveend',()=>{SV.intro=false});
+  }else if(SV.ended&&f<0.999){SV.ended=false;SV.intro=false;SV.hd=null}
+  if(!SV.intro&&SV.follow&&!SV.ended){
     const hd=svHeading();if(SV.hd==null)SV.hd=hd;
     const d=((hd-SV.hd+540)%360)-180;SV.hd+=d*(1-Math.exp(-dt*0.8));
     m.jumpTo({center:svAim(la,lo,SV.hd),bearing:SV.hd,pitch:SV.pitch,zoom:SV.zoom});
@@ -3351,16 +3370,16 @@ function svFrame(dt,now){
     $('svUp').textContent=nf0.format(val(T.up,f));$('svTime').textContent=fmtDur(val(T.time,f));
     if(!scrubbing)$('svScrub').value=Math.round(f*1000);
     const cur=f*(T.N-1);
-    if((SV.pLast<0||(now-(SV.lastWalk||0)>300&&Math.abs(cur-SV.pLast)>=1))&&m.getSource('slopes')){SV.pLast=cur;SV.lastWalk=now;svSetWalked(cur)}
+    if(!SV.hold&&(SV.pLast<0||(now-(SV.lastWalk||0)>300&&Math.abs(cur-SV.pLast)>=1))&&m.getSource('slopes')){SV.pLast=cur;SV.lastWalk=now;svSetWalked(cur)}
   }
 }
 $('survolBtn').addEventListener('click',openSurvol);
 $('svClose').addEventListener('click',closeSurvol);
-$('svPlay').addEventListener('click',()=>{if(!T)return;if(f>=1)f=0;setPlaying(!playing)});
-$('svRestart').addEventListener('click',()=>{f=0;SV.hd=null;holdUntil=0;$('photoCard').hidden=true});
+$('svPlay').addEventListener('click',()=>{if(!T)return;if(f>=1){f=0;svBegin();return}setPlaying(!playing)});
+$('svRestart').addEventListener('click',()=>{setPlaying(false);f=0;SV.hd=null;holdUntil=0;$('photoCard').hidden=true;SV.follow=true;$('svFollow').hidden=true;svBegin()});
 $('svRelief').addEventListener('click',()=>{
   SV.terrain=!SV.terrain;$('svRelief').setAttribute('aria-pressed',SV.terrain);
-  if(SV.map&&SV.ready)SV.map.setTerrain(SV.terrain?{source:'dem',exaggeration:1}:null);
+  if(SV.map&&SV.ready)SV.map.setTerrain(SV.terrain?{source:'dem',exaggeration:1.8}:null);
   if(SV.terrain)toast("Relief 3D activé. Si la carte devient vide, touche « Relief 3D » pour l'enlever.",6000);
 });
 // en relief, la caméra reste plus loin et moins penchée (sinon on filme la montagne de trop près)
@@ -3485,7 +3504,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V12", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte animée : plus de zones bleues (photo de secours sous la carte) et bornes km dessinées dans la carte.", "Carte animée : les bornes kilométriques apparaissent au passage du marcheur, et l'animation est plus fluide.", "Carte animée : tracé plus fin, caméra plus haute en relief pour éviter les zones sans photo.", "Carte animée : relief 3D activé par défaut, caméra plus loin (fini l'écran tout bleu) et « Suivre le marcheur » garde ton zoom."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V13", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte animée : vue d'ensemble au départ et à l'arrivée, tracé plus fin, relief 3D plus marqué.", "Carte animée : plus de zones bleues (photo de secours sous la carte) et bornes km dessinées dans la carte.", "Carte animée : les bornes kilométriques apparaissent au passage du marcheur, et l'animation est plus fluide.", "Carte animée : tracé plus fin, caméra plus haute en relief pour éviter les zones sans photo."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
