@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Bibliothèque Photo</title>
+<link rel="manifest" href="bibliotheque-manifest.webmanifest">
+<meta name="theme-color" content="#0C2442">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Biblio Photo">
+<link rel="icon" type="image/png" href="bibliotheque-icone-192.png">
+<link rel="apple-touch-icon" href="bibliotheque-apple-touch-icon.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap">
 <style>
 /* Idée : une planche-contact. Bandeau bleu cyanotype à perforations de pellicule, cartes claires, dossiers avec pile de photos.
@@ -662,6 +669,7 @@ window.addEventListener("drop", e => {
   e.preventDefault(); $("pick").classList.remove("dragover");
   if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
 });
+if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEventListener('load',function(){navigator.serviceWorker.register('bibliotheque-sw.js').catch(function(){})})}
 </script>
 </body>
 </html>

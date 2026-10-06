@@ -4,3 +4,4 @@ Outil pour ranger des photos et vidéos par date (année/mois, jour, appareil, t
 Tout se passe sur le téléphone : aucune photo n'est envoyée sur le serveur. Fichier unique, sans donnée personnelle.
 
 - 06/10/2026 : ajout au dépôt (version reçue de Manuel, non modifiée).
+- 06/10/2026 : rendue installable (manifeste, icônes, service worker `biblio-photo-V1`, balises dans la page).
