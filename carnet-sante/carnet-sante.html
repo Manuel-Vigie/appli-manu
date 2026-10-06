@@ -77,6 +77,8 @@
       <button class="gros" id="retour" type="button">Retour à mon carnet</button>
       <label class="gros secondaire" for="fichier2">Remplacer par un nouveau fichier</label>
       <input type="file" id="fichier2" accept=".html,.htm,text/html">
+      <button class="gros secondaire" id="copie" type="button">Enregistrer une copie de mon carnet</button>
+      <p class="petit" id="msg-copie" role="status" hidden></p>
       <button class="gros danger" id="effacer" type="button">Effacer mes données de ce téléphone</button>
       <p class="erreur" id="erreur2" role="alert" hidden></p>
     </div>
@@ -187,6 +189,21 @@
     });
   });
   $("retour").addEventListener("click", function(){ montrer("carnet"); });
+
+  /* copie de secours : le fichier du carnet est renvoyé dans Téléchargements (il contient les données de santé) */
+  $("copie").addEventListener("click", function(){
+    var m = $("msg-copie"); m.hidden = true; erreur("erreur2", "");
+    lire().then(function(d){
+      if (!d || !d.html){ erreur("erreur2", "Aucun carnet n'est enregistré sur ce téléphone."); return; }
+      var u = URL.createObjectURL(new Blob([d.html], {type: "text/html"}));
+      var a = document.createElement("a");
+      a.href = u; a.download = "carnet-sante-prive.html";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(u); }, 60000);
+      m.textContent = "Copie demandée : cherchez « carnet-sante-prive.html » dans Téléchargements. Elle contient vos données de santé : gardez-la sur votre téléphone.";
+      m.hidden = false;
+    }).catch(function(){ erreur("erreur2", "Impossible de créer la copie."); });
+  });
 
   $("effacer").addEventListener("click", function(){
     if (!confirm("Effacer votre carnet de ce téléphone ?\n\nLe fichier et les scans ajoutés ici seront supprimés. Votre fichier dans Téléchargements n'est pas touché.")) return;
@@ -745,7 +762,7 @@
 #cadre:not([hidden])~#maj-pastille{top:auto;right:auto;left:calc(52px + env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));opacity:.8}
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Carnet de Santé", "version": "V3", "date": "06/10/2026", "cache": "carnet-sante-app-", "nouveautes": ["Photos : recadrage sur les 4 coins, redressement et aspect « document » avant l'ajout (réglable dans ⚙).", "Pastille de mise à jour : version, date et bouton Actualiser (en bas, à côté de ⚙, quand le carnet est ouvert).", "Coquille vide en ligne : vos données restent uniquement sur le téléphone."]};
+window.MAJ_APPLI={"nom": "Carnet de Santé", "version": "V4", "date": "06/10/2026", "cache": "carnet-sante-app-", "nouveautes": ["Dans ⚙ : bouton « Enregistrer une copie de mon carnet » (copie de secours dans Téléchargements).", "Photos : recadrage sur les 4 coins, redressement et aspect « document » avant l'ajout (réglable dans ⚙).", "Pastille de mise à jour : version, date et bouton Actualiser (en bas, à côté de ⚙, quand le carnet est ouvert).", "Coquille vide en ligne : vos données restent uniquement sur le téléphone."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;

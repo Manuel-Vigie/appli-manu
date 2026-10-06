@@ -15,7 +15,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-sante/carnet-sante.html
 |---|---|
 | `carnet-sante.html` | La coquille (écran d'import, cadre, bouton ⚙) |
 | `carnet-sante-manifest.webmanifest` | Nom, icônes, démarrage |
-| `carnet-sante-sw.js` | Cache de la coquille seulement (`carnet-sante-app-v3`) |
+| `carnet-sante-sw.js` | Cache de la coquille seulement (`carnet-sante-app-v4`) |
 | `version.json` | Version, date et nouveautés affichées par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-sante-icon-192.png`, `-512.png`, `-masque-512.png`, `-apple-touch-icon.png` | Icônes |
 
@@ -29,7 +29,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-sante/carnet-sante.html
 
 ## Où sont les données
 Le fichier privé est copié dans le téléphone (IndexedDB). Les scans ajoutés dans l'appli sont dans `localStorage` (clés commençant par `imagerie`, `analyses`, `ordonnances`).
-Vider les données de sites de Chrome efface tout : il faut alors réimporter le fichier privé (**garder une copie dans Téléchargements ou sur le PC**). Les scans ajoutés après l'import ne sont alors pas récupérables.
+Vider les données de sites de Chrome efface tout : il faut alors réimporter le fichier privé (**garder une copie dans Téléchargements ou sur le PC**). Depuis la V4, **⚙ → Enregistrer une copie de mon carnet** renvoie le fichier du téléphone dans Téléchargements (`carnet-sante-prive.html`) : à utiliser pour faire une copie de secours, ou pour le joindre à Claude quand le contenu du carnet doit être modifié. Ce fichier contient les données de santé : ne jamais le publier. La copie ne contient pas les photos ajoutées ensuite dans l'appli (elles sont dans `localStorage`) : si Chrome efface ses données, ces photos ne sont pas récupérables (la version 2.23.0 du carnet annonce « Photos en ZIP » : à vérifier avec le fichier privé pour savoir si cela les sauvegarde).
 Le bouton **⚙ → Effacer mes données** supprime le fichier et les scans du téléphone, pas la copie dans Téléchargements.
 
 ## Recadrage et amélioration des photos (dans la coquille, depuis la V3)
@@ -57,3 +57,4 @@ Servir le dossier en local, importer un fichier de test, vérifier : cadre visib
 - 04/10/2026 — Fichier privé v2.20 (boutons Imprimer / Envoyer).
 - 06/10/2026 — Coquille V2 : pastille de mise à jour (en haut à droite à l'accueil, en bas à côté de ⚙ quand le carnet est ouvert). Cache carnet-sante-app-v2. Le fichier privé n'est pas touché.
 - 06/10/2026 — Coquille V3 : recadrage / redressement / aspect « document » des photos ajoutées dans le carnet (réglable dans ⚙). Cache carnet-sante-app-v3. Le fichier privé (affiche v2.23.0, « Photos en ZIP ») n'est pas touché.
+- 06/10/2026 — Coquille V4 : bouton « Enregistrer une copie de mon carnet » dans ⚙ (le fichier privé n'était plus que dans l'appli). Cache carnet-sante-app-v4.

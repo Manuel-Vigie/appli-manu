@@ -1,5 +1,5 @@
 // Carnet de santé : met en cache SEULEMENT l'enveloppe de l'appli (aucune donnée perso).
-const CACHE = 'carnet-sante-app-v3';
+const CACHE = 'carnet-sante-app-v4';
 const FILES = ['./carnet-sante.html', './carnet-sante-manifest.webmanifest',
   './carnet-sante-icon-192.png', './carnet-sante-icon-512.png', './carnet-sante-icon-masque-512.png',
   './carnet-sante-apple-touch-icon.png'];
