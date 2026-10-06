@@ -3185,9 +3185,12 @@ function svStyleObj(){
   const demTiles=['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'];
   // deux sources identiques : une pour le relief 3D, une pour l'ombrage (meilleur rendu)
   const sources={dem:{type:'raster-dem',tiles:demTiles,encoding:'terrarium',tileSize:256,maxzoom:14},demhs:{type:'raster-dem',tiles:demTiles,encoding:'terrarium',tileSize:256,maxzoom:14}};
-  const layers=[{id:'bg',type:'background',paint:{'background-color':'#cfe3f2'}}];
+  const layers=[{id:'bg',type:'background',paint:{'background-color':'#6d7a63'}}];
   for(const [k,s] of Object.entries(SV_STYLES)){
     sources[k]={type:'raster',tiles:s.tiles,tileSize:256,maxzoom:s.max};
+    // photo de secours, moins nette (tuiles 4× plus grandes, donc peu nombreuses) : évite les trous quand les vraies tuiles tardent
+    sources[k+'-low']={type:'raster',tiles:s.tiles,tileSize:1024,maxzoom:s.max};
+    layers.push({id:'rl-'+k,type:'raster',source:k+'-low',layout:{visibility:k===SV.style?'visible':'none'}});
     layers.push({id:'r-'+k,type:'raster',source:k,layout:{visibility:k===SV.style?'visible':'none'}});
   }
   layers.push({id:'hs',type:'hillshade',source:'demhs',paint:{'hillshade-exaggeration':.5,'hillshade-shadow-color':'rgba(10,20,30,.6)','hillshade-highlight-color':'rgba(255,255,255,.35)','hillshade-accent-color':'rgba(10,20,30,.3)'}});
@@ -3219,16 +3222,28 @@ function svWalked(cur){
   return {slopes:{type:'FeatureCollection',features:feats},
     walked:{type:'Feature',properties:{},geometry:{type:'LineString',coordinates:all.length>1?all:[ll(0),ll(0)]}}};
 }
-function svKmClear(){if(SV.kmOn)for(const mk of SV.kmOn.values())mk.remove();SV.kmOn=new Map()}
-// on ne montre que les 4 dernières bornes passées (léger pour le téléphone)
+function svKmImg(lab){
+  const c=document.createElement('canvas'),r=2,w=26*r;c.width=c.height=w;const x=c.getContext('2d');
+  x.fillStyle='#fff';x.strokeStyle='#1d2b2d';x.lineWidth=2*r;x.beginPath();x.arc(w/2,w/2,w/2-2*r,0,7);x.fill();x.stroke();
+  x.fillStyle='#1d2b2d';x.font=`700 ${(String(lab).length>2?11:14)*r}px Arial,sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(String(lab),w/2,w/2+r*.5);
+  return x.getImageData(0,0,w,w);
+}
+function svKmClear(){
+  const m=SV.map;if(!m||!m.getSource('kms'))return;
+  m.getSource('kms').setData({type:'FeatureCollection',features:[]});SV.kmN=-1;
+}
+// bornes dessinées dans la carte (pas d'éléments HTML) : on ne montre que les 4 dernières bornes passées
 function svKm(cur){
-  if(!SV.kms)return;
+  if(!SV.kms||!SV.map.getSource('kms'))return;
   let n=0;while(n<SV.kms.length&&SV.kms[n].i<=cur)n++;
-  for(const [k,mk] of [...SV.kmOn])if(k>=n||k<n-4){mk.remove();SV.kmOn.delete(k)}
-  for(let k=Math.max(0,n-4);k<n;k++)if(!SV.kmOn.has(k)){
-    const e=document.createElement('div');e.className='ign-km';e.innerHTML=`<span>${SV.kms[k].lab}</span>`;
-    SV.kmOn.set(k,new maplibregl.Marker({element:e}).setLngLat(SV.kms[k].xy).addTo(SV.map));
+  if(n===SV.kmN)return;SV.kmN=n;
+  const feats=[];
+  for(let k=Math.max(0,n-4);k<n;k++){
+    const id='km-'+SV.kms[k].lab;
+    if(!SV.map.hasImage(id))SV.map.addImage(id,svKmImg(SV.kms[k].lab),{pixelRatio:2});
+    feats.push({type:'Feature',properties:{img:id},geometry:{type:'Point',coordinates:SV.kms[k].xy}});
   }
+  SV.map.getSource('kms').setData({type:'FeatureCollection',features:feats});
 }
 function svSetWalked(cur){
   const m=SV.map,w=svWalked(cur);
@@ -3249,12 +3264,14 @@ function svHeading(){
 function svFree(){SV.follow=false;$('svFollow').hidden=false}
 function svSetup(){
   const m=SV.map,d=svTrackData(),line={'line-cap':'round','line-join':'round'};
-  SV.segs=d.segs;SV.ll=d.ll;SV.kms=d.kms;SV.kmOn=new Map();
+  SV.segs=d.segs;SV.ll=d.ll;SV.kms=d.kms;SV.kmN=-1;
   const empty={type:'FeatureCollection',features:[]};
   m.addSource('walked',{type:'geojson',data:empty});
   m.addSource('slopes',{type:'geojson',data:empty});
   m.addLayer({id:'case',type:'line',source:'walked',layout:line,paint:{'line-color':'#ffffff','line-width':5.5,'line-opacity':.9}});
+  m.addSource('kms',{type:'geojson',data:empty});
   m.addLayer({id:'slopes',type:'line',source:'slopes',layout:line,paint:{'line-color':['get','col'],'line-width':3.2}});
+  m.addLayer({id:'kms',type:'symbol',source:'kms',layout:{'icon-image':['get','img'],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-size':1}});
   const pin=(txt)=>{const e=document.createElement('div');e.className='ign-pin';e.innerHTML=`<span>${txt}</span>`;return e};
   SV.mStart=new maplibregl.Marker({element:pin('🏁')}).setLngLat(d.start).addTo(m);
   SV.mEnd=new maplibregl.Marker({element:pin('🏴')}).setLngLat(d.end).addTo(m);
@@ -3354,7 +3371,7 @@ $('svScrub').addEventListener('pointerdown',()=>{scrubbing=true});
 $('svScrub').addEventListener('input',e=>{f=clamp(+e.target.value/1000,0,1);holdUntil=0;$('photoCard').hidden=true});
 $('svSpeed').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;speed=+b.dataset.v;[...$('svSpeed').children].forEach(x=>x.setAttribute('aria-pressed',x===b));[...$('speedSeg').children].forEach(x=>x.setAttribute('aria-pressed',+x.dataset.v===speed))});
 $('svStyle').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;SV.style=b.dataset.v;svStyleUI();
-  if(SV.map&&SV.ready)for(const k of Object.keys(SV_STYLES))SV.map.setLayoutProperty('r-'+k,'visibility',k===SV.style?'visible':'none')});
+  if(SV.map&&SV.ready)for(const k of Object.keys(SV_STYLES)){SV.map.setLayoutProperty('r-'+k,'visibility',k===SV.style?'visible':'none');SV.map.setLayoutProperty('rl-'+k,'visibility',k===SV.style?'visible':'none')}});
 
 /* ---------- Keep the screen on while the app is open ---------- */
 let wakeSentinel=null,awakeVideo=null,awakeStarted=false;
@@ -3468,7 +3485,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V11", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte animée : les bornes kilométriques apparaissent au passage du marcheur, et l'animation est plus fluide.", "Carte animée : tracé plus fin, caméra plus haute en relief pour éviter les zones sans photo.", "Carte animée : relief 3D activé par défaut, caméra plus loin (fini l'écran tout bleu) et « Suivre le marcheur » garde ton zoom.", "Mode Suivi : le trait blanc de tout le parcours disparaît et les bornes km apparaissent au passage."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V12", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte animée : plus de zones bleues (photo de secours sous la carte) et bornes km dessinées dans la carte.", "Carte animée : les bornes kilométriques apparaissent au passage du marcheur, et l'animation est plus fluide.", "Carte animée : tracé plus fin, caméra plus haute en relief pour éviter les zones sans photo.", "Carte animée : relief 3D activé par défaut, caméra plus loin (fini l'écran tout bleu) et « Suivre le marcheur » garde ton zoom."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
