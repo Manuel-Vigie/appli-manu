@@ -1,9 +1,9 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V15",
+  "version": "V16",
   "date": "06/10/2026",
   "nouveautes": [
-    "Carte animée : nouveau bouton « Filmer » pour m'envoyer une vidéo qui m'aide à régler les défauts.",
+    "Carte animée : le bouton rouge « Filmer » n'est plus caché sous la pastille de version.",
     "Carte animée : part toujours du départ, suit mieux les virages, zoom adapté à la rando, tracé plus fluide.",
     "Carte animée : vue d'ensemble au départ et à l'arrivée, tracé plus fin, relief 3D plus marqué.",
     "Carte animée : plus de zones bleues (photo de secours sous la carte) et bornes km dessinées dans la carte."
@@ -11,7 +11,7 @@
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v15"
+    "cache": "rr3d-v16"
   },
   "fichiers": [
     "rando-3d.html",

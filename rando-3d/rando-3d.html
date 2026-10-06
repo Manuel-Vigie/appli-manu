@@ -145,7 +145,8 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 .sv-top{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));left:8px;right:8px;display:flex;flex-direction:column;gap:6px;align-items:flex-start;pointer-events:none}
 .sv-top>*{pointer-events:auto}
 .sv-top .btn{box-shadow:var(--shadow)}
-.sv-row{display:flex;gap:6px;flex-wrap:wrap}
+.sv-row{display:flex;gap:6px;flex-wrap:wrap;max-width:calc(100% - 112px)}
+.sv-row #svRec{background:var(--trail,#d7392a);color:#fff}
 .sv-top .btn[aria-pressed="true"]{background:var(--ink);color:var(--panel-solid)}
 .sv-top .seg{background:var(--panel-solid);box-shadow:var(--shadow);max-width:100%;overflow-x:auto}
 .sv-bottom{position:absolute;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
@@ -3543,7 +3544,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V15", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte animée : nouveau bouton « Filmer » pour m'envoyer une vidéo qui m'aide à régler les défauts.", "Carte animée : part toujours du départ, suit mieux les virages, zoom adapté à la rando, tracé plus fluide.", "Carte animée : vue d'ensemble au départ et à l'arrivée, tracé plus fin, relief 3D plus marqué.", "Carte animée : plus de zones bleues (photo de secours sous la carte) et bornes km dessinées dans la carte."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V16", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte animée : le bouton rouge « Filmer » n'est plus caché sous la pastille de version.", "Carte animée : part toujours du départ, suit mieux les virages, zoom adapté à la rando, tracé plus fluide.", "Carte animée : vue d'ensemble au départ et à l'arrivée, tracé plus fin, relief 3D plus marqué.", "Carte animée : plus de zones bleues (photo de secours sous la carte) et bornes km dessinées dans la carte."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
