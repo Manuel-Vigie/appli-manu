@@ -5,3 +5,4 @@ Tout se passe sur le téléphone : aucune photo n'est envoyée sur le serveur. F
 
 - 06/10/2026 : ajout au dépôt (version reçue de Manuel, non modifiée).
 - 06/10/2026 : rendue installable (manifeste, icônes, service worker `biblio-photo-V1`, balises dans la page).
+- 06/10/2026 : icône recentrée, cache biblio-photo-V2.
