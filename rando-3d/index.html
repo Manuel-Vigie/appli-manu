@@ -3202,7 +3202,10 @@ function svTrackData(){
     for(let i=g.i0;i<=g.i1;i+=st)pts.push([i,ll(i)]);
     pts.push([Math.min(T.N-1,g.i1+1),ll(Math.min(T.N-1,g.i1+1))]);
     return {col:SLOPE_CLS[g.cls].col,pts}});
-  return {segs,start:ll(0),end:ll(T.N-1),ll};
+  // bornes kilométriques (apparaissent quand le marcheur les atteint)
+  const kms=[],kmStep=T.total<60000?1000:T.total<200000?5000:10000;
+  {let j=0;for(let d=kmStep;d<T.total-kmStep*0.3;d+=kmStep){while(j<T.N-1&&T.rd[j]<d)j++;kms.push({lab:Math.round(d/1000),i:j,xy:ll(j)})}}
+  return {segs,kms,start:ll(0),end:ll(T.N-1),ll};
 }
 // tracé dessiné seulement jusqu'au marcheur (point numéro cur)
 function svWalked(cur){
@@ -3216,9 +3219,20 @@ function svWalked(cur){
   return {slopes:{type:'FeatureCollection',features:feats},
     walked:{type:'Feature',properties:{},geometry:{type:'LineString',coordinates:all.length>1?all:[ll(0),ll(0)]}}};
 }
+function svKmClear(){if(SV.kmOn)for(const mk of SV.kmOn.values())mk.remove();SV.kmOn=new Map()}
+// on ne montre que les 4 dernières bornes passées (léger pour le téléphone)
+function svKm(cur){
+  if(!SV.kms)return;
+  let n=0;while(n<SV.kms.length&&SV.kms[n].i<=cur)n++;
+  for(const [k,mk] of [...SV.kmOn])if(k>=n||k<n-4){mk.remove();SV.kmOn.delete(k)}
+  for(let k=Math.max(0,n-4);k<n;k++)if(!SV.kmOn.has(k)){
+    const e=document.createElement('div');e.className='ign-km';e.innerHTML=`<span>${SV.kms[k].lab}</span>`;
+    SV.kmOn.set(k,new maplibregl.Marker({element:e}).setLngLat(SV.kms[k].xy).addTo(SV.map));
+  }
+}
 function svSetWalked(cur){
   const m=SV.map,w=svWalked(cur);
-  m.getSource('walked').setData(w.walked);m.getSource('slopes').setData(w.slopes);
+  m.getSource('walked').setData(w.walked);m.getSource('slopes').setData(w.slopes);svKm(cur);
 }
 // le marcheur est placé plus bas que le centre de l'écran : on vise un point un peu devant lui
 // (sans « padding » MapLibre, qui fait disparaître la carte quand le relief est actif)
@@ -3235,7 +3249,7 @@ function svHeading(){
 function svFree(){SV.follow=false;$('svFollow').hidden=false}
 function svSetup(){
   const m=SV.map,d=svTrackData(),line={'line-cap':'round','line-join':'round'};
-  SV.segs=d.segs;SV.ll=d.ll;
+  SV.segs=d.segs;SV.ll=d.ll;SV.kms=d.kms;SV.kmOn=new Map();
   const empty={type:'FeatureCollection',features:[]};
   m.addSource('walked',{type:'geojson',data:empty});
   m.addSource('slopes',{type:'geojson',data:empty});
@@ -3261,7 +3275,7 @@ function svSetup(){
 }
 function svUpdateTrack(){
   const m=SV.map,d=svTrackData();
-  SV.segs=d.segs;SV.ll=d.ll;
+  SV.segs=d.segs;SV.ll=d.ll;SV.kms=d.kms;svKmClear();
   SV.mStart.setLngLat(d.start);SV.mEnd.setLngLat(d.end);SV.track=T;SV.pLast=-1;
 }
 function svBegin(){
@@ -3292,7 +3306,7 @@ async function openSurvol(){
   if(!SV.map){
     try{
       const A=areaFor(T);
-      SV.map=new maplibregl.Map({container:'svMap',style:svStyleObj(),center:[T.lon0,T.lat0],zoom:10,pitch:0,maxPitch:80,maxZoom:17.5,attributionControl:false,canvasContextAttributes:{antialias:true}});
+      SV.map=new maplibregl.Map({container:'svMap',style:svStyleObj(),center:[T.lon0,T.lat0],zoom:10,pitch:0,maxPitch:80,maxZoom:17.5,attributionControl:false,pixelRatio:Math.min(window.devicePixelRatio||1,1.75),fadeDuration:0,canvasContextAttributes:{antialias:false}});
       SV.map.once('style.load',()=>{svSetup();SV.ready=true;if(SV.on)svBegin()});
       SV.map.on('error',ev=>{if(ev&&ev.error&&!SV.ready&&/WebGL|context/i.test(ev.error.message||'')){closeSurvol();toast("Ton appareil n'arrive pas à afficher la carte en relief.",7000)}});
     }catch(e){closeSurvol();toast("Ton appareil n'arrive pas à afficher la carte en relief.",7000);return}
@@ -3320,7 +3334,7 @@ function svFrame(dt,now){
     $('svUp').textContent=nf0.format(val(T.up,f));$('svTime').textContent=fmtDur(val(T.time,f));
     if(!scrubbing)$('svScrub').value=Math.round(f*1000);
     const cur=f*(T.N-1);
-    if(Math.abs(cur-SV.pLast)>=Math.max(1,T.N/1500)&&m.getSource('slopes')){SV.pLast=cur;svSetWalked(cur)}
+    if((SV.pLast<0||(now-(SV.lastWalk||0)>300&&Math.abs(cur-SV.pLast)>=1))&&m.getSource('slopes')){SV.pLast=cur;SV.lastWalk=now;svSetWalked(cur)}
   }
 }
 $('survolBtn').addEventListener('click',openSurvol);
@@ -3454,7 +3468,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V10", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte animée : tracé plus fin, caméra plus haute en relief pour éviter les zones sans photo.", "Carte animée : relief 3D activé par défaut, caméra plus loin (fini l'écran tout bleu) et « Suivre le marcheur » garde ton zoom.", "Mode Suivi : le trait blanc de tout le parcours disparaît et les bornes km apparaissent au passage.", "Le bouton Survol (essai) devient « Carte animée (essai) » pour ne pas le confondre avec le mode Survol."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V11", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte animée : les bornes kilométriques apparaissent au passage du marcheur, et l'animation est plus fluide.", "Carte animée : tracé plus fin, caméra plus haute en relief pour éviter les zones sans photo.", "Carte animée : relief 3D activé par défaut, caméra plus loin (fini l'écran tout bleu) et « Suivre le marcheur » garde ton zoom.", "Mode Suivi : le trait blanc de tout le parcours disparaît et les bornes km apparaissent au passage."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;

@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V10",
+  "version": "V11",
   "date": "06/10/2026",
   "nouveautes": [
+    "Carte animée : les bornes kilométriques apparaissent au passage du marcheur, et l'animation est plus fluide.",
     "Carte animée : tracé plus fin, caméra plus haute en relief pour éviter les zones sans photo.",
     "Carte animée : relief 3D activé par défaut, caméra plus loin (fini l'écran tout bleu) et « Suivre le marcheur » garde ton zoom.",
-    "Mode Suivi : le trait blanc de tout le parcours disparaît et les bornes km apparaissent au passage.",
-    "Le bouton Survol (essai) devient « Carte animée (essai) » pour ne pas le confondre avec le mode Survol."
+    "Mode Suivi : le trait blanc de tout le parcours disparaît et les bornes km apparaissent au passage."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v10"
+    "cache": "rr3d-v11"
   },
   "fichiers": [
     "rando-3d.html",
