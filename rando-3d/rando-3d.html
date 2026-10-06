@@ -374,7 +374,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
         <span class="blbl">Vidéo</span>
       </button>
       <button class="btn" id="ignBtn" type="button" aria-label="Carte IGN" title="Carte IGN"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg><span class="blbl">Carte IGN</span></button>
-      <button class="btn" id="survolBtn" type="button" aria-label="Survol (essai)" title="Survol (essai)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 11.5l19-8.5-8.5 19-2.2-8.3z"/></svg><span class="blbl">Survol</span></button>
+      <button class="btn" id="survolBtn" type="button" aria-label="Carte animée (essai)" title="Carte animée (essai)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 11.5l19-8.5-8.5 19-2.2-8.3z"/></svg><span class="blbl">Carte animée</span></button>
       <button class="btn" id="libBtn" type="button" aria-label="Mes randos" title="Mes randos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg><span class="blbl">Mes randos</span></button>
     </div>
   </header>
@@ -975,7 +975,7 @@ function buildWorld(tr,src){
     for(let d=kmStep;d<tr.total-kmStep*0.3;d+=kmStep){while(j<N-1&&tr.rd[j]<d)j++;
       const q=P[j],s=labelSprite(`${Math.round(d/1000)} km`,'',{bg:'rgba(255,255,255,.95)',fg:'#1d2b2d',tiny:true});
       s.position.copy(q).add(new THREE.Vector3(0,12,0));const st=makeStem(q.x,q.y,q.z,q.y+12,.9);G.kmGroup.add(s,st);
-      s.userData.info={name:`Borne ${Math.round(d/1000)} km`,ele:se[j]};revealAt(G.reveal,s,st,-1,44)}}
+      s.userData.info={name:`Borne ${Math.round(d/1000)} km`,ele:se[j]};revealAt(G.reveal,s,st,j/(N-1),44)}}
   if(!tr.planBase){pinAt(0,loop?'Départ · Arrivée':'Départ',`${nf0.format(se[0])} m`,-1,0.05,loop?0.95:Infinity);
   if(!loop)pinAt(N-1,'Arrivée',`${nf0.format(se[N-1])} m`,1);
   if(tr.iMax>N*0.04&&tr.iMax<N*0.96)pinAt(tr.iMax,'Point culminant',`${nf0.format(tr.eMax)} m`,tr.iMax/(N-1));}
@@ -1848,6 +1848,8 @@ function frame(now){
     G.halo.position.set(p.x,p.y-2,p.z);
     const pulse=(elapsed*0.9)%1;G.halo.scale.setScalar(1+pulse*2.2);G.halo.material.opacity=.75*(1-pulse);
     const cnt=Math.floor(u*G.segs)*G.rad*6;G.done.geometry.setDrawRange(0,cnt);
+    // en mode Suivi, le trait blanc de tout le parcours est caché : seul le chemin déjà parcouru (bleu) reste
+    if(G.ghost&&!T.planBase)G.ghost.visible=camMode!=='chase';
     // camera
     const a=1-Math.exp(-dt*2.2);
     if(bino){G.camRel=null;binoFrame()}
@@ -3446,7 +3448,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V7", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Survol : le tracé n'existe plus d'avance, il se dessine vraiment derrière le marcheur.", "Nouveau bouton Survol (essai) : la caméra suit ta rando sur une carte réelle.", "Nouvelle page d'accueil claire : ciel bleu et nuages, sans 3D derrière.", "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V8", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Mode Suivi : le trait blanc de tout le parcours disparaît et les bornes km apparaissent au passage.", "Le bouton Survol (essai) devient « Carte animée (essai) » pour ne pas le confondre avec le mode Survol.", "Nouvelle page d'accueil claire : ciel bleu et nuages, sans 3D derrière.", "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;

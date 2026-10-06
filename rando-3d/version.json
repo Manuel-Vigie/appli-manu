@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V7",
+  "version": "V8",
   "date": "06/10/2026",
   "nouveautes": [
-    "Survol : le tracé n'existe plus d'avance, il se dessine vraiment derrière le marcheur.",
-    "Nouveau bouton Survol (essai) : la caméra suit ta rando sur une carte réelle.",
+    "Mode Suivi : le trait blanc de tout le parcours disparaît et les bornes km apparaissent au passage.",
+    "Le bouton Survol (essai) devient « Carte animée (essai) » pour ne pas le confondre avec le mode Survol.",
     "Nouvelle page d'accueil claire : ciel bleu et nuages, sans 3D derrière.",
     "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v7"
+    "cache": "rr3d-v8"
   },
   "fichiers": [
     "rando-3d.html",
