@@ -1,10 +1,13 @@
 {
   "name": "Bibliothèque Photo",
   "short_name": "Biblio Photo",
+  "description": "Range mes photos et vidéos par date, tout reste sur mon téléphone.",
   "lang": "fr",
+  "id": "./bibliotheque-photo.html",
   "start_url": "./bibliotheque-photo.html",
   "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0C2442",
   "theme_color": "#0C2442",
   "icons": [
