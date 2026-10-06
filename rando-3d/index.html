@@ -519,7 +519,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
     <div id="svMap"></div>
     <div class="sv-load" id="svLoad">Chargement de la carte…</div>
     <div class="sv-top">
-      <div class="sv-row"><button type="button" class="btn" id="svClose">← 3D</button><button type="button" class="btn" id="svRelief" aria-pressed="true" title="Vrai relief en 3D : à essayer, peut ne pas s'afficher sur certains téléphones">Relief 3D (essai)</button></div>
+      <div class="sv-row"><button type="button" class="btn" id="svClose">← 3D</button><button type="button" class="btn" id="svRelief" aria-pressed="true" title="Vrai relief en 3D : à essayer, peut ne pas s'afficher sur certains téléphones">Relief 3D (essai)</button><button type="button" class="btn" id="svRec" title="Filme la carte pour m'aider à voir les problèmes">● Filmer</button></div>
       <div class="seg" id="svStyle" role="group" aria-label="Fond de carte du survol">
         <button data-v="ortho" aria-pressed="false">Photos IGN</button><button data-v="sat" aria-pressed="false">Satellite</button><button data-v="scan" aria-pressed="false">TOP 25</button><button data-v="topo" aria-pressed="false">Topo</button>
       </div>
@@ -3350,7 +3350,40 @@ async function openSurvol(){
     if(SV.ready){if(SV.track!==T)svUpdateTrack();svBegin()}
   }
 }
-function closeSurvol(){SV.on=false;SV.intro=false;$('svPanel').hidden=true;setPlaying(false);heading=null}
+function closeSurvol(){svRecStop();SV.on=false;SV.intro=false;$('svPanel').hidden=true;setPlaying(false);heading=null}
+// ---- Filmer la carte (aide au réglage) : vidéo de la carte + bandeau d'infos (distance, zoom, images/s, chargement des photos) ----
+const REC_SV={rec:null,on:false};
+function svRecStop(){if(REC_SV.on&&REC_SV.rec){try{REC_SV.rec.stop()}catch(e){}}}
+function svRecStart(){
+  const m=SV.map;if(!m||!SV.ready){toast("Ouvre d'abord la carte animée.");return}
+  if(!window.MediaRecorder){toast("Ton navigateur ne sait pas filmer ici.",5000);return}
+  const src=m.getCanvas(),sc=Math.min(1,540/src.width),W=Math.round(src.width*sc),H=Math.round(src.height*sc);
+  const out=document.createElement('canvas');out.width=W;out.height=H;const x=out.getContext('2d');
+  let fr=0,t0=performance.now(),fps=0,t00=t0;
+  const draw=()=>{
+    x.drawImage(src,0,0,W,H);
+    fr++;const n=performance.now();if(n-t0>=1000){fps=Math.round(fr*1000/(n-t0));fr=0;t0=n}
+    x.fillStyle='rgba(0,0,0,.6)';x.fillRect(0,0,W,22);x.fillStyle='#fff';x.font='bold 11px Arial';x.textBaseline='middle';
+    const tl=m.areTilesLoaded()?'photos OK':'photos…';
+    x.fillText(`${fmtKm(val(T.rd,f))} km · z${m.getZoom().toFixed(1)} · ${Math.round(m.getPitch())}° · ${fps} im/s · ${tl} · ${Math.round((n-t00)/1000)} s`,6,11);
+  };
+  m.on('render',draw);
+  const types=['video/mp4;codecs=avc1','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  const mt=types.find(t=>MediaRecorder.isTypeSupported(t))||'';
+  const rec=new MediaRecorder(out.captureStream(30),mt?{mimeType:mt,videoBitsPerSecond:2000000}:{});
+  const chunks=[];rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  const timer=setInterval(()=>{$('svRec').textContent='■ Stop · '+Math.round((performance.now()-t00)/1000)+' s'},500);
+  const auto=setTimeout(()=>svRecStop(),90000);
+  rec.onstop=()=>{
+    clearInterval(timer);clearTimeout(auto);m.off('render',draw);REC_SV.on=false;REC_SV.rec=null;$('svRec').textContent='● Filmer';
+    const type=rec.mimeType||mt||'video/webm',ext=/mp4/.test(type)?'mp4':'webm',blob=new Blob(chunks,{type});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='carte-animee-'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.'+ext;
+    document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(a.href)},4000);
+    toast("Vidéo enregistrée dans tes Téléchargements. Envoie-la moi dans la conversation.",8000);
+  };
+  rec.start(1000);REC_SV.rec=rec;REC_SV.on=true;$('svRec').textContent='■ Stop · 0 s';
+}
+$('svRec').addEventListener('click',()=>{if(REC_SV.on)svRecStop();else svRecStart()});
 function svStyleUI(){
   [...$('svStyle').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===SV.style));
   $('svAttrib').textContent=[SV_STYLES[SV.style].attr,DEM_ATTR,'Moteur : MapLibre'].join(' · ');
@@ -3510,7 +3543,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V14", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte animée : part toujours du départ, suit mieux les virages, zoom adapté à la rando, tracé plus fluide.", "Carte animée : vue d'ensemble au départ et à l'arrivée, tracé plus fin, relief 3D plus marqué.", "Carte animée : plus de zones bleues (photo de secours sous la carte) et bornes km dessinées dans la carte.", "Carte animée : les bornes kilométriques apparaissent au passage du marcheur, et l'animation est plus fluide."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V15", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte animée : nouveau bouton « Filmer » pour m'envoyer une vidéo qui m'aide à régler les défauts.", "Carte animée : part toujours du départ, suit mieux les virages, zoom adapté à la rando, tracé plus fluide.", "Carte animée : vue d'ensemble au départ et à l'arrivée, tracé plus fin, relief 3D plus marqué.", "Carte animée : plus de zones bleues (photo de secours sous la carte) et bornes km dessinées dans la carte."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
