@@ -1,17 +1,17 @@
 {
   "nom": "Bibliothèque Photo",
-  "version": "V9",
+  "version": "V10",
   "date": "07/10/2026",
   "nouveautes": [
+    "Nouvelle carte « Mes dossiers rangés » : choisissez le dossier créé par Range Photos et parcourez-le (randonnées, journées par ville, portraits…) avec miniatures, photos en grand et vidéos.",
     "Nouvelle carte « Ranger directement sur la carte SD » avec le lien pour télécharger l'appli Range Photos.",
     "Nouvelle présentation : fond bleu nuit, bandeau lever de soleil sur les montagnes, dossiers colorés selon leur type.",
-    "Enregistrement en plusieurs petits ZIP (parties), qui marche même avec des milliers de photos : plus de ZIP bloqué ou presque vide.",
-    "Miniatures plus fiables et affichage du nombre de photos reçues du téléphone."
+    "Enregistrement en plusieurs petits ZIP (parties), qui marche même avec des milliers de photos : plus de ZIP bloqué ou presque vide."
   ],
   "cache": "biblio-photo-",
   "sw": {
     "fichier": "bibliotheque-sw.js",
-    "cache": "biblio-photo-V9"
+    "cache": "biblio-photo-V10"
   },
   "fichiers": [
     "bibliotheque-photo.html"

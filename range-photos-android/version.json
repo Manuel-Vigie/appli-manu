@@ -1,12 +1,12 @@
 {
   "nom": "Range Photos (Android)",
-  "version": "V13",
+  "version": "V14",
   "date": "07/10/2026",
   "nouveautes": [
-    "Les vidéos sont rangées avec les photos, par date (et par ville si elles ont un lieu).",
-    "Vous choisissez le dossier de destination avant de ranger (bouton « Changer le dossier de destination »), et pouvez en créer un.",
-    "Les anciens dossiers vidés sont supprimés après le rangement ; un dossier où il reste un fichier n'est jamais supprimé (option à l'aperçu).",
-    "Nouveau bouton « Ouvrir Bibliothèque Photo » sur l'écran d'accueil : ouvre la page web Bibliothèque Photo dans le navigateur."
+    "Rangement étape par étape : 10 fichiers d'abord pour test, vous regardez, puis vous continuez ou tout annulez.",
+    "Vérification complète à la fin : chaque fichier contrôlé, aucun oublié ni perdu (compte avant/après).",
+    "Les anciens dossiers vides ne sont plus supprimés tout seuls : étape à part, avec la liste à confirmer.",
+    "Les vidéos sont rangées avec les photos, et vous choisissez le dossier de destination."
   ],
   "pastille": false,
   "fichiers": []

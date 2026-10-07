@@ -40,6 +40,8 @@ class Organizer(private val onChanged: (List<String>) -> Unit = {}) {
         moves: List<PlannedMove>,
         journal: File,
         cleanup: FolderCleanup? = null,
+        /** Vrai pour ajouter au journal existant (rangement en plusieurs lots) ; faux = nouveau journal. */
+        append: Boolean = false,
         onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
     ): OrganizeResult {
         outputRoot.mkdirs()
@@ -50,7 +52,7 @@ class Organizer(private val onChanged: (List<String>) -> Unit = {}) {
             )
         }
         journal.parentFile?.mkdirs()
-        journal.writeText("") // nouveau rangement = nouveau journal
+        if (!append) journal.writeText("") // nouveau rangement = nouveau journal
 
         val failures = ArrayList<String>()
         val touched = ArrayList<String>()
@@ -175,7 +177,7 @@ class Organizer(private val onChanged: (List<String>) -> Unit = {}) {
      * Sécurité : on ne supprime qu'un dossier réellement vide (aucun fichier, même caché) ; `File.delete()` refuse
      * d'ailleurs de supprimer un dossier non vide. Jamais de suppression récursive. Retourne (supprimés, gardés).
      */
-    private fun removeEmptyFolders(starts: Set<File>, cleanup: FolderCleanup): Pair<Int, List<String>> {
+    fun removeEmptyFolders(starts: Set<File>, cleanup: FolderCleanup): Pair<Int, List<String>> {
         val rootPath = cleanup.volumeRoot.absolutePath
         val candidates = LinkedHashSet<File>()
         for (start in starts) {
@@ -197,6 +199,42 @@ class Organizer(private val onChanged: (List<String>) -> Unit = {}) {
             }
         }
         return removed to kept.take(5)
+    }
+
+    /** Les dossiers d'où des fichiers sont partis lors du dernier rangement (d'après le journal). */
+    fun oldFoldersFromJournal(journal: File): Set<File> {
+        if (!journal.exists()) return emptySet()
+        return journal.readLines().mapNotNull { line ->
+            val parts = line.split('\t')
+            if (parts.size == 3 && parts[0] == "M") File(parts[2]).parentFile else null
+        }.toCollection(LinkedHashSet())
+    }
+
+    /**
+     * Simulation, sans rien supprimer : les dossiers qui seraient supprimés (vides, ou ne contenant que des dossiers
+     * eux-mêmes supprimés), du plus profond au plus haut. Mêmes protections que le nettoyage réel.
+     */
+    fun foldersThatWouldBeRemoved(starts: Set<File>, cleanup: FolderCleanup): List<File> {
+        val rootPath = cleanup.volumeRoot.absolutePath
+        val candidates = LinkedHashSet<File>()
+        for (start in starts) {
+            var dir: File? = start
+            while (dir != null && dir.absolutePath.startsWith("$rootPath/") && !isProtected(dir, cleanup)) {
+                candidates += dir
+                dir = dir.parentFile
+            }
+        }
+        val removable = LinkedHashSet<File>()
+        val ordered = ArrayList<File>()
+        for (dir in candidates.sortedByDescending { it.absolutePath.length }) {
+            if (!dir.isDirectory) continue
+            val content = dir.listFiles() ?: continue
+            if (content.all { it in removable }) {
+                removable += dir
+                ordered += dir
+            }
+        }
+        return ordered
     }
 
     private fun isProtected(dir: File, cleanup: FolderCleanup): Boolean =

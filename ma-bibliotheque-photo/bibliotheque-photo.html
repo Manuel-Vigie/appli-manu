@@ -202,6 +202,19 @@ progress { width: 100%; height: 6px; accent-color: var(--accent); }
 .msg.err { color: var(--danger); }
 @media (prefers-reduced-motion: reduce) { details.group > summary::after { transition: none; } }
 </style>
+<style>
+/* Mes dossiers rangés (Range Photos) */
+.vr-path { font-weight: 700; font-size: 15px; word-break: break-word; }
+.vr-list { display: flex; flex-direction: column; gap: 8px; }
+.vr-dir { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 8px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--tile); color: var(--ink); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.vr-dir span:last-child { color: var(--muted); font-weight: 500; white-space: nowrap; }
+.vr-thumb { position: relative; border: 0; padding: 0; cursor: pointer; }
+.vr-thumb .play { position: absolute; inset: auto 4px 4px auto; background: rgba(0,0,0,.65); color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 99px; }
+#vr-light { position: fixed; inset: 0; z-index: 2147482000; background: rgba(0,0,0,.92); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 12px; }
+#vr-light[hidden] { display: none; }
+#vr-light img, #vr-light video { max-width: 100%; max-height: 80vh; object-fit: contain; }
+#vr-light p { color: #fff; margin: 0; font-size: 14px; text-align: center; word-break: break-word; }
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -273,6 +286,28 @@ progress { width: 100%; height: 6px; accent-color: var(--accent); }
     <h2 id="h-save"><span class="n">4</span> Enregistrez vos dossiers</h2>
     <p class="tip" id="partsTip"></p>
     <ol class="parts" id="parts"></ol>
+  </section>
+
+  <section class="card" aria-labelledby="h-vr">
+    <h2 id="h-vr">Mes dossiers rangés (Range Photos)</h2>
+    <p class="tip">Retrouvez ici les dossiers créés par l'appli Range Photos : randonnées, journées par ville, portraits, vos dossiers… Appuyez sur le bouton, puis choisissez le dossier de destination (par défaut « Photos rangées »). Les photos ne quittent pas votre téléphone et rien n'est modifié ni supprimé : c'est seulement pour regarder.</p>
+    <input type="file" id="vrDir" webkitdirectory multiple hidden>
+    <input type="file" id="vrFiles" multiple hidden>
+    <div class="row">
+      <button class="btn primary" id="vrPick" type="button">Choisir le dossier rangé</button>
+      <button class="btn" id="vrPickFiles" type="button">Ou choisir des fichiers</button>
+    </div>
+    <p class="msg" id="vrMsg" aria-live="polite"></p>
+    <div id="vrView" hidden>
+      <p class="vr-path" id="vrPath"></p>
+      <div class="row">
+        <button class="btn small" id="vrUp" type="button">⬆ Dossier parent</button>
+        <button class="btn small" id="vrClose" type="button">Fermer la vue</button>
+      </div>
+      <div class="vr-list" id="vrDirs"></div>
+      <div class="grid" id="vrGrid"></div>
+      <button class="btn" id="vrMore" type="button" hidden>Afficher plus</button>
+    </div>
   </section>
 
   <section class="card sd" aria-labelledby="h-sd">
@@ -989,6 +1024,132 @@ window.addEventListener("drop", e => {
 });
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEventListener('load',function(){navigator.serviceWorker.register('bibliotheque-sw.js').catch(function(){})})}
 </script>
+<div id="vr-light" hidden><div id="vr-box"></div><p id="vr-name"></p><button class="btn" id="vr-x" type="button">Fermer</button></div>
+<script>
+// Mes dossiers rangés : parcourir, en lecture seule, l'arborescence créée par Range Photos.
+(function () {
+  const MOIS_FR = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+  const VIDEO = /\.(mp4|mov|3gp|mkv|m4v|avi|webm)$/i;
+  let root = null, cur = null, shown = 0, lightUrl = null;
+
+  const el = id => document.getElementById(id);
+  const say = (t, err) => { el("vrMsg").textContent = t || ""; el("vrMsg").className = "msg" + (err ? " err" : ""); };
+
+  function node(name, parent) { return { name, parent, dirs: new Map(), files: [], count: 0 }; }
+
+  function build(files) {
+    const top = node("", null);
+    let withPaths = 0, used = 0;
+    for (const f of files) {
+      if (!MEDIA_EXT.test(f.name)) continue;
+      used++;
+      let segs = (f.webkitRelativePath || "").split("/").filter(Boolean);
+      if (segs.length > 1) { withPaths++; segs = segs.slice(1, -1); }
+      else {
+        // Pas d'arborescence donnée par le téléphone : classement par année / mois d'après la date du fichier.
+        const d = new Date(f.lastModified);
+        segs = [String(d.getFullYear()), String(d.getMonth() + 1).padStart(2, "0") + " - " + MOIS_FR[d.getMonth()]];
+      }
+      let n = top;
+      for (const sName of segs) {
+        if (!n.dirs.has(sName)) n.dirs.set(sName, node(sName, n));
+        n = n.dirs.get(sName);
+      }
+      n.files.push(f);
+    }
+    (function count(n) { n.count = n.files.length; for (const c of n.dirs.values()) n.count += count(c); return n.count; })(top);
+    return { top, withPaths, used };
+  }
+
+  function pathOf(n) { const p = []; for (let x = n; x && x.parent; x = x.parent) p.unshift(x.name); return p.join(" / ") || "Dossier rangé"; }
+
+  function show(n) {
+    cur = n; shown = 0;
+    el("vrView").hidden = false;
+    el("vrPath").textContent = "📁 " + pathOf(n) + " · " + plural(n.count, "fichier", "fichiers");
+    el("vrUp").disabled = !n.parent;
+    const dirs = el("vrDirs"); dirs.textContent = "";
+    [...n.dirs.values()].sort((a, b) => a.name.localeCompare(b.name, "fr", { numeric: true })).forEach(d => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "vr-dir";
+      const a = document.createElement("span"); a.textContent = "📁 " + d.name;
+      const c = document.createElement("span"); c.textContent = d.count;
+      b.append(a, c);
+      b.addEventListener("click", () => { show(d); window.scrollTo({ top: el("h-vr").offsetTop - 10 }); });
+      dirs.appendChild(b);
+    });
+    el("vrGrid").textContent = "";
+    n.files.sort((a, b) => a.name.localeCompare(b.name, "fr", { numeric: true }));
+    more();
+  }
+
+  function more() {
+    const grid = el("vrGrid");
+    const next = cur.files.slice(shown, shown + 48);
+    shown += next.length;
+    for (const f of next) {
+      const t = document.createElement("button");
+      t.type = "button"; t.className = "thumb vr-thumb"; t.setAttribute("aria-label", f.name);
+      const video = VIDEO.test(f.name);
+      t.textContent = video ? "VIDÉO" : f.name.split(".").pop().toUpperCase();
+      if (video) {
+        const tag = document.createElement("span"); tag.className = "play"; tag.textContent = "▶"; t.appendChild(tag);
+      } else {
+        makeThumb(f).then(u => {
+          if (!u) return;
+          const img = document.createElement("img");
+          img.alt = f.name; img.src = u;
+          img.onerror = () => img.remove();
+          t.textContent = ""; t.appendChild(img);
+        });
+      }
+      t.addEventListener("click", () => open(f, video));
+      grid.appendChild(t);
+    }
+    const left = cur.files.length - shown;
+    el("vrMore").hidden = left <= 0;
+    el("vrMore").textContent = "Afficher " + Math.min(48, left) + " de plus";
+  }
+
+  function open(f, video) {
+    closeLight();
+    lightUrl = URL.createObjectURL(f);
+    const box = el("vr-box"); box.textContent = "";
+    const m = document.createElement(video ? "video" : "img");
+    if (video) { m.controls = true; m.autoplay = true; m.playsInline = true; } else { m.alt = f.name; }
+    m.src = lightUrl;
+    box.appendChild(m);
+    el("vr-name").textContent = f.name;
+    el("vr-light").hidden = false;
+  }
+  function closeLight() {
+    el("vr-light").hidden = true;
+    el("vr-box").textContent = "";
+    if (lightUrl) { URL.revokeObjectURL(lightUrl); lightUrl = null; }
+  }
+
+  function load(list) {
+    const files = [...list];
+    if (!files.length) return;
+    const r = build(files);
+    if (!r.used) { say(files.length + " fichier(s) reçu(s), mais aucune photo ni vidéo.", true); return; }
+    root = r.top;
+    say(plural(r.used, "fichier reçu", "fichiers reçus") + (r.withPaths ? "." : ". Le téléphone n'a pas donné les noms des dossiers : classement par année et mois d'après la date des fichiers."));
+    show(root);
+  }
+
+  el("vrPick").addEventListener("click", () => el("vrDir").click());
+  el("vrPickFiles").addEventListener("click", () => el("vrFiles").click());
+  for (const id of ["vrDir", "vrFiles"]) {
+    el(id).addEventListener("change", e => { const f = [...e.target.files]; e.target.value = ""; load(f); });
+  }
+  el("vrUp").addEventListener("click", () => { if (cur && cur.parent) show(cur.parent); });
+  el("vrClose").addEventListener("click", () => { root = cur = null; el("vrView").hidden = true; el("vrGrid").textContent = ""; say(""); });
+  el("vrMore").addEventListener("click", more);
+  el("vr-x").addEventListener("click", closeLight);
+  el("vr-light").addEventListener("click", e => { if (e.target === el("vr-light")) closeLight(); });
+})();
+</script>
 <!-- MAJ:debut — pastille de mise à jour commune à toutes les applis (modèle : outils/pastille-maj.html, ne pas modifier ici à la main) -->
 <style>
 #maj-pastille{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:2147483000;
@@ -1018,7 +1179,7 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
 #maj-pastille{top:calc(24px + env(safe-area-inset-top,0px));right:24px}
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Bibliothèque Photo", "version": "V9", "date": "07/10/2026", "cache": "biblio-photo-", "nouveautes": ["Nouvelle carte « Ranger directement sur la carte SD » avec le lien pour télécharger l'appli Range Photos.", "Nouvelle présentation : fond bleu nuit, bandeau lever de soleil sur les montagnes, dossiers colorés selon leur type.", "Enregistrement en plusieurs petits ZIP (parties), qui marche même avec des milliers de photos : plus de ZIP bloqué ou presque vide.", "Miniatures plus fiables et affichage du nombre de photos reçues du téléphone."]};
+window.MAJ_APPLI={"nom": "Bibliothèque Photo", "version": "V10", "date": "07/10/2026", "cache": "biblio-photo-", "nouveautes": ["Nouvelle carte « Mes dossiers rangés » : choisissez le dossier créé par Range Photos et parcourez-le (randonnées, journées par ville, portraits…) avec miniatures, photos en grand et vidéos.", "Nouvelle carte « Ranger directement sur la carte SD » avec le lien pour télécharger l'appli Range Photos.", "Nouvelle présentation : fond bleu nuit, bandeau lever de soleil sur les montagnes, dossiers colorés selon leur type.", "Enregistrement en plusieurs petits ZIP (parties), qui marche même avec des milliers de photos : plus de ZIP bloqué ou presque vide."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;

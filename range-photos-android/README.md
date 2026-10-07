@@ -26,8 +26,12 @@ l'appli cherche les photos. Si vous changez de destination, les prénoms sauvega
 **Vidéos** : rangées avec les photos, par date (date du nom de fichier, sinon date interne, sinon date du fichier ;
 ville si la vidéo contient un lieu). Elles ne passent pas par la reconnaissance de visages ni l'analyse de contenu.
 
-**Nettoyage** : après le rangement, les anciens dossiers devenus vides sont supprimés (interrupteur à l'aperçu, activé
-par défaut). Sécurité : un dossier n'est supprimé que s'il est réellement vide (aucun fichier, même caché) ; jamais
+**Étape par étape** (par défaut) : un lot test de 10 fichiers, contrôlés un par un ; puis « Continuer », « Arrêter ici » ou
+« Tout annuler ». **Vérification complète** à la fin : chaque fichier contrôlé, photos non rangées repérées, compte total
+avant/après. Voir les dossiers créés dans la page *Bibliothèque Photo* (carte « Mes dossiers rangés »).
+
+**Nettoyage** : après la vérification, un bouton à part affiche la liste des anciens dossiers vides, à confirmer ; rien
+n'est supprimé sans cette confirmation. Sécurité : un dossier n'est supprimé que s'il est réellement vide (aucun fichier, même caché) ; jamais
 récursif ; jamais la racine, la destination, DCIM/Pictures/Movies/Download…, ni les dossiers cachés. Un dossier qui
 contient encore quelque chose est gardé et signalé. « Annuler » recrée les dossiers.
 

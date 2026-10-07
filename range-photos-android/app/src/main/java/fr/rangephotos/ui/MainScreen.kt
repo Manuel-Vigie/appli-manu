@@ -176,12 +176,21 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                 is UiState.Preview -> PreviewScreen(
                     s,
                     onCopyChange = viewModel::setCopyToPeople,
-                    onCleanChange = viewModel::setCleanFolders,
+                    onGuidedChange = viewModel::setGuided,
                     onConfirm = viewModel::confirm,
                     onCancel = viewModel::backToStart,
                 )
+                is UiState.StepDone -> StepDoneScreen(
+                    s,
+                    onOpen = { viewModel.lastPlace()?.let(openFolder) },
+                    onContinue = viewModel::continueSteps,
+                    onStop = viewModel::stopSteps,
+                    onCancelAll = viewModel::cancelSteps,
+                )
+                is UiState.CleanConfirm -> CleanConfirmScreen(s, onConfirm = viewModel::confirmClean, onCancel = viewModel::backToStart)
                 is UiState.Done -> DoneScreen(
                     s,
+                    onClean = viewModel::askClean,
                     onUndo = viewModel::undo,
                     onBack = viewModel::backToStart,
                     onOpen = { viewModel.lastPlace()?.let(openFolder) },
@@ -732,7 +741,7 @@ private fun ChooseDestinationScreen(
 private fun PreviewScreen(
     state: UiState.Preview,
     onCopyChange: (Boolean) -> Unit,
-    onCleanChange: (Boolean) -> Unit,
+    onGuidedChange: (Boolean) -> Unit,
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
 ) {
@@ -775,12 +784,12 @@ private fun PreviewScreen(
             item {
                 SectionCard {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Switch(checked = state.cleanFolders, onCheckedChange = onCleanChange)
+                        Switch(checked = state.guided, onCheckedChange = onGuidedChange)
                         Text(
-                            if (state.cleanFolders) {
-                                "Supprimer les anciens dossiers une fois vides. Un dossier où il reste le moindre fichier n'est jamais supprimé."
+                            if (state.guided) {
+                                "Étape par étape (conseillé) : je range d'abord 10 fichiers pour test, vous regardez, puis vous décidez de continuer ou de tout annuler."
                             } else {
-                                "Garder les anciens dossiers, même vides."
+                                "Tout ranger d'un coup (une vérification complète est faite à la fin)."
                             },
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.weight(1f),
@@ -851,7 +860,7 @@ private fun CountRow(name: String, count: Int) {
 // ---- Résultat ------------------------------------------------------------------------------------
 
 @Composable
-private fun DoneScreen(state: UiState.Done, onUndo: () -> Unit, onBack: () -> Unit, onOpen: () -> Unit) {
+private fun DoneScreen(state: UiState.Done, onClean: () -> Unit, onUndo: () -> Unit, onBack: () -> Unit, onOpen: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize()) {
         Header(state.title)
         LazyColumn(
@@ -892,8 +901,94 @@ private fun DoneScreen(state: UiState.Done, onUndo: () -> Unit, onBack: () -> Un
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (state.canOpen) PrimaryButton("Ouvrir mes photos rangées", onOpen)
+            if (state.cleanable > 0) SecondaryButton("Voir les ${state.cleanable} anciens dossiers vides à supprimer", onClean)
             if (state.hasUndo) SecondaryButton("Annuler ce rangement", onUndo)
             SecondaryButton("Terminer", onBack)
+        }
+    }
+}
+
+// ---- Étape par étape -----------------------------------------------------------------------------
+
+@Composable
+private fun StepDoneScreen(
+    state: UiState.StepDone,
+    onOpen: () -> Unit,
+    onContinue: () -> Unit,
+    onStop: () -> Unit,
+    onCancelAll: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Header("Étape 1 : lot test fait", "Rien d'autre n'a bougé. Regardez, puis décidez.")
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                SectionCard {
+                    Text(
+                        "${state.moved} fichier(s) rangés dans « ${state.destination} ».",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text("Dossiers créés :", style = MaterialTheme.typography.bodyMedium)
+                    state.folders.forEach { Text("• $it", style = MaterialTheme.typography.bodySmall) }
+                    if (state.problems.isEmpty()) {
+                        Text("Contrôle fichier par fichier : tout est bien arrivé.", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+            if (state.problems.isNotEmpty()) {
+                item {
+                    SectionCard(container = MaterialTheme.colorScheme.errorContainer) {
+                        Text("À regarder avant de continuer", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        state.problems.forEach { Text("• $it", style = MaterialTheme.typography.bodySmall) }
+                    }
+                }
+            }
+            item {
+                Text(
+                    "Il reste ${state.remaining} fichier(s) à ranger. « Tout annuler » remet les fichiers de ce lot exactement où ils étaient.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (state.canOpen) SecondaryButton("Ouvrir le dossier pour regarder", onOpen)
+            PrimaryButton("Continuer : ranger les ${state.remaining} autres", onContinue)
+            SecondaryButton("Arrêter ici (garder ce lot)", onStop)
+            SecondaryButton("Tout annuler", onCancelAll)
+        }
+    }
+}
+
+@Composable
+private fun CleanConfirmScreen(state: UiState.CleanConfirm, onConfirm: () -> Unit, onCancel: () -> Unit) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Header("Supprimer les anciens dossiers", "${state.folders.size} dossier(s) vides. Aucune photo ne sera supprimée.")
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            item {
+                Text(
+                    "Ces dossiers sont vides (aucun fichier dedans). Si l'un d'eux contient quelque chose au dernier moment, il sera gardé.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            items(state.folders) { Text("📁  $it", style = MaterialTheme.typography.bodySmall) }
+        }
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            PrimaryButton("Oui, supprimer ces dossiers vides", onConfirm)
+            SecondaryButton("Non, les garder", onCancel)
         }
     }
 }

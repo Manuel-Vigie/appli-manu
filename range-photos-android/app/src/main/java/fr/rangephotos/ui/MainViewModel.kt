@@ -20,6 +20,7 @@ import fr.rangephotos.model.PhotoInfo
 import fr.rangephotos.model.Subjects
 import fr.rangephotos.organize.FolderCleanup
 import fr.rangephotos.organize.Organizer
+import fr.rangephotos.organize.Verifier
 import fr.rangephotos.people.CategoryStore
 import fr.rangephotos.people.FaceMatching
 import fr.rangephotos.people.PeopleStore
@@ -27,6 +28,7 @@ import fr.rangephotos.people.PeopleSync
 import fr.rangephotos.scan.PhotoScanner
 import fr.rangephotos.storage.Access
 import fr.rangephotos.storage.Place
+import fr.rangephotos.storage.PhotoFiles
 import fr.rangephotos.storage.Places
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -95,9 +97,22 @@ sealed interface UiState {
         val townsUnavailable: Boolean = false,
         /** Dossier de destination, tel qu'affiché (ex. « Photos rangées »). */
         val destination: String = "",
-        /** Supprimer les anciens dossiers une fois vides (jamais s'il reste un fichier). */
-        val cleanFolders: Boolean = true,
+        /** Rangement étape par étape : un petit lot test d'abord, puis votre accord pour la suite. */
+        val guided: Boolean = true,
     ) : UiState
+
+    /** Fin d'un lot en mode étape par étape : on regarde, puis on décide. */
+    data class StepDone(
+        val moved: Int,
+        val remaining: Int,
+        val folders: List<String>,
+        val problems: List<String>,
+        val destination: String,
+        val canOpen: Boolean,
+    ) : UiState
+
+    /** Étape séparée : liste des anciens dossiers vides à supprimer, à confirmer. */
+    data class CleanConfirm(val folders: List<String>) : UiState
 
     /** Choix du dossier de destination : on parcourt les dossiers de l'endroit. */
     data class ChooseDestination(
@@ -119,12 +134,27 @@ sealed interface UiState {
         val hasUndo: Boolean,
         val canOpen: Boolean,
         val success: Boolean,
+        /** Nombre d'anciens dossiers devenus vides, supprimables (étape séparée). */
+        val cleanable: Int = 0,
     ) : UiState
 }
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private class FaceRef(val photo: Int, val face: Int)
+
+    /** Cumul d'un rangement fait en un ou plusieurs lots. */
+    private class RunState(
+        var totalBefore: Int = 0,
+        val executed: MutableList<PlannedMove> = ArrayList(),
+        var moved: Int = 0,
+        var failed: Int = 0,
+        var copied: Int = 0,
+        var copyFailed: Int = 0,
+        var alreadyThere: Int = 0,
+        val failures: MutableList<String> = ArrayList(),
+        var batches: Int = 0,
+    )
 
     private val scanner = PhotoScanner()
     private val faceAnalyzer = FaceAnalyzer(app)
@@ -159,7 +189,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var activeCategories: List<Category> = emptyList()
     private var dayPlaces: Map<LocalDate, String> = emptyMap()
     private var townsUnavailable = false
-    private var cleanFolders = true
+    private var guided = true
+    private var run = RunState()
+    private var remainingMoves: List<PlannedMove> = emptyList()
     private var browsing: File? = null
     private var browsingPlace: Place? = null
 
@@ -541,60 +573,186 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             leftCopies = leftCopies,
             townsUnavailable = townsUnavailable,
             destination = currentPlace?.let { destinationLabel(it) } ?: "",
-            cleanFolders = cleanFolders,
+            guided = guided,
         )
     }
 
-    fun setCleanFolders(on: Boolean) {
-        cleanFolders = on
+    fun setGuided(on: Boolean) {
+        guided = on
         val current = _state.value
-        if (current is UiState.Preview) _state.value = current.copy(cleanFolders = on)
+        if (current is UiState.Preview) _state.value = current.copy(guided = on)
     }
 
     // ---- Rangement et annulation --------------------------------------------------------------
 
+    private fun cleanupFor(place: Place) = FolderCleanup(place.root, setOf(place.root, place.outputDir) + place.scanRoots)
+
     fun confirm() {
         val place = currentPlace ?: return
-        val moves = pendingMoves
+        val all = pendingMoves
         viewModelScope.launch {
             try {
-                _state.value = UiState.Working("Rangement en cours…", 0, moves.size)
-                val result = withContext(Dispatchers.IO) {
-                    val cleanup = if (cleanFolders) FolderCleanup(place.root, setOf(place.root, place.outputDir) + place.scanRoots) else null
-                    val r = organizer.execute(place.outputDir, moves, journal, cleanup) { done, total ->
-                        if (done % 5 == 0 || done == total) _state.value = UiState.Working("Rangement en cours…", done, total)
-                    }
-                    // Sauvegarde des prénoms à côté des photos (pour un futur téléphone).
-                    if (store.people.isNotEmpty()) sync.write(place.outputDir, store.toJson())
-                    if (categoryStore.customCount() > 0 || categoryStore.enabled().isNotEmpty()) {
-                        sync.writeCategories(place.outputDir, categoryStore.toJson())
-                    }
-                    r
-                }
-                pendingMoves = emptyList()
+                _state.value = UiState.Working("Comptage avant rangement…", 0, 0)
+                val before = withContext(Dispatchers.IO) { PhotoFiles.list(place, includeSorted = true).size }
+                run = RunState(totalBefore = before)
+                val first = if (guided && all.size > FIRST_BATCH) all.take(FIRST_BATCH) else all
+                remainingMoves = all.drop(first.size)
+                runBatch(place, first, all.size)
+                if (remainingMoves.isEmpty()) finish(place, stopped = false) else showStep(place, first)
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
 
-                val lines = ArrayList<String>()
-                lines += "${result.moved} photo(s) et vidéo(s) rangées dans « ${destinationLabel(place)} » (${place.title})."
-                if (result.copied > 0) lines += "${result.copied} copie(s) ajoutées dans les dossiers de vos proches."
-                if (result.copiesAlreadyThere > 0) lines += "${result.copiesAlreadyThere} copie(s) existaient déjà : rien n'a été refait."
-                if (result.foldersRemoved > 0) lines += "${result.foldersRemoved} ancien(s) dossier(s) vide(s) supprimé(s)."
-                if (result.foldersKept.isNotEmpty()) {
-                    lines += "Dossier(s) gardé(s) car il reste des fichiers dedans : ${result.foldersKept.joinToString(", ") { "« $it »" }}."
+    private suspend fun runBatch(place: Place, batch: List<PlannedMove>, grandTotal: Int) {
+        val offset = run.executed.size
+        _state.value = UiState.Working("Rangement en cours…", offset, grandTotal)
+        val r = withContext(Dispatchers.IO) {
+            organizer.execute(place.outputDir, batch, journal, null, append = run.batches > 0) { done, _ ->
+                if (done % 5 == 0 || done == batch.size) _state.value = UiState.Working("Rangement en cours…", offset + done, grandTotal)
+            }
+        }
+        run.batches++
+        run.executed += batch
+        run.moved += r.moved
+        run.failed += r.failed
+        run.copied += r.copied
+        run.copyFailed += r.copyFailed
+        run.alreadyThere += r.copiesAlreadyThere
+        r.failures.forEach { if (run.failures.size < 8) run.failures += it }
+    }
+
+    /** Fin du premier lot : on contrôle ces fichiers un par un puis on attend l'accord de l'utilisateur. */
+    private suspend fun showStep(place: Place, batch: List<PlannedMove>) {
+        val problems = withContext(Dispatchers.IO) { Verifier.checkMoves(batch, journal).third }
+        pendingMoves = emptyList()
+        _state.value = UiState.StepDone(
+            moved = run.moved,
+            remaining = remainingMoves.size,
+            folders = batch.map { it.folder.joinToString(" / ") }.distinct().take(5),
+            problems = problems.take(5) + run.failures.take(3),
+            destination = destinationLabel(place),
+            canOpen = place.outputDir.isDirectory,
+        )
+    }
+
+    /** « Continuer » : range tout le reste. */
+    fun continueSteps() {
+        val place = currentPlace ?: return
+        val rest = remainingMoves
+        viewModelScope.launch {
+            try {
+                remainingMoves = emptyList()
+                runBatch(place, rest, run.executed.size + rest.size)
+                finish(place, stopped = false)
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
+    /** « Arrêter ici » : on garde ce qui est fait (annulable), le reste n'est pas touché. */
+    fun stopSteps() {
+        val place = currentPlace ?: return
+        val left = remainingMoves.size
+        remainingMoves = emptyList()
+        viewModelScope.launch {
+            try {
+                finish(place, stopped = true, notDone = left)
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
+    /** « Tout annuler » après le lot test. */
+    fun cancelSteps() {
+        remainingMoves = emptyList()
+        undo()
+    }
+
+    /** Sauvegardes, vérification complète, écran de résultat. */
+    private suspend fun finish(place: Place, stopped: Boolean, notDone: Int = 0) {
+        _state.value = UiState.Working("Vérification complète…", 0, 0)
+        val outcome = withContext(Dispatchers.IO) {
+            // Sauvegarde des prénoms à côté des photos (pour un futur téléphone).
+            if (store.people.isNotEmpty()) sync.write(place.outputDir, store.toJson())
+            if (categoryStore.customCount() > 0 || categoryStore.enabled().isNotEmpty()) {
+                sync.writeCategories(place.outputDir, categoryStore.toJson())
+            }
+            val leftNames = if (stopped) emptyList() else PhotoFiles.list(place, includeSorted = false).map { it.file.name }
+            val after = PhotoFiles.list(place, includeSorted = true).size
+            val report = Verifier.report(
+                Verifier.checkMoves(run.executed, journal), leftNames, run.totalBefore, after, Verifier.copiesInJournal(journal),
+            )
+            val cleanable = organizer.foldersThatWouldBeRemoved(organizer.oldFoldersFromJournal(journal), cleanupFor(place)).size
+            report to cleanable
+        }
+        val (report, cleanable) = outcome
+        pendingMoves = emptyList()
+
+        val lines = ArrayList<String>()
+        lines += "${run.moved} photo(s) et vidéo(s) rangées dans « ${destinationLabel(place)} » (${place.title})."
+        if (stopped && notDone > 0) lines += "Rangement arrêté : $notDone fichier(s) n'ont pas été touchés."
+        if (run.copied > 0) lines += "${run.copied} copie(s) ajoutées dans les dossiers de vos proches."
+        if (run.alreadyThere > 0) lines += "${run.alreadyThere} copie(s) existaient déjà : rien n'a été refait."
+        if (run.failed > 0) lines += "${run.failed} photo(s) n'ont pas pu être déplacées et sont restées en place."
+        if (run.copyFailed > 0) lines += "${run.copyFailed} copie(s) n'ont pas pu être faites."
+        lines += report.lines()
+        if (cleanable > 0) {
+            lines += "$cleanable ancien(s) dossier(s) sont maintenant vides. Rien n'est supprimé pour l'instant : vous pouvez les supprimer à part, après avoir regardé la liste."
+        }
+        val success = run.failed == 0 && run.copyFailed == 0 && report.allGood
+        _state.value = UiState.Done(
+            title = when {
+                run.moved == 0 && run.failed > 0 -> "Le rangement a échoué"
+                success -> "Rangement terminé et vérifié"
+                else -> "Rangement terminé, à vérifier"
+            },
+            details = lines.joinToString("\n"),
+            failures = run.failures,
+            hasUndo = hasUndo(),
+            canOpen = place.outputDir.isDirectory,
+            success = success,
+            cleanable = cleanable,
+        )
+    }
+
+    // ---- Suppression des anciens dossiers vides (étape séparée) --------------------------------
+
+    fun askClean() {
+        val place = currentPlace ?: return
+        viewModelScope.launch {
+            val list = withContext(Dispatchers.IO) {
+                organizer.foldersThatWouldBeRemoved(organizer.oldFoldersFromJournal(journal), cleanupFor(place))
+            }
+            if (list.isEmpty()) {
+                refresh("Aucun ancien dossier vide à supprimer.")
+            } else {
+                _state.value = UiState.CleanConfirm(list.map { it.toRelativeString(place.root) })
+            }
+        }
+    }
+
+    fun confirmClean() {
+        val place = currentPlace ?: return
+        viewModelScope.launch {
+            try {
+                _state.value = UiState.Working("Suppression des dossiers vides…", 0, 0)
+                val (removed, kept) = withContext(Dispatchers.IO) {
+                    organizer.removeEmptyFolders(organizer.oldFoldersFromJournal(journal), cleanupFor(place))
                 }
-                if (result.failed > 0) lines += "${result.failed} photo(s) n'ont pas pu être déplacées et sont restées en place."
-                if (result.copyFailed > 0) lines += "${result.copyFailed} copie(s) n'ont pas pu être faites."
-                val success = result.failed == 0 && result.copyFailed == 0
+                val lines = ArrayList<String>()
+                lines += "$removed ancien(s) dossier(s) vide(s) supprimé(s). Aucune photo ni vidéo n'a été touchée."
+                if (kept.isNotEmpty()) lines += "Gardé(s) car il reste des fichiers dedans : ${kept.joinToString(", ") { "« $it »" }}."
                 _state.value = UiState.Done(
-                    title = when {
-                        result.moved == 0 && result.failed > 0 -> "Le rangement a échoué"
-                        success -> "Rangement terminé"
-                        else -> "Rangement terminé, avec des problèmes"
-                    },
+                    title = "Anciens dossiers supprimés",
                     details = lines.joinToString("\n"),
-                    failures = result.failures,
+                    failures = emptyList(),
                     hasUndo = hasUndo(),
                     canOpen = place.outputDir.isDirectory,
-                    success = success,
+                    success = true,
                 )
             } catch (e: Exception) {
                 refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
@@ -752,6 +910,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private companion object {
         const val MAX_CLUSTERS = 30
+        const val FIRST_BATCH = 10
         val FORBIDDEN = setOf(
             "dcim", "pictures", "movies", "download", "downloads", "documents", "music", "android",
             "alarms", "notifications", "podcasts", "ringtones", "audiobooks", "recordings",
