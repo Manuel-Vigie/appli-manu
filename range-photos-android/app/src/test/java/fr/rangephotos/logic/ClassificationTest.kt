@@ -117,8 +117,23 @@ class ClassificationTest {
         assertEquals(listOf("Randonnées", "2026-09-14 Verdon", "Portraits", "Solo"), plan.getValue(portraitInHike).folder)
         assertEquals(listOf("Portraits", "Groupe", "2026"), plan.getValue(groupAtHome).folder)
         assertEquals(listOf("Portraits", "Solo", "2026"), plan.getValue(soloAtHome).folder)
-        assertEquals(listOf("Photos", "2026", "03 - mars"), plan.getValue(plain).folder)
+        assertEquals(listOf("Photos", "2026", "03 - mars", "05 mars"), plan.getValue(plain).folder)
         assertEquals(listOf("Captures d'écran", "2026"), plan.getValue(screenshot).folder)
+    }
+
+    @Test
+    fun photosWithoutGpsJoinTheHikeOnlyDuringTheOuting() {
+        val day = LocalDate.of(2026, 9, 14)
+        val during = photo(day.atTime(11, 0)) // sans GPS, en pleine sortie
+        val evening = photo(day.atTime(20, 0)) // sans GPS, le soir à la maison
+        val all = homePhotos() + hikeDay(day) + during + evening
+        val hikes = HikeDetector.detect(all, paris)
+        val names = mapOf(hikes[0] to "2026-09-14 Verdon")
+
+        val plan = Planner.plan(all, hikes, names, zone = paris).associateBy { it.photo }
+
+        assertEquals(listOf("Randonnées", "2026-09-14 Verdon"), plan.getValue(during).folder)
+        assertEquals(listOf("Photos", "2026", "09 - septembre", "14 septembre"), plan.getValue(evening).folder)
     }
 
     @Test

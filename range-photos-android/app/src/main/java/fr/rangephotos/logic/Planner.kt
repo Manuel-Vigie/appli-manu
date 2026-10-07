@@ -22,7 +22,7 @@ data class PlannedMove(
  * 2. Portraits / <Prénom, Solo ou Groupe> / <année>
  * 3. Dossiers de l'utilisateur (Codes-barres, Véhicules, Lieux…) : <nom> / <année> (ou <nom> / <ville>)
  * 4. Captures d'écran / <année>
- * 5. Photos / <année> / <mois>
+ * 5. Photos / <année> / <mois> / <jour>  (un dossier par jour, ex. « 14 mars »)
  *
  * Une photo avec un seul visage reconnu va dans le dossier de cette personne ; avec plusieurs visages, dans « Groupe ».
  * Si [copyToPeople] est vrai, chaque proche reconnu a en plus une copie dans Portraits/<Prénom>/<année>
@@ -64,7 +64,10 @@ object Planner {
             hasPortrait -> listOf(PORTRAITS, portraitFolder(photo), year)
             category != null -> categoryFolder(category, photo, year)
             photo.isScreenshot -> listOf(SCREENSHOTS, year)
-            else -> listOf(PHOTOS, year, "%02d - %s".format(date.monthValue, MONTHS[date.monthValue - 1]))
+            else -> listOf(
+                PHOTOS, year, "%02d - %s".format(date.monthValue, MONTHS[date.monthValue - 1]),
+                "%02d %s".format(date.dayOfMonth, MONTHS[date.monthValue - 1]),
+            )
         }
 
         val copies = if (copyToPeople) {

@@ -17,6 +17,9 @@ data class Hike(
     val centerLat: Double,
     val centerLon: Double,
     val photoCount: Int,
+    /** Heure de la première et de la dernière photo de la sortie (millisecondes). */
+    val firstMillis: Long = 0L,
+    val lastMillis: Long = Long.MAX_VALUE,
 )
 
 /**
@@ -34,12 +37,16 @@ object HikeDetector {
     const val MERGE_RADIUS_KM = 40.0
     const val MATCH_RADIUS_KM = 60.0
     private const val HOME_CELL_DEGREES = 0.1
+    private const val MARGIN_MILLIS = 60 * 60 * 1000L
 
     fun detect(photos: List<PhotoInfo>, zone: ZoneId = ZoneId.systemDefault()): List<Hike> {
         val gps = photos.filter { it.hasGps }
         val home = findHome(gps, zone) ?: return emptyList()
 
-        data class DayGroup(val date: LocalDate, val photos: List<PhotoInfo>, val lat: Double, val lon: Double)
+        data class DayGroup(val date: LocalDate, val photos: List<PhotoInfo>, val lat: Double, val lon: Double) {
+            val first get() = photos.minOf { it.takenAt }
+            val last get() = photos.maxOf { it.takenAt }
+        }
 
         val days = gps
             .groupBy { toDate(it.takenAt, zone) }
@@ -63,6 +70,8 @@ object HikeDetector {
                 centerLat = current.map { it.lat }.average(),
                 centerLon = current.map { it.lon }.average(),
                 photoCount = current.sumOf { it.photos.size },
+                firstMillis = current.minOf { it.first },
+                lastMillis = current.maxOf { it.last },
             )
             current = ArrayList()
         }
@@ -84,7 +93,12 @@ object HikeDetector {
         val date = toDate(photo.takenAt, zone)
         return hikes.firstOrNull { h ->
             date >= h.start && date <= h.end &&
-                (!photo.hasGps || distanceKm(photo.lat!!, photo.lon!!, h.centerLat, h.centerLon) <= MATCH_RADIUS_KM)
+                if (photo.hasGps) {
+                    distanceKm(photo.lat!!, photo.lon!!, h.centerLat, h.centerLon) <= MATCH_RADIUS_KM
+                } else {
+                    // Sans GPS : seulement si prise pendant la sortie (à 1 h près), pour ne pas y mettre les photos de la maison.
+                    photo.takenAt >= h.firstMillis - MARGIN_MILLIS && photo.takenAt <= h.lastMillis + MARGIN_MILLIS
+                }
         }
     }
 
