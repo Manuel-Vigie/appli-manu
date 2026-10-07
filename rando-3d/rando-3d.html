@@ -640,6 +640,9 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <div class="seg" id="filmFmt"><button type="button" data-v="h720" aria-pressed="true">HD 16:9</button><button type="button" data-v="h1080" aria-pressed="false">Full HD</button><button type="button" data-v="v" aria-pressed="false">Vertical</button></div>
       <span class="field-lbl">Durée</span>
       <div class="seg" id="filmDur"><button type="button" data-v="20" aria-pressed="false">20 s</button><button type="button" data-v="30" aria-pressed="true">30 s</button><button type="button" data-v="45" aria-pressed="false">45 s</button><button type="button" data-v="60" aria-pressed="false">60 s</button></div>
+      <span class="field-lbl">Fond de carte</span>
+      <div class="seg" id="filmStyle"><button type="button" data-v="ortho" aria-pressed="true">Photos IGN</button><button type="button" data-v="sat" aria-pressed="false">Satellite</button></div>
+      <p class="modal-note">« Satellite » : couleurs les plus régulières sur toute la vidéo.</p>
       <span class="field-lbl">Titre affiché</span>
       <input type="text" id="filmTitle" class="film-in" maxlength="60" autocomplete="off">
       <p class="modal-note">Garde cette page ouverte et l'écran allumé pendant que le film se prépare. Utilise la carte choisie dans « Carte » (photos aériennes ou autre).</p>
@@ -3339,7 +3342,7 @@ function loadMapLibre(){
 //  1. le blanc (hors de France, neige brûlée) est remplacé pixel par pixel par la photo satellite Esri ;
 //  2. les couleurs de toute la carte sont rapprochées de celles des photos situées SOUS LE PARCOURS (la référence), sur de grandes zones
 //     (8×8 carrés) mélangées en douceur : pas de grille, et plus de zones jaunes ou sombres autour du parcours.
-const IGN_MIX={strength:.85,cast:1,contrast:.8,light:.8};
+const IGN_MIX={strength:0,cast:1,contrast:.8,light:.8};   // strength 0 : couleurs d'origine des photos IGN (aucune retouche)
 function ignWorkerBody(MIX){
   const cl=(v,a,b)=>v<a?a:v>b?b:v;
   const IGN=(z,x,y)=>`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX=${z}&TILEROW=${y}&TILECOL=${x}&FORMAT=image/jpeg`;
@@ -3462,9 +3465,11 @@ async function ignTile(params){
 }
 // « un peu plus de soleil » : couleurs plus vives et plus lumineuses
 const SV_SUN={};
-function svStyleObj(){
+// o.style : fond imposé ; o.film : pour le film (pas de photo de secours floue, pas de fondu des carrés : une seule image nette et stable)
+function svStyleObj(o={}){
   if(!mlProto){mlProto=true;try{maplibregl.addProtocol('ign',ignTile)}catch(e){}}
-  ignSendRef();
+  if(IGN_MIX.strength>0)ignSendRef();
+  const cur=o.style||SV.style,paint=o.film?{...SV_SUN,'raster-fade-duration':0}:SV_SUN;
   const demTiles=['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'];
   // deux sources identiques : une pour le relief 3D, une pour l'ombrage (meilleur rendu)
   const sources={dem:{type:'raster-dem',tiles:demTiles,encoding:'terrarium',tileSize:256,maxzoom:12},demhs:{type:'raster-dem',tiles:demTiles,encoding:'terrarium',tileSize:256,maxzoom:12}};
@@ -3472,9 +3477,12 @@ function svStyleObj(){
   for(const [k,s] of Object.entries(SV_STYLES)){
     sources[k]={type:'raster',tiles:s.tiles,tileSize:256,maxzoom:s.max};
     // photo de secours, moins nette (tuiles 4× plus grandes, donc peu nombreuses) : évite les trous quand les vraies tuiles tardent
-    sources[k+'-low']={type:'raster',tiles:s.tiles,tileSize:1024,maxzoom:s.max};
-    layers.push({id:'rl-'+k,type:'raster',source:k+'-low',paint:SV_SUN,layout:{visibility:k===SV.style?'visible':'none'}});
-    layers.push({id:'r-'+k,type:'raster',source:k,paint:SV_SUN,layout:{visibility:k===SV.style?'visible':'none'}});
+    if(o.film&&k!==cur)continue;
+    if(!o.film){
+      sources[k+'-low']={type:'raster',tiles:s.tiles,tileSize:1024,maxzoom:s.max};
+      layers.push({id:'rl-'+k,type:'raster',source:k+'-low',paint,layout:{visibility:k===cur?'visible':'none'}});
+    }
+    layers.push({id:'r-'+k,type:'raster',source:k,paint,layout:{visibility:k===cur?'visible':'none'}});
   }
   layers.push({id:'hs',type:'hillshade',source:'demhs',paint:{'hillshade-illumination-anchor':'map','hillshade-illumination-direction':315,'hillshade-exaggeration':.45,'hillshade-shadow-color':'rgba(15,20,30,.55)','hillshade-highlight-color':'rgba(255,255,255,.3)','hillshade-accent-color':'rgba(15,20,30,.25)'}});
   return {version:8,sources,layers,...(SV.terrain?{terrain:{source:'dem',exaggeration:1.3}}:{}),
@@ -3725,7 +3733,7 @@ function svFrame(dt,now){
   }
 }
 /* ---------- Film de la carte : vraie vidéo MP4 stable, calculée image par image ---------- */
-const FILM={on:false,cancel:false,fmt:'h720',dur:30,url:null,name:'film-carte.mp4'};
+const FILM={on:false,cancel:false,fmt:'h720',dur:30,url:null,name:'film-carte.mp4',style:null};
 const FILM_FMT={h720:{w:1280,h:720,br:8e6},h1080:{w:1920,h:1080,br:14e6},v:{w:1080,h:1920,br:12e6}};
 let mmP=null;
 function loadMuxer(){
@@ -3816,6 +3824,9 @@ function openFilm(){
   if(!window.VideoEncoder||!window.VideoFrame){toast("Ce film demande un Chrome récent sur ton téléphone. Mets Chrome à jour puis réessaie.",8000);return}
   if(FILM.on){$('filmBack').hidden=false;return}
   $('filmTitle').value=($('hikeName').textContent||'Ma randonnée').trim().slice(0,60);
+  if(!FILM.style)FILM.style=SV.style||((T.lat0>41&&T.lat0<51.5&&T.lon0>-5.5&&T.lon0<10)?'ortho':'sat');
+  if(FILM.style!=='ortho'&&FILM.style!=='sat')FILM.style='ortho';
+  [...$('filmStyle').children].forEach(c=>c.setAttribute('aria-pressed',c.dataset.v===FILM.style));
   filmShow('filmOpts');$('filmBack').hidden=false;
 }
 async function filmRun(){
@@ -3834,9 +3845,10 @@ async function filmRun(){
     if(!pick)throw new Error("Ton téléphone ne sait pas fabriquer une vidéo de cette taille. Essaie « HD 16:9 ».");
     try{if(navigator.wakeLock)wl=await navigator.wakeLock.request('screen')}catch(e){}
     if(!SV.style)SV.style=(T.lat0>41&&T.lat0<51.5&&T.lon0>-5.5&&T.lon0<10)?'ortho':'sat';
+    if(!FILM.style)FILM.style=SV.style;
     // carte à part, invisible, à la taille exacte de la vidéo
     box=document.createElement('div');box.style.cssText=`position:fixed;left:-99999px;top:0;width:${W}px;height:${H}px;pointer-events:none`;document.body.appendChild(box);
-    m=new maplibregl.Map({container:box,style:svStyleObj(),center:[T.lon0,T.lat0],zoom:10,pitch:0,maxPitch:80,maxZoom:18,interactive:false,attributionControl:false,pixelRatio:1,fadeDuration:0,canvasContextAttributes:{antialias:true,preserveDrawingBuffer:true}});
+    m=new maplibregl.Map({container:box,style:svStyleObj({film:true,style:FILM.style}),center:[T.lon0,T.lat0],zoom:10,pitch:0,maxPitch:80,maxZoom:18,interactive:false,attributionControl:false,pixelRatio:1,fadeDuration:0,canvasContextAttributes:{antialias:true,preserveDrawingBuffer:true}});
     await new Promise((res,rej)=>{m.once('style.load',res);m.on('error',ev=>{if(ev&&ev.error&&/WebGL|context/i.test(ev.error.message||''))rej(new Error("Ton téléphone n'arrive pas à préparer la carte en grand."))})});
     const A=areaFor(T),d=svTrackData(),st={};filmSetup(m,d,k,st);
     const N=T.N,cp=camPath(T);
@@ -3877,7 +3889,7 @@ async function filmRun(){
     enc=new VideoEncoder({output:(c,meta)=>muxer.addVideoChunk(c,meta),error:e=>{encErr=e}});
     enc.configure({codec:pick.codec,width:W,height:H,bitrate:fm.br,framerate:FPS});
     const t00=performance.now();let lastKey='',lastOp=1;
-    const attr=SV_STYLES[SV.style].attr;
+    const attr=SV_STYLES[FILM.style].attr;
     for(let n=0;n<nF;n++){
       if(FILM.cancel)break;
       if(encErr)throw new Error("L'encodage de la vidéo a échoué sur ce téléphone. Essaie « HD 16:9 ».");
@@ -3930,6 +3942,7 @@ async function filmRun(){
 $('svFilm').addEventListener('click',openFilm);
 $('filmFmt').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;FILM.fmt=b.dataset.v;[...$('filmFmt').children].forEach(c=>c.setAttribute('aria-pressed',c===b))});
 $('filmDur').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;FILM.dur=+b.dataset.v;[...$('filmDur').children].forEach(c=>c.setAttribute('aria-pressed',c===b))});
+$('filmStyle').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;FILM.style=b.dataset.v;[...$('filmStyle').children].forEach(c=>c.setAttribute('aria-pressed',c===b))});
 $('filmGo').addEventListener('click',filmRun);
 $('filmNo').addEventListener('click',()=>{$('filmBack').hidden=true});
 $('filmStop').addEventListener('click',()=>{FILM.cancel=true});
@@ -4145,7 +4158,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V34", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte : les couleurs de toute la carte sont rapprochées de celles des photos sous le parcours (teinte neutre de la roche), pour supprimer le jaune et les zones sombres autour.", "Retour aux couleurs d'origine des photos IGN (plus de jaune) et à leur pleine qualité ; seul le blanc est remplacé par le satellite. Carte un peu plus nette.", "Couleurs de la carte revenues à des teintes neutres (plus de dominante jaune) : couleur naturelle de la roche, lumière du relief toujours fixe.", "Carte et film : la lumière du relief ne tourne plus avec la caméra (plus de changement de contraste quand le point avance), ombrage plus doux, couleurs plus vives et plus lumineuses, soleil plus chaud."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V35", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : plus de carrés qui changent de couleur. Photos IGN sans aucune retouche, image du film plus stable, et nouveau choix « Fond de carte : Satellite » pour des couleurs régulières sur toute la vidéo.", "Carte : les couleurs de toute la carte sont rapprochées de celles des photos sous le parcours (teinte neutre de la roche), pour supprimer le jaune et les zones sombres autour.", "Retour aux couleurs d'origine des photos IGN (plus de jaune) et à leur pleine qualité ; seul le blanc est remplacé par le satellite. Carte un peu plus nette.", "Couleurs de la carte revenues à des teintes neutres (plus de dominante jaune) : couleur naturelle de la roche, lumière du relief toujours fixe."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
