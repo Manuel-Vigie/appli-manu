@@ -1,15 +1,16 @@
 {
   "nom": "Bibliothèque Photo",
-  "version": "V4",
-  "date": "06/10/2026",
+  "version": "V5",
+  "date": "07/10/2026",
   "nouveautes": [
+    "Nouveau classement « Randonnées + date » : les sorties sont repérées grâce à la position GPS des photos.",
     "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser.",
     "Appli installable sur le téléphone (icône, mode hors connexion)."
   ],
   "cache": "biblio-photo-",
   "sw": {
     "fichier": "bibliotheque-sw.js",
-    "cache": "biblio-photo-V4"
+    "cache": "biblio-photo-V5"
   },
   "fichiers": [
     "bibliotheque-photo.html"
