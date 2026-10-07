@@ -30,7 +30,7 @@ import java.io.File
 class ClusterUi(val id: Int, val photos: Int, val thumbs: List<ByteArray>)
 
 sealed interface UiState {
-    data class Start(val hasUndo: Boolean, val message: String? = null, val people: List<String> = emptyList()) : UiState
+    data class Start(val hasUndo: Boolean, val message: String? = null, val people: List<String> = emptyList(), val lastFolder: String? = null) : UiState
 
     /** [total] = 0 signifie « durée inconnue » (barre de progression indéterminée). */
     data class Working(val label: String, val done: Int, val total: Int) : UiState
@@ -49,6 +49,8 @@ sealed interface UiState {
         val copyToPeople: Boolean,
         val copyCount: Int,
         val copyMegabytes: Long,
+        /** Photos déjà rangées lors d'un passage précédent (non touchées). */
+        val alreadySorted: Int = 0,
     ) : UiState
 
     data class Done(val title: String, val details: String, val hasUndo: Boolean) : UiState
@@ -79,8 +81,32 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun hasUndo() = journal.exists() && journal.length() > 0
 
+    private val prefs = app.getSharedPreferences("range_photos", android.content.Context.MODE_PRIVATE)
+    private var alreadySorted = 0
+
+    /** Dernier dossier analysé, s'il est encore autorisé (pour relancer sans le rechoisir). */
+    private fun lastRoot(): Uri? {
+        val uri = prefs.getString("last_root", null)?.let { Uri.parse(it) } ?: return null
+        val allowed = getApplication<Application>().contentResolver.persistedUriPermissions
+            .any { it.uri == uri && it.isReadPermission && it.isWritePermission }
+        return if (allowed) uri else null
+    }
+
+    private fun lastFolderName(): String? {
+        val uri = lastRoot() ?: return null
+        return runCatching {
+            androidx.documentfile.provider.DocumentFile.fromTreeUri(getApplication(), uri)?.name
+        }.getOrNull() ?: "dernier dossier"
+    }
+
     private fun start(message: String? = null) =
-        UiState.Start(hasUndo(), message, store.people.map { it.name })
+        UiState.Start(hasUndo(), message, store.people.map { it.name }, lastFolderName())
+
+    /** Relance la recherche sur le même dossier (nouvelles photos ajoutées depuis). */
+    fun rescan() {
+        val uri = lastRoot()
+        if (uri == null) _state.value = start("Choisissez de nouveau le dossier de photos.") else analyze(uri)
+    }
 
     fun onFolderPicked(uri: Uri) {
         // Garde l'autorisation d'accès au dossier (nécessaire pour déplacer les fichiers).
@@ -94,14 +120,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun analyze(root: Uri) {
+        prefs.edit().putString("last_root", root.toString()).apply()
         viewModelScope.launch {
             try {
                 _state.value = UiState.Working("Recherche des photos…", 0, 0)
                 val scanned = scanner.scan(root) { found ->
                     _state.value = UiState.Working("Recherche des photos… $found trouvées", 0, 0)
                 }
+                alreadySorted = runCatching { scanner.countAlreadySorted(root) }.getOrDefault(0)
                 if (scanned.isEmpty()) {
-                    _state.value = start("Aucune photo trouvée dans ce dossier.")
+                    _state.value = start(
+                        if (alreadySorted > 0) {
+                            "Aucune nouvelle photo à ranger : $alreadySorted sont déjà rangées dans « ${Organizer.OUTPUT_DIR} »."
+                        } else {
+                            "Aucune photo trouvée dans ce dossier."
+                        },
+                    )
                     return@launch
                 }
 
@@ -267,6 +301,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             copyToPeople = copyToPeople,
             copyCount = copyCount,
             copyMegabytes = copyBytes / 1_000_000,
+            alreadySorted = alreadySorted,
         )
     }
 

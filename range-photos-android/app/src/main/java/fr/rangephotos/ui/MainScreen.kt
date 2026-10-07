@@ -102,6 +102,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         onPick = { picker.launch(null) },
                         onUndo = viewModel::undo,
                         onPeople = viewModel::openPeople,
+                        onRescan = viewModel::rescan,
                         versionLabel = "V${versionCode(context)} · $versionName",
                         update = update,
                         onCheckUpdate = checkUpdate,
@@ -129,6 +130,7 @@ private fun StartScreen(
     onPick: () -> Unit,
     onUndo: () -> Unit,
     onPeople: () -> Unit,
+    onRescan: () -> Unit,
     versionLabel: String,
     update: UpdateUi,
     onCheckUpdate: () -> Unit,
@@ -163,7 +165,18 @@ private fun StartScreen(
                         "Choisissez la carte SD (ou son dossier DCIM). Vous verrez un aperçu : rien ne bouge avant votre accord.",
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    Button(onClick = onPick, modifier = Modifier.fillMaxWidth()) { Text("Choisir le dossier de photos") }
+                    if (state.lastFolder != null) {
+                        Button(onClick = onRescan, modifier = Modifier.fillMaxWidth()) {
+                            Text("Relancer la recherche (« ${state.lastFolder} »)")
+                        }
+                        Text(
+                            "À utiliser après avoir ajouté de nouvelles photos : seules les photos pas encore rangées sont proposées.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        OutlinedButton(onClick = onPick, modifier = Modifier.fillMaxWidth()) { Text("Choisir un autre dossier") }
+                    } else {
+                        Button(onClick = onPick, modifier = Modifier.fillMaxWidth()) { Text("Choisir le dossier de photos") }
+                    }
                     if (state.hasUndo) {
                         OutlinedButton(onClick = onUndo, modifier = Modifier.fillMaxWidth()) {
                             Text("Annuler le dernier rangement")
@@ -406,6 +419,12 @@ private fun PreviewScreen(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Text("${state.total} photos prêtes à être rangées", style = MaterialTheme.typography.headlineSmall)
+        if (state.alreadySorted > 0) {
+            Text(
+                "${state.alreadySorted} autres photos sont déjà rangées dans « Photos rangées » : elles ne bougent pas.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
         Spacer(Modifier.height(12.dp))
         LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             item { Text("Dossiers", style = MaterialTheme.typography.titleMedium) }

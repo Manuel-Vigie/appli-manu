@@ -42,6 +42,21 @@ class PhotoScanner(private val context: Context) {
             result
         }
 
+    /** Nombre de photos déjà rangées plus tôt (dans « Photos rangées ») : elles ne sont jamais retouchées. */
+    suspend fun countAlreadySorted(rootUri: Uri): Int =
+        withContext(Dispatchers.IO) {
+            val root = DocumentFile.fromTreeUri(context, rootUri) ?: return@withContext 0
+            val sorted = root.findFile(Organizer.OUTPUT_DIR) ?: return@withContext 0
+            var count = 0
+            fun walk(dir: DocumentFile) {
+                for (file in dir.listFiles()) {
+                    if (file.isDirectory) walk(file) else if (file.type?.let { it in SUPPORTED_TYPES } == true) count++
+                }
+            }
+            walk(sorted)
+            count
+        }
+
     private fun readPhoto(file: DocumentFile, parent: DocumentFile, mime: String): PhotoInfo {
         val name = file.name ?: "photo"
         var takenAt: Long? = null
