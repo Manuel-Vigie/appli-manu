@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -56,6 +59,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import fr.rangephotos.model.Category
+import fr.rangephotos.model.CategoryKind
+import fr.rangephotos.model.Subjects
 import fr.rangephotos.storage.Place
 import fr.rangephotos.storage.Places
 import fr.rangephotos.update.UpdateChecker
@@ -142,10 +148,19 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onOpenFolder = openFolder,
                     onUndo = viewModel::undo,
                     onPeople = viewModel::openPeople,
+                    onCategories = viewModel::openCategories,
                     onCheckUpdate = checkUpdate,
                     onDownloadUpdate = downloadUpdate,
                 )
                 is UiState.Working -> WorkingScreen(s)
+                is UiState.Categories -> CategoriesScreen(
+                    s,
+                    onToggle = viewModel::setCategoryEnabled,
+                    onDelete = viewModel::deleteCategory,
+                    onNew = viewModel::openNewCategory,
+                    onBack = viewModel::backToStart,
+                )
+                UiState.NewCategory -> NewCategoryScreen(onSave = viewModel::saveCategory, onCancel = viewModel::openCategories)
                 is UiState.People -> PeopleScreen(s, onContinue = viewModel::applyNames, onSkip = viewModel::skipPeople)
                 is UiState.ManagePeople -> ManagePeopleScreen(s, onForget = viewModel::forget, onBack = viewModel::backToStart)
                 is UiState.Preview -> PreviewScreen(
@@ -251,6 +266,7 @@ private fun HomeScreen(
     onOpenFolder: (Place) -> Unit,
     onUndo: () -> Unit,
     onPeople: () -> Unit,
+    onCategories: () -> Unit,
     onCheckUpdate: () -> Unit,
     onDownloadUpdate: (UpdateChecker.Release) -> Unit,
 ) {
@@ -341,6 +357,25 @@ private fun HomeScreen(
             }
             items(state.places, key = { it.place.key }) { item ->
                 Box(Modifier.padding(horizontal = 16.dp)) { PlaceCard(item, state.reclassifyAll, onAnalyze, onOpenFolder) }
+            }
+        }
+
+        if (state.access) {
+            item {
+                Box(Modifier.padding(horizontal = 16.dp)) {
+                    SectionCard {
+                        Text("Mes dossiers", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            if (state.activeCategories.isEmpty()) {
+                                "Demandez à l'appli de regrouper vos photos de codes-barres, de véhicules, par ville, ou ce que vous voulez."
+                            } else {
+                                "Actifs : " + state.activeCategories.joinToString(", ") + "."
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        SecondaryButton("Gérer mes dossiers", onCategories)
+                    }
+                }
             }
         }
 
@@ -734,6 +769,129 @@ private fun DoneScreen(state: UiState.Done, onUndo: () -> Unit, onBack: () -> Un
             if (state.canOpen) PrimaryButton("Ouvrir mes photos rangées", onOpen)
             if (state.hasUndo) SecondaryButton("Annuler ce rangement", onUndo)
             SecondaryButton("Terminer", onBack)
+        }
+    }
+}
+
+// ---- Mes dossiers --------------------------------------------------------------------------------
+
+@Composable
+private fun CategoriesScreen(
+    state: UiState.Categories,
+    onToggle: (String, Boolean) -> Unit,
+    onDelete: (String) -> Unit,
+    onNew: () -> Unit,
+    onBack: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Header("Mes dossiers", "Choisissez ce que l'appli regroupe en dossiers, d'après le contenu de vos photos.")
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                Text(
+                    "Un dossier actif sera rempli au prochain rangement (« Nouvelles photos » ou « Tout reclasser »). " +
+                        "Les photos de personnes et de randonnées gardent leur dossier. Tout se fait sur le téléphone.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            items(state.items, key = { it.id }) { category ->
+                SectionCard {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(category.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text(category.describe(), style = MaterialTheme.typography.bodySmall)
+                        }
+                        Switch(checked = category.enabled, onCheckedChange = { onToggle(category.id, it) })
+                    }
+                    if (!category.builtIn) {
+                        TextButton(onClick = { onDelete(category.id) }) { Text("Supprimer ce dossier de la liste") }
+                    }
+                }
+            }
+            item {
+                Text(
+                    "La reconnaissance est générale : elle peut se tromper, surtout pour les petits objets. " +
+                        "Vous voyez toujours un aperçu avant que quoi que ce soit ne bouge.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            PrimaryButton("Ajouter un dossier", onNew)
+            SecondaryButton("Retour", onBack)
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun NewCategoryScreen(onSave: (String, CategoryKind, Set<String>) -> Unit, onCancel: () -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var kind by remember { mutableStateOf(CategoryKind.SUBJECTS) }
+    val chosen = remember { mutableStateMapOf<String, Boolean>() }
+    val subjects = chosen.filterValues { it }.keys
+    val ready = name.isNotBlank() && (kind != CategoryKind.SUBJECTS || subjects.isNotEmpty())
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Header("Nouveau dossier", "Donnez-lui un nom et dites ce qu'il doit contenir.")
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                SectionCard {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Nom du dossier (ex. Voitures de collection)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+            item {
+                SectionCard {
+                    Text("Que doit-il contenir ?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = kind == CategoryKind.SUBJECTS, onClick = { kind = CategoryKind.SUBJECTS }, label = { Text("Des sujets") })
+                        FilterChip(selected = kind == CategoryKind.BARCODE, onClick = { kind = CategoryKind.BARCODE }, label = { Text("Des codes-barres") })
+                        FilterChip(selected = kind == CategoryKind.PLACE, onClick = { kind = CategoryKind.PLACE }, label = { Text("Un dossier par ville") })
+                    }
+                    Text(
+                        when (kind) {
+                            CategoryKind.SUBJECTS -> "Touchez les sujets à regrouper dans ce dossier."
+                            CategoryKind.BARCODE -> "Toutes les photos où un code-barres ou un QR code est lisible."
+                            CategoryKind.PLACE -> "Un sous-dossier par ville, d'après le GPS de la photo (nécessite internet)."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    if (kind == CategoryKind.SUBJECTS) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Subjects.ALL.forEach { subject ->
+                                FilterChip(
+                                    selected = chosen[subject.name] == true,
+                                    onClick = { chosen[subject.name] = chosen[subject.name] != true },
+                                    label = { Text(subject.name) },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            PrimaryButton("Créer le dossier", { onSave(name, kind, subjects.toSet()) }, enabled = ready)
+            SecondaryButton("Annuler", onCancel)
         }
     }
 }

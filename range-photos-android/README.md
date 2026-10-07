@@ -26,6 +26,14 @@ Tout est créé dans un dossier `Photos rangées` à la racine de la carte SD (o
 - **Les photos déjà rangées** (dossier `Photos rangées`) ne sont jamais retouchées : on peut relancer l'appli
   après chaque sortie pour ranger les nouvelles photos.
 
+### Mes dossiers (codes-barres, véhicules, lieux…)
+
+Dans l'appli, « Mes dossiers » permet d'allumer des dossiers remplis d'après le contenu des photos : Codes-barres, Véhicules,
+Lieux (un sous-dossier par ville), Animaux, Nourriture, Fleurs et plantes, Paysages, ou vos propres dossiers (un nom + les sujets à regrouper).
+Détection sur le téléphone (ML Kit : lecture de codes-barres et reconnaissance générale d'images), rien n'est envoyé.
+Ordre : randonnée, portrait, dossiers de l'utilisateur, capture d'écran, date. Limites : reconnaissance générale (≈ 400 sujets),
+pas de description libre ; « Lieux » demande internet.
+
 ### Comment une randonnée est détectée
 
 1. L'appli devine votre « domicile » : la zone où vous prenez des photos le plus de jours différents.
@@ -99,6 +107,8 @@ app/src/main/java/fr/rangephotos/
 ├── logic/HikeDetector.kt       détection des randonnées
 ├── logic/HikeNamer.kt          nom du lieu des randonnées
 ├── logic/Planner.kt            décide du dossier de chaque photo
+├── content/ContentAnalyzer.kt  codes-barres et sujets d'une photo (ML Kit)
+├── logic/PlaceNamer.kt         nom de la ville d'une photo
 ├── face/FaceAnalyzer.kt        visages (ML Kit) + redressement + empreinte
 ├── face/FaceAlign.kt           calcul du redressement d'un visage (testé)
 ├── face/FaceEmbedder.kt        modèle SFace (ONNX Runtime)

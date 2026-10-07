@@ -12,8 +12,8 @@ android {
         applicationId = "fr.rangephotos"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "0.9.0"
+        versionCode = 10
+        versionName = "0.10.0"
 
         // Téléphones ARM uniquement (tous les téléphones actuels) : APK plus léger.
         ndk {
@@ -78,6 +78,10 @@ dependencies {
 
     // Détection de visages 100 % sur le téléphone (modèle inclus dans l'appli)
     implementation("com.google.mlkit:face-detection:16.1.7")
+
+    // Dossiers personnalisés : codes-barres et sujets (voitures, animaux…), modèles embarqués, 100 % sur le téléphone
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+    implementation("com.google.mlkit:image-labeling:17.0.9")
 
     // Reconnaissance des personnes : modèle SFace exécuté sur le téléphone (voir THIRD_PARTY_NOTICES.md)
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.19.2")

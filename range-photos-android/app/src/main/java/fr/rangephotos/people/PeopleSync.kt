@@ -24,7 +24,24 @@ class PeopleSync {
         false
     }
 
+    /** Sauvegarde de « Mes dossiers » (dossiers personnalisés), à côté de celle des prénoms. */
+    fun readCategories(outputDir: File): String? = try {
+        File(outputDir, CATEGORIES_FILE).takeIf { it.isFile }?.readText(Charsets.UTF_8)
+    } catch (_: Exception) {
+        null
+    }
+
+    fun writeCategories(outputDir: File, json: String): Boolean = try {
+        outputDir.mkdirs()
+        File(outputDir, CATEGORIES_FILE).writeText(json, Charsets.UTF_8)
+        true
+    } catch (_: Exception) {
+        false
+    }
+
     private companion object {
+        const val CATEGORIES_FILE = "mes-dossiers.json"
+
         const val FILE_NAME = "mes-proches.json"
     }
 }

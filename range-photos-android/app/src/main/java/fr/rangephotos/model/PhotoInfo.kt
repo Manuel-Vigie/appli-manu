@@ -33,6 +33,12 @@ data class PhotoInfo(
     val currentFolder: List<String>? = null,
     /** Chemin complet du fichier sur le téléphone. */
     val path: String? = null,
+    /** Sujets reconnus dans la photo (nom ML Kit en anglais -> confiance), si un dossier personnalisé le demande. */
+    val labels: Map<String, Float> = emptyMap(),
+    /** La photo contient un code-barres ou un QR code. */
+    val hasBarcode: Boolean = false,
+    /** Nom de la ville (GPS), si un dossier « Lieux » est actif. */
+    val place: String? = null,
     /** Visages détectés (rempli après l'analyse des visages). */
     val faces: List<FaceInfo> = emptyList(),
 ) {

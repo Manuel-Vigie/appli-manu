@@ -4,15 +4,21 @@ import android.app.Application
 import android.media.MediaScannerConnection
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import fr.rangephotos.content.ContentAnalyzer
 import fr.rangephotos.face.FaceAnalyzer
 import fr.rangephotos.logic.Duplicates
 import fr.rangephotos.logic.Hike
 import fr.rangephotos.logic.HikeDetector
 import fr.rangephotos.logic.HikeNamer
+import fr.rangephotos.logic.PlaceNamer
 import fr.rangephotos.logic.PlannedMove
 import fr.rangephotos.logic.Planner
+import fr.rangephotos.model.Category
+import fr.rangephotos.model.CategoryKind
 import fr.rangephotos.model.PhotoInfo
+import fr.rangephotos.model.Subjects
 import fr.rangephotos.organize.Organizer
+import fr.rangephotos.people.CategoryStore
 import fr.rangephotos.people.FaceMatching
 import fr.rangephotos.people.PeopleStore
 import fr.rangephotos.people.PeopleSync
@@ -30,6 +36,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.time.ZoneId
 
 /** Un groupe de visages qui se ressemblent : probablement une même personne, à nommer. */
 class ClusterUi(val id: Int, val photos: Int, val thumbs: List<ByteArray>)
@@ -42,6 +49,8 @@ sealed interface UiState {
         val access: Boolean,
         val places: List<PlaceUi>,
         val people: List<String>,
+        /** Noms des dossiers personnalisés actifs. */
+        val activeCategories: List<String>,
         val hasUndo: Boolean,
         val reclassifyAll: Boolean,
         val notice: String? = null,
@@ -55,6 +64,11 @@ sealed interface UiState {
     data class People(val clusters: List<ClusterUi>, val known: List<String>) : UiState
 
     data class ManagePeople(val names: List<String>) : UiState
+
+    /** « Mes dossiers » : les dossiers à remplir d'après le contenu des photos. */
+    data class Categories(val items: List<Category>) : UiState
+
+    data object NewCategory : UiState
 
     data class Preview(
         val placeTitle: String,
@@ -97,6 +111,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
     private val journal = File(app.filesDir, "journal.tsv")
     private val store = PeopleStore(File(app.filesDir, "proches.json")).also { runCatching { it.load() } }
+    private val categoryStore = CategoryStore(File(app.filesDir, "dossiers.json")).also { runCatching { it.load() } }
+    private val contentAnalyzer = ContentAnalyzer()
     private val sync = PeopleSync()
 
     private var places: List<Place> = emptyList()
@@ -115,6 +131,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var alreadySorted = 0
     private var leftCopies = 0
     private var reclassifyRun = false
+    private var activeCategories: List<Category> = emptyList()
 
     private val _state = MutableStateFlow<UiState>(UiState.Working("Démarrage…", 0, 0))
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -161,6 +178,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             access = access,
             places = places.map { PlaceUi(it, counts[it.key]?.first, counts[it.key]?.second) },
             people = store.people.map { it.name },
+            activeCategories = categoryStore.enabled().map { it.name },
             hasUndo = hasUndo(),
             reclassifyAll = reclassifyAll,
             notice = notice,
@@ -238,8 +256,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
 
+                runCatching { sync.readCategories(place.outputDir)?.let { categoryStore.importIfEmpty(it) } }
+                activeCategories = categoryStore.enabled()
+
                 val withFaces = detectFaces(scanned)
-                photos = identifyKnown(withFaces)
+                photos = detectContent(identifyKnown(withFaces), activeCategories)
                 clusters = buildClusters(photos)
 
                 if (clusters.isEmpty()) {
@@ -286,6 +307,54 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             result += analyzed
             done += chunk.size
             _state.value = UiState.Working("Reconnaissance des visages…", done, list.size)
+        }
+        return result
+    }
+
+    /**
+     * Regarde le contenu des photos pour les dossiers de l'utilisateur (codes-barres, sujets, lieux).
+     * Les photos de personnes et de randonnées ont déjà leur dossier : on ne les analyse pas.
+     */
+    private suspend fun detectContent(list: List<PhotoInfo>, categories: List<Category>): List<PhotoInfo> {
+        if (categories.isEmpty()) return list
+        val needBarcode = categories.any { it.kind == CategoryKind.BARCODE }
+        val needLabels = categories.any { it.kind == CategoryKind.SUBJECTS }
+        val needPlace = categories.any { it.kind == CategoryKind.PLACE }
+        val zone = ZoneId.systemDefault()
+        val targets = list.indices.filter { i ->
+            val photo = list[i]
+            photo.faces.isEmpty() && HikeDetector.hikeFor(photo, hikes, zone) == null
+        }
+        val result = list.toMutableList()
+
+        if ((needBarcode || needLabels) && targets.isNotEmpty()) {
+            var done = 0
+            for (chunk in targets.chunked(4)) {
+                val analyzed = coroutineScope {
+                    chunk.map { i ->
+                        async {
+                            val path = list[i].path
+                            i to (if (path == null) null else contentAnalyzer.analyze(path, needBarcode, needLabels))
+                        }
+                    }.awaitAll()
+                }
+                for ((i, content) in analyzed) {
+                    if (content != null) result[i] = list[i].copy(hasBarcode = content.hasBarcode, labels = content.labels)
+                }
+                done += chunk.size
+                _state.value = UiState.Working("Analyse du contenu des photos…", done, targets.size)
+            }
+        }
+
+        if (needPlace && targets.isNotEmpty()) {
+            val namer = PlaceNamer(getApplication())
+            targets.forEachIndexed { n, i ->
+                val photo = result[i]
+                val lat = photo.lat
+                val lon = photo.lon
+                if (lat != null && lon != null) result[i] = photo.copy(place = namer.nameFor(lat, lon))
+                if (n % 20 == 0) _state.value = UiState.Working("Recherche des noms de lieux…", n, targets.size)
+            }
         }
         return result
     }
@@ -360,7 +429,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun skipPeople() = showPreview()
 
     private fun showPreview() {
-        val plan = Planner.plan(photos, hikes, hikeNames, copyToPeople)
+        val plan = Planner.plan(photos, hikes, hikeNames, copyToPeople, categories = activeCategories)
         // Une photo déjà au bon endroit et sans copie à faire n'a rien à subir.
         pendingMoves = plan.filter { it.photo.currentFolder != it.folder || it.copies.isNotEmpty() }
         _state.value = buildPreview(plan)
@@ -411,6 +480,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     }
                     // Sauvegarde des prénoms à côté des photos (pour un futur téléphone).
                     if (store.people.isNotEmpty()) sync.write(place.outputDir, store.toJson())
+                    if (categoryStore.customCount() > 0 || categoryStore.enabled().isNotEmpty()) {
+                        sync.writeCategories(place.outputDir, categoryStore.toJson())
+                    }
                     r
                 }
                 pendingMoves = emptyList()
@@ -484,7 +556,36 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = UiState.ManagePeople(store.people.map { it.name })
     }
 
+    // ---- Mes dossiers -------------------------------------------------------------------------
+
+    fun openCategories() {
+        _state.value = UiState.Categories(categoryStore.categories)
+    }
+
+    fun setCategoryEnabled(id: String, on: Boolean) {
+        categoryStore.setEnabled(id, on)
+        runCatching { categoryStore.save() }
+        _state.value = UiState.Categories(categoryStore.categories)
+    }
+
+    fun deleteCategory(id: String) {
+        categoryStore.remove(id)
+        runCatching { categoryStore.save() }
+        _state.value = UiState.Categories(categoryStore.categories)
+    }
+
+    fun openNewCategory() {
+        _state.value = UiState.NewCategory
+    }
+
+    fun saveCategory(name: String, kind: CategoryKind, subjectNames: Set<String>) {
+        categoryStore.add(name, kind, if (kind == CategoryKind.SUBJECTS) Subjects.labelsOf(subjectNames) else emptySet())
+        runCatching { categoryStore.save() }
+        _state.value = UiState.Categories(categoryStore.categories)
+    }
+
     override fun onCleared() {
+        contentAnalyzer.close()
         faceAnalyzer.close()
     }
 
