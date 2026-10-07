@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Permet d'ouvrir une vidéo de la carte SD avec le lecteur du téléphone (lecture seule). -->
-<paths>
-    <root-path name="stockage" path="" />
-</paths>
