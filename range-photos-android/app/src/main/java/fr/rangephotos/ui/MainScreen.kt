@@ -367,9 +367,9 @@ private fun HomeScreen(
                 item {
                     Box(Modifier.padding(horizontal = 16.dp)) {
                         SectionCard {
-                            Text("Aucun stockage trouvé", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("Aucune carte SD trouvée", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Text(
-                                "L'appli ne voit ni la carte SD ni la mémoire du téléphone. Vérifiez que la carte est bien insérée.",
+                                "L'appli ne voit pas de carte SD (elle ne range que sur la carte SD, jamais dans la mémoire du téléphone). Vérifiez que la carte est bien insérée, puis rouvrez l'appli.",
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                         }

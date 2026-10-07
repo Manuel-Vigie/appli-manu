@@ -1,12 +1,12 @@
 {
   "nom": "Range Photos (Android)",
-  "version": "V14",
+  "version": "V15",
   "date": "07/10/2026",
   "nouveautes": [
+    "L'appli ne travaille plus que sur la carte SD : la mémoire du téléphone n'est plus touchée, rien n'est ajouté dedans.",
     "Rangement étape par étape : 10 fichiers d'abord pour test, vous regardez, puis vous continuez ou tout annulez.",
     "Vérification complète à la fin : chaque fichier contrôlé, aucun oublié ni perdu (compte avant/après).",
-    "Les anciens dossiers vides ne sont plus supprimés tout seuls : étape à part, avec la liste à confirmer.",
-    "Les vidéos sont rangées avec les photos, et vous choisissez le dossier de destination."
+    "Les anciens dossiers vides ne sont plus supprimés tout seuls : étape à part, avec la liste à confirmer."
   ],
   "pastille": false,
   "fichiers": []

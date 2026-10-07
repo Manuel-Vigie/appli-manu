@@ -21,13 +21,10 @@ object Places {
             if (cut <= 0) return@forEachIndexed
             val root = File(path.substring(0, cut))
             if (!root.exists()) return@forEachIndexed
-            if (index == 0) {
-                // Le premier est toujours la mémoire du téléphone : on ne parcourt que DCIM et Pictures.
-                val folders = listOf("DCIM", "Pictures").map { File(root, it) }.filter { it.isDirectory }
-                result += Place("primary", "Mémoire du téléphone", true, root, folders)
-            } else {
-                result += Place(root.name, "Carte SD", false, root, listOf(root))
-            }
+            // Le premier est toujours la mémoire du téléphone : volontairement ignorée (Manuel veut que tout reste
+            // sur la carte SD, sans rien ajouter dans le téléphone). Seules les cartes SD sont proposées.
+            if (index == 0) return@forEachIndexed
+            result += Place(root.name, "Carte SD", false, root, listOf(root))
         }
         return result
     }
