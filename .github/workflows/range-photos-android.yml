@@ -30,7 +30,26 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Tests du moteur de classement
-        run: chmod +x gradlew && ./gradlew testDebugUnitTest
+        shell: bash
+        run: |
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest --console=plain 2>&1 | tee /tmp/gradle.log
+          exit "${PIPESTATUS[0]}"
+
+      # En cas d'échec : écrit les erreurs de compilation et les tests ratés en clair dans les annotations du lancement.
+      - name: Résumé des erreurs
+        if: failure()
+        shell: bash
+        run: |
+          grep -E '^e: |error:|FAILED' /tmp/gradle.log | head -20 | sed 's/^/::error title=Erreur de compilation::/' || true
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          for f in glob.glob('app/build/test-results/testDebugUnitTest/*.xml'):
+              for tc in ET.parse(f).getroot().iter('testcase'):
+                  for fl in list(tc.findall('failure')) + list(tc.findall('error')):
+                      msg = (fl.get('message') or '')[:300].replace('\n', ' ')
+                      print(f"::error title=Test échoué::{tc.get('classname')}.{tc.get('name')} : {msg}")
+          PY
 
       - name: Compiler l'APK
         run: ./gradlew assembleRelease
