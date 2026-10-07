@@ -506,8 +506,11 @@ async function buildZip(entries, onProgress) {
   const enc = new TextEncoder();
   const parts = [], central = [], seen = new Set(), used = new Set();
   let offset = 0, done = 0;
+  const ignores = [];
   for (const e of entries) {
-    const crc = await crcOfFile(e.file, n => { done += n; if (onProgress) onProgress(total ? done / total : 1); });
+    let crc;
+    try { crc = await crcOfFile(e.file, n => { done += n; if (onProgress) onProgress(total ? done / total : 1); }); }
+    catch (err) { ignores.push(e.file.name); continue; }
     const key = e.file.size + ":" + crc;
     let path = e.path;
     if (seen.has(key)) path = "Doublons/" + e.file.name; else seen.add(key);
@@ -540,7 +543,10 @@ async function buildZip(entries, onProgress) {
   end.setUint16(8, central.length, true); end.setUint16(10, central.length, true);
   end.setUint32(12, cdSize, true); end.setUint32(16, offset, true); end.setUint16(20, 0, true);
   parts.push(end.buffer);
-  return new Blob(parts, { type: "application/zip" });
+  const zip = new Blob(parts, { type: "application/zip" });
+  zip.nbFichiers = central.length;
+  zip.ignores = ignores;
+  return zip;
 }
 // </core>
 
@@ -561,22 +567,41 @@ function fmtSize(b) {
 function setMsg(t, err) { $("msg").textContent = t || ""; $("msg").className = "msg" + (err ? " err" : ""); }
 
 let thumbQueue = Promise.resolve();
+const sansTemps = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("delai")), ms))]);
+async function dessinerMiniature(file) {
+  let src = null, tmp = null;
+  try { src = await createImageBitmap(file, { resizeWidth: 240, resizeQuality: "low" }); } catch (e) { /* essai suivant */ }
+  if (!src) { try { src = await createImageBitmap(file); } catch (e) { /* essai suivant */ } }
+  if (!src) {
+    tmp = URL.createObjectURL(file);
+    const img = new Image();
+    img.src = tmp;
+    await img.decode();
+    src = img;
+  }
+  try {
+    const w0 = src.width || src.naturalWidth, h0 = src.height || src.naturalHeight;
+    const k = Math.min(1, 240 / w0);
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(w0 * k)); c.height = Math.max(1, Math.round(h0 * k));
+    c.getContext("2d").drawImage(src, 0, 0, c.width, c.height);
+    return await new Promise(r => c.toBlob(r, "image/jpeg", 0.7));
+  } finally {
+    if (src && src.close) src.close();
+    if (tmp) URL.revokeObjectURL(tmp);
+  }
+}
 function makeThumb(file) {
   if (thumbCache.has(file)) return Promise.resolve(thumbCache.get(file));
   const job = async () => {
+    let u = null;
     try {
-      const bmp = await createImageBitmap(file, { resizeWidth: 240, resizeQuality: "low" });
-      const c = document.createElement("canvas");
-      c.width = bmp.width; c.height = bmp.height;
-      c.getContext("2d").drawImage(bmp, 0, 0);
-      if (bmp.close) bmp.close();
-      const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.7));
-      if (!blob) return null;
-      const u = URL.createObjectURL(blob);
-      thumbUrls.push(u);
-      thumbCache.set(file, u);
-      return u;
-    } catch (e) { return null; }
+      const blob = await sansTemps(dessinerMiniature(file), 15000);
+      if (blob) u = URL.createObjectURL(blob);
+    } catch (e) { u = null; }
+    if (!u) { try { u = URL.createObjectURL(file); } catch (e) { u = null; } } /* dernier recours : le navigateur réduit lui-même */
+    if (u) { thumbUrls.push(u); thumbCache.set(file, u); }
+    return u;
   };
   const p = thumbQueue.then(job);
   thumbQueue = p.catch(() => null);
@@ -607,6 +632,7 @@ function fillCover(g, el) {
     const im = document.createElement("img");
     im.className = "cv cv" + k; im.alt = "";
     el.appendChild(im);
+    im.onerror = () => im.remove();
     makeThumb(it.file).then(u => { if (u) im.src = u; else im.remove(); });
   });
 }
@@ -630,7 +656,9 @@ function showMore(g, grid, moreBtn) {
       makeThumb(it.file).then(u => {
         if (!u) return;
         const img = document.createElement("img");
-        img.alt = it.file.name; img.src = u;
+        img.alt = it.file.name;
+        img.onerror = () => { img.remove(); t.textContent = it.file.name.split(".").pop().toUpperCase(); };
+        img.src = u;
         t.textContent = ""; t.appendChild(img);
       });
     }
@@ -731,8 +759,11 @@ async function exportGroups(list, filename) {
   setMsg("Préparation du ZIP…");
   try {
     const zip = await buildZip(entries, p => { $("prog").value = p; });
+    if (!zip.nbFichiers) throw new Error("vide");
     await save(zip, filename);
-    setMsg("ZIP prêt : il est dans vos Téléchargements. Ouvrez-le avec l'application Fichiers pour extraire les dossiers.");
+    let t = "ZIP prêt : " + plural(zip.nbFichiers, "fichier rangé", "fichiers rangés") + " sur " + entries.length + ". Il est dans vos Téléchargements : ouvrez-le avec l'application Fichiers pour extraire les dossiers.";
+    if (zip.ignores.length) t += " " + plural(zip.ignores.length, "fichier illisible n'a pas été mis", "fichiers illisibles n'ont pas été mis") + " dedans.";
+    setMsg(t, zip.ignores.length > 0);
   } catch (e) {
     if (e && e.message === "trop_gros") setMsg("Trop de données pour un seul ZIP. Enregistrez les dossiers un par un.", true);
     else setMsg("L'enregistrement a échoué. Essayez avec un seul dossier.", true);
@@ -752,21 +783,28 @@ async function addFiles(list) {
   });
   const ignored = all.length - media.length, already = media.length - fresh.length;
   if (!fresh.length) {
-    setMsg(all.length ? "Aucune nouvelle photo ou vidéo à ajouter." : "", false);
+    setMsg(all.length ? all.length + " fichier(s) reçu(s) du téléphone, aucun nouveau à ajouter." : "", false);
     return;
   }
   busy = true; refreshButtons(); setMsg("");
-  for (let i = 0; i < fresh.length; i++) {
-    items.push(await readMeta(fresh[i]));
-    if (i % 25 === 0) $("chips").textContent = "Lecture des dates : " + (i + 1) + " / " + fresh.length;
+  let echecs = 0;
+  try {
+    for (let i = 0; i < fresh.length; i++) {
+      try { items.push(await readMeta(fresh[i])); }
+      catch (e) { echecs++; keys.delete(fresh[i].name + "|" + fresh[i].size + "|" + fresh[i].lastModified); }
+      if (i % 25 === 0) $("chips").textContent = "Lecture des dates : " + (i + 1) + " / " + fresh.length;
+    }
+    hikes = assignHikes(items);
+  } finally {
+    busy = false;
+    render();
   }
-  hikes = assignHikes(items);
-  busy = false;
-  render();
-  const notes = [];
-  if (already) notes.push(plural(already, "fichier déjà ajouté ignoré", "fichiers déjà ajoutés ignorés"));
-  if (ignored) notes.push(plural(ignored, "fichier non photo ignoré", "fichiers non photo ignorés"));
-  if (notes.length) setMsg(notes.join(" · "));
+  const ok = fresh.length - echecs;
+  const notes = [all.length + " reçu" + (all.length > 1 ? "s" : "") + " du téléphone · " + ok + " ajouté" + (ok > 1 ? "s" : "")];
+  if (already) notes.push(plural(already, "déjà ajouté", "déjà ajoutés"));
+  if (ignored) notes.push(plural(ignored, "non photo ignoré", "non photo ignorés"));
+  if (echecs) notes.push(plural(echecs, "illisible", "illisibles"));
+  setMsg(notes.join(" · "), echecs > 0);
 }
 
 function clearAll() {
@@ -825,7 +863,7 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
 #maj-pastille{top:calc(24px + env(safe-area-inset-top,0px));right:24px}
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Bibliothèque Photo", "version": "V5", "date": "07/10/2026", "cache": "biblio-photo-", "nouveautes": ["Nouveau classement « Randonnées + date » : les sorties sont repérées grâce à la position GPS des photos.", "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser.", "Appli installable sur le téléphone (icône, mode hors connexion)."]};
+window.MAJ_APPLI={"nom": "Bibliothèque Photo", "version": "V6", "date": "07/10/2026", "cache": "biblio-photo-", "nouveautes": ["Miniatures plus fiables et affichage du nombre de photos reçues du téléphone.", "Un fichier illisible ne bloque plus le rangement ni le ZIP, et le ZIP indique combien de photos il contient.", "Nouveau classement « Randonnées + date » : les sorties sont repérées grâce à la position GPS des photos.", "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;

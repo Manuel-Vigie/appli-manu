@@ -181,7 +181,7 @@ progress { width: 100%; height: 6px; accent-color: var(--accent); }
     <div class="hero-text">
       <p class="eyebrow">Planche contact</p>
       <h1>Bibliothèque Photo</h1>
-      <p class="lead">Vos photos et vidéos rangées par date dans des dossiers propres. Tout reste sur votre téléphone.</p>
+      <p class="lead">Vos photos et vidéos rangées par randonnée et par date dans des dossiers propres. Tout reste sur votre téléphone.</p>
     </div>
     <svg class="stack" viewBox="0 0 120 96" aria-hidden="true">
       <g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
@@ -220,12 +220,14 @@ progress { width: 100%; height: 6px; accent-color: var(--accent); }
     <h2 id="h-org"><span class="n">2</span> Choisissez l'organisation</h2>
     <fieldset class="seg">
       <legend>Organisation des dossiers</legend>
-      <label><input type="radio" name="mode" value="annee_mois" checked><span>Année / Mois</span></label>
+      <label><input type="radio" name="mode" value="rando" checked><span>Randonnées + date</span></label>
+      <label><input type="radio" name="mode" value="annee_mois"><span>Année / Mois</span></label>
       <label><input type="radio" name="mode" value="annee_mois_jour"><span>Année / Mois / Jour</span></label>
       <label><input type="radio" name="mode" value="annee"><span>Année</span></label>
       <label><input type="radio" name="mode" value="appareil"><span>Appareil photo</span></label>
       <label><input type="radio" name="mode" value="type"><span>Photos / Vidéos / Captures</span></label>
     </fieldset>
+    <p class="tip" id="modeTip" aria-live="polite" hidden></p>
   </section>
 
   <section class="card" id="step3" aria-labelledby="h-fold" hidden>
@@ -294,13 +296,36 @@ function readTiff(v, start) {
       handler(u16(e), e);
     }
   };
-  let exifOff = null;
+  // Degrés / minutes / secondes (3 fractions) -> degrés décimaux
+  const readDms = e => {
+    if (u16(e + 2) !== 5 || u32(e + 4) < 3) return null;
+    const p = start + u32(e + 8);
+    if (p + 24 > v.byteLength) return null;
+    const part = i => { const d = u32(p + 8 * i + 4); return d ? u32(p + 8 * i) / d : 0; };
+    return part(0) + part(1) / 60 + part(2) / 3600;
+  };
+  let exifOff = null, gpsOff = null;
   readIfd(u32(start + 4), (tag, e) => {
     if (tag === 0x0110) res.model = readStr(e);
     else if (tag === 0x0132) res.dateRaw = readStr(e);
     else if (tag === 0x8769) exifOff = u32(e + 8);
+    else if (tag === 0x8825) gpsOff = u32(e + 8);
   });
   if (exifOff !== null) readIfd(exifOff, (tag, e) => { if (tag === 0x9003) res.dateRaw = readStr(e); });
+  if (gpsOff !== null) {
+    let latV = null, lonV = null, latRef = "N", lonRef = "E";
+    readIfd(gpsOff, (tag, e) => {
+      if (tag === 1) latRef = readStr(e) || "N";
+      else if (tag === 2) latV = readDms(e);
+      else if (tag === 3) lonRef = readStr(e) || "E";
+      else if (tag === 4) lonV = readDms(e);
+    });
+    if (latV !== null && lonV !== null && (latV !== 0 || lonV !== 0)) {
+      const lat = /^s/i.test(latRef) ? -latV : latV;
+      const lon = /^w/i.test(lonRef) ? -lonV : lonV;
+      if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) { res.lat = lat; res.lon = lon; }
+    }
+  }
   return res;
 }
 
@@ -320,18 +345,102 @@ function dateFromName(name) {
 
 async function readMeta(file) {
   const isVideo = /^video\//.test(file.type) || /\.(mp4|mov|3gp|mkv|m4v|avi|webm)$/i.test(file.name);
-  let date = null, model = null;
+  let date = null, model = null, lat = null, lon = null;
   if (!isVideo && (file.type === "image/jpeg" || /\.jpe?g$/i.test(file.name))) {
     try {
       const ex = parseExif(await file.slice(0, 262144).arrayBuffer());
       date = parseExifDate(ex.dateRaw);
       model = ex.model || null;
+      if (ex.lat != null && ex.lon != null) { lat = ex.lat; lon = ex.lon; }
     } catch (e) { /* on retombe sur le nom du fichier */ }
   }
   if (!date) date = dateFromName(file.name);
   if (!date) date = new Date(file.lastModified);
   const kind = isVideo ? "Vidéos" : (/screenshot|capture/i.test(file.name) ? "Captures d'écran" : "Photos");
-  return { file, date, model, isVideo, kind };
+  return { file, date, model, isVideo, kind, lat, lon, hike: null };
+}
+
+// ---- Randonnées -------------------------------------------------------------------------
+// Une journée est une randonnée si elle compte assez de photos géolocalisées, réparties sur au moins
+// une heure. Si l'on connaît le « domicile » (la zone où l'on prend des photos le plus de jours
+// différents), ces photos doivent en plus être à plus de 15 km. Sinon (sélection trop petite pour
+// deviner le domicile), la journée doit couvrir plus de 1,5 km. Les journées voisines et proches
+// sont fusionnées. Aucune donnée n'est envoyée : tout est calculé sur le téléphone.
+const HIKE = { minKm: 15, minPhotos: 5, minSpanMin: 60, minSpreadKm: 1.5, mergeKm: 40, matchKm: 60, cell: 0.1, homeDays: 3 };
+
+function distanceKm(a1, o1, a2, o2) {
+  const rad = Math.PI / 180, dLat = (a2 - a1) * rad, dLon = (o2 - o1) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a1 * rad) * Math.cos(a2 * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+const pad2 = n => String(n).padStart(2, "0");
+const isoDay = d => d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const mean = a => a.reduce((s, x) => s + x, 0) / a.length;
+
+function findHome(gps) {
+  const cells = new Map();
+  for (const it of gps) {
+    const k = Math.round(it.lat / HIKE.cell) + "," + Math.round(it.lon / HIKE.cell);
+    if (!cells.has(k)) cells.set(k, { days: new Set(), lats: [], lons: [] });
+    const c = cells.get(k);
+    c.days.add(isoDay(it.date)); c.lats.push(it.lat); c.lons.push(it.lon);
+  }
+  let best = null;
+  for (const c of cells.values()) if (!best || c.days.size > best.days.size || (c.days.size === best.days.size && c.lats.length > best.lats.length)) best = c;
+  return best ? { lat: mean(best.lats), lon: mean(best.lons), days: best.days.size } : null;
+}
+
+// Retourne la liste des randonnées [{start, end, lat, lon, label}] et renseigne it.hike (nom du dossier ou null).
+function assignHikes(list) {
+  for (const it of list) it.hike = null;
+  const gps = list.filter(i => i.lat != null && i.kind !== "Captures d'écran");
+  if (!gps.length) return [];
+  const home = findHome(gps);
+  const known = !!home && home.days >= HIKE.homeDays;
+
+  const byDay = new Map();
+  for (const it of gps) {
+    if (known && distanceKm(it.lat, it.lon, home.lat, home.lon) <= HIKE.minKm) continue;
+    const k = isoDay(it.date);
+    if (!byDay.has(k)) byDay.set(k, []);
+    byDay.get(k).push(it);
+  }
+  const days = [];
+  for (const arr of byDay.values()) {
+    if (arr.length < HIKE.minPhotos) continue;
+    const times = arr.map(i => +i.date);
+    if ((Math.max(...times) - Math.min(...times)) / 60000 < HIKE.minSpanMin) continue;
+    const lat = mean(arr.map(i => i.lat)), lon = mean(arr.map(i => i.lon));
+    if (!known && Math.max(...arr.map(i => distanceKm(i.lat, i.lon, lat, lon))) < HIKE.minSpreadKm) continue;
+    days.push({ date: startOfDay(arr[0].date), lat, lon });
+  }
+  days.sort((a, b) => a.date - b.date);
+
+  const hikes = [];
+  let cur = null;
+  for (const d of days) {
+    const gap = cur ? Math.round((d.date - cur.end) / 86400000) : 99;
+    if (cur && gap <= 1 && distanceKm(cur.last.lat, cur.last.lon, d.lat, d.lon) <= HIKE.mergeKm) {
+      cur.end = d.date; cur.days.push(d); cur.last = d;
+    } else {
+      cur = { start: d.date, end: d.date, days: [d], last: d };
+      hikes.push(cur);
+    }
+  }
+  for (const h of hikes) {
+    h.lat = mean(h.days.map(d => d.lat)); h.lon = mean(h.days.map(d => d.lon));
+    h.label = "Rando " + isoDay(h.start) + (+h.end !== +h.start ? " au " + isoDay(h.end) : "");
+  }
+  // Rattache chaque photo ou vidéo à sa randonnée (sans position : la date suffit).
+  for (const it of list) {
+    if (it.kind === "Captures d'écran") continue;
+    const day = startOfDay(it.date);
+    const h = hikes.find(h => day >= h.start && day <= h.end &&
+      (it.lat == null || distanceKm(it.lat, it.lon, h.lat, h.lon) <= HIKE.matchKm));
+    if (h) it.hike = h.label;
+  }
+  return hikes;
 }
 
 function safeSeg(s) { return String(s).replace(/[\\/:*?"<>|]/g, "").trim() || "Inconnu"; }
@@ -339,6 +448,10 @@ function safeSeg(s) { return String(s).replace(/[\\/:*?"<>|]/g, "").trim() || "I
 function folderFor(it, mode) {
   const y = String(it.date.getFullYear());
   const mo = MOIS[it.date.getMonth()];
+  if (mode === "rando") {
+    if (it.hike) return ["Randonnées", it.hike];
+    return it.kind === "Photos" ? ["Photos", y, mo] : [it.kind, y];
+  }
   if (mode === "annee") return [y];
   if (mode === "annee_mois_jour") return [y, mo, String(it.date.getDate()).padStart(2, "0")];
   if (mode === "appareil") return [safeSeg(it.model || "Appareil inconnu"), y];
@@ -393,8 +506,11 @@ async function buildZip(entries, onProgress) {
   const enc = new TextEncoder();
   const parts = [], central = [], seen = new Set(), used = new Set();
   let offset = 0, done = 0;
+  const ignores = [];
   for (const e of entries) {
-    const crc = await crcOfFile(e.file, n => { done += n; if (onProgress) onProgress(total ? done / total : 1); });
+    let crc;
+    try { crc = await crcOfFile(e.file, n => { done += n; if (onProgress) onProgress(total ? done / total : 1); }); }
+    catch (err) { ignores.push(e.file.name); continue; }
     const key = e.file.size + ":" + crc;
     let path = e.path;
     if (seen.has(key)) path = "Doublons/" + e.file.name; else seen.add(key);
@@ -427,13 +543,17 @@ async function buildZip(entries, onProgress) {
   end.setUint16(8, central.length, true); end.setUint16(10, central.length, true);
   end.setUint32(12, cdSize, true); end.setUint32(16, offset, true); end.setUint16(20, 0, true);
   parts.push(end.buffer);
-  return new Blob(parts, { type: "application/zip" });
+  const zip = new Blob(parts, { type: "application/zip" });
+  zip.nbFichiers = central.length;
+  zip.ignores = ignores;
+  return zip;
 }
 // </core>
 
 const $ = id => document.getElementById(id);
 const MEDIA_EXT = /\.(jpe?g|png|heic|heif|webp|gif|bmp|tiff?|dng|cr2|cr3|nef|arw|orf|rw2|mp4|mov|3gp|mkv|m4v|avi|webm)$/i;
-let items = [], groups = [], busy = false;
+let items = [], groups = [], hikes = [], busy = false;
+const RANG = { "Randonnées": 0, "Photos": 1, "Vidéos": 2, "Captures d'écran": 3 };
 const keys = new Set();
 const thumbCache = new WeakMap();
 let thumbUrls = [];
@@ -447,22 +567,41 @@ function fmtSize(b) {
 function setMsg(t, err) { $("msg").textContent = t || ""; $("msg").className = "msg" + (err ? " err" : ""); }
 
 let thumbQueue = Promise.resolve();
+const sansTemps = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("delai")), ms))]);
+async function dessinerMiniature(file) {
+  let src = null, tmp = null;
+  try { src = await createImageBitmap(file, { resizeWidth: 240, resizeQuality: "low" }); } catch (e) { /* essai suivant */ }
+  if (!src) { try { src = await createImageBitmap(file); } catch (e) { /* essai suivant */ } }
+  if (!src) {
+    tmp = URL.createObjectURL(file);
+    const img = new Image();
+    img.src = tmp;
+    await img.decode();
+    src = img;
+  }
+  try {
+    const w0 = src.width || src.naturalWidth, h0 = src.height || src.naturalHeight;
+    const k = Math.min(1, 240 / w0);
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(w0 * k)); c.height = Math.max(1, Math.round(h0 * k));
+    c.getContext("2d").drawImage(src, 0, 0, c.width, c.height);
+    return await new Promise(r => c.toBlob(r, "image/jpeg", 0.7));
+  } finally {
+    if (src && src.close) src.close();
+    if (tmp) URL.revokeObjectURL(tmp);
+  }
+}
 function makeThumb(file) {
   if (thumbCache.has(file)) return Promise.resolve(thumbCache.get(file));
   const job = async () => {
+    let u = null;
     try {
-      const bmp = await createImageBitmap(file, { resizeWidth: 240, resizeQuality: "low" });
-      const c = document.createElement("canvas");
-      c.width = bmp.width; c.height = bmp.height;
-      c.getContext("2d").drawImage(bmp, 0, 0);
-      if (bmp.close) bmp.close();
-      const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.7));
-      if (!blob) return null;
-      const u = URL.createObjectURL(blob);
-      thumbUrls.push(u);
-      thumbCache.set(file, u);
-      return u;
-    } catch (e) { return null; }
+      const blob = await sansTemps(dessinerMiniature(file), 15000);
+      if (blob) u = URL.createObjectURL(blob);
+    } catch (e) { u = null; }
+    if (!u) { try { u = URL.createObjectURL(file); } catch (e) { u = null; } } /* dernier recours : le navigateur réduit lui-même */
+    if (u) { thumbUrls.push(u); thumbCache.set(file, u); }
+    return u;
   };
   const p = thumbQueue.then(job);
   thumbQueue = p.catch(() => null);
@@ -480,7 +619,8 @@ function groupItems() {
   }
   const arr = [...map.values()];
   const desc = mode.startsWith("annee");
-  arr.sort((a, b) => desc ? b.key.localeCompare(a.key) : a.key.localeCompare(b.key));
+  if (mode === "rando") arr.sort((a, b) => (RANG[a.segs[0]] - RANG[b.segs[0]]) || b.key.localeCompare(a.key));
+  else arr.sort((a, b) => desc ? b.key.localeCompare(a.key) : a.key.localeCompare(b.key));
   arr.forEach(g => g.items.sort((a, b) => a.date - b.date));
   return arr;
 }
@@ -492,6 +632,7 @@ function fillCover(g, el) {
     const im = document.createElement("img");
     im.className = "cv cv" + k; im.alt = "";
     el.appendChild(im);
+    im.onerror = () => im.remove();
     makeThumb(it.file).then(u => { if (u) im.src = u; else im.remove(); });
   });
 }
@@ -515,7 +656,9 @@ function showMore(g, grid, moreBtn) {
       makeThumb(it.file).then(u => {
         if (!u) return;
         const img = document.createElement("img");
-        img.alt = it.file.name; img.src = u;
+        img.alt = it.file.name;
+        img.onerror = () => { img.remove(); t.textContent = it.file.name.split(".").pop().toUpperCase(); };
+        img.src = u;
         t.textContent = ""; t.appendChild(img);
       });
     }
@@ -573,7 +716,16 @@ function render() {
   if (items.length) {
     chips.append(chip(photos > 1 ? "photos" : "photo", photos), chip(videos > 1 ? "vidéos" : "vidéo", videos),
       chip(groups.length > 1 ? "dossiers" : "dossier", groups.length), chip("", fmtSize(size)));
+    if (getMode() === "rando" && hikes.length) chips.append(chip(hikes.length > 1 ? "randonnées" : "randonnée", hikes.length));
   }
+  const tip = $("modeTip");
+  if (items.length && getMode() === "rando") {
+    const withGps = items.filter(i => i.lat != null).length;
+    tip.hidden = false;
+    if (!withGps) tip.textContent = "Aucune position GPS trouvée dans ces photos : elles sont rangées par date. Sur certains téléphones, la galerie retire la position des photos : essayez « Parcourir les fichiers ».";
+    else tip.textContent = plural(hikes.length, "randonnée trouvée", "randonnées trouvées") + " · " + plural(withGps, "photo avec position", "photos avec position") +
+      ". Une randonnée = au moins 5 photos sur plus d'une heure, loin de chez vous (plus de 15 km) ; sans assez de photos de chez vous, plus de 1,5 km de déplacement.";
+  } else tip.hidden = true;
   $("barStats").textContent = items.length + " fichier" + (items.length > 1 ? "s" : "") + " · " + fmtSize(size);
   $("step2").hidden = !items.length;
   $("step3").hidden = !items.length;
@@ -607,8 +759,11 @@ async function exportGroups(list, filename) {
   setMsg("Préparation du ZIP…");
   try {
     const zip = await buildZip(entries, p => { $("prog").value = p; });
+    if (!zip.nbFichiers) throw new Error("vide");
     await save(zip, filename);
-    setMsg("ZIP prêt : il est dans vos Téléchargements. Ouvrez-le avec l'application Fichiers pour extraire les dossiers.");
+    let t = "ZIP prêt : " + plural(zip.nbFichiers, "fichier rangé", "fichiers rangés") + " sur " + entries.length + ". Il est dans vos Téléchargements : ouvrez-le avec l'application Fichiers pour extraire les dossiers.";
+    if (zip.ignores.length) t += " " + plural(zip.ignores.length, "fichier illisible n'a pas été mis", "fichiers illisibles n'ont pas été mis") + " dedans.";
+    setMsg(t, zip.ignores.length > 0);
   } catch (e) {
     if (e && e.message === "trop_gros") setMsg("Trop de données pour un seul ZIP. Enregistrez les dossiers un par un.", true);
     else setMsg("L'enregistrement a échoué. Essayez avec un seul dossier.", true);
@@ -628,25 +783,33 @@ async function addFiles(list) {
   });
   const ignored = all.length - media.length, already = media.length - fresh.length;
   if (!fresh.length) {
-    setMsg(all.length ? "Aucune nouvelle photo ou vidéo à ajouter." : "", false);
+    setMsg(all.length ? all.length + " fichier(s) reçu(s) du téléphone, aucun nouveau à ajouter." : "", false);
     return;
   }
   busy = true; refreshButtons(); setMsg("");
-  for (let i = 0; i < fresh.length; i++) {
-    items.push(await readMeta(fresh[i]));
-    if (i % 25 === 0) $("chips").textContent = "Lecture des dates : " + (i + 1) + " / " + fresh.length;
+  let echecs = 0;
+  try {
+    for (let i = 0; i < fresh.length; i++) {
+      try { items.push(await readMeta(fresh[i])); }
+      catch (e) { echecs++; keys.delete(fresh[i].name + "|" + fresh[i].size + "|" + fresh[i].lastModified); }
+      if (i % 25 === 0) $("chips").textContent = "Lecture des dates : " + (i + 1) + " / " + fresh.length;
+    }
+    hikes = assignHikes(items);
+  } finally {
+    busy = false;
+    render();
   }
-  busy = false;
-  render();
-  const notes = [];
-  if (already) notes.push(plural(already, "fichier déjà ajouté ignoré", "fichiers déjà ajoutés ignorés"));
-  if (ignored) notes.push(plural(ignored, "fichier non photo ignoré", "fichiers non photo ignorés"));
-  if (notes.length) setMsg(notes.join(" · "));
+  const ok = fresh.length - echecs;
+  const notes = [all.length + " reçu" + (all.length > 1 ? "s" : "") + " du téléphone · " + ok + " ajouté" + (ok > 1 ? "s" : "")];
+  if (already) notes.push(plural(already, "déjà ajouté", "déjà ajoutés"));
+  if (ignored) notes.push(plural(ignored, "non photo ignoré", "non photo ignorés"));
+  if (echecs) notes.push(plural(echecs, "illisible", "illisibles"));
+  setMsg(notes.join(" · "), echecs > 0);
 }
 
 function clearAll() {
   if (busy) return;
-  items = []; keys.clear();
+  items = []; hikes = []; keys.clear();
   thumbUrls.forEach(u => URL.revokeObjectURL(u));
   thumbUrls = [];
   setMsg("");
@@ -700,7 +863,7 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
 #maj-pastille{top:calc(24px + env(safe-area-inset-top,0px));right:24px}
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Bibliothèque Photo", "version": "V4", "date": "06/10/2026", "cache": "biblio-photo-", "nouveautes": ["Pastille de mise à jour en haut à droite : version, date et bouton Actualiser.", "Appli installable sur le téléphone (icône, mode hors connexion)."]};
+window.MAJ_APPLI={"nom": "Bibliothèque Photo", "version": "V6", "date": "07/10/2026", "cache": "biblio-photo-", "nouveautes": ["Miniatures plus fiables et affichage du nombre de photos reçues du téléphone.", "Un fichier illisible ne bloque plus le rangement ni le ZIP, et le ZIP indique combien de photos il contient.", "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser.", "Appli installable sur le téléphone (icône, mode hors connexion)."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
