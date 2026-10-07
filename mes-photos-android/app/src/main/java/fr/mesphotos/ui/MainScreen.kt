@@ -91,6 +91,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onOpenTrash = { viewModel.openTrash(MoveKind.TRASH) },
                         onOpenAside = { viewModel.openTrash(MoveKind.ASIDE) },
                         onSearch = viewModel::openFaces,
+                        onDuplicates = viewModel::findDuplicates,
                         onScan = viewModel::startNudityScan,
                         onReview = viewModel::openReview,
                         onCheckUpdate = { viewModel.checkUpdate(version) { updateTick++ } },
@@ -140,6 +141,13 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onDismiss = viewModel::dismissSuggestions,
                     onRescan = viewModel::startNudityScan,
                 )
+                is UiState.DupReview -> DupReviewScreen(
+                    s,
+                    onBack = viewModel::backToStart,
+                    onOpen = viewModel::openViewer,
+                    onTrash = { files -> viewModel.moveSelection(MoveKind.TRASH, emptySet(), files) },
+                    onUndoMove = viewModel::undoMove,
+                )
                 is UiState.Faces -> FacesScreen(
                     s,
                     onBack = viewModel::backToStart,
@@ -176,6 +184,7 @@ private fun HomeScreen(
     onOpenTrash: () -> Unit,
     onOpenAside: () -> Unit,
     onSearch: () -> Unit,
+    onDuplicates: () -> Unit,
     onScan: () -> Unit,
     onReview: () -> Unit,
     onCheckUpdate: () -> Unit,
@@ -250,6 +259,15 @@ private fun HomeScreen(
             }
             item {
                 Box(Modifier.padding(horizontal = 16.dp)) { SoftButton("Rechercher par visage", onSearch) }
+            }
+            item {
+                Box(Modifier.padding(horizontal = 16.dp)) {
+                    Section {
+                        Title("Doublons")
+                        Body("L'appli retrouve les photos en double (même contenu), propose la meilleure à garder dans chaque groupe, et vous vérifiez avant que les autres aillent à la corbeille.")
+                        SoftButton("Chercher les doublons", onDuplicates)
+                    }
+                }
             }
             item {
                 Box(Modifier.padding(horizontal = 16.dp)) {
@@ -589,7 +607,7 @@ private fun PreviewScreen(state: UiState.Preview, onConfirm: () -> Unit, onCance
                 item {
                     Section(MaterialTheme.colorScheme.secondaryContainer) {
                         Title("${spaced(state.duplicates)} doublon(s) exact(s)")
-                        Body("Ce sont des copies identiques d'une photo déjà présente. Elles iront dans « Doublons », rangées par ancien dossier. Rien n'est supprimé : vous vérifierez et supprimerez vous-même.")
+                        Body("Ce sont des copies identiques d'une photo déjà présente. Elles iront toutes dans un seul dossier, « Doublons ». Rien n'est supprimé : vous les comparerez ensuite avec « Chercher les doublons ».")
                     }
                 }
             }

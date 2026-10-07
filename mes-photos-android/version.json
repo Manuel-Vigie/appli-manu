@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V6",
+  "version": "V7",
   "date": "07/10/2026",
   "nouveautes": [
-    "Recherche par visage : vous choisissez une photo, l'appli retrouve toutes celles où la même personne apparaît. Elle remplace la recherche par mots.",
-    "Les copies identiques vont dans « Doublons » (V5).",
-    "Recherche automatique de personnes nues (V4).",
-    "Dossier « À l'écart » (V3)."
+    "Doublons : tous dans un seul dossier « Doublons », et un écran pour les comparer groupe par groupe. L'appli propose la meilleure photo à garder, vous vérifiez, puis les copies vont à la corbeille.",
+    "Recherche par visage (V6).",
+    "Les copies identiques ne restent plus en vrac (V5).",
+    "Recherche automatique de personnes nues (V4)."
   ],
   "pastille": false,
   "fichiers": []

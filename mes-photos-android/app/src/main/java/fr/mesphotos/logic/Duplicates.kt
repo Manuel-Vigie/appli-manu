@@ -56,25 +56,25 @@ object Duplicates {
         return if (folder.firstOrNull() == Planner.DUPLICATES) 2 else 0
     }
 
-    /** Empreinte du contenu : début + fin du fichier + taille. Null si le fichier ne peut pas être lu. */
-    fun fingerprintOf(photo: PhotoInfo): String? {
-        val path = photo.path ?: return null
-        return try {
-            RandomAccessFile(File(path), "r").use { f ->
-                val length = f.length()
-                val digest = MessageDigest.getInstance("SHA-256")
-                val buffer = ByteArray(CHUNK)
-                var read = f.read(buffer)
+    /** Empreinte du contenu : début, milieu et fin du fichier + taille. Null si le fichier ne peut pas être lu. */
+    fun fingerprintOf(photo: PhotoInfo): String? = photo.path?.let { fingerprintOf(File(it)) }
+
+    fun fingerprintOf(file: File): String? = try {
+        RandomAccessFile(file, "r").use { f ->
+            val length = f.length()
+            val digest = MessageDigest.getInstance("SHA-256")
+            val buffer = ByteArray(CHUNK)
+            fun chunkAt(position: Long) {
+                f.seek(position)
+                val read = f.read(buffer)
                 if (read > 0) digest.update(buffer, 0, read)
-                if (length > CHUNK) {
-                    f.seek(maxOf(CHUNK.toLong(), length - CHUNK))
-                    read = f.read(buffer)
-                    if (read > 0) digest.update(buffer, 0, read)
-                }
-                length.toString() + ":" + digest.digest().joinToString("") { "%02x".format(it) }
             }
-        } catch (_: Exception) {
-            null
+            chunkAt(0)
+            if (length > 3L * CHUNK) chunkAt(length / 2 - CHUNK / 2)
+            if (length > CHUNK) chunkAt(maxOf(CHUNK.toLong(), length - CHUNK))
+            length.toString() + ":" + digest.digest().joinToString("") { "%02x".format(it) }
         }
+    } catch (_: Exception) {
+        null
     }
 }

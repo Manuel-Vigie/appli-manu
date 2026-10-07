@@ -1,7 +1,6 @@
 package fr.mesphotos.logic
 
 import fr.mesphotos.model.PhotoInfo
-import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -52,13 +51,8 @@ object Planner {
         PlannedMove(photo, folder)
     }
 
-    /** Dossier d'une copie exacte : Doublons / <ancien dossier>. Si elle est déjà dans Doublons, elle y reste. */
-    fun duplicateFolder(photo: PhotoInfo): List<String> {
-        val current = photo.currentFolder
-        if (current != null && current.firstOrNull() == DUPLICATES) return current
-        val parent = photo.path?.let { File(it).parentFile?.name }.orEmpty()
-        return listOf(DUPLICATES, sanitize(parent))
-    }
+    /** Toutes les copies exactes vont dans un seul dossier, « Doublons », pour les comparer facilement. */
+    fun duplicateFolder(@Suppress("UNUSED_PARAMETER") photo: PhotoInfo): List<String> = listOf(DUPLICATES)
 
     /** « 14 mars (sam) - Nice » : classé par date dans l'explorateur de fichiers, avec la ville si on la connaît. */
     fun dayFolder(date: LocalDate, town: String?): String {

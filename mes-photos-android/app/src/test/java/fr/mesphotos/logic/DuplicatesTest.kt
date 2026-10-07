@@ -58,15 +58,11 @@ class DuplicatesTest {
     }
 
     @Test
-    fun duplicateStaysInDoublonsOnRerun() {
-        val inDoubles = photo("IMG_1.jpg", 100, listOf("Doublons", "DCIM"), "/x/IMG_1.jpg")
-        assertEquals(listOf("Doublons", "DCIM"), Planner.duplicateFolder(inDoubles))
-    }
-
-    @Test
-    fun duplicateFolderUsesFormerFolderName() {
-        val p = photo("IMG_1.jpg", 100, null, "/sd/WhatsApp:Images/IMG_1.jpg")
-        assertEquals(listOf("Doublons", "WhatsApp-Images"), Planner.duplicateFolder(p))
+    fun allDuplicatesGoToOneSingleFolder() {
+        val a = photo("IMG_1.jpg", 100, null, "/sd/WhatsApp/IMG_1.jpg")
+        val b = photo("IMG_2.jpg", 100, listOf("Doublons", "DCIM"), "/sd/Photos rangées/Doublons/DCIM/IMG_2.jpg")
+        assertEquals(listOf("Doublons"), Planner.duplicateFolder(a))
+        assertEquals(listOf("Doublons"), Planner.duplicateFolder(b))
     }
 
     @Test

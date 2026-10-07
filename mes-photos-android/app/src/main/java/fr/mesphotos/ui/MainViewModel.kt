@@ -17,6 +17,8 @@ import fr.mesphotos.faces.FaceEngine
 import fr.mesphotos.gallery.FolderItem
 import fr.mesphotos.gallery.Gallery
 import fr.mesphotos.gallery.Thumbs
+import fr.mesphotos.logic.DupGroup
+import fr.mesphotos.logic.DuplicateReview
 import fr.mesphotos.logic.Duplicates
 import fr.mesphotos.logic.PlaceNamer
 import fr.mesphotos.logic.PlannedMove
@@ -130,12 +132,16 @@ sealed interface UiState {
         val undoTrash: Int = 0,
     ) : UiState
 
+    /** Les doublons exacts, par groupes : la personne vérifie lequel garder avant que les autres aillent à la corbeille. */
+    data class DupReview(val groups: List<DupGroup>, val message: String? = null, val undoTrash: Int = 0) : UiState
+
     /** Visionneuse plein écran. */
     data class Viewer(
         val path: List<String>,
         val files: List<File>,
         val index: Int,
         val backToFaces: Boolean = false,
+        val backToDups: Boolean = false,
         val backToReview: Boolean = false,
     ) : UiState
 
@@ -178,6 +184,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var asideCount = 0
     private var lastMoved: List<TrashEntry> = emptyList()
     private var lastKind = MoveKind.TRASH
+    private var dupGroups: List<DupGroup> = emptyList()
     private var faceJob: Job? = null
     private var faceQuery: FloatArray? = null
     private var faceLevel = 1
@@ -223,6 +230,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun returnsToFaces(): Boolean = when (val s = _state.value) {
         is UiState.FaceResults -> true
         is UiState.Viewer -> s.backToFaces
+        else -> false
+    }
+
+    private fun returnsToDups(): Boolean = when (val s = _state.value) {
+        is UiState.DupReview -> true
+        is UiState.Viewer -> s.backToDups
         else -> false
     }
 
@@ -561,13 +574,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun openViewer(files: List<File>, index: Int) {
-        _state.value = UiState.Viewer(browsePath, files, index, backToFaces = returnsToFaces(), backToReview = returnsToReview())
+        _state.value = UiState.Viewer(browsePath, files, index, backToFaces = returnsToFaces(), backToDups = returnsToDups(), backToReview = returnsToReview())
     }
 
     fun closeViewer() {
         val viewer = _state.value as? UiState.Viewer
         when {
             viewer?.backToFaces == true -> viewModelScope.launch { showFaceResults() }
+            viewer?.backToDups == true -> viewModelScope.launch { showDupReview() }
             viewer?.backToReview == true -> openReview()
             else -> browse(browsePath)
         }
@@ -590,6 +604,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val current = place ?: return
         val base = browsePath
         val toFaces = returnsToFaces()
+        val toDups = returnsToDups()
         val toReview = returnsToReview()
         val label = if (kind == MoveKind.TRASH) "Mise à la corbeille…" else "Mise à l'écart…"
         viewModelScope.launch {
@@ -617,6 +632,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val message = lines.joinToString("\n")
                 when {
                     toFaces -> showFaceResults(message, result.done)
+                    toDups -> showDupReview(message, result.done)
                     toReview -> showReview(message, result.done)
                     else -> showBrowse(base, message = message, undoCount = result.done)
                 }
@@ -633,6 +649,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val kind = lastKind
         val base = browsePath
         val toFaces = returnsToFaces()
+        val toDups = returnsToDups()
         val toReview = returnsToReview()
         viewModelScope.launch {
             try {
@@ -644,6 +661,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 if (result.failed > 0) text += "\n${result.failed} fichier(s) n'ont pas pu être remis (ils sont toujours mis de côté)."
                 when {
                     toFaces -> showFaceResults(text)
+                    toDups -> showDupReview(text)
                     toReview -> showReview(text)
                     else -> showBrowse(base, message = text)
                 }
@@ -702,6 +720,39 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
             }
         }
+    }
+
+    // ---- Doublons ------------------------------------------------------------------------------
+
+    /** Compare le contenu des fichiers de « Photos rangées » et montre les copies exactes, groupe par groupe. */
+    fun findDuplicates() {
+        val current = place ?: return
+        viewModelScope.launch {
+            try {
+                _state.value = UiState.Working("Recherche des doublons…", 0, 0)
+                dupGroups = withContext(Dispatchers.IO) {
+                    DuplicateReview.find(Gallery.allMedia(current.outputDir), current.outputDir) { done, total ->
+                        if (done % 20 == 0 || done == total) _state.value = UiState.Working("Comparaison des fichiers…", done, total)
+                    }
+                }
+                showDupReview()
+            } catch (e: Exception) {
+                refresh("La recherche des doublons a échoué : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
+    /** Les groupes trouvés, sans les fichiers qui ont depuis été mis de côté (et remis, si on annule). */
+    private suspend fun showDupReview(message: String? = null, undoCount: Int = 0) {
+        val current = place ?: return
+        val groups = withContext(Dispatchers.IO) {
+            dupGroups.mapNotNull { g ->
+                val files = g.files.filter { it.isFile }
+                if (files.size < 2) null
+                else DupGroup(files, if (g.keep in files) g.keep else DuplicateReview.best(files, current.outputDir))
+            }
+        }
+        _state.value = UiState.DupReview(groups, message, undoCount)
     }
 
     // ---- Recherche par visage ------------------------------------------------------------------
