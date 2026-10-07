@@ -17,7 +17,7 @@ Chaque photo est classée, dans cet ordre de priorité :
 | Capture d'écran | `Captures d'écran/2026/` |
 | Tout le reste | `Photos/2026/03 - mars/` |
 
-Tout est créé dans un dossier `Photos rangées` à l'intérieur du dossier choisi.
+Tout est créé dans un dossier `Photos rangées` à la racine de la carte SD (ou de la mémoire du téléphone).
 
 - **Aperçu avant déplacement** : rien ne bouge tant que vous n'avez pas appuyé sur « Ranger maintenant ».
 - **Sécurité** : les photos sont *déplacées* par le système (aucune copie, aucun risque de perte en cas
@@ -65,7 +65,7 @@ et pourquoi vous voyez l'aperçu avant tout déplacement.
 - La reconnaissance n'a jamais été essayée sur de vraies photos de téléphone avant cette version : commencez par un petit dossier de test.
 - Les photos sans GPS prises un jour de randonnée sont rattachées à cette randonnée ; les photos sans aucune date
   EXIF utilisent la date du nom de fichier, sinon la date du fichier.
-- Android impose de choisir le dossier via le sélecteur système : choisissez la carte SD (ou son dossier `DCIM`).
+- L'appli demande l'autorisation Android « gérer tous les fichiers » (une fois) : c'est ce qui permet de vraiment déplacer les photos de la carte SD. Elle ne s'en sert que pour ranger vos photos.
 
 ## Installer l'application (aussi sur un futur téléphone)
 
@@ -94,7 +94,8 @@ Ou simplement ouvrir le dossier dans Android Studio et lancer l'appli sur le té
 
 ```
 app/src/main/java/fr/rangephotos/
-├── scan/PhotoScanner.kt        parcours du dossier + lecture EXIF (date, GPS)
+├── storage/                    carte SD / mémoire du téléphone, autorisation, liste des photos
+├── scan/PhotoScanner.kt        lecture EXIF (date, GPS)
 ├── logic/HikeDetector.kt       détection des randonnées
 ├── logic/HikeNamer.kt          nom du lieu des randonnées
 ├── logic/Planner.kt            décide du dossier de chaque photo

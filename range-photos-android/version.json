@@ -1,12 +1,12 @@
 {
   "nom": "Range Photos (Android)",
-  "version": "V8",
+  "version": "V9",
   "date": "07/10/2026",
   "nouveautes": [
+    "Appli refaite : accès direct aux fichiers (autorisation « tous les fichiers »), carte SD et téléphone choisis d'un appui, nouvelle présentation, erreurs affichées en clair, nombre de photos par endroit.",
     "Le bouton « Ouvrir mes photos rangées » explique toujours ce qu'il trouve : dossier existant, nombre de photos, ou dossier absent.",
     "Bouton « Ouvrir mes photos rangées » : ouvre directement le dossier dans l'appli Fichiers.",
-    "Nouveau bouton « Tout reclasser » : nouvelle analyse de toutes les photos, même déjà rangées, pour les remettre chacune dans le bon dossier (aperçu et annulation possibles).",
-    "Correction : l'appli se fermait toute seule au démarrage (défaut introduit en V4)."
+    "Nouveau bouton « Tout reclasser » : nouvelle analyse de toutes les photos, même déjà rangées, pour les remettre chacune dans le bon dossier (aperçu et annulation possibles)."
   ],
   "pastille": false,
   "fichiers": []

@@ -1,13 +1,8 @@
 package fr.rangephotos.organize
 
-import android.content.Context
-import android.net.Uri
-import android.provider.DocumentsContract
-import androidx.documentfile.provider.DocumentFile
 import fr.rangephotos.logic.PlannedMove
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 
 data class OrganizeResult(
     val moved: Int,
@@ -16,236 +11,207 @@ data class OrganizeResult(
     val copyFailed: Int = 0,
     /** Copies non refaites parce qu'elles existent déjà (même nom, même taille). */
     val copiesAlreadyThere: Int = 0,
+    /** Les premières erreurs, en clair (nom de la photo : raison). */
+    val failures: List<String> = emptyList(),
 )
 
 /**
- * Déplace réellement les photos dans leurs dossiers.
+ * Déplace réellement les photos dans leurs dossiers, avec accès direct aux fichiers.
  *
- * Sécurité : on utilise le déplacement natif du système (instantané, aucune copie, aucune photo
- * perdue en cas d'interruption). Si le système ne le permet pas, on copie, on vérifie que la taille
- * est identique, et seulement ensuite on supprime l'original.
- *
- * Les copies demandées (photos de proches dans leur dossier) sont faites après le déplacement, avec la
- * même vérification de taille. Chaque déplacement et chaque copie est écrit dans un journal, ce qui permet
- * d'annuler tout le rangement : les photos reviennent à leur place et seules les copies créées par l'appli
- * sont supprimées.
+ * Sécurité : déplacement natif (renommage, instantané, aucune copie) ; si le système le refuse, copie,
+ * vérification de la taille, puis seulement suppression de l'original. Chaque déplacement est vérifié
+ * (le fichier est bien arrivé, avec la bonne taille) avant d'être compté, et écrit dans un journal qui permet
+ * d'annuler. Chaque erreur est conservée avec sa raison : rien n'échoue en silence.
  */
-class Organizer(private val context: Context) {
+class Organizer(private val onChanged: (List<String>) -> Unit = {}) {
 
-    private val resolver get() = context.contentResolver
-
-    suspend fun execute(
-        rootUri: Uri,
+    fun execute(
+        outputRoot: File,
         moves: List<PlannedMove>,
         journal: File,
-        onProgress: (done: Int, total: Int) -> Unit,
-    ): OrganizeResult = withContext(Dispatchers.IO) {
-        val root = DocumentFile.fromTreeUri(context, rootUri)
-            ?: return@withContext OrganizeResult(0, moves.size)
-        val outputRoot = root.findFile(OUTPUT_DIR)?.takeIf { it.isDirectory }
-            ?: root.createDirectory(OUTPUT_DIR)
-            ?: return@withContext OrganizeResult(0, moves.size)
-
+        onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
+    ): OrganizeResult {
+        outputRoot.mkdirs()
+        if (!outputRoot.isDirectory) {
+            return OrganizeResult(
+                0, moves.size,
+                failures = listOf("Impossible de créer le dossier « ${outputRoot.name} » (${outputRoot.absolutePath})."),
+            )
+        }
         journal.parentFile?.mkdirs()
         journal.writeText("") // nouveau rangement = nouveau journal
 
-        val dirCache = HashMap<List<String>, DocumentFile>()
-        val namesInDir = HashMap<String, MutableSet<String>>()
+        val failures = ArrayList<String>()
+        val touched = ArrayList<String>()
         var moved = 0
         var failed = 0
         var copied = 0
         var copyFailed = 0
-        var copiesAlreadyThere = 0
+        var alreadyThere = 0
 
-        fun namesOf(dir: DocumentFile): MutableSet<String> =
-            namesInDir.getOrPut(dir.uri.toString()) { dir.listFiles().mapNotNull { it.name }.toMutableSet() }
+        fun note(message: String) {
+            if (failures.size < MAX_FAILURES) failures += message
+        }
 
         moves.forEachIndexed { index, move ->
+            val photo = move.photo
             try {
-                val inPlace = move.photo.currentFolder != null && move.photo.currentFolder == move.folder
-                val target = targetDir(outputRoot, move.folder, dirCache)
-                val names = namesOf(target)
-                val finalName = uniqueName(move.photo.name, names)
-                val parentUri = move.photo.parentUri
-                val newUri: Uri? = if (inPlace) {
-                    move.photo.uri // déjà au bon endroit : on ne la déplace pas
-                } else if (parentUri != null) {
-                    moveOrCopy(move.photo.uri, parentUri, target, move.photo.mimeType, move.photo.name, finalName)
+                val source = File(photo.path ?: throw IOException("chemin inconnu"))
+                if (!source.isFile) throw IOException("fichier introuvable")
+                val inPlace = photo.currentFolder != null && photo.currentFolder == move.folder
+
+                val current: File = if (inPlace) {
+                    source // déjà au bon endroit : on ne la déplace pas
                 } else {
-                    null
+                    val destination = uniqueFile(folderOf(outputRoot, move.folder), photo.name)
+                    transfer(source, destination)
+                    journal.appendText("M\t${destination.absolutePath}\t${source.absolutePath}\n")
+                    touched += source.absolutePath
+                    touched += destination.absolutePath
+                    moved++
+                    destination
                 }
 
-                if (newUri != null) {
-                    if (!inPlace) {
-                        names += finalName
-                        journal.appendText("M\t$newUri\t${target.uri}\t$parentUri\n")
-                        moved++
-                    }
-
-                    for (folder in move.copies) {
-                        try {
-                            val dir = targetDir(outputRoot, folder, dirCache)
-                            val dirNames = namesOf(dir)
-                            if (move.photo.size > 0 && move.photo.name in dirNames &&
-                                dir.findFile(move.photo.name)?.length() == move.photo.size
-                            ) {
-                                copiesAlreadyThere++
-                                continue
-                            }
-                            val copyName = uniqueName(move.photo.name, dirNames)
-                            val copyUri = copyFile(newUri, dir, move.photo.mimeType, copyName)
-                            if (copyUri != null) {
-                                dirNames += copyName
-                                journal.appendText("C\t$copyUri\n")
-                                copied++
-                            } else {
-                                copyFailed++
-                            }
-                        } catch (_: Exception) {
-                            copyFailed++
+                for (folder in move.copies) {
+                    try {
+                        val dir = folderOf(outputRoot, folder)
+                        val existing = File(dir, photo.name)
+                        if (existing.isFile && existing.length() == current.length()) {
+                            alreadyThere++
+                            continue
                         }
+                        val copy = uniqueFile(dir, photo.name)
+                        copyVerified(current, copy)
+                        journal.appendText("C\t${copy.absolutePath}\n")
+                        touched += copy.absolutePath
+                        copied++
+                    } catch (e: Exception) {
+                        copyFailed++
+                        note("Copie de ${photo.name} : ${reason(e)}")
                     }
-                } else {
-                    failed++
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 failed++
+                note("${photo.name} : ${reason(e)}")
             }
             onProgress(index + 1, moves.size)
+            if (touched.size >= 300) flush(touched)
         }
-        OrganizeResult(moved, failed, copied, copyFailed, copiesAlreadyThere)
+        flush(touched)
+        return OrganizeResult(moved, failed, copied, copyFailed, alreadyThere, failures)
     }
 
     /** Annule le dernier rangement : supprime les copies créées par l'appli, remet chaque photo dans son dossier d'origine. */
-    suspend fun undo(journal: File, onProgress: (done: Int, total: Int) -> Unit): OrganizeResult =
-        withContext(Dispatchers.IO) {
-            if (!journal.exists()) return@withContext OrganizeResult(0, 0)
-            val lines = journal.readLines().filter { it.isNotBlank() }.reversed()
-            var restored = 0
-            var failed = 0
-            var removedCopies = 0
-            val remaining = ArrayList<String>()
+    fun undo(journal: File, onProgress: (done: Int, total: Int) -> Unit = { _, _ -> }): OrganizeResult {
+        if (!journal.exists()) return OrganizeResult(0, 0)
+        val lines = journal.readLines().filter { it.isNotBlank() }.reversed()
+        var restored = 0
+        var failed = 0
+        var removedCopies = 0
+        val remaining = ArrayList<String>()
+        val failures = ArrayList<String>()
+        val touched = ArrayList<String>()
 
-            lines.forEachIndexed { index, line ->
-                val parts = line.split('\t')
-                var ok = false
-                try {
-                    when {
-                        parts[0] == "C" && parts.size == 2 -> {
-                            ok = DocumentFile.fromSingleUri(context, Uri.parse(parts[1]))?.delete() == true
-                            if (ok) removedCopies++
-                        }
-                        parts[0] == "M" && parts.size == 4 && parts[3] != "null" -> {
-                            ok = moveBack(parts[1], parts[2], parts[3])
-                            if (ok) restored++
-                        }
-                        parts.size == 3 && parts[2] != "null" -> { // ancien format de journal
-                            ok = moveBack(parts[0], parts[1], parts[2])
-                            if (ok) restored++
-                        }
+        lines.forEachIndexed { index, line ->
+            val parts = line.split('\t')
+            try {
+                when {
+                    parts[0] == "C" && parts.size == 2 -> {
+                        val copy = File(parts[1])
+                        if (!copy.isFile) throw IOException("copie introuvable")
+                        if (!copy.delete()) throw IOException("suppression impossible")
+                        touched += copy.absolutePath
+                        removedCopies++
                     }
-                } catch (_: Exception) {
+                    parts[0] == "M" && parts.size == 3 -> {
+                        val current = File(parts[1])
+                        val original = File(parts[2])
+                        if (!current.isFile) throw IOException("fichier introuvable")
+                        val folder = original.parentFile ?: throw IOException("dossier d'origine inconnu")
+                        folder.mkdirs()
+                        val target = if (original.exists()) uniqueFile(folder, original.name) else original
+                        transfer(current, target)
+                        touched += current.absolutePath
+                        touched += target.absolutePath
+                        restored++
+                    }
+                    else -> throw IOException("ligne du journal illisible")
                 }
-                if (!ok) {
-                    failed++
-                    remaining += line
-                }
-                onProgress(index + 1, lines.size)
+            } catch (e: Exception) {
+                failed++
+                remaining += line
+                if (failures.size < MAX_FAILURES) failures += "${File(parts.getOrElse(1) { "?" }).name} : ${reason(e)}"
             }
-            // On garde dans le journal ce qui n'a pas pu être annulé (ordre d'origine).
-            journal.writeText(remaining.reversed().joinToString("\n", postfix = if (remaining.isEmpty()) "" else "\n"))
-            OrganizeResult(restored, failed, removedCopies, 0)
+            onProgress(index + 1, lines.size)
         }
-
-    private fun moveBack(document: String, currentParent: String, originalParent: String): Boolean =
-        DocumentsContract.moveDocument(
-            resolver, Uri.parse(document), Uri.parse(currentParent), Uri.parse(originalParent),
-        ) != null
-
-    private fun targetDir(
-        outputRoot: DocumentFile,
-        folder: List<String>,
-        cache: MutableMap<List<String>, DocumentFile>,
-    ): DocumentFile {
-        cache[folder]?.let { return it }
-        var current = outputRoot
-        for (i in folder.indices) {
-            val key = folder.subList(0, i + 1)
-            current = cache.getOrPut(key) {
-                current.findFile(folder[i])?.takeIf { it.isDirectory }
-                    ?: current.createDirectory(folder[i])
-                    ?: error("Impossible de créer le dossier ${folder[i]}")
-            }
-        }
-        return current
+        flush(touched)
+        // On garde dans le journal ce qui n'a pas pu être annulé (ordre d'origine).
+        journal.writeText(remaining.reversed().joinToString("\n", postfix = if (remaining.isEmpty()) "" else "\n"))
+        return OrganizeResult(restored, failed, removedCopies, 0, 0, failures)
     }
 
-    private fun uniqueName(name: String, existing: Set<String>): String {
-        if (name !in existing) return name
+    private fun flush(touched: MutableList<String>) {
+        if (touched.isEmpty()) return
+        try {
+            onChanged(touched.toList())
+        } catch (_: Exception) {
+            // La galerie se mettra à jour plus tard : ce n'est pas grave.
+        }
+        touched.clear()
+    }
+
+    private fun reason(e: Exception) = e.message?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
+
+    private fun folderOf(outputRoot: File, folder: List<String>): File {
+        val dir = File(outputRoot, folder.joinToString(File.separator))
+        dir.mkdirs()
+        if (!dir.isDirectory) throw IOException("impossible de créer le dossier « ${folder.last()} »")
+        return dir
+    }
+
+    private fun uniqueFile(dir: File, name: String): File {
+        var candidate = File(dir, name)
+        if (!candidate.exists()) return candidate
         val dot = name.lastIndexOf('.')
         val base = if (dot > 0) name.substring(0, dot) else name
         val ext = if (dot > 0) name.substring(dot) else ""
         var n = 2
-        while ("$base ($n)$ext" in existing) n++
-        return "$base ($n)$ext"
+        while (true) {
+            candidate = File(dir, "$base ($n)$ext")
+            if (!candidate.exists()) return candidate
+            n++
+        }
     }
 
-    /** Retourne l'URI de la photo à son nouvel emplacement, ou null en cas d'échec. */
-    private fun moveOrCopy(
-        source: Uri,
-        sourceParent: Uri,
-        target: DocumentFile,
-        mime: String,
-        originalName: String,
-        finalName: String,
-    ): Uri? {
-        // 1) Déplacement natif (le plus sûr et le plus rapide).
+    /** Déplace [source] vers [destination] et vérifie que le fichier est bien arrivé avec la même taille. */
+    private fun transfer(source: File, destination: File) {
+        val size = source.length()
+        if (source.renameTo(destination)) {
+            if (!destination.isFile || destination.length() != size || source.exists()) {
+                throw IOException("déplacement non confirmé")
+            }
+            return
+        }
+        // Le renommage direct a été refusé : copie vérifiée, puis suppression de l'original.
+        copyVerified(source, destination)
+        if (!source.delete()) {
+            destination.delete()
+            throw IOException("l'original n'a pas pu être supprimé")
+        }
+    }
+
+    private fun copyVerified(source: File, destination: File) {
         try {
-            var moved = DocumentsContract.moveDocument(resolver, source, sourceParent, target.uri)
-            if (moved != null) {
-                if (finalName != originalName) {
-                    moved = DocumentsContract.renameDocument(resolver, moved, finalName) ?: moved
-                }
-                return moved
-            }
-        } catch (_: Exception) {
-            // Non supporté par ce fournisseur : on passe à la copie vérifiée.
-        }
-
-        // 2) Copie, vérification de la taille, puis suppression de l'original.
-        val sourceFile = DocumentFile.fromSingleUri(context, source) ?: return null
-        val copy = copyFile(source, target, mime, finalName) ?: return null
-        return if (sourceFile.delete()) {
-            copy
-        } else {
-            DocumentFile.fromSingleUri(context, copy)?.delete()
-            null
-        }
-    }
-
-    /** Copie [source] dans [target] et vérifie que la taille est identique. Retourne l'URI de la copie, ou null. */
-    private fun copyFile(source: Uri, target: DocumentFile, mime: String, name: String): Uri? {
-        val expected = DocumentFile.fromSingleUri(context, source)?.length() ?: return null
-        val copy = target.createFile(mime, name) ?: return null
-        return try {
-            resolver.openInputStream(source)?.use { input ->
-                resolver.openOutputStream(copy.uri)?.use { output -> input.copyTo(output) }
-                    ?: throw IllegalStateException("écriture impossible")
-            } ?: throw IllegalStateException("lecture impossible")
-
-            if (copy.length() == expected) {
-                copy.uri
-            } else {
-                copy.delete()
-                null
-            }
-        } catch (_: Exception) {
-            copy.delete() // copie incomplète : on la retire, l'original n'a pas bougé
-            null
+            source.inputStream().use { input -> destination.outputStream().use { output -> input.copyTo(output) } }
+            if (destination.length() != source.length()) throw IOException("copie incomplète")
+        } catch (e: Exception) {
+            destination.delete() // copie incomplète : on la retire, l'original n'a pas bougé
+            throw e
         }
     }
 
     companion object {
         const val OUTPUT_DIR = "Photos rangées"
+        private const val MAX_FAILURES = 8
     }
 }

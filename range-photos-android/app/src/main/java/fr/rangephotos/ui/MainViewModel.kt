@@ -1,8 +1,7 @@
 package fr.rangephotos.ui
 
 import android.app.Application
-import android.content.Intent
-import android.net.Uri
+import android.media.MediaScannerConnection
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import fr.rangephotos.face.FaceAnalyzer
@@ -18,6 +17,9 @@ import fr.rangephotos.people.FaceMatching
 import fr.rangephotos.people.PeopleStore
 import fr.rangephotos.people.PeopleSync
 import fr.rangephotos.scan.PhotoScanner
+import fr.rangephotos.storage.Access
+import fr.rangephotos.storage.Place
+import fr.rangephotos.storage.Places
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -32,8 +34,19 @@ import java.io.File
 /** Un groupe de visages qui se ressemblent : probablement une même personne, à nommer. */
 class ClusterUi(val id: Int, val photos: Int, val thumbs: List<ByteArray>)
 
+/** Un endroit de l'écran d'accueil, avec le nombre de photos (null tant que le comptage n'est pas fini). */
+class PlaceUi(val place: Place, val toSort: Int?, val sorted: Int?)
+
 sealed interface UiState {
-    data class Start(val hasUndo: Boolean, val message: String? = null, val people: List<String> = emptyList(), val lastFolder: String? = null, val info: Boolean = false) : UiState
+    data class Home(
+        val access: Boolean,
+        val places: List<PlaceUi>,
+        val people: List<String>,
+        val hasUndo: Boolean,
+        val reclassifyAll: Boolean,
+        val notice: String? = null,
+        val noticeIsError: Boolean = false,
+    ) : UiState
 
     /** [total] = 0 signifie « durée inconnue » (barre de progression indéterminée). */
     data class Working(val label: String, val done: Int, val total: Int) : UiState
@@ -44,6 +57,7 @@ sealed interface UiState {
     data class ManagePeople(val names: List<String>) : UiState
 
     data class Preview(
+        val placeTitle: String,
         val total: Int,
         val topLevel: List<Pair<String, Int>>,
         val hikes: List<Pair<String, Int>>,
@@ -54,159 +68,159 @@ sealed interface UiState {
         val copyMegabytes: Long,
         /** Photos déjà rangées lors d'un passage précédent (non touchées). */
         val alreadySorted: Int = 0,
-        /** Reclassement complet : photos déjà au bon endroit (ne bougent pas) et copies existantes laissées telles quelles. */
+        /** Reclassement complet : photos déjà au bon endroit et copies existantes laissées telles quelles. */
         val reclassify: Boolean = false,
         val unchanged: Int = 0,
         val leftCopies: Int = 0,
     ) : UiState
 
-    data class Done(val title: String, val details: String, val hasUndo: Boolean) : UiState
+    data class Done(
+        val title: String,
+        val details: String,
+        val failures: List<String>,
+        val hasUndo: Boolean,
+        val canOpen: Boolean,
+        val success: Boolean,
+    ) : UiState
 }
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private class FaceRef(val photo: Int, val face: Int)
 
-    private val scanner = PhotoScanner(app)
+    private val scanner = PhotoScanner()
     private val faceAnalyzer = FaceAnalyzer(app)
     private val namer = HikeNamer(app)
-    private val organizer = Organizer(app)
+    private val organizer = Organizer { paths ->
+        // Prévient la galerie du téléphone : les photos apparaissent à leur nouvelle place.
+        MediaScannerConnection.scanFile(app, paths.toTypedArray(), null, null)
+    }
     private val journal = File(app.filesDir, "journal.tsv")
     private val store = PeopleStore(File(app.filesDir, "proches.json")).also { runCatching { it.load() } }
-    private val sync = PeopleSync(app)
-    private val prefs = app.getSharedPreferences("range_photos", android.content.Context.MODE_PRIVATE)
-    private var alreadySorted = 0
-    private var reclassify = false
-    private var leftCopies = 0
-    private var reclassifyArmed = false
+    private val sync = PeopleSync()
 
-    private val _state = MutableStateFlow<UiState>(start())
-    val state: StateFlow<UiState> = _state.asStateFlow()
+    private var places: List<Place> = emptyList()
+    private var counts: Map<String, Pair<Int, Int>> = emptyMap()
+    private var reclassifyAll = false
+    private var notice: String? = null
+    private var noticeIsError = false
 
-    private var pendingRoot: Uri? = null
+    private var currentPlace: Place? = null
     private var photos: List<PhotoInfo> = emptyList()
     private var hikes: List<Hike> = emptyList()
     private var hikeNames: Map<Hike, String> = emptyMap()
     private var clusters: List<List<FaceRef>> = emptyList()
     private var copyToPeople = true
     private var pendingMoves: List<PlannedMove> = emptyList()
+    private var alreadySorted = 0
+    private var leftCopies = 0
+    private var reclassifyRun = false
+
+    private val _state = MutableStateFlow<UiState>(UiState.Working("Démarrage…", 0, 0))
+    val state: StateFlow<UiState> = _state.asStateFlow()
+
+    init {
+        retireOldJournal()
+        refresh()
+    }
 
     private fun hasUndo() = journal.exists() && journal.length() > 0
 
-    /** Dernier dossier analysé, s'il est encore autorisé (pour relancer sans le rechoisir). */
-    private fun lastRoot(): Uri? {
-        val uri = prefs.getString("last_root", null)?.let { Uri.parse(it) } ?: return null
-        val allowed = getApplication<Application>().contentResolver.persistedUriPermissions
-            .any { it.uri == uri && it.isReadPermission && it.isWritePermission }
-        return if (allowed) uri else null
-    }
-
-    private fun lastFolderName(): String? {
-        val uri = lastRoot() ?: return null
-        return runCatching {
-            androidx.documentfile.provider.DocumentFile.fromTreeUri(getApplication(), uri)?.name
-        }.getOrNull() ?: "dernier dossier"
-    }
-
-    private fun start(message: String? = null, info: Boolean = false) =
-        UiState.Start(hasUndo(), message, store.people.map { it.name }, runCatching { lastFolderName() }.getOrNull(), info)
-
-    /** Relance la recherche sur le même dossier (nouvelles photos ajoutées depuis). */
-    fun rescan() {
-        val uri = lastRoot()
-        if (uri == null) _state.value = start("Choisissez de nouveau le dossier de photos.") else analyze(uri, false)
-    }
-
-    /** Nouvelle analyse de TOUTES les photos, y compris celles déjà rangées, pour les reclasser. */
-    fun rescanAll() {
-        val uri = lastRoot()
-        if (uri == null) _state.value = start("Choisissez de nouveau le dossier de photos.") else analyze(uri, true)
-    }
-
-    /** Ouvre « Photos rangées » dans l'appli Fichiers ; null si le dossier n'existe pas encore. */
-    fun openSortedFolder(): Intent? {
-        val root = lastRoot() ?: return null
-        val dir = runCatching {
-            androidx.documentfile.provider.DocumentFile.fromTreeUri(getApplication(), root)?.findFile(Organizer.OUTPUT_DIR)
-        }.getOrNull()
-        if (dir == null || !dir.isDirectory) return null
-        val documentUri = android.provider.DocumentsContract.buildDocumentUri(
-            dir.uri.authority, android.provider.DocumentsContract.getDocumentId(dir.uri),
-        )
-        return Intent(Intent.ACTION_VIEW)
-            .setDataAndType(documentUri, android.provider.DocumentsContract.Document.MIME_TYPE_DIR)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
-
-    /** Dit clairement où en est le dossier « Photos rangées » (existe ? combien de photos ?). */
-    fun checkSortedFolder(openFailed: Boolean) {
-        viewModelScope.launch {
-            val root = lastRoot()
-            val name = lastFolderName()
-            val text = if (root == null || name == null) {
-                "L'appli ne se souvient pas du dossier. Touchez « Tout reclasser » ou « Choisir un autre dossier » pour le choisir de nouveau."
-            } else {
-                val exists = withContext(Dispatchers.IO) {
-                    runCatching {
-                        androidx.documentfile.provider.DocumentFile.fromTreeUri(getApplication(), root)
-                            ?.findFile(Organizer.OUTPUT_DIR)?.isDirectory == true
-                    }.getOrDefault(false)
-                }
-                if (!exists) {
-                    "Il n'y a pas de dossier « ${Organizer.OUTPUT_DIR} » dans « $name » : aucune photo n'a encore été rangée ici. " +
-                        "Si vous avez rangé ailleurs, choisissez ce dossier-là."
-                } else {
-                    val count = runCatching { scanner.countAlreadySorted(root) }.getOrDefault(0)
-                    "Le dossier « ${Organizer.OUTPUT_DIR} » existe dans « $name » et contient $count photos." +
-                        if (openFailed) " Ouvrez l'appli Fichiers, puis « $name », puis « ${Organizer.OUTPUT_DIR} »." else ""
-                }
+    /** Les journaux des versions précédentes (sélecteur de dossier Android) ne servent plus : on les met de côté. */
+    private fun retireOldJournal() {
+        runCatching {
+            if (journal.exists() && journal.readText().contains("content://")) {
+                journal.renameTo(File(journal.parentFile, "journal-ancien.tsv"))
             }
-            _state.value = start(text, info = true)
         }
     }
 
-    /** Le prochain dossier choisi sera analysé en entier (reclassement complet). */
-    fun armReclassify(on: Boolean) {
-        reclassifyArmed = on
-    }
+    // ---- Accueil ------------------------------------------------------------------------------
 
-    fun onFolderPicked(uri: Uri) {
-        // Garde l'autorisation d'accès au dossier (nécessaire pour déplacer les fichiers).
-        try {
-            getApplication<Application>().contentResolver.takePersistableUriPermission(
-                uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
-            )
-        } catch (_: Exception) {
+    /** Réaffiche l'accueil : autorisation, endroits trouvés, nombre de photos de chacun. */
+    fun refresh(newNotice: String? = null, isError: Boolean = false) {
+        notice = newNotice
+        noticeIsError = isError
+        counts = emptyMap()
+        val access = Access.granted(getApplication())
+        places = if (access) Places.detect(getApplication()) else emptyList()
+        publishHome(access)
+        if (access) {
+            viewModelScope.launch {
+                val found = withContext(Dispatchers.IO) {
+                    places.associate { place -> place.key to runCatching { scanner.counts(place) }.getOrDefault(0 to 0) }
+                }
+                counts = found
+                if (_state.value is UiState.Home) publishHome(true)
+            }
         }
-        val all = reclassifyArmed
-        reclassifyArmed = false
-        analyze(uri, all)
     }
 
-    private fun analyze(root: Uri, includeSorted: Boolean) {
-        prefs.edit().putString("last_root", root.toString()).apply()
+    private fun publishHome(access: Boolean) {
+        _state.value = UiState.Home(
+            access = access,
+            places = places.map { PlaceUi(it, counts[it.key]?.first, counts[it.key]?.second) },
+            people = store.people.map { it.name },
+            hasUndo = hasUndo(),
+            reclassifyAll = reclassifyAll,
+            notice = notice,
+            noticeIsError = noticeIsError,
+        )
+    }
+
+    /** Appelé quand l'appli revient au premier plan (par exemple après les réglages d'autorisation). */
+    fun onResume() {
+        if (_state.value is UiState.Home) refresh(notice, noticeIsError)
+    }
+
+    fun setReclassifyAll(on: Boolean) {
+        reclassifyAll = on
+        if (_state.value is UiState.Home) publishHome(Access.granted(getApplication()))
+    }
+
+    fun showNotice(message: String, isError: Boolean = false) {
+        notice = message
+        noticeIsError = isError
+        if (_state.value is UiState.Home) publishHome(Access.granted(getApplication()))
+    }
+
+    fun backToStart() {
+        pendingMoves = emptyList()
+        photos = emptyList()
+        clusters = emptyList()
+        refresh()
+    }
+
+    // ---- Analyse ------------------------------------------------------------------------------
+
+    fun analyze(placeKey: String) {
+        val place = places.firstOrNull { it.key == placeKey } ?: return
+        currentPlace = place
+        reclassifyRun = reclassifyAll
         viewModelScope.launch {
             try {
                 _state.value = UiState.Working("Recherche des photos…", 0, 0)
-                var scanned = scanner.scan(root, includeSorted) { found ->
-                    _state.value = UiState.Working("Recherche des photos… $found trouvées", 0, 0)
+                var scanned = withContext(Dispatchers.IO) {
+                    scanner.scan(place, reclassifyRun) { found ->
+                        _state.value = UiState.Working("Recherche des photos… $found trouvées", 0, 0)
+                    }
                 }
-                reclassify = includeSorted
                 leftCopies = 0
-                if (includeSorted) {
+                alreadySorted = 0
+                if (reclassifyRun) {
                     val (unique, left) = Duplicates.keepOnePerPhoto(scanned)
                     scanned = unique
                     leftCopies = left
-                    alreadySorted = 0
                 } else {
-                    alreadySorted = runCatching { scanner.countAlreadySorted(root) }.getOrDefault(0)
+                    alreadySorted = counts[place.key]?.second ?: 0
                 }
                 if (scanned.isEmpty()) {
-                    _state.value = start(
+                    refresh(
                         if (alreadySorted > 0) {
-                            "Aucune nouvelle photo à ranger : $alreadySorted sont déjà rangées dans « ${Organizer.OUTPUT_DIR} »."
+                            "Aucune nouvelle photo à ranger sur « ${place.title} » : $alreadySorted sont déjà rangées. " +
+                                "Pour tout reprendre, choisissez « Tout reclasser »."
                         } else {
-                            "Aucune photo trouvée dans ce dossier."
+                            "Aucune photo trouvée sur « ${place.title} »."
                         },
                     )
                     return@launch
@@ -218,14 +232,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
                 // Retrouve les prénoms déjà connus sur cette carte (changement de téléphone).
                 runCatching {
-                    sync.read(root)?.let {
+                    sync.read(place.outputDir)?.let {
                         store.mergeJson(it)
                         store.save()
                     }
                 }
 
                 val withFaces = detectFaces(scanned)
-                pendingRoot = root
                 photos = identifyKnown(withFaces)
                 clusters = buildClusters(photos)
 
@@ -240,7 +253,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     )
                 }
             } catch (e: Exception) {
-                _state.value = start("Une erreur est survenue : ${e.message}")
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
             }
         }
     }
@@ -369,6 +382,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val named = photos.any { p -> p.faces.any { it.person != null } }
         val moving = plan.count { it.photo.currentFolder != it.folder }
         return UiState.Preview(
+            placeTitle = currentPlace?.title ?: "",
             total = moving,
             topLevel = topLevel,
             hikes = hikeList,
@@ -377,55 +391,87 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             copyCount = copyCount,
             copyMegabytes = copyBytes / 1_000_000,
             alreadySorted = alreadySorted,
-            reclassify = reclassify,
+            reclassify = reclassifyRun,
             unchanged = plan.size - moving,
             leftCopies = leftCopies,
         )
     }
 
+    // ---- Rangement et annulation --------------------------------------------------------------
+
     fun confirm() {
-        val root = pendingRoot ?: return
+        val place = currentPlace ?: return
         val moves = pendingMoves
         viewModelScope.launch {
             try {
                 _state.value = UiState.Working("Rangement en cours…", 0, moves.size)
-                val result = organizer.execute(root, moves, journal) { done, total ->
-                    _state.value = UiState.Working("Rangement en cours…", done, total)
+                val result = withContext(Dispatchers.IO) {
+                    val r = organizer.execute(place.outputDir, moves, journal) { done, total ->
+                        if (done % 5 == 0 || done == total) _state.value = UiState.Working("Rangement en cours…", done, total)
+                    }
+                    // Sauvegarde des prénoms à côté des photos (pour un futur téléphone).
+                    if (store.people.isNotEmpty()) sync.write(place.outputDir, store.toJson())
+                    r
                 }
                 pendingMoves = emptyList()
-                // Sauvegarde des prénoms sur la carte SD (pour un futur téléphone).
-                if (store.people.isNotEmpty()) runCatching { sync.write(root, store.toJson()) }
 
                 val lines = ArrayList<String>()
-                lines += "${result.moved} photo(s) rangées dans le dossier « ${Organizer.OUTPUT_DIR} »."
+                lines += "${result.moved} photo(s) rangées dans « ${Organizer.OUTPUT_DIR} » (${place.title})."
                 if (result.copied > 0) lines += "${result.copied} copie(s) ajoutées dans les dossiers de vos proches."
                 if (result.copiesAlreadyThere > 0) lines += "${result.copiesAlreadyThere} copie(s) existaient déjà : rien n'a été refait."
                 if (result.failed > 0) lines += "${result.failed} photo(s) n'ont pas pu être déplacées et sont restées en place."
                 if (result.copyFailed > 0) lines += "${result.copyFailed} copie(s) n'ont pas pu être faites."
-                _state.value = UiState.Done("Rangement terminé", lines.joinToString("\n"), hasUndo())
+                val success = result.failed == 0 && result.copyFailed == 0
+                _state.value = UiState.Done(
+                    title = when {
+                        result.moved == 0 && result.failed > 0 -> "Le rangement a échoué"
+                        success -> "Rangement terminé"
+                        else -> "Rangement terminé, avec des problèmes"
+                    },
+                    details = lines.joinToString("\n"),
+                    failures = result.failures,
+                    hasUndo = hasUndo(),
+                    canOpen = place.outputDir.isDirectory,
+                    success = success,
+                )
             } catch (e: Exception) {
-                _state.value = start("Une erreur est survenue : ${e.message}")
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
             }
         }
     }
 
     fun undo() {
+        val place = currentPlace
         viewModelScope.launch {
             try {
                 _state.value = UiState.Working("Annulation en cours…", 0, 0)
-                val result = organizer.undo(journal) { done, total ->
-                    _state.value = UiState.Working("Annulation en cours…", done, total)
+                val result = withContext(Dispatchers.IO) {
+                    organizer.undo(journal) { done, total ->
+                        if (done % 5 == 0 || done == total) _state.value = UiState.Working("Annulation en cours…", done, total)
+                    }
                 }
                 val lines = ArrayList<String>()
                 lines += "${result.moved} photo(s) remises à leur place d'origine."
                 if (result.copied > 0) lines += "${result.copied} copie(s) supprimées (celles créées par l'appli)."
-                if (result.failed > 0) lines += "${result.failed} élément(s) n'ont pas pu être annulés (déplacés ou supprimés entre-temps)."
-                _state.value = UiState.Done("Rangement annulé", lines.joinToString("\n"), hasUndo())
+                if (result.failed > 0) lines += "${result.failed} élément(s) n'ont pas pu être annulés."
+                _state.value = UiState.Done(
+                    title = "Rangement annulé",
+                    details = lines.joinToString("\n"),
+                    failures = result.failures,
+                    hasUndo = hasUndo(),
+                    canOpen = place?.outputDir?.isDirectory == true,
+                    success = result.failed == 0,
+                )
             } catch (e: Exception) {
-                _state.value = start("Une erreur est survenue : ${e.message}")
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
             }
         }
     }
+
+    /** L'endroit du dernier rangement (pour le bouton « Ouvrir mes photos rangées » de l'écran de fin). */
+    fun lastPlace(): Place? = currentPlace
+
+    // ---- Mes proches --------------------------------------------------------------------------
 
     fun openPeople() {
         _state.value = UiState.ManagePeople(store.people.map { it.name })
@@ -436,13 +482,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         store.remove(name)
         runCatching { store.save() }
         _state.value = UiState.ManagePeople(store.people.map { it.name })
-    }
-
-    fun backToStart() {
-        pendingMoves = emptyList()
-        photos = emptyList()
-        clusters = emptyList()
-        _state.value = start()
     }
 
     override fun onCleared() {
