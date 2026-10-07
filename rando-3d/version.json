@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V33",
+  "version": "V34",
   "date": "07/10/2026",
   "nouveautes": [
+    "Carte : les couleurs de toute la carte sont rapprochées de celles des photos sous le parcours (teinte neutre de la roche), pour supprimer le jaune et les zones sombres autour.",
     "Retour aux couleurs d'origine des photos IGN (plus de jaune) et à leur pleine qualité ; seul le blanc est remplacé par le satellite. Carte un peu plus nette.",
     "Couleurs de la carte revenues à des teintes neutres (plus de dominante jaune) : couleur naturelle de la roche, lumière du relief toujours fixe.",
-    "Carte et film : la lumière du relief ne tourne plus avec la caméra (plus de changement de contraste quand le point avance), ombrage plus doux, couleurs plus vives et plus lumineuses, soleil plus chaud.",
-    "Photos aériennes : nouvelle méthode pour les couleurs. On garde la netteté des photos IGN mais leurs couleurs de fond sont alignées sur la carte satellite, régulière partout : fini les plaques de couleurs différentes."
+    "Carte et film : la lumière du relief ne tourne plus avec la caméra (plus de changement de contraste quand le point avance), ombrage plus doux, couleurs plus vives et plus lumineuses, soleil plus chaud."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v33"
+    "cache": "rr3d-v34"
   },
   "fichiers": [
     "rando-3d.html",
