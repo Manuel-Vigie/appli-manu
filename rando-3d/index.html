@@ -377,6 +377,12 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 .chip{flex:none;white-space:nowrap;cursor:pointer;border:1px solid var(--line);background:var(--panel-solid);color:var(--ink);border-radius:99px;padding:7px 12px;font-size:13.5px;font-weight:600}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--panel-solid);border-color:transparent}
 .chip.cyc b{color:var(--trail);font-weight:700}
+.film-sec{display:flex;flex-direction:column;gap:10px}.film-sec[hidden]{display:none}
+.film-in{border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:15px;background:transparent;color:var(--ink);width:100%;box-sizing:border-box}
+.film-prev{width:100%;height:auto;border-radius:8px;background:#000;max-height:34vh;object-fit:contain}
+.film-barbox{height:10px;border-radius:5px;background:var(--line);overflow:hidden}.film-bar{height:100%;width:0;background:#1f7ae0;transition:width .3s}
+.film-err{color:#b3261e;font-weight:600}
+#svFilm{background:#1f7ae0;border-color:#1f7ae0;color:#fff}
 </style>
 
 <div id="app">
@@ -583,7 +589,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
     <div id="svMap"></div>
     <div class="sv-load" id="svLoad">Chargement de la carte…</div>
     <div class="sv-top">
-      <div class="sv-row"><button type="button" class="btn" id="svClose">← 3D</button><button type="button" class="btn" id="svRelief" aria-pressed="true" title="Vrai relief en 3D : à essayer, peut ne pas s'afficher sur certains téléphones">Relief 3D</button><button type="button" class="btn" id="svRec" title="Filme la carte pour m'aider à voir les problèmes">● Filmer</button><button type="button" class="btn" id="svTop" aria-pressed="false" title="Regarde la carte de dessus, comme une photo : la caméra ne peut plus entrer dans la montagne">De dessus</button></div>
+      <div class="sv-row"><button type="button" class="btn" id="svClose">← 3D</button><button type="button" class="btn" id="svRelief" aria-pressed="true" title="Vrai relief en 3D : à essayer, peut ne pas s'afficher sur certains téléphones">Relief 3D</button><button type="button" class="btn" id="svRec" title="Enregistre ce que tu vois à l'écran (pour me montrer un problème)">● Écran</button><button type="button" class="btn primary" id="svFilm" title="Crée une vidéo MP4 stable de ta rando, pour un film YouTube">🎬 Film</button><button type="button" class="btn" id="svTop" aria-pressed="false" title="Regarde la carte de dessus, comme une photo : la caméra ne peut plus entrer dans la montagne">De dessus</button></div>
       <div class="seg" id="svStyle" role="group" aria-label="Fond de carte du survol">
         <button data-v="ortho" aria-pressed="false">Photos IGN</button><button data-v="sat" aria-pressed="false">Satellite</button><button data-v="scan" aria-pressed="false">TOP 25</button><button data-v="topo" aria-pressed="false">Topo</button>
       </div>
@@ -626,6 +632,32 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
     </div>
   </div>
   <div class="modal-back" id="grPanel" hidden><div class="modal"><h2>Préparation du GR5</h2><p class="modal-note" id="grProgress"></p><p class="modal-note">Garde l’écran allumé. Une fois prêt, le GR5 est gardé dans « Mes randos ».</p></div></div>
+  <div class="modal-back" id="filmBack" hidden><div class="modal" role="dialog" aria-labelledby="filmH">
+    <h2 id="filmH">🎬 Film de la carte</h2>
+    <div id="filmOpts" class="film-sec">
+      <p class="modal-note">Crée une vraie vidéo (MP4) de ta rando vue du ciel, avec une caméra bien stable : idéale pour le début d'un film YouTube. Le téléphone la prépare image par image, ça prend quelques minutes.</p>
+      <span class="field-lbl">Format</span>
+      <div class="seg" id="filmFmt"><button type="button" data-v="h720" aria-pressed="true">HD 16:9</button><button type="button" data-v="h1080" aria-pressed="false">Full HD</button><button type="button" data-v="v" aria-pressed="false">Vertical</button></div>
+      <span class="field-lbl">Durée</span>
+      <div class="seg" id="filmDur"><button type="button" data-v="20" aria-pressed="false">20 s</button><button type="button" data-v="30" aria-pressed="true">30 s</button><button type="button" data-v="45" aria-pressed="false">45 s</button><button type="button" data-v="60" aria-pressed="false">60 s</button></div>
+      <span class="field-lbl">Titre affiché</span>
+      <input type="text" id="filmTitle" class="film-in" maxlength="60" autocomplete="off">
+      <p class="modal-note">Garde cette page ouverte et l'écran allumé pendant que le film se prépare. Utilise la carte choisie dans « Carte » (photos aériennes ou autre).</p>
+      <div class="modal-actions"><button type="button" class="btn" id="filmNo">Annuler</button><button type="button" class="btn primary" id="filmGo">Créer le film</button></div>
+    </div>
+    <div id="filmRun" class="film-sec" hidden>
+      <canvas id="filmPrev" class="film-prev" width="320" height="180"></canvas>
+      <div class="film-barbox"><div class="film-bar" id="filmBar"></div></div>
+      <p class="modal-note" id="filmTxt">Préparation…</p>
+      <p class="modal-note">Ne ferme pas la page et laisse l'écran allumé.</p>
+      <div class="modal-actions"><button type="button" class="btn" id="filmStop">Arrêter</button></div>
+    </div>
+    <div id="filmDone" class="film-sec" hidden>
+      <p class="modal-note" id="filmDoneTxt"></p>
+      <p class="modal-note film-err" id="filmErr"></p>
+      <div class="modal-actions"><button type="button" class="btn" id="filmClose">Fermer</button><button type="button" class="btn primary" id="filmOk">Enregistrer à nouveau</button></div>
+    </div>
+  </div></div>
   <div class="modal-back" id="stagesPanel" hidden>
     <div class="modal lib" role="dialog" aria-labelledby="stTitle">
       <div class="tag-head"><h2 id="stTitle">Étapes</h2><button type="button" class="icon-btn" id="stagesClose" aria-label="Fermer">✕</button></div>
@@ -687,6 +719,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <h3 class="pg-h">Que veux-tu faire ?</h3>
       <div class="pg-grid">
         <button type="button" class="pg-tile" data-fwd="reportBtn"><i>📄</i><b>Fiche rando</b><small>À imprimer ou en PDF</small></button>
+        <button type="button" class="pg-tile" data-fwd="svFilm"><i>🎞️</i><b>Film de la carte</b><small>MP4 stable pour YouTube</small></button>
         <button type="button" class="pg-tile" data-fwd="ignBtn"><i>🗺️</i><b>Carte IGN</b><small>Toucher le tracé : la pente</small></button>
         <button type="button" class="pg-tile" data-fwd="gpxOutBtn"><i>⬇️</i><b>Exporter en GPX</b><small>Montre ou autre appli</small></button>
         <label class="pg-tile" for="addTrackInput" data-close><i>➕</i><b>Trace à la suite</b><small>Le retour, une étape…</small></label>
@@ -702,7 +735,8 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       </div>
       <div class="pg-grid">
         <label class="pg-tile accent" for="photoInput" data-close><i>📷</i><b>Ajouter des photos</b><small>Placées là où elles ont été prises</small></label>
-        <button type="button" class="pg-tile" data-fwd="videoBtn"><i>🎬</i><b>Créer une vidéo</b><small>Le replay à partager</small></button>
+        <button type="button" class="pg-tile" data-fwd="videoBtn"><i>🎬</i><b>Vidéo du replay 3D</b><small>Le replay à partager</small></button>
+        <button type="button" class="pg-tile accent" data-fwd="svFilm"><i>🎞️</i><b>Film de la carte</b><small>Vidéo stable pour YouTube</small></button>
       </div>
       <h3 class="pg-h" id="pgThumbsH">Sur le parcours</h3>
       <div class="pg-thumbs" id="pgThumbs"></div>
@@ -3332,11 +3366,11 @@ function svTrackData(){
 }
 // tracé dessiné seulement jusqu'au marcheur (point numéro cur)
 // Tracé : les morceaux déjà terminés (rarement mis à jour) + le morceau en cours (mis à jour souvent, très léger)
-function svSetWalked(cur){
-  const m=SV.map,ll=SV.ll,segs=SV.segs;if(!m||!segs||!segs.length||!m.getSource('live'))return;
+function svSetWalked(cur,m=SV.map,st=SV){
+  const ll=st.ll,segs=st.segs;if(!m||!segs||!segs.length||!m.getSource('live'))return;
   let n=0;while(n+1<segs.length&&segs[n+1].pts[0][0]<=cur)n++;
-  if(n!==SV.segN){
-    SV.segN=n;
+  if(n!==st.segN){
+    st.segN=n;
     const feats=[],all=[];
     for(let k=0;k<n;k++){const c=segs[k].pts.map(q=>q[1]);feats.push({type:'Feature',properties:{col:segs[k].col},geometry:{type:'LineString',coordinates:c}});all.push(...c)}
     m.getSource('slopes').setData({type:'FeatureCollection',features:feats});
@@ -3347,7 +3381,7 @@ function svSetWalked(cur){
   const ln=c.length>1?c:[c[0],c[0]];
   m.getSource('live').setData({type:'Feature',properties:{col:g.col},geometry:{type:'LineString',coordinates:ln}});
   m.getSource('livec').setData({type:'Feature',properties:{},geometry:{type:'LineString',coordinates:ln}});
-  svKm(cur);
+  svKm(cur,m,st);
 }
 function svKmImg(lab){
   const c=document.createElement('canvas'),r=2,w=26*r;c.width=c.height=w;const x=c.getContext('2d');
@@ -3355,22 +3389,23 @@ function svKmImg(lab){
   x.fillStyle='#1d2b2d';x.font=`700 ${(String(lab).length>2?11:14)*r}px Arial,sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(String(lab),w/2,w/2+r*.5);
   return x.getImageData(0,0,w,w);
 }
-function svKmClear(){
-  const m=SV.map;if(!m||!m.getSource('kms'))return;
-  m.getSource('kms').setData({type:'FeatureCollection',features:[]});SV.kmN=-1;
+function svKmClear(m=SV.map,st=SV){
+  if(!m||!m.getSource('kms'))return;
+  m.getSource('kms').setData({type:'FeatureCollection',features:[]});st.kmN=-1;
 }
 // bornes dessinées dans la carte (pas d'éléments HTML) : on ne montre que les 4 dernières bornes passées
-function svKm(cur){
-  if(!SV.kms||!SV.map.getSource('kms'))return;
-  let n=0;while(n<SV.kms.length&&SV.kms[n].i<=cur)n++;
-  if(n===SV.kmN)return;SV.kmN=n;
-  const feats=[];
-  for(let k=Math.max(0,n-4);k<n;k++){
-    const id='km-'+SV.kms[k].lab;
-    if(!SV.map.hasImage(id))SV.map.addImage(id,svKmImg(SV.kms[k].lab),{pixelRatio:2});
-    feats.push({type:'Feature',properties:{img:id},geometry:{type:'Point',coordinates:SV.kms[k].xy}});
+function svKm(cur,m=SV.map,st=SV){
+  if(!st.kms||!m.getSource('kms'))return;
+  const mode=st.kmMode||'last4';
+  let n=0;while(n<st.kms.length&&st.kms[n].i<=cur)n++;
+  const key=mode+n;if(key===st.kmN)return;st.kmN=key;
+  const feats=[],a=mode==='none'?n:mode==='all'?0:Math.max(0,n-4);
+  for(let k=a;k<n;k++){
+    const id='km-'+st.kms[k].lab;
+    if(!m.hasImage(id))m.addImage(id,svKmImg(st.kms[k].lab),{pixelRatio:2});
+    feats.push({type:'Feature',properties:{img:id},geometry:{type:'Point',coordinates:st.kms[k].xy}});
   }
-  SV.map.getSource('kms').setData({type:'FeatureCollection',features:feats});
+  m.getSource('kms').setData({type:'FeatureCollection',features:feats});
 }
 // le marcheur est placé plus bas que le centre de l'écran : on vise un point un peu devant lui
 // (sans « padding » MapLibre, qui fait disparaître la carte quand le relief est actif)
@@ -3378,12 +3413,38 @@ function svAim(la,lo,hd){
   const off=(SV.pitch<45?170:300)*Math.pow(2,14.6-SV.zoom),h=hd*Math.PI/180;
   return [lo+Math.sin(h)*off/(111320*Math.cos(la*Math.PI/180)),la+Math.cos(h)*off/110540];
 }
-function svHeading(){
-  const N=T.N,sm=T.total/(N-1),i=f*(N-1),ia=Math.min(N-1,Math.round(i+300/sm)),ib=Math.max(0,Math.round(i-100/sm));
-  const dx=T.rx[ia]-T.rx[ib],dz=T.rz[ia]-T.rz[ib];
-  if(Math.hypot(dx,dz)<5)return SV.hd==null?0:SV.hd;
-  return Math.atan2(dx,-dz)*180/Math.PI;
+// Trajectoire de caméra très lissée (centre et cap) : la carte ne tourne plus à chaque petit virage du chemin
+const CP_CACHE=new WeakMap();
+function camPath(t){
+  let c=CP_CACHE.get(t);if(c&&c.N===t.N)return c;
+  const N=t.N,sm=t.total/(N-1);
+  // moyenne glissante sur ±R mètres ; aux deux bouts on prolonge la courbe en miroir pour ne pas décaler le début et la fin
+  const ma=(a,R)=>{
+    const w=Math.max(1,Math.round(R/sm)),n=N+2*w,e=new Float64Array(n);
+    for(let j=0;j<n;j++){const k=j-w;e[j]=k<0?2*a[0]-a[Math.min(N-1,-k)]:k>N-1?2*a[N-1]-a[Math.max(0,2*(N-1)-k)]:a[k]}
+    const P=new Float64Array(n+1);for(let j=0;j<n;j++)P[j+1]=P[j]+e[j];
+    const o=new Float64Array(N);for(let i=0;i<N;i++)o[i]=(P[i+2*w+1]-P[i])/(2*w+1);
+    return o;
+  };
+  const px=ma(t.rx,1000),pz=ma(t.rz,1000),raw=new Float64Array(N);
+  let prev=null,first=-1;
+  for(let i=0;i<N;i++){
+    const ia=Math.min(N-1,Math.round(i+700/sm)),ib=Math.max(0,Math.round(i-700/sm)),dx=px[ia]-px[ib],dz=pz[ia]-pz[ib];
+    if(Math.hypot(dx,dz)<15){raw[i]=prev==null?NaN:prev;continue}
+    let b=Math.atan2(dx,-dz)*180/Math.PI;
+    if(prev!=null)b=prev+((b-prev+540)%360)-180;
+    prev=b;raw[i]=b;if(first<0)first=i;
+  }
+  if(first<0)raw.fill(0);else for(let i=0;i<first;i++)raw[i]=raw[first];
+  c={N,cx:ma(t.rx,300),cz:ma(t.rz,300),b:ma(raw,1500)};
+  CP_CACHE.set(t,c);return c;
 }
+// centre et cap lissés au point i (fractionnaire)
+function camAt(t,i){
+  const c=camPath(t),i0=Math.max(0,Math.min(c.N-1,Math.floor(i))),i1=Math.min(c.N-1,i0+1),u=Math.max(0,Math.min(1,i-i0)),L=(a)=>a[i0]+(a[i1]-a[i0])*u;
+  return {x:L(c.cx),z:L(c.cz),b:L(c.b)};
+}
+function svHeading(){return camAt(T,f*(T.N-1)).b}
 function svFree(){SV.follow=false;$('svFollow').hidden=false}
 function svSetup(){
   const m=SV.map,d=svTrackData(),line={'line-cap':'round','line-join':'round'};
@@ -3436,7 +3497,7 @@ function svBegin(){
   m.stop();
   m.fitBounds(svBounds(),{padding:SV_PAD,pitch:SV.terrain?35:0,bearing:0,duration:SV.ready&&SV.began?2500:0,maxZoom:15});
   SV.began=true;SV.ended=false;
-  const [la,lo]=A.ll(val(T.rx,0),val(T.rz,0)),hd=svHeading();
+  const c0=camAt(T,0),[la,lo]=A.ll(c0.x,c0.z),hd=c0.b;
   SV.intro=true;SV.hd=null;SV.hold=true;svShowFull();
   // vue d'ensemble du parcours, puis la caméra descend vers le marcheur et le tracé se vide
   clearTimeout(SV.tIntro);
@@ -3496,7 +3557,7 @@ function svRecStart(){
   const timer=setInterval(()=>{$('svRec').textContent='■ Stop · '+Math.round((performance.now()-t00)/1000)+' s'},500);
   const auto=setTimeout(()=>svRecStop(),90000);
   rec.onstop=()=>{
-    clearInterval(timer);clearTimeout(auto);m.off('render',draw);REC_SV.on=false;REC_SV.rec=null;$('svRec').textContent='● Filmer';
+    clearInterval(timer);clearTimeout(auto);m.off('render',draw);REC_SV.on=false;REC_SV.rec=null;$('svRec').textContent='● Écran';
     const type=rec.mimeType||mt||'video/webm',ext=/mp4/.test(type)?'mp4':'webm',blob=new Blob(chunks,{type});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='carte-animee-'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.'+ext;
     document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(a.href)},4000);
@@ -3520,9 +3581,10 @@ function svFrame(dt,now){
     m.once('moveend',()=>{SV.intro=false});
   }else if(SV.ended&&f<0.999){SV.ended=false;SV.intro=false;SV.hd=null}
   if(!SV.intro&&SV.follow&&!SV.ended){
-    const hd=svHeading();if(SV.hd==null)SV.hd=hd;
-    const d=((hd-SV.hd+540)%360)-180;SV.hd+=d*(1-Math.exp(-dt*1.8));
-    m.jumpTo({center:svAim(la,lo,SV.hd),bearing:SV.hd,pitch:SV.pitch,zoom:SV.zoom});
+    const cam=camAt(T,f*(T.N-1)),hd=cam.b;if(SV.hd==null)SV.hd=hd;
+    const d=((hd-SV.hd+540)%360)-180;SV.hd+=d*(1-Math.exp(-dt*1.2));
+    const [cla,clo]=A.ll(cam.x,cam.z);
+    m.jumpTo({center:svAim(cla,clo,SV.hd),bearing:SV.hd,pitch:SV.pitch,zoom:SV.zoom});
   }
   if(!SV.hold&&now-(SV.lastWalk||0)>90){SV.lastWalk=now;svSetWalked(f*(T.N-1))}
   if(now-SV.last>150){
@@ -3533,6 +3595,217 @@ function svFrame(dt,now){
     const cur=f*(T.N-1);
   }
 }
+/* ---------- Film de la carte : vraie vidéo MP4 stable, calculée image par image ---------- */
+const FILM={on:false,cancel:false,fmt:'h720',dur:30,url:null,name:'film-carte.mp4'};
+const FILM_FMT={h720:{w:1280,h:720,br:8e6},h1080:{w:1920,h:1080,br:14e6},v:{w:1080,h:1920,br:12e6}};
+let mmP=null;
+function loadMuxer(){
+  if(window.Mp4Muxer)return Promise.resolve();
+  if(mmP)return mmP;
+  mmP=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.js';s.onload=()=>res();s.onerror=()=>{mmP=null;rej(new Error('muxer'))};document.head.appendChild(s)});
+  return mmP;
+}
+const fEase=u=>u<=0?0:u>=1?1:u*u*(3-2*u);
+const fWrap=d=>(((d%360)+540)%360)-180;
+const fMix=(a,b,u)=>({center:[lerp(a.center[0],b.center[0],u),lerp(a.center[1],b.center[1],u)],zoom:lerp(a.zoom,b.zoom,u),pitch:lerp(a.pitch,b.pitch,u),bearing:a.bearing+fWrap(b.bearing-a.bearing)*u});
+const fSleep=ms=>new Promise(r=>setTimeout(r,ms));
+// marche à vitesse constante, avec un départ et une arrivée en douceur
+function fProg(u){const a=.06,v=1/(1-a);return u<=0?0:u>=1?1:u<a?v*u*u/(2*a):u>1-a?1-v*(1-u)*(1-u)/(2*a):v*(u-a/2)}
+function filmPinImg(txt,k){
+  const s=Math.round(22*k),c=document.createElement('canvas');c.width=c.height=s;const x=c.getContext('2d');
+  x.fillStyle='#fff';x.strokeStyle='#1d2b2d';x.lineWidth=1.6*k;x.beginPath();x.arc(s/2,s/2,s/2-1.6*k,0,7);x.fill();x.stroke();
+  x.font=`${s*.52}px sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(txt,s/2,s/2+s*.04);
+  return x.getImageData(0,0,s,s);
+}
+function filmSetup(m,d,k,st){
+  const line={'line-cap':'round','line-join':'round'},empty={type:'FeatureCollection',features:[]};
+  Object.assign(st,{segs:d.segs,ll:d.ll,kms:d.kms,kmN:-1,segN:-2,kmMode:'none'});
+  for(const id of ['walked','slopes','livec','live','kms','dot','pins'])m.addSource(id,{type:'geojson',data:empty});
+  m.addLayer({id:'case',type:'line',source:'walked',layout:line,paint:{'line-color':'#ffffff','line-width':3.6*k,'line-opacity':.9}});
+  m.addLayer({id:'casel',type:'line',source:'livec',layout:line,paint:{'line-color':'#ffffff','line-width':3.6*k,'line-opacity':.9}});
+  m.addLayer({id:'slopes',type:'line',source:'slopes',layout:line,paint:{'line-color':['get','col'],'line-width':2.2*k}});
+  m.addLayer({id:'livel',type:'line',source:'live',layout:line,paint:{'line-color':['get','col'],'line-width':2.2*k}});
+  m.addLayer({id:'kms',type:'symbol',source:'kms',layout:{'icon-image':['get','img'],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-size':k/2}});
+  m.addImage('pin-start',filmPinImg('🏁',k),{pixelRatio:1});m.addImage('pin-end',filmPinImg('🏴',k),{pixelRatio:1});
+  m.addLayer({id:'pins',type:'symbol',source:'pins',layout:{'icon-image':['get','img'],'icon-allow-overlap':true,'icon-ignore-placement':true}});
+  m.addLayer({id:'dotsh',type:'circle',source:'dot',paint:{'circle-radius':9*k,'circle-color':'#000','circle-opacity':.35,'circle-blur':.8}});
+  m.addLayer({id:'dot',type:'circle',source:'dot',paint:{'circle-radius':6*k,'circle-color':'#1f7ae0','circle-stroke-color':'#fff','circle-stroke-width':2.2*k}});
+  m.getSource('pins').setData({type:'FeatureCollection',features:[
+    {type:'Feature',properties:{img:'pin-start'},geometry:{type:'Point',coordinates:d.start}},
+    {type:'Feature',properties:{img:'pin-end'},geometry:{type:'Point',coordinates:d.end}}]});
+}
+function filmRR(x,a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath()}
+// textes posés sur la vidéo : titre, compteurs, sources des cartes
+function filmHud(x,W,H,o){
+  const k=Math.min(W,H)/360,pad=14*k,sans='Arial,Helvetica,sans-serif';
+  x.save();x.textBaseline='alphabetic';
+  // sources (obligatoires)
+  x.font=`${5.6*k}px ${sans}`;x.textAlign='right';x.fillStyle='rgba(255,255,255,.92)';x.shadowColor='rgba(0,0,0,.7)';x.shadowBlur=3*k;
+  const at=[o.attr,DEM_ATTR+' · MapLibre'];
+  at.forEach((t,i)=>x.fillText(t,W-pad,H-pad-(at.length-1-i)*7.4*k));
+  x.shadowBlur=0;
+  const attH=at.length*7.4*k+4*k;
+  // compteurs
+  if(o.statsA>0){
+    x.globalAlpha=o.statsA;
+    const cells=[['DISTANCE',fmtKm(o.rd),'km'],['ALTITUDE',nf0.format(o.se),'m'],['D+',nf0.format(o.up),'m'],['DURÉE',fmtDur(o.time),'']];
+    const cw=Math.min(W*.22,66*k),ph=40*k,pw=cells.length*cw+12*k,px=pad,py=H-pad-attH-ph;
+    filmRR(x,px,py,pw,ph,9*k);x.fillStyle='rgba(14,24,28,.62)';x.fill();
+    cells.forEach(([l,v,u],i)=>{
+      const cx=px+6*k+i*cw+cw/2;x.textAlign='center';
+      x.fillStyle='rgba(255,255,255,.7)';x.font=`700 ${5.4*k}px ${sans}`;x.fillText(l,cx,py+12*k);
+      const bold=`700 ${12*k}px ${sans}`,small=`600 ${6*k}px ${sans}`,yy=py+29*k;
+      x.font=bold;const vw=x.measureText(v).width;x.font=small;const uw=u?x.measureText(' '+u).width:0;
+      const sx=cx-(vw+uw)/2;x.textAlign='left';x.fillStyle='#fff';x.font=bold;x.fillText(v,sx,yy);
+      if(u){x.fillStyle='rgba(255,255,255,.75)';x.font=small;x.fillText(' '+u,sx+vw,yy)}
+    });
+  }
+  // titre
+  if(o.titleA>0&&o.title){
+    x.globalAlpha=o.titleA;x.textAlign='center';x.fillStyle='#fff';x.shadowColor='rgba(0,0,0,.75)';x.shadowBlur=9*k;
+    let fs=24*k;x.font=`700 ${fs}px Georgia,'Times New Roman',serif`;
+    while(x.measureText(o.title).width>W*.86&&fs>11*k){fs-=k;x.font=`700 ${fs}px Georgia,'Times New Roman',serif`}
+    const ty=H*(W<H?.12:.17);
+    x.fillText(o.title,W/2,ty);
+    x.font=`600 ${Math.max(9*k,fs*.42)}px ${sans}`;x.fillText(o.sub,W/2,ty+fs*.62);
+  }
+  x.restore();
+}
+function filmIdle(m,ms){
+  return new Promise(res=>{
+    let done=false;const fin=()=>{if(done)return;done=true;clearTimeout(tm);m.off('idle',fin);res()};
+    const tm=setTimeout(fin,ms);m.on('idle',fin);m.triggerRepaint();
+  });
+}
+function filmShow(id){['filmOpts','filmRun','filmDone'].forEach(k=>$(k).hidden=k!==id)}
+function filmSave(){
+  if(!FILM.url)return;
+  const a=document.createElement('a');a.href=FILM.url;a.download=FILM.name;document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),2000);
+}
+function openFilm(){
+  if(!T||T.planBase){toast("Charge d'abord une trace.");return}
+  if(!window.VideoEncoder||!window.VideoFrame){toast("Ce film demande un Chrome récent sur ton téléphone. Mets Chrome à jour puis réessaie.",8000);return}
+  if(FILM.on){$('filmBack').hidden=false;return}
+  $('filmTitle').value=($('hikeName').textContent||'Ma randonnée').trim().slice(0,60);
+  filmShow('filmOpts');$('filmBack').hidden=false;
+}
+async function filmRun(){
+  const fm=FILM_FMT[FILM.fmt],W=fm.w,H=fm.h,D=FILM.dur,FPS=30,nF=Math.round(D*FPS),k=Math.min(W,H)/360;
+  const title=$('filmTitle').value.trim(),Tk=T;
+  FILM.on=true;FILM.cancel=false;if(FILM.url){URL.revokeObjectURL(FILM.url);FILM.url=null}
+  filmShow('filmRun');$('filmBar').style.width='0%';$('filmTxt').textContent='Préparation…';
+  let m=null,box=null,enc=null,wl=null;
+  const fail=(msg)=>{$('filmErr').textContent=msg;filmShow('filmDone');$('filmOk').hidden=true;$('filmDoneTxt').textContent=''};
+  try{
+    try{await Promise.all([loadMapLibre(),loadMuxer()])}catch(e){throw new Error("Il faut internet pour préparer le film (chargement des outils).")}
+    // choix du format vidéo que le téléphone sait fabriquer
+    const cfgs=[['avc','avc1.640028'],['avc','avc1.4d0028'],['avc','avc1.42001f'],['vp9','vp09.00.40.08'],['vp9','vp09.00.10.08']];
+    let pick=null;
+    for(const [mc,codec] of cfgs){try{const r=await VideoEncoder.isConfigSupported({codec,width:W,height:H,bitrate:fm.br,framerate:FPS});if(r&&r.supported){pick={mc,codec};break}}catch(e){}}
+    if(!pick)throw new Error("Ton téléphone ne sait pas fabriquer une vidéo de cette taille. Essaie « HD 16:9 ».");
+    try{if(navigator.wakeLock)wl=await navigator.wakeLock.request('screen')}catch(e){}
+    if(!SV.style)SV.style=(T.lat0>41&&T.lat0<51.5&&T.lon0>-5.5&&T.lon0<10)?'ortho':'sat';
+    // carte à part, invisible, à la taille exacte de la vidéo
+    box=document.createElement('div');box.style.cssText=`position:fixed;left:-99999px;top:0;width:${W}px;height:${H}px;pointer-events:none`;document.body.appendChild(box);
+    m=new maplibregl.Map({container:box,style:svStyleObj(),center:[T.lon0,T.lat0],zoom:10,pitch:0,maxPitch:80,maxZoom:18,interactive:false,attributionControl:false,pixelRatio:1,fadeDuration:0,canvasContextAttributes:{antialias:true,preserveDrawingBuffer:true}});
+    await new Promise((res,rej)=>{m.once('style.load',res);m.on('error',ev=>{if(ev&&ev.error&&/WebGL|context/i.test(ev.error.message||''))rej(new Error("Ton téléphone n'arrive pas à préparer la carte en grand."))})});
+    const A=areaFor(T),d=svTrackData(),st={};filmSetup(m,d,k,st);
+    const N=T.N,cp=camPath(T);
+    // vue d'ensemble
+    const bb=svBounds(),pd={top:.26*H,bottom:.14*H,left:.1*W,right:.1*W};
+    let ov=m.cameraForBounds(bb,{padding:pd,maxZoom:15});
+    const ovC=[ov.center.lng,ov.center.lat],ovZ=ov.zoom;
+    const ovCam=(b,za)=>({center:ovC,zoom:ovZ+za,pitch:SV.terrain?35:0,bearing:b});
+    // vue qui suit le marcheur
+    let fz=15.6-0.6*Math.log2(Math.max(T.total,1500)/1500)-Math.min(1.1,Math.max(0,(T.eMax-T.eMin-300)/1200));
+    fz=Math.max(11.2,Math.min(15.4,fz))-(SV.terrain?1:0)+Math.log2(W/360)-.6;
+    fz=Math.min(fz,17);
+    const fp=SV.terrain?35:50,mpp=78271.5*Math.cos(T.lat0*Math.PI/180)/Math.pow(2,fz);
+    const follow=fr=>{
+      const c=camAt(T,fr*(N-1)),h=c.b*Math.PI/180,off=.2*H*mpp,[la,lo]=A.ll(c.x+Math.sin(h)*off,c.z-Math.cos(h)*off);
+      return {center:[lo,la],zoom:fz,pitch:fp,bearing:c.b};
+    };
+    // déroulé du film
+    const H0=Math.min(3.2,.12*D),Dd=Math.min(3.5,.14*D),Da=Math.min(4,.16*D),He=Math.min(3.5,.13*D),Dw=D-H0-Dd-Da-He;
+    const t0=H0,t1=t0+Dd,t2=t1+Dw,t3=t2+Da,fadeD=.3*Dd;
+    const sub=`${fmtKm(T.total)} km · ${nf0.format(T.up[N-1])} m de dénivelé`;
+    const plan=t=>{
+      let cam,fr,ph,kmMode,dot=false,op=1,titleA=0,statsA=0;
+      if(t<t0){ph='hold';const u=t/t0;cam=ovCam(lerp(-12,0,fEase(u)),.15*u);fr=1;kmMode='all';titleA=fEase(t/.7)}
+      else if(t<t1){ph='down';const u=(t-t0)/Dd;cam=fMix(ovCam(0,.15),follow(0),fEase(u));
+        const a=1-fEase((t-t0)/fadeD);op=a;fr=a>0?1:0;kmMode=a>0?'all':'none';dot=a<=0;
+        titleA=1-fEase((t-t0)/(.5*Dd));statsA=fEase((t-t0-.5*Dd)/(.5*Dd))}
+      else if(t<t2){ph='walk';fr=fProg((t-t1)/Dw);cam=follow(fr);kmMode='last4';dot=true;statsA=1}
+      else if(t<t3){ph='up';const u=(t-t2)/Da;fr=1;cam=fMix(follow(1),ovCam(0,0),fEase(u));kmMode=u>.35?'all':'last4';statsA=1-fEase(u/.4);titleA=fEase((u-.6)/.4)}
+      else{ph='end';const u=Math.min(1,(t-t3)/He);fr=1;cam=ovCam(lerp(0,10,fEase(u)),.15*u);kmMode='all';titleA=1}
+      return {cam,fr,ph,kmMode,dot,op,titleA,statsA};
+    };
+    // image finale de contrôle : le premier rendu attend plus longtemps (les photos arrivent)
+    const out=document.createElement('canvas');out.width=W;out.height=H;const x=out.getContext('2d');
+    const pv=$('filmPrev'),pw=Math.min(320,W),pvh=Math.round(pw*H/W);pv.width=pw;pv.height=pvh;const px=pv.getContext('2d');
+    const muxer=new Mp4Muxer.Muxer({target:new Mp4Muxer.ArrayBufferTarget(),video:{codec:pick.mc,width:W,height:H},fastStart:'in-memory'});
+    let encErr=null;
+    enc=new VideoEncoder({output:(c,meta)=>muxer.addVideoChunk(c,meta),error:e=>{encErr=e}});
+    enc.configure({codec:pick.codec,width:W,height:H,bitrate:fm.br,framerate:FPS});
+    const t00=performance.now();let lastKey='',lastOp=1;
+    const attr=SV_STYLES[SV.style].attr;
+    for(let n=0;n<nF;n++){
+      if(FILM.cancel)break;
+      if(encErr)throw new Error("L'encodage de la vidéo a échoué sur ce téléphone. Essaie « HD 16:9 ».");
+      while(document.hidden&&!FILM.cancel)await fSleep(300);
+      const p=plan(n/FPS);
+      // tracé et compteurs
+      st.kmMode=p.kmMode;
+      const cur=p.fr*(N-1),key=p.kmMode+'|'+(p.ph==='walk'?'w'+n:'s'+Math.round(cur));
+      if(key!==lastKey){lastKey=key;svSetWalked(cur,m,st)}
+      if(p.op!==lastOp){lastOp=p.op;for(const id of ['slopes','livel'])m.setPaintProperty(id,'line-opacity',p.op);for(const id of ['case','casel'])m.setPaintProperty(id,'line-opacity',.9*p.op)}
+      const dp=p.dot?(()=>{const [la,lo]=A.ll(val(T.rx,p.fr),val(T.rz,p.fr));return [lo,la]})():null;
+      m.getSource('dot').setData(dp?{type:'Feature',properties:{},geometry:{type:'Point',coordinates:dp}}:{type:'FeatureCollection',features:[]});
+      m.jumpTo(p.cam);
+      await filmIdle(m,n===0?25000:9000);
+      // image = carte + textes
+      x.drawImage(m.getCanvas(),0,0,W,H);
+      filmHud(x,W,H,{title,sub,titleA:p.titleA,statsA:p.statsA,attr,rd:val(T.rd,p.fr),se:val(T.se,p.fr),up:val(T.up,p.fr),time:val(T.time,p.fr)});
+      const vf=new VideoFrame(out,{timestamp:Math.round(n*1e6/FPS),duration:Math.round(1e6/FPS)});
+      enc.encode(vf,{keyFrame:n%60===0});vf.close();
+      while(enc.encodeQueueSize>6&&!FILM.cancel)await fSleep(8);
+      if(n%6===0){px.drawImage(out,0,0,pw,pvh)}
+      if(n%5===0){
+        const el=(performance.now()-t00)/1000,left=el/(n+1)*(nF-n-1);
+        $('filmBar').style.width=Math.round(100*(n+1)/nF)+'%';
+        $('filmTxt').textContent=`Image ${n+1} sur ${nF} · reste environ ${left>90?Math.round(left/60)+' min':Math.max(1,Math.round(left))+' s'}`;
+      }
+    }
+    if(FILM.cancel){$('filmBack').hidden=true;toast('Film annulé.');return}
+    $('filmTxt').textContent='Finalisation de la vidéo…';
+    await enc.flush();
+    if(encErr)throw new Error("L'encodage de la vidéo a échoué sur ce téléphone. Essaie « HD 16:9 ».");
+    muxer.finalize();
+    const blob=new Blob([muxer.target.buffer],{type:'video/mp4'});
+    FILM.url=URL.createObjectURL(blob);
+    FILM.name='film-carte-'+((title||'rando').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'rando')+'.mp4';
+    $('filmErr').textContent='';$('filmOk').hidden=false;
+    $('filmDoneTxt').textContent=`Ton film est prêt (${(blob.size/1048576).toFixed(0)} Mo). Il est enregistré dans tes Téléchargements.`;
+    filmShow('filmDone');
+    try{filmSave()}catch(e){}
+  }catch(e){
+    console.error(e);fail(e&&e.message?e.message:"Le film n'a pas pu être créé.");
+  }finally{
+    FILM.on=false;
+    try{if(enc&&enc.state!=='closed')enc.close()}catch(e){}
+    try{if(m)m.remove()}catch(e){}
+    if(box)box.remove();
+    try{if(wl)wl.release()}catch(e){}
+  }
+}
+$('svFilm').addEventListener('click',openFilm);
+$('filmFmt').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;FILM.fmt=b.dataset.v;[...$('filmFmt').children].forEach(c=>c.setAttribute('aria-pressed',c===b))});
+$('filmDur').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;FILM.dur=+b.dataset.v;[...$('filmDur').children].forEach(c=>c.setAttribute('aria-pressed',c===b))});
+$('filmGo').addEventListener('click',filmRun);
+$('filmNo').addEventListener('click',()=>{$('filmBack').hidden=true});
+$('filmStop').addEventListener('click',()=>{FILM.cancel=true});
+$('filmClose').addEventListener('click',()=>{$('filmBack').hidden=true});
+$('filmOk').addEventListener('click',filmSave);
 /* ---------- Refonte V19 : barre du bas et pages ---------- */
 function navSetActive(tab){document.querySelectorAll('#nav button').forEach(b=>{if(b.dataset.tab===tab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')})}
 function pgProfile(){
@@ -3743,7 +4016,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V20", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Pages Ma rando, Photos et Mes randos : textes bien lisibles, bandeau bleu avec profil de dénivelé, miniatures et liste de tes randos.", "Nouvelle présentation : barre du bas (Replay, Carte, Ma rando, Photos, Mes randos) et réglages en un appui.", "Carte animée : bouton « Filmer », « De dessus », caméra plus haute en relief.", "Carte animée : le bouton rouge « Filmer » n'est plus caché sous la pastille de version."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V21", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Nouveau « 🎬 Film de la carte » : crée une vraie vidéo MP4 stable de ta rando (HD, Full HD ou vertical), à mettre au début d'un film YouTube.", "La carte animée tourne beaucoup moins : la caméra suit un chemin lissé et ne réagit plus à chaque petit virage.", "Pages Ma rando, Photos et Mes randos : textes bien lisibles, bandeau bleu avec profil de dénivelé, miniatures et liste de tes randos.", "Nouvelle présentation : barre du bas (Replay, Carte, Ma rando, Photos, Mes randos) et réglages en un appui."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;

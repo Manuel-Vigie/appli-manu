@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V20",
-  "date": "06/10/2026",
+  "version": "V21",
+  "date": "07/10/2026",
   "nouveautes": [
+    "Nouveau « 🎬 Film de la carte » : crée une vraie vidéo MP4 stable de ta rando (HD, Full HD ou vertical), à mettre au début d'un film YouTube.",
+    "La carte animée tourne beaucoup moins : la caméra suit un chemin lissé et ne réagit plus à chaque petit virage.",
     "Pages Ma rando, Photos et Mes randos : textes bien lisibles, bandeau bleu avec profil de dénivelé, miniatures et liste de tes randos.",
-    "Nouvelle présentation : barre du bas (Replay, Carte, Ma rando, Photos, Mes randos) et réglages en un appui.",
-    "Carte animée : bouton « Filmer », « De dessus », caméra plus haute en relief.",
-    "Carte animée : le bouton rouge « Filmer » n'est plus caché sous la pastille de version."
+    "Nouvelle présentation : barre du bas (Replay, Carte, Ma rando, Photos, Mes randos) et réglages en un appui."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v20"
+    "cache": "rr3d-v21"
   },
   "fichiers": [
     "rando-3d.html",

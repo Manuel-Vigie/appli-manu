@@ -1,5 +1,5 @@
 // Replay Rando 3D — service worker (mise en cache pour usage hors connexion)
-const VERSION = 'rr3d-v20';
+const VERSION = 'rr3d-v21';
 const SHELL = VERSION + '-app';
 const LIBS = 'rr3d-libs';
 const TILES = 'rr3d-tiles';
@@ -13,7 +13,8 @@ const LIB_URLS = [
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css',
   'https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js',
-  'https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css'
+  'https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css',
+  'https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.js'
 ];
 
 self.addEventListener('install', e => {
