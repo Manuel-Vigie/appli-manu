@@ -290,7 +290,7 @@ progress { width: 100%; height: 6px; accent-color: var(--accent); }
 
   <section class="card" aria-labelledby="h-vr">
     <h2 id="h-vr">Mes dossiers rangés (Range Photos)</h2>
-    <p class="tip">Retrouvez ici les dossiers créés par l'appli Range Photos : randonnées, journées par ville, portraits, vos dossiers… Appuyez sur le bouton, puis choisissez le dossier de destination (par défaut « Photos rangées »). Les photos ne quittent pas votre téléphone et rien n'est modifié ni supprimé : c'est seulement pour regarder.</p>
+    <p class="tip">Retrouvez ici les dossiers créés par l'appli Range Photos : randonnées, journées par ville, portraits, vos dossiers… Appuyez sur le bouton, puis choisissez le dossier de destination (par défaut « Photos rangées »). Si votre dossier est très gros (des milliers de photos) et que rien ne s'affiche, ajoutez-le par morceaux : un sous-dossier à la fois (une année, puis une autre…) ; ils s'additionnent. Les photos ne quittent pas votre téléphone et rien n'est modifié ni supprimé : c'est seulement pour regarder.</p>
     <input type="file" id="vrDir" webkitdirectory multiple hidden>
     <input type="file" id="vrFiles" multiple hidden>
     <div class="row">
@@ -1031,6 +1031,7 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
   const MOIS_FR = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
   const VIDEO = /\.(mp4|mov|3gp|mkv|m4v|avi|webm)$/i;
   let root = null, cur = null, shown = 0, lightUrl = null;
+  const all = [], seen = new Set(); // fichiers déjà reçus : chaque dossier choisi s'ajoute aux précédents
 
   const el = id => document.getElementById(id);
   const say = (t, err) => { el("vrMsg").textContent = t || ""; el("vrMsg").className = "msg" + (err ? " err" : ""); };
@@ -1044,7 +1045,7 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
       if (!MEDIA_EXT.test(f.name)) continue;
       used++;
       let segs = (f.webkitRelativePath || "").split("/").filter(Boolean);
-      if (segs.length > 1) { withPaths++; segs = segs.slice(1, -1); }
+      if (segs.length > 1) { withPaths++; segs = segs.slice(0, -1); }
       else {
         // Pas d'arborescence donnée par le téléphone : classement par année / mois d'après la date du fichier.
         const d = new Date(f.lastModified);
@@ -1129,13 +1130,23 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
   }
 
   function load(list) {
-    const files = [...list];
-    if (!files.length) { say("Le téléphone n'a transmis aucun fichier. Essayez « Ou choisir des fichiers ».", true); return; }
+    const incoming = [...list];
+    if (!incoming.length) { say("Le téléphone n'a transmis aucun fichier. Essayez « Ou choisir des fichiers ».", true); return; }
+    let fresh = 0;
+    for (const f of incoming) {
+      const k = (f.webkitRelativePath || "") + "|" + f.name + "|" + f.size + "|" + f.lastModified;
+      if (!seen.has(k)) { seen.add(k); all.push(f); fresh++; }
+    }
+    const files = all;
     const r = build(files);
     if (!r.used) { say(files.length + " fichier(s) reçu(s), mais aucune photo ni vidéo.", true); return; }
     root = r.top;
-    say(plural(r.used, "fichier reçu", "fichiers reçus") + (r.withPaths ? "." : ". Le téléphone n'a pas donné les noms des dossiers : classement par année et mois d'après la date des fichiers."));
-    show(root);
+    say(plural(r.used, "fichier reçu", "fichiers reçus") + " au total (" + fresh + " nouveau" + (fresh > 1 ? "x" : "") + ")" +
+      (r.withPaths ? ". Vous pouvez ajouter un autre dossier : il s'ajoutera à ceux-ci." : ". Le téléphone n'a pas donné les noms des dossiers : classement par année et mois d'après la date des fichiers."));
+    // Si un seul dossier a été choisi, on entre directement dedans (le bouton « Dossier parent » permet de remonter).
+    let start = root;
+    while (start.files.length === 0 && start.dirs.size === 1) start = [...start.dirs.values()][0];
+    show(start);
   }
 
   el("vrPick").addEventListener("click", () => { say("Choisissez le dossier, puis appuyez sur « Importer » si Android le demande…"); el("vrDir").click(); });
@@ -1155,7 +1166,7 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
   }
   window.addEventListener("error", ev => { if (el("vrMsg") && !el("vrMsg").textContent) say("Erreur de la page : " + ev.message, true); });
   el("vrUp").addEventListener("click", () => { if (cur && cur.parent) show(cur.parent); });
-  el("vrClose").addEventListener("click", () => { root = cur = null; el("vrView").hidden = true; el("vrGrid").textContent = ""; say(""); });
+  el("vrClose").addEventListener("click", () => { root = cur = null; all.length = 0; seen.clear(); el("vrView").hidden = true; el("vrGrid").textContent = ""; say(""); });
   el("vrMore").addEventListener("click", more);
   el("vr-x").addEventListener("click", closeLight);
   el("vr-light").addEventListener("click", e => { if (e.target === el("vr-light")) closeLight(); });
@@ -1190,7 +1201,7 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
 #maj-pastille{top:calc(24px + env(safe-area-inset-top,0px));right:24px}
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Bibliothèque Photo", "version": "V11", "date": "07/10/2026", "cache": "biblio-photo-", "nouveautes": ["« Mes dossiers rangés » : messages à chaque étape (dossier reçu, nombre de fichiers, erreurs) pour comprendre s'il y a un problème.", "Nouvelle carte « Mes dossiers rangés » : choisissez le dossier créé par Range Photos et parcourez-le (randonnées, journées par ville, portraits…) avec miniatures, photos en grand et vidéos.", "Nouvelle carte « Ranger directement sur la carte SD » avec le lien pour télécharger l'appli Range Photos.", "Nouvelle présentation : fond bleu nuit, bandeau lever de soleil sur les montagnes, dossiers colorés selon leur type."]};
+window.MAJ_APPLI={"nom": "Bibliothèque Photo", "version": "V12", "date": "07/10/2026", "cache": "biblio-photo-", "nouveautes": ["« Mes dossiers rangés » : on peut ajouter plusieurs dossiers l'un après l'autre (pour les très gros dossiers), et le nom du dossier choisi est conservé.", "« Mes dossiers rangés » : messages à chaque étape (dossier reçu, nombre de fichiers, erreurs) pour comprendre s'il y a un problème.", "Nouvelle carte « Mes dossiers rangés » : choisissez le dossier créé par Range Photos et parcourez-le (randonnées, journées par ville, portraits…) avec miniatures, photos en grand et vidéos.", "Nouvelle carte « Ranger directement sur la carte SD » avec le lien pour télécharger l'appli Range Photos."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
