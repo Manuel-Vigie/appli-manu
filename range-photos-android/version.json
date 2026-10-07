@@ -1,12 +1,12 @@
 {
   "nom": "Range Photos (Android)",
-  "version": "V15",
+  "version": "V16",
   "date": "07/10/2026",
   "nouveautes": [
+    "Nouvelle bibliothèque 3D en écran de départ : vos albums sur des étagères en bois qui s'inclinent en 3D quand vous les faites défiler. Touchez un album pour feuilleter ses photos et vidéos.",
     "L'appli ne travaille plus que sur la carte SD : la mémoire du téléphone n'est plus touchée, rien n'est ajouté dedans.",
     "Rangement étape par étape : 10 fichiers d'abord pour test, vous regardez, puis vous continuez ou tout annulez.",
-    "Vérification complète à la fin : chaque fichier contrôlé, aucun oublié ni perdu (compte avant/après).",
-    "Les anciens dossiers vides ne sont plus supprimés tout seuls : étape à part, avec la liste à confirmer."
+    "Vérification complète à la fin : chaque fichier contrôlé, aucun oublié ni perdu (compte avant/après)."
   ],
   "pastille": false,
   "fichiers": []

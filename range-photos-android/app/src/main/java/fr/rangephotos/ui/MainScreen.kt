@@ -47,6 +47,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -96,6 +97,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
     val versionName = remember { appVersionName(context) }
     val versionLabel = "V${versionCode(context)}"
     var update by remember { mutableStateOf<UpdateUi>(UpdateUi.Idle) }
+    var inLibrary by rememberSaveable { mutableStateOf(true) }
 
     val checkUpdate: () -> Unit = {
         if (update !is UpdateUi.Checking) {
@@ -138,22 +140,31 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
     MaterialTheme(colorScheme = RangeColors) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when (val s = state) {
-                is UiState.Home -> HomeScreen(
-                    s,
-                    versionLabel = versionLabel,
-                    versionName = versionName,
-                    update = update,
-                    onRequestAccess = onRequestAccess,
-                    onMode = viewModel::setReclassifyAll,
-                    onAnalyze = viewModel::analyze,
-                    onOpenFolder = openFolder,
-                    onChooseDestination = viewModel::openDestination,
-                    onUndo = viewModel::undo,
-                    onPeople = viewModel::openPeople,
-                    onCategories = viewModel::openCategories,
-                    onCheckUpdate = checkUpdate,
-                    onDownloadUpdate = downloadUpdate,
-                )
+                is UiState.Home -> {
+                    // La bibliothèque 3D est l'écran de départ dès qu'il existe un dossier de photos rangées.
+                    val libraryRoot = remember(s.places) { s.places.map { it.place.outputDir }.firstOrNull { it.isDirectory } }
+                    if (s.access && inLibrary && libraryRoot != null) {
+                        LibraryScreen(libraryRoot, onOrganize = { inLibrary = false })
+                    } else {
+                        HomeScreen(
+                            s,
+                            versionLabel = versionLabel,
+                            versionName = versionName,
+                            update = update,
+                            onRequestAccess = onRequestAccess,
+                            onMode = viewModel::setReclassifyAll,
+                            onAnalyze = viewModel::analyze,
+                            onOpenFolder = openFolder,
+                            onChooseDestination = viewModel::openDestination,
+                            onUndo = viewModel::undo,
+                            onPeople = viewModel::openPeople,
+                            onCategories = viewModel::openCategories,
+                            onCheckUpdate = checkUpdate,
+                            onDownloadUpdate = downloadUpdate,
+                            onOpenLibrary = if (libraryRoot != null) ({ inLibrary = true }) else null,
+                        )
+                    }
+                }
                 is UiState.Working -> WorkingScreen(s)
                 is UiState.ChooseDestination -> ChooseDestinationScreen(
                     s,
@@ -290,6 +301,7 @@ private fun HomeScreen(
     onCategories: () -> Unit,
     onCheckUpdate: () -> Unit,
     onDownloadUpdate: (UpdateChecker.Release) -> Unit,
+    onOpenLibrary: (() -> Unit)? = null,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -297,6 +309,18 @@ private fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { Header("Range Photos", "Vos photos rangées toutes seules, sans quitter votre téléphone.", versionLabel) }
+
+        if (onOpenLibrary != null) {
+            item {
+                Box(Modifier.padding(horizontal = 16.dp)) {
+                    SectionCard {
+                        Text("Ma bibliothèque", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("Vos albums sur des étagères en 3D : touchez un album pour voir ses photos.", style = MaterialTheme.typography.bodyMedium)
+                        PrimaryButton("Ouvrir ma bibliothèque", onOpenLibrary)
+                    }
+                }
+            }
+        }
 
         state.notice?.let { message ->
             item {
