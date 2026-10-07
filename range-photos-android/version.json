@@ -1,12 +1,12 @@
 {
   "nom": "Range Photos (Android)",
-  "version": "V5",
+  "version": "V6",
   "date": "07/10/2026",
   "nouveautes": [
+    "Nouveau bouton « Tout reclasser » : nouvelle analyse de toutes les photos, même déjà rangées, pour les remettre chacune dans le bon dossier (aperçu et annulation possibles).",
     "Correction : l'appli se fermait toute seule au démarrage (défaut introduit en V4).",
     "Bouton « Relancer la recherche » pour ranger les nouvelles photos sans rechoisir le dossier ; l'appli indique combien de photos sont déjà rangées.",
-    "Nouvel écran d'accueil plus clair et nouvelle icône ; la liste des proches est résumée. Bouton « Chercher une mise à jour » avec le numéro de version.",
-    "Reconnaissance des proches : donnez un prénom une fois, leurs photos vont dans Portraits/Prénom. Les prénoms sont sauvegardés sur la carte SD."
+    "Nouvel écran d'accueil plus clair et nouvelle icône ; la liste des proches est résumée. Bouton « Chercher une mise à jour » avec le numéro de version."
   ],
   "pastille": false,
   "fichiers": []

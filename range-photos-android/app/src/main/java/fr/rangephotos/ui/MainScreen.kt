@@ -99,10 +99,18 @@ fun MainScreen(viewModel: MainViewModel) {
                 when (val s = state) {
                     is UiState.Start -> StartScreen(
                         s,
-                        onPick = { picker.launch(null) },
+                        onPick = { viewModel.armReclassify(false); picker.launch(null) },
                         onUndo = viewModel::undo,
                         onPeople = viewModel::openPeople,
                         onRescan = viewModel::rescan,
+                        onReclassify = {
+                            if (s.lastFolder != null) {
+                                viewModel.rescanAll()
+                            } else {
+                                viewModel.armReclassify(true)
+                                picker.launch(null)
+                            }
+                        },
                         versionLabel = "V${versionCode(context)} · $versionName",
                         update = update,
                         onCheckUpdate = checkUpdate,
@@ -131,6 +139,7 @@ private fun StartScreen(
     onUndo: () -> Unit,
     onPeople: () -> Unit,
     onRescan: () -> Unit,
+    onReclassify: () -> Unit,
     versionLabel: String,
     update: UpdateUi,
     onCheckUpdate: () -> Unit,
@@ -181,6 +190,25 @@ private fun StartScreen(
                         OutlinedButton(onClick = onUndo, modifier = Modifier.fillMaxWidth()) {
                             Text("Annuler le dernier rangement")
                         }
+                    }
+                }
+            }
+        }
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Tout reclasser", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Nouvelle analyse de toutes les photos, même celles déjà rangées, pour les remettre chacune dans le bon dossier " +
+                            "(par exemple après avoir nommé de nouveaux proches). Cela peut durer longtemps : gardez l'écran allumé. " +
+                            "Rien ne bouge avant votre accord, et vous pourrez annuler.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Button(onClick = onReclassify, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (state.lastFolder != null) "Tout reclasser (« ${state.lastFolder} »)" else "Tout reclasser : choisir le dossier")
                     }
                 }
             }
@@ -418,7 +446,18 @@ private fun PreviewScreen(
     onCancel: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        Text("${state.total} photos prêtes à être rangées", style = MaterialTheme.typography.headlineSmall)
+        Text(
+            if (state.reclassify) "${state.total} photos vont changer de dossier" else "${state.total} photos prêtes à être rangées",
+            style = MaterialTheme.typography.headlineSmall,
+        )
+        if (state.reclassify) {
+            Text(
+                "${state.unchanged} photos sont déjà au bon endroit. " +
+                    (if (state.leftCopies > 0) "${state.leftCopies} copies de proches existantes sont laissées telles quelles. " else "") +
+                    "Aucune photo n'est supprimée.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
         if (state.alreadySorted > 0) {
             Text(
                 "${state.alreadySorted} autres photos sont déjà rangées dans « Photos rangées » : elles ne bougent pas.",

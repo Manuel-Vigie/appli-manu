@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import fr.rangephotos.face.FaceAnalyzer
+import fr.rangephotos.logic.Duplicates
 import fr.rangephotos.logic.Hike
 import fr.rangephotos.logic.HikeDetector
 import fr.rangephotos.logic.HikeNamer
@@ -51,6 +52,10 @@ sealed interface UiState {
         val copyMegabytes: Long,
         /** Photos déjà rangées lors d'un passage précédent (non touchées). */
         val alreadySorted: Int = 0,
+        /** Reclassement complet : photos déjà au bon endroit (ne bougent pas) et copies existantes laissées telles quelles. */
+        val reclassify: Boolean = false,
+        val unchanged: Int = 0,
+        val leftCopies: Int = 0,
     ) : UiState
 
     data class Done(val title: String, val details: String, val hasUndo: Boolean) : UiState
@@ -69,6 +74,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val sync = PeopleSync(app)
     private val prefs = app.getSharedPreferences("range_photos", android.content.Context.MODE_PRIVATE)
     private var alreadySorted = 0
+    private var reclassify = false
+    private var leftCopies = 0
+    private var reclassifyArmed = false
 
     private val _state = MutableStateFlow<UiState>(start())
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -104,7 +112,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Relance la recherche sur le même dossier (nouvelles photos ajoutées depuis). */
     fun rescan() {
         val uri = lastRoot()
-        if (uri == null) _state.value = start("Choisissez de nouveau le dossier de photos.") else analyze(uri)
+        if (uri == null) _state.value = start("Choisissez de nouveau le dossier de photos.") else analyze(uri, false)
+    }
+
+    /** Nouvelle analyse de TOUTES les photos, y compris celles déjà rangées, pour les reclasser. */
+    fun rescanAll() {
+        val uri = lastRoot()
+        if (uri == null) _state.value = start("Choisissez de nouveau le dossier de photos.") else analyze(uri, true)
+    }
+
+    /** Le prochain dossier choisi sera analysé en entier (reclassement complet). */
+    fun armReclassify(on: Boolean) {
+        reclassifyArmed = on
     }
 
     fun onFolderPicked(uri: Uri) {
@@ -115,18 +134,29 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             )
         } catch (_: Exception) {
         }
-        analyze(uri)
+        val all = reclassifyArmed
+        reclassifyArmed = false
+        analyze(uri, all)
     }
 
-    private fun analyze(root: Uri) {
+    private fun analyze(root: Uri, includeSorted: Boolean) {
         prefs.edit().putString("last_root", root.toString()).apply()
         viewModelScope.launch {
             try {
                 _state.value = UiState.Working("Recherche des photos…", 0, 0)
-                val scanned = scanner.scan(root) { found ->
+                var scanned = scanner.scan(root, includeSorted) { found ->
                     _state.value = UiState.Working("Recherche des photos… $found trouvées", 0, 0)
                 }
-                alreadySorted = runCatching { scanner.countAlreadySorted(root) }.getOrDefault(0)
+                reclassify = includeSorted
+                leftCopies = 0
+                if (includeSorted) {
+                    val (unique, left) = Duplicates.keepOnePerPhoto(scanned)
+                    scanned = unique
+                    leftCopies = left
+                    alreadySorted = 0
+                } else {
+                    alreadySorted = runCatching { scanner.countAlreadySorted(root) }.getOrDefault(0)
+                }
                 if (scanned.isEmpty()) {
                     _state.value = start(
                         if (alreadySorted > 0) {
@@ -274,7 +304,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun showPreview() {
         val plan = Planner.plan(photos, hikes, hikeNames, copyToPeople)
-        pendingMoves = plan
+        // Une photo déjà au bon endroit et sans copie à faire n'a rien à subir.
+        pendingMoves = plan.filter { it.photo.currentFolder != it.folder || it.copies.isNotEmpty() }
         _state.value = buildPreview(plan)
     }
 
@@ -292,8 +323,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val copyCount = plan.sumOf { it.copies.size }
         val copyBytes = plan.sumOf { it.photo.size * it.copies.size }
         val named = photos.any { p -> p.faces.any { it.person != null } }
+        val moving = plan.count { it.photo.currentFolder != it.folder }
         return UiState.Preview(
-            total = plan.size,
+            total = moving,
             topLevel = topLevel,
             hikes = hikeList,
             hasNamedPeople = named,
@@ -301,6 +333,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             copyCount = copyCount,
             copyMegabytes = copyBytes / 1_000_000,
             alreadySorted = alreadySorted,
+            reclassify = reclassify,
+            unchanged = plan.size - moving,
+            leftCopies = leftCopies,
         )
     }
 
@@ -320,6 +355,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val lines = ArrayList<String>()
                 lines += "${result.moved} photo(s) rangées dans le dossier « ${Organizer.OUTPUT_DIR} »."
                 if (result.copied > 0) lines += "${result.copied} copie(s) ajoutées dans les dossiers de vos proches."
+                if (result.copiesAlreadyThere > 0) lines += "${result.copiesAlreadyThere} copie(s) existaient déjà : rien n'a été refait."
                 if (result.failed > 0) lines += "${result.failed} photo(s) n'ont pas pu être déplacées et sont restées en place."
                 if (result.copyFailed > 0) lines += "${result.copyFailed} copie(s) n'ont pas pu être faites."
                 _state.value = UiState.Done("Rangement terminé", lines.joinToString("\n"), hasUndo())

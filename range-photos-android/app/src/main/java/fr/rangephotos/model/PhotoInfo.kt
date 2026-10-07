@@ -29,6 +29,8 @@ data class PhotoInfo(
     val isScreenshot: Boolean,
     /** Taille du fichier en octets. */
     val size: Long = 0L,
+    /** Dossier actuel sous « Photos rangées » (ex. [Photos, 2025, 03 - mars]) si la photo est déjà rangée, sinon null. */
+    val currentFolder: List<String>? = null,
     /** Visages détectés (rempli après l'analyse des visages). */
     val faces: List<FaceInfo> = emptyList(),
 ) {

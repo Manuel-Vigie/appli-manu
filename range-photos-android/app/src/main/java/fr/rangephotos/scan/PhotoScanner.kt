@@ -18,26 +18,32 @@ import java.util.Locale
  */
 class PhotoScanner(private val context: Context) {
 
-    suspend fun scan(rootUri: Uri, onProgress: (Int) -> Unit): List<PhotoInfo> =
+    suspend fun scan(rootUri: Uri, includeSorted: Boolean = false, onProgress: (Int) -> Unit): List<PhotoInfo> =
         withContext(Dispatchers.IO) {
             val root = DocumentFile.fromTreeUri(context, rootUri) ?: return@withContext emptyList()
             val result = ArrayList<PhotoInfo>()
 
-            fun walk(dir: DocumentFile) {
+            // [relative] : chemin sous « Photos rangées » si on y est déjà, sinon null.
+            fun walk(dir: DocumentFile, relative: List<String>?) {
                 for (file in dir.listFiles()) {
                     if (file.isDirectory) {
-                        // On ne rescanne pas le dossier de sortie : les photos déjà rangées restent en place.
-                        if (file.name != Organizer.OUTPUT_DIR) walk(file)
+                        val name = file.name ?: continue
+                        if (relative == null && name == Organizer.OUTPUT_DIR) {
+                            // Par défaut les photos déjà rangées restent en place ; « Tout reclasser » les reprend.
+                            if (includeSorted) walk(file, emptyList())
+                        } else {
+                            walk(file, relative?.plus(name))
+                        }
                     } else {
                         val mime = file.type ?: continue
                         if (mime !in SUPPORTED_TYPES) continue
-                        result += readPhoto(file, dir, mime)
+                        result += readPhoto(file, dir, mime, relative)
                         if (result.size % 25 == 0) onProgress(result.size)
                     }
                 }
             }
 
-            walk(root)
+            walk(root, null)
             onProgress(result.size)
             result
         }
@@ -57,7 +63,7 @@ class PhotoScanner(private val context: Context) {
             count
         }
 
-    private fun readPhoto(file: DocumentFile, parent: DocumentFile, mime: String): PhotoInfo {
+    private fun readPhoto(file: DocumentFile, parent: DocumentFile, mime: String, currentFolder: List<String>?): PhotoInfo {
         val name = file.name ?: "photo"
         var takenAt: Long? = null
         var lat: Double? = null
@@ -88,6 +94,7 @@ class PhotoScanner(private val context: Context) {
             lon = lon,
             isScreenshot = looksLikeScreenshot(name),
             size = file.length(),
+            currentFolder = currentFolder,
         )
     }
 

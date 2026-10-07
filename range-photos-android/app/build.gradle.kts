@@ -12,8 +12,8 @@ android {
         applicationId = "fr.rangephotos"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.5.0"
+        versionCode = 6
+        versionName = "0.6.0"
 
         // Téléphones ARM uniquement (tous les téléphones actuels) : APK plus léger.
         ndk {

@@ -14,6 +14,8 @@ data class OrganizeResult(
     val failed: Int,
     val copied: Int = 0,
     val copyFailed: Int = 0,
+    /** Copies non refaites parce qu'elles existent déjà (même nom, même taille). */
+    val copiesAlreadyThere: Int = 0,
 )
 
 /**
@@ -53,31 +55,43 @@ class Organizer(private val context: Context) {
         var failed = 0
         var copied = 0
         var copyFailed = 0
+        var copiesAlreadyThere = 0
 
         fun namesOf(dir: DocumentFile): MutableSet<String> =
             namesInDir.getOrPut(dir.uri.toString()) { dir.listFiles().mapNotNull { it.name }.toMutableSet() }
 
         moves.forEachIndexed { index, move ->
             try {
+                val inPlace = move.photo.currentFolder != null && move.photo.currentFolder == move.folder
                 val target = targetDir(outputRoot, move.folder, dirCache)
                 val names = namesOf(target)
                 val finalName = uniqueName(move.photo.name, names)
                 val parentUri = move.photo.parentUri
-                val newUri: Uri? = if (parentUri != null) {
+                val newUri: Uri? = if (inPlace) {
+                    move.photo.uri // déjà au bon endroit : on ne la déplace pas
+                } else if (parentUri != null) {
                     moveOrCopy(move.photo.uri, parentUri, target, move.photo.mimeType, move.photo.name, finalName)
                 } else {
                     null
                 }
 
                 if (newUri != null) {
-                    names += finalName
-                    journal.appendText("M\t$newUri\t${target.uri}\t$parentUri\n")
-                    moved++
+                    if (!inPlace) {
+                        names += finalName
+                        journal.appendText("M\t$newUri\t${target.uri}\t$parentUri\n")
+                        moved++
+                    }
 
                     for (folder in move.copies) {
                         try {
                             val dir = targetDir(outputRoot, folder, dirCache)
                             val dirNames = namesOf(dir)
+                            if (move.photo.size > 0 && move.photo.name in dirNames &&
+                                dir.findFile(move.photo.name)?.length() == move.photo.size
+                            ) {
+                                copiesAlreadyThere++
+                                continue
+                            }
                             val copyName = uniqueName(move.photo.name, dirNames)
                             val copyUri = copyFile(newUri, dir, move.photo.mimeType, copyName)
                             if (copyUri != null) {
@@ -99,7 +113,7 @@ class Organizer(private val context: Context) {
             }
             onProgress(index + 1, moves.size)
         }
-        OrganizeResult(moved, failed, copied, copyFailed)
+        OrganizeResult(moved, failed, copied, copyFailed, copiesAlreadyThere)
     }
 
     /** Annule le dernier rangement : supprime les copies créées par l'appli, remet chaque photo dans son dossier d'origine. */
