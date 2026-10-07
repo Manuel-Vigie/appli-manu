@@ -62,4 +62,12 @@ class DateOnlyTest {
         assertEquals(listOf("Journées", "2026", "03 - mars", "14 mars (sam)"), plan[0].folder)
         assertEquals(listOf("Journées", "2026", "03 - mars", "15 mars (dim)"), plan[1].folder)
     }
+
+    @Test
+    fun undatedFilesGoApartAndNeverInADayFolder() {
+        val t = LocalDateTime.of(2026, 10, 1, 10, 0)
+        val guessed = photo(t).copy(dateGuessed = true)
+        val plan = Planner.plan(listOf(guessed), emptyList(), emptyMap(), zone = paris, dateOnly = true)
+        assertEquals(listOf("Journées", "Date incertaine", "2026", "10 - octobre"), plan[0].folder)
+    }
 }

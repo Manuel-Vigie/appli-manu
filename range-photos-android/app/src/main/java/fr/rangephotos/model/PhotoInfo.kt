@@ -41,6 +41,8 @@ data class PhotoInfo(
     val place: String? = null,
     /** Vidéo (rangée par date avec les photos, jamais analysée pour les visages). */
     val isVideo: Boolean = false,
+    /** Aucune date fiable (ni EXIF, ni nom, ni GPS) : la date du fichier est utilisée, elle peut être fausse. */
+    val dateGuessed: Boolean = false,
     /** Visages détectés (rempli après l'analyse des visages). */
     val faces: List<FaceInfo> = emptyList(),
 ) {

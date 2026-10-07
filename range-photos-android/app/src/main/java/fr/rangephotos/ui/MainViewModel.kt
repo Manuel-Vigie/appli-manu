@@ -97,6 +97,8 @@ sealed interface UiState {
         val townsUnavailable: Boolean = false,
         /** Dossier de destination, tel qu'affiché (ex. « Photos rangées »). */
         val destination: String = "",
+        /** Photos et vidéos sans date fiable (rangées à part dans « Date incertaine »). */
+        val undated: Int = 0,
         /** Rangement étape par étape : un petit lot test d'abord, puis votre accord pour la suite. */
         val guided: Boolean = true,
     ) : UiState
@@ -587,6 +589,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             townsUnavailable = townsUnavailable,
             destination = currentPlace?.let { destinationLabel(it) } ?: "",
             guided = guided,
+            undated = if (Planner.DATE_ONLY) plan.count { it.photo.dateGuessed && it.photo.currentFolder != it.folder } else 0,
         )
     }
 

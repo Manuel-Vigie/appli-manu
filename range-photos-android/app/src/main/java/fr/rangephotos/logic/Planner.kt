@@ -37,6 +37,9 @@ object Planner {
     const val SCREENSHOTS = "Captures d'écran"
     const val PHOTOS = "Journées"
 
+    /** Photos et vidéos dont la date est incertaine (ni EXIF, ni nom, ni GPS) : à part, pour ne rien mal dater. */
+    const val UNDATED = "Date incertaine"
+
     /**
      * Mode simple voulu par Manuel (V16) : TOUT est rangé par date (Journées/année/mois/jour - ville), rien d'autre.
      * Plus de dossiers Randonnées/Portraits/sujets (une photo n'était qu'à un seul endroit : les dossiers des jours
@@ -77,6 +80,7 @@ object Planner {
             }
             hasPortrait -> listOf(PORTRAITS, portraitFolder(photo), year)
             category != null -> categoryFolder(category, photo, year)
+            dateOnly && photo.dateGuessed -> listOf(PHOTOS, UNDATED, year, "%02d - %s".format(date.monthValue, MONTHS[date.monthValue - 1]))
             photo.isScreenshot && !dateOnly -> listOf(SCREENSHOTS, year)
             else -> listOf(
                 PHOTOS, year, "%02d - %s".format(date.monthValue, MONTHS[date.monthValue - 1]),

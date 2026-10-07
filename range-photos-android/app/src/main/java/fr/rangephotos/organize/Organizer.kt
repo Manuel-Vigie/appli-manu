@@ -295,6 +295,7 @@ class Organizer(private val onChanged: (List<String>) -> Unit = {}) {
     private fun copyVerified(source: File, destination: File) {
         try {
             source.inputStream().use { input -> destination.outputStream().use { output -> input.copyTo(output) } }
+            destination.setLastModified(source.lastModified()) // garde la date d'origine du fichier
             if (destination.length() != source.length()) throw IOException("copie incomplète")
         } catch (e: Exception) {
             destination.delete() // copie incomplète : on la retire, l'original n'a pas bougé

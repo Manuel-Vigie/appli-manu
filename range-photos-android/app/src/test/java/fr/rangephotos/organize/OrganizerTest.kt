@@ -250,4 +250,19 @@ class OrganizerTest {
         assertEquals(1, undone.moved)
         assertTrue(a.isFile)
     }
+
+    @Test
+    fun copiesKeepTheOriginalModificationDate() {
+        val root = tmp.newFolder("volume")
+        val a = file(File(root, "Vieux"), "a.jpg")
+        a.setLastModified(1_400_000_000_000L) // 2014
+        val out = File(root, "Rangées")
+        Organizer().execute(
+            out,
+            listOf(PlannedMove(photo(a), listOf("J"), copies = listOf(listOf("Copie")))),
+            File(tmp.root, "j.tsv"),
+        )
+        assertEquals(1_400_000_000_000L, File(out, "J/a.jpg").lastModified())
+        assertEquals(1_400_000_000_000L, File(out, "Copie/a.jpg").lastModified())
+    }
 }

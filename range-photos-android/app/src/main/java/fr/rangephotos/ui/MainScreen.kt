@@ -806,6 +806,18 @@ private fun PreviewScreen(
                     )
                 }
             }
+            if (state.undated > 0) {
+                item {
+                    SectionCard(container = MaterialTheme.colorScheme.errorContainer) {
+                        Text("${state.undated} fichier(s) sans date fiable", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Ni la photo, ni son nom ne donnent la date de prise de vue (souvent une image reçue ou recopiée). " +
+                                "Pour ne pas les mélanger avec vos vrais souvenirs, elles iront à part, dans « Journées / Date incertaine ».",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+            }
             item {
                 SectionCard {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
