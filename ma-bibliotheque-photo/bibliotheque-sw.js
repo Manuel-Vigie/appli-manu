@@ -1,5 +1,5 @@
 // Bibliothèque Photo — mise en cache (fonctionne sans connexion)
-const SHELL = 'biblio-photo-V10';
+const SHELL = 'biblio-photo-V11';
 const FICHIERS = ['./bibliotheque-photo.html','./bibliotheque-manifest.webmanifest','./bibliotheque-icone-192.png','./bibliotheque-icone-512.png','./bibliotheque-icone-masque-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(SHELL).then(c => Promise.all(FICHIERS.map(f => c.add(new Request(f,{cache:'reload'})).catch(()=>{})))).then(()=>self.skipWaiting()));

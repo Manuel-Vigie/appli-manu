@@ -1130,7 +1130,7 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
 
   function load(list) {
     const files = [...list];
-    if (!files.length) return;
+    if (!files.length) { say("Le téléphone n'a transmis aucun fichier. Essayez « Ou choisir des fichiers ».", true); return; }
     const r = build(files);
     if (!r.used) { say(files.length + " fichier(s) reçu(s), mais aucune photo ni vidéo.", true); return; }
     root = r.top;
@@ -1138,11 +1138,22 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
     show(root);
   }
 
-  el("vrPick").addEventListener("click", () => el("vrDir").click());
-  el("vrPickFiles").addEventListener("click", () => el("vrFiles").click());
+  el("vrPick").addEventListener("click", () => { say("Choisissez le dossier, puis appuyez sur « Importer » si Android le demande…"); el("vrDir").click(); });
+  el("vrPickFiles").addEventListener("click", () => { say("Cochez les photos, puis validez…"); el("vrFiles").click(); });
   for (const id of ["vrDir", "vrFiles"]) {
-    el(id).addEventListener("change", e => { const f = [...e.target.files]; e.target.value = ""; load(f); });
+    el(id).addEventListener("cancel", () => say("Aucun choix reçu du téléphone."));
+    el(id).addEventListener("change", e => {
+      let f = [];
+      try { f = [...e.target.files]; } catch (err) { say("Lecture impossible : " + err.message, true); return; }
+      say("Reçu : " + f.length + " fichier(s). Lecture en cours…");
+      e.target.value = "";
+      // Petit délai pour que le message s'affiche avant le travail de classement.
+      setTimeout(() => {
+        try { load(f); } catch (err) { say("Erreur pendant la lecture : " + (err && err.message ? err.message : err), true); }
+      }, 50);
+    });
   }
+  window.addEventListener("error", ev => { if (el("vrMsg") && !el("vrMsg").textContent) say("Erreur de la page : " + ev.message, true); });
   el("vrUp").addEventListener("click", () => { if (cur && cur.parent) show(cur.parent); });
   el("vrClose").addEventListener("click", () => { root = cur = null; el("vrView").hidden = true; el("vrGrid").textContent = ""; say(""); });
   el("vrMore").addEventListener("click", more);
@@ -1179,7 +1190,7 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
 #maj-pastille{top:calc(24px + env(safe-area-inset-top,0px));right:24px}
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Bibliothèque Photo", "version": "V10", "date": "07/10/2026", "cache": "biblio-photo-", "nouveautes": ["Nouvelle carte « Mes dossiers rangés » : choisissez le dossier créé par Range Photos et parcourez-le (randonnées, journées par ville, portraits…) avec miniatures, photos en grand et vidéos.", "Nouvelle carte « Ranger directement sur la carte SD » avec le lien pour télécharger l'appli Range Photos.", "Nouvelle présentation : fond bleu nuit, bandeau lever de soleil sur les montagnes, dossiers colorés selon leur type.", "Enregistrement en plusieurs petits ZIP (parties), qui marche même avec des milliers de photos : plus de ZIP bloqué ou presque vide."]};
+window.MAJ_APPLI={"nom": "Bibliothèque Photo", "version": "V11", "date": "07/10/2026", "cache": "biblio-photo-", "nouveautes": ["« Mes dossiers rangés » : messages à chaque étape (dossier reçu, nombre de fichiers, erreurs) pour comprendre s'il y a un problème.", "Nouvelle carte « Mes dossiers rangés » : choisissez le dossier créé par Range Photos et parcourez-le (randonnées, journées par ville, portraits…) avec miniatures, photos en grand et vidéos.", "Nouvelle carte « Ranger directement sur la carte SD » avec le lien pour télécharger l'appli Range Photos.", "Nouvelle présentation : fond bleu nuit, bandeau lever de soleil sur les montagnes, dossiers colorés selon leur type."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
