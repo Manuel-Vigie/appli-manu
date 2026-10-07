@@ -67,6 +67,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val journal = File(app.filesDir, "journal.tsv")
     private val store = PeopleStore(File(app.filesDir, "proches.json")).also { runCatching { it.load() } }
     private val sync = PeopleSync(app)
+    private val prefs = app.getSharedPreferences("range_photos", android.content.Context.MODE_PRIVATE)
+    private var alreadySorted = 0
 
     private val _state = MutableStateFlow<UiState>(start())
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -80,9 +82,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var pendingMoves: List<PlannedMove> = emptyList()
 
     private fun hasUndo() = journal.exists() && journal.length() > 0
-
-    private val prefs = app.getSharedPreferences("range_photos", android.content.Context.MODE_PRIVATE)
-    private var alreadySorted = 0
 
     /** Dernier dossier analysé, s'il est encore autorisé (pour relancer sans le rechoisir). */
     private fun lastRoot(): Uri? {
@@ -100,7 +99,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun start(message: String? = null) =
-        UiState.Start(hasUndo(), message, store.people.map { it.name }, lastFolderName())
+        UiState.Start(hasUndo(), message, store.people.map { it.name }, runCatching { lastFolderName() }.getOrNull())
 
     /** Relance la recherche sur le même dossier (nouvelles photos ajoutées depuis). */
     fun rescan() {
