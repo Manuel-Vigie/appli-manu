@@ -3340,7 +3340,7 @@ function loadMapLibre(){
 //  2. les couleurs « de fond » sont alignées sur celles d'Esri (qui sont régulières sur tout le globe) : on garde la netteté des photos IGN
 //     mais on supprime les plaques de couleurs différentes d'une campagne de prise de vue à l'autre.
 //     La correction est un champ lisse (grille 32×32 sur une zone de 8×8 carrés), donc identique pour deux carrés voisins : pas de grille visible.
-const IGN_MIX={grid:32,strength:.5,min:.55,max:1.8};
+const IGN_MIX={grid:32,strength:0,min:.55,max:1.8};
 function ignWorkerBody(MIX){
   const cl=(v,a,b)=>v<a?a:v>b?b:v;
   const IGN=(z,x,y)=>`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX=${z}&TILEROW=${y}&TILECOL=${x}&FORMAT=image/jpeg`;
@@ -3382,6 +3382,7 @@ function ignWorkerBody(MIX){
       d1=x1.getImageData(0,0,w,h);const d=d1.data;mask=new Uint8Array(w*h);
       for(let i=0,j=0;i<d.length;i+=4,j++){if(d[i+3]<10||(d[i]>=236&&d[i+1]>=236&&d[i+2]>=236)){mask[j]=1;cnt++}}
     }
+    if(bm&&cnt<w*h*0.004&&MIX.strength<=0)return buf;   // photo IGN d'origine, intacte (aucune perte de qualité)
     let repl=null;
     if(!bm||cnt>=w*h*0.004){
       const ebm=await bmp(ESRI(z,x,y));
@@ -3389,7 +3390,7 @@ function ignWorkerBody(MIX){
       else{
         const c2=new OffscreenCanvas(w,h),x2=c2.getContext('2d',{willReadFrequently:true});
         x2.drawImage(ebm,0,0,w,h);ebm.close();
-        if(!bm||cnt>=w*h*0.97){return await (await c2.convertToBlob({type:'image/jpeg',quality:.92})).arrayBuffer()}
+        if(!bm||cnt>=w*h*0.97){return await (await c2.convertToBlob({type:'image/jpeg',quality:.97})).arrayBuffer()}
         repl=new Uint8Array(w*h);
         for(let yy=0;yy<h;yy++)for(let xx=0;xx<w;xx++){if(!mask[yy*w+xx])continue;for(let dy=-2;dy<=2;dy++){const y2=yy+dy;if(y2<0||y2>=h)continue;for(let dx=-2;dx<=2;dx++){const x3=xx+dx;if(x3>=0&&x3<w)repl[y2*w+x3]=1}}}
         const d2=x2.getImageData(0,0,w,h).data,d=d1.data;
@@ -3398,7 +3399,7 @@ function ignWorkerBody(MIX){
     }
     if(!d1)return buf;
     // alignement des couleurs de fond sur Esri (champ lisse commun à toute la zone)
-    const zp=Math.max(0,z-3),sb=z-zp,n=Math.pow(2,sb),fl=await field(zp,x>>sb,y>>sb);
+    const zp=Math.max(0,z-3),sb=z-zp,n=Math.pow(2,sb),fl=MIX.strength>0?await field(zp,x>>sb,y>>sb):null;
     if(fl){
       const d=d1.data,ox=x&(n-1),oy=y&(n-1),st=MIX.strength;
       const gi=new Int16Array(w),gf=new Float32Array(w);
@@ -3416,7 +3417,7 @@ function ignWorkerBody(MIX){
       }
     }
     x1.putImageData(d1,0,0);
-    return await (await c1.convertToBlob({type:'image/jpeg',quality:.92})).arrayBuffer();
+    return await (await c1.convertToBlob({type:'image/jpeg',quality:.97})).arrayBuffer();
   }
   return tile;
 }
@@ -3441,7 +3442,7 @@ async function ignTile(params){
   return {data};
 }
 // « un peu plus de soleil » : couleurs plus vives et plus lumineuses
-const SV_SUN={'raster-saturation':-.05,'raster-brightness-min':.02};
+const SV_SUN={};
 function svStyleObj(){
   if(!mlProto){mlProto=true;try{maplibregl.addProtocol('ign',ignTile)}catch(e){}}
   const demTiles=['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'];
@@ -3455,7 +3456,7 @@ function svStyleObj(){
     layers.push({id:'rl-'+k,type:'raster',source:k+'-low',paint:SV_SUN,layout:{visibility:k===SV.style?'visible':'none'}});
     layers.push({id:'r-'+k,type:'raster',source:k,paint:SV_SUN,layout:{visibility:k===SV.style?'visible':'none'}});
   }
-  layers.push({id:'hs',type:'hillshade',source:'demhs',paint:{'hillshade-illumination-anchor':'map','hillshade-illumination-direction':315,'hillshade-exaggeration':.4,'hillshade-shadow-color':'rgba(15,20,30,.55)','hillshade-highlight-color':'rgba(255,255,255,.3)','hillshade-accent-color':'rgba(15,20,30,.25)'}});
+  layers.push({id:'hs',type:'hillshade',source:'demhs',paint:{'hillshade-illumination-anchor':'map','hillshade-illumination-direction':315,'hillshade-exaggeration':.45,'hillshade-shadow-color':'rgba(15,20,30,.55)','hillshade-highlight-color':'rgba(255,255,255,.3)','hillshade-accent-color':'rgba(15,20,30,.25)'}});
   return {version:8,sources,layers,...(SV.terrain?{terrain:{source:'dem',exaggeration:1.3}}:{}),
     sky:{'sky-color':'#4f94d8','horizon-color':'#cfe6f6','fog-color':'#eaf4fb','sky-horizon-blend':.5,'horizon-fog-blend':.15,'fog-ground-blend':0}};
 }
@@ -3632,7 +3633,7 @@ async function openSurvol(){
   if(!SV.map){
     try{
       const A=areaFor(T);
-      SV.map=new maplibregl.Map({container:'svMap',style:svStyleObj(),center:[T.lon0,T.lat0],zoom:10,pitch:0,maxPitch:80,maxZoom:17.5,attributionControl:false,pixelRatio:Math.min(window.devicePixelRatio||1,1.4),fadeDuration:0,canvasContextAttributes:{antialias:false}});
+      SV.map=new maplibregl.Map({container:'svMap',style:svStyleObj(),center:[T.lon0,T.lat0],zoom:10,pitch:0,maxPitch:80,maxZoom:17.5,attributionControl:false,pixelRatio:Math.min(window.devicePixelRatio||1,1.8),fadeDuration:0,canvasContextAttributes:{antialias:false}});
       SV.map.once('style.load',()=>{svSetup();SV.ready=true;if(SV.on)svBegin()});
       SV.map.on('error',ev=>{if(ev&&ev.error&&!SV.ready&&/WebGL|context/i.test(ev.error.message||'')){closeSurvol();toast("Ton appareil n'arrive pas à afficher la carte en relief.",7000)}});
     }catch(e){closeSurvol();toast("Ton appareil n'arrive pas à afficher la carte en relief.",7000);return}
@@ -4124,7 +4125,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V32", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Couleurs de la carte revenues à des teintes neutres (plus de dominante jaune) : couleur naturelle de la roche, lumière du relief toujours fixe.", "Carte et film : la lumière du relief ne tourne plus avec la caméra (plus de changement de contraste quand le point avance), ombrage plus doux, couleurs plus vives et plus lumineuses, soleil plus chaud.", "Photos aériennes : nouvelle méthode pour les couleurs. On garde la netteté des photos IGN mais leurs couleurs de fond sont alignées sur la carte satellite, régulière partout : fini les plaques de couleurs différentes.", "Photos aériennes : les couleurs passent doucement d'une zone à l'autre (plus de cassure) et les zones trop vives ou trop claires sont mieux ramenées vers la moyenne."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V33", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Retour aux couleurs d'origine des photos IGN (plus de jaune) et à leur pleine qualité ; seul le blanc est remplacé par le satellite. Carte un peu plus nette.", "Couleurs de la carte revenues à des teintes neutres (plus de dominante jaune) : couleur naturelle de la roche, lumière du relief toujours fixe.", "Carte et film : la lumière du relief ne tourne plus avec la caméra (plus de changement de contraste quand le point avance), ombrage plus doux, couleurs plus vives et plus lumineuses, soleil plus chaud.", "Photos aériennes : nouvelle méthode pour les couleurs. On garde la netteté des photos IGN mais leurs couleurs de fond sont alignées sur la carte satellite, régulière partout : fini les plaques de couleurs différentes."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
