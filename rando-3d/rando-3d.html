@@ -3795,6 +3795,76 @@ function filmHud(x,W,H,o){
   }
   x.restore();
 }
+// ---- Étiquettes du film : départ (ville ou lieu), point culminant, arrivée et quelques lieux sur le parcours ----
+async function filmTown(i){
+  try{const A=areaFor(T),[la,lo]=A.ll(T.rx[i],T.rz[i]),c=new AbortController(),t=setTimeout(()=>c.abort(),6000);
+    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&accept-language=fr&lat=${la.toFixed(5)}&lon=${lo.toFixed(5)}`,{signal:c.signal});clearTimeout(t);
+    if(!r.ok)return null;const a=(await r.json()).address||{};return a.village||a.town||a.city||a.hamlet||a.suburb||a.municipality||null}catch(e){return null}
+}
+const FILM_LAB={start:'#2fa84f',end:'#d7392a',top:'#f2b134',peak:'#ffffff',pass:'#cfe3b0',hut:'#ffd9b0',lake:'#8fd0ff',glacier:'#e6f4ff',village:'#c9c9ff'};
+const FILM_KINDTXT={peak:'Sommet',pass:'Col',hut:'Refuge',lake:'Lac',glacier:'Glacier',village:'Village'};
+async function filmLabels(){
+  const A=areaFor(T),N=T.N,L=[],ll=i=>{const [la,lo]=A.ll(T.rx[i],T.rz[i]);return [lo,la]};
+  const pl=(T.places||[]).filter(p=>p.name&&p.name!=='Sommet');
+  const near=(i,kinds,maxd)=>{let b=null,bd=maxd;for(const p of pl){if(!kinds.includes(p.kind))continue;const d=Math.hypot(p.x-T.rx[i],p.z-T.rz[i]);if(d<bd){bd=d;b=p}}return b};
+  const used=new Set(),add=l=>{L.push(l);used.add(l.title)};
+  const e=N-1,loop=Math.hypot(T.rx[0]-T.rx[e],T.rz[0]-T.rz[e])<400;
+  const sp=near(0,['village'],2500)||near(0,['hut','pass','lake','peak'],600);
+  const sn=sp?sp.name:await filmTown(0);
+  add({kind:'start',pri:100,f:0,ll:ll(0),title:sn||'Départ',sub:sn?(loop?'Départ et arrivée':'Départ'):(loop?'Départ et arrivée':null)});
+  let im=0;for(let i=1;i<N;i++)if(T.se[i]>T.se[im])im=i;
+  if(im>N*.03&&im<N*.97){
+    const tp=near(im,['peak'],700);
+    add({kind:'top',pri:90,f:im/e,ll:ll(im),title:tp?tp.name:'Point culminant',sub:(tp?'Point culminant · ':'')+nf0.format(T.se[im])+' m'});
+  }
+  if(!loop){
+    const ep=near(e,['village'],2500)||near(e,['hut','pass','lake','peak'],600);
+    const en=ep?ep.name:await filmTown(e);
+    if(!sn||en!==sn)add({kind:'end',pri:95,f:1,ll:ll(e),title:en||'Arrivée',sub:en?'Arrivée':null});
+  }
+  const PR={peak:60,pass:55,hut:52,lake:50,glacier:45,village:40},picked=[];
+  const cand=pl.filter(p=>PR[p.kind]&&!used.has(p.name)&&p.d<(p.kind==='village'?700:250)&&p.iNear>N*.04&&p.iNear<N*.96).sort((a,b)=>PR[b.kind]-PR[a.kind]||(b.ele||0)-(a.ele||0));
+  for(const p of cand){
+    if(picked.length>=6)break;
+    if(picked.some(q=>Math.abs(q.iNear-p.iNear)<N*.08)||L.some(l=>Math.abs(l.f*e-p.iNear)<N*.06))continue;
+    picked.push(p);
+  }
+  for(const p of picked)add({kind:p.kind,pri:PR[p.kind],f:p.iNear/e,ll:ll(p.iNear),title:p.name,sub:FILM_KINDTXT[p.kind]+(isFinite(p.ele)&&p.kind!=='hut'&&p.kind!=='village'?' · '+nf0.format(p.ele)+' m':'')});
+  return L;
+}
+// affiche les étiquettes visibles (position à l'écran, sans se chevaucher)
+function filmLabelDraw(x,W,H,k,m,labs,o){
+  if(!labs||!labs.length)return;
+  const sans='Arial,Helvetica,sans-serif',boxes=[],top=o.titleA>.05?.25*H:.07*H,bot=o.statsA>.05?.74*H:.9*H;
+  const act=[];
+  for(const l of labs){
+    let a=o.labA;
+    if(o.walkF!=null){const d=o.walkF-l.f,wa=d<-.03?0:d<0?fEase((d+.03)/.03):d<.1?1:d<.14?1-fEase((d-.1)/.04):0;a=Math.max(a,wa)}
+    if(a>.02)act.push({l,a});
+  }
+  act.sort((p,q)=>q.l.pri-p.l.pri);
+  x.save();x.textBaseline='alphabetic';
+  for(const {l,a} of act){
+    const pt=m.project(l.ll);if(!pt)continue;
+    const px=pt.x,py=pt.y;
+    x.font=`700 ${8.6*k}px ${sans}`;const tw=x.measureText(l.title).width;
+    let sw=0;if(l.sub){x.font=`600 ${5.8*k}px ${sans}`;sw=x.measureText(l.sub).width}
+    const w=Math.min(W*.8,Math.max(tw,sw)+16*k),h=(l.sub?24:16)*k,bx=Math.max(4*k,Math.min(W-w-4*k,px-w/2));let by=py-9*k-h,flip=false;
+    if(by<top){by=py+9*k;flip=true}
+    if(py<.04*H||py>bot||px<0||px>W||by+h>bot+h*.5)continue;
+    const bb=[bx-3*k,by-3*k,bx+w+3*k,by+h+3*k];
+    if(boxes.some(q=>bb[0]<q[2]&&bb[2]>q[0]&&bb[1]<q[3]&&bb[3]>q[1]))continue;
+    boxes.push(bb);
+    x.globalAlpha=a;
+    x.strokeStyle='rgba(255,255,255,.9)';x.lineWidth=1.2*k;x.beginPath();x.moveTo(px,flip?by:by+h);x.lineTo(px,py);x.stroke();
+    x.fillStyle=FILM_LAB[l.kind]||'#fff';x.strokeStyle='#1d2b2d';x.lineWidth=1.6*k;x.beginPath();x.arc(px,py,3.4*k,0,7);x.fill();x.stroke();
+    filmRR(x,bx,by,w,h,6*k);x.fillStyle='rgba(14,24,28,.74)';x.fill();
+    filmRR(x,bx,by,3.4*k,h,1.7*k);x.fillStyle=FILM_LAB[l.kind]||'#fff';x.fill();
+    x.textAlign='center';x.fillStyle='#fff';x.font=`700 ${8.6*k}px ${sans}`;x.fillText(l.title,bx+w/2+1.5*k,by+(l.sub?10.6:11)*k);
+    if(l.sub){x.fillStyle='rgba(255,255,255,.78)';x.font=`600 ${5.8*k}px ${sans}`;x.fillText(l.sub,bx+w/2+1.5*k,by+19.4*k)}
+  }
+  x.restore();
+}
 function filmIdle(m,ms){
   return new Promise(res=>{
     let done=false;const fin=()=>{if(done)return;done=true;clearTimeout(tm);m.off('idle',fin);res()};
@@ -3858,16 +3928,17 @@ async function filmRun(){
     const t0=H0,t1=t0+Dd,t2=t1+Dw,t3=t2+Da,fadeD=.3*Dd;
     const sub=`${fmtKm(T.total)} km · ${nf0.format(T.up[N-1])} m de dénivelé`;
     const plan=t=>{
-      let cam,fr,ph,kmMode,dot=false,op=1,titleA=0,statsA=0;
-      if(t<t0){ph='hold';const u=t/t0;cam=ovCam(lerp(-12,0,fEase(u)),.15*u);fr=1;kmMode='all';titleA=fEase(t/.7)}
+      let cam,fr,ph,kmMode,dot=false,op=1,titleA=0,statsA=0,labA=0,walkF=null;
+      if(t<t0){ph='hold';const u=t/t0;cam=ovCam(lerp(-12,0,fEase(u)),.15*u);fr=1;kmMode='all';titleA=fEase(t/.7);labA=fEase((t-.8)/1)}
       else if(t<t1){ph='down';const u=(t-t0)/Dd;cam=fMix(ovCam(0,.15),follow(0),fEase(u));
         const a=1-fEase((t-t0)/fadeD);op=a;fr=a>0?1:0;kmMode=a>0?'all':'none';dot=a<=0;
-        titleA=1-fEase((t-t0)/(.5*Dd));statsA=fEase((t-t0-.5*Dd)/(.5*Dd))}
-      else if(t<t2){ph='walk';fr=fProg((t-t1)/Dw);cam=follow(fr);kmMode='last4';dot=true;statsA=1}
-      else if(t<t3){ph='up';const u=(t-t2)/Da;fr=1;cam=fMix(follow(1),ovCam(0,0),fEase(u));kmMode=u>.35?'all':'last4';statsA=1-fEase(u/.4);titleA=fEase((u-.6)/.4)}
-      else{ph='end';const u=Math.min(1,(t-t3)/He);fr=1;cam=ovCam(lerp(0,10,fEase(u)),.15*u);kmMode='all';titleA=1}
-      return {cam,fr,ph,kmMode,dot,op,titleA,statsA};
+        titleA=1-fEase((t-t0)/(.5*Dd));statsA=fEase((t-t0-.5*Dd)/(.5*Dd));labA=a;if(a<=0)walkF=0}
+      else if(t<t2){ph='walk';fr=fProg((t-t1)/Dw);cam=follow(fr);kmMode='last4';dot=true;statsA=1;walkF=fr}
+      else if(t<t3){ph='up';const u=(t-t2)/Da;fr=1;cam=fMix(follow(1),ovCam(0,0),fEase(u));kmMode=u>.35?'all':'last4';statsA=1-fEase(u/.4);titleA=fEase((u-.6)/.4);labA=fEase((u-.6)/.4);if(u<.6)walkF=1}
+      else{ph='end';const u=Math.min(1,(t-t3)/He);fr=1;cam=ovCam(lerp(0,10,fEase(u)),.15*u);kmMode='all';titleA=1;labA=1}
+      return {cam,fr,ph,kmMode,dot,op,titleA,statsA,labA,walkF};
     };
+    const labs=await filmLabels().catch(()=>[]);
     // image finale de contrôle : le premier rendu attend plus longtemps (les photos arrivent)
     const out=document.createElement('canvas');out.width=W;out.height=H;const x=out.getContext('2d');
     const pv=$('filmPrev'),pw=Math.min(320,W),pvh=Math.round(pw*H/W);pv.width=pw;pv.height=pvh;const px=pv.getContext('2d');
@@ -3894,6 +3965,7 @@ async function filmRun(){
       // image = carte + textes
       x.drawImage(m.getCanvas(),0,0,W,H);
       filmHud(x,W,H,{title,sub,titleA:p.titleA,statsA:p.statsA,attr,rd:val(T.rd,p.fr),se:val(T.se,p.fr),up:val(T.up,p.fr),time:val(T.time,p.fr)});
+      filmLabelDraw(x,W,H,k,m,labs,{labA:p.labA,walkF:p.walkF,titleA:p.titleA,statsA:p.statsA});
       const vf=new VideoFrame(out,{timestamp:Math.round(n*1e6/FPS),duration:Math.round(1e6/FPS)});
       enc.encode(vf,{keyFrame:n%60===0});vf.close();
       while(enc.encodeQueueSize>6&&!FILM.cancel)await fSleep(8);
@@ -4154,7 +4226,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V37", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Nouveau bouton 💾 Sauvegarder dans le replay (et dans Mes randos), suppression d'une rando enregistrée (🗑, avec confirmation), et le bouton « Écran » est retiré.", "Carte plus nette (définition maximale) et couleurs rapprochées sur de très grandes zones (≈ 25 km), identiques à tous les zooms : fini les cassures de couleur au loin.", "Film : plus de carrés qui changent de couleur. Photos IGN sans aucune retouche, image du film plus stable, et nouveau choix « Fond de carte : Satellite » pour des couleurs régulières sur toute la vidéo.", "Carte : les couleurs de toute la carte sont rapprochées de celles des photos sous le parcours (teinte neutre de la roche), pour supprimer le jaune et les zones sombres autour."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V38", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : étiquettes sur la carte — nom du lieu de départ (ville ou lieu de la carte), point culminant avec son altitude, arrivée, et quelques villages, cols, refuges ou lacs qui apparaissent quand on passe devant.", "Nouveau bouton 💾 Sauvegarder dans le replay (et dans Mes randos), suppression d'une rando enregistrée (🗑, avec confirmation), et le bouton « Écran » est retiré.", "Carte plus nette (définition maximale) et couleurs rapprochées sur de très grandes zones (≈ 25 km), identiques à tous les zooms : fini les cassures de couleur au loin.", "Film : plus de carrés qui changent de couleur. Photos IGN sans aucune retouche, image du film plus stable, et nouveau choix « Fond de carte : Satellite » pour des couleurs régulières sur toute la vidéo."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
