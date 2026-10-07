@@ -134,7 +134,7 @@ class ClassificationTest {
         val plan = Planner.plan(all, hikes, names, zone = paris).associateBy { it.photo }
 
         assertEquals(listOf("Randonnées", "2026-09-14 Verdon"), plan.getValue(during).folder)
-        assertEquals(listOf("Journées", "2026", "09 - septembre"), plan.getValue(evening).folder.take(3))
+        assertEquals("sortie=${hikes[0]} soir=${evening.takenAt} gps=${evening.hasGps}", listOf("Journées", "2026", "09 - septembre"), plan.getValue(evening).folder.take(3))
         assertEquals("14 septembre (lun)", plan.getValue(evening).folder.last())
     }
 
