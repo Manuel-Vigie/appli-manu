@@ -36,7 +36,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
+import kotlin.math.roundToInt
 
 /** Un groupe de visages qui se ressemblent : probablement une même personne, à nommer. */
 class ClusterUi(val id: Int, val photos: Int, val thumbs: List<ByteArray>)
@@ -86,6 +89,8 @@ sealed interface UiState {
         val reclassify: Boolean = false,
         val unchanged: Int = 0,
         val leftCopies: Int = 0,
+        /** Pas de ville trouvée (hors connexion) : les dossiers de journées n'ont pas de ville. */
+        val townsUnavailable: Boolean = false,
     ) : UiState
 
     data class Done(
@@ -132,6 +137,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var leftCopies = 0
     private var reclassifyRun = false
     private var activeCategories: List<Category> = emptyList()
+    private var dayPlaces: Map<LocalDate, String> = emptyMap()
+    private var townsUnavailable = false
 
     private val _state = MutableStateFlow<UiState>(UiState.Working("Démarrage…", 0, 0))
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -261,6 +268,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
                 val withFaces = detectFaces(scanned)
                 photos = detectContent(identifyKnown(withFaces), activeCategories)
+                dayPlaces = findDayPlaces(photos)
                 clusters = buildClusters(photos)
 
                 if (clusters.isEmpty()) {
@@ -359,6 +367,28 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         return result
     }
 
+    /** Ville où l'on était chaque jour (hors randonnées), pour nommer les dossiers de journées. Nécessite internet. */
+    private suspend fun findDayPlaces(list: List<PhotoInfo>): Map<LocalDate, String> {
+        val zone = ZoneId.systemDefault()
+        val byDay = list
+            .filter { it.hasGps && HikeDetector.hikeFor(it, hikes, zone) == null }
+            .groupBy { Instant.ofEpochMilli(it.takenAt).atZone(zone).toLocalDate() }
+        val namer = PlaceNamer(getApplication())
+        val result = LinkedHashMap<LocalDate, String>()
+        var n = 0
+        for ((date, photos) in byDay) {
+            // Lieu principal du jour : la zone (environ 2 km) où il y a le plus de photos.
+            val main = photos.groupBy { "${(it.lat!! * 50).roundToInt()}:${(it.lon!! * 50).roundToInt()}" }
+                .maxByOrNull { it.value.size }?.value?.firstOrNull()
+            val town = main?.let { namer.nameFor(it.lat!!, it.lon!!) }
+            if (town != null) result[date] = town
+            n++
+            if (n % 10 == 0) _state.value = UiState.Working("Recherche des villes des journées…", n, byDay.size)
+        }
+        townsUnavailable = byDay.isNotEmpty() && result.isEmpty()
+        return result
+    }
+
     /** Rattache aux proches déjà connus les visages qui leur ressemblent assez. */
     private fun identifyKnown(list: List<PhotoInfo>): List<PhotoInfo> {
         val known = store.known()
@@ -429,7 +459,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun skipPeople() = showPreview()
 
     private fun showPreview() {
-        val plan = Planner.plan(photos, hikes, hikeNames, copyToPeople, categories = activeCategories)
+        val plan = Planner.plan(photos, hikes, hikeNames, copyToPeople, categories = activeCategories, dayPlaces = dayPlaces)
         // Une photo déjà au bon endroit et sans copie à faire n'a rien à subir.
         pendingMoves = plan.filter { it.photo.currentFolder != it.folder || it.copies.isNotEmpty() }
         _state.value = buildPreview(plan)
@@ -463,6 +493,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             reclassify = reclassifyRun,
             unchanged = plan.size - moving,
             leftCopies = leftCopies,
+            townsUnavailable = townsUnavailable,
         )
     }
 

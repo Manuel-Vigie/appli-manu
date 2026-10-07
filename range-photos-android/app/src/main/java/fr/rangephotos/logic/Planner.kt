@@ -4,6 +4,7 @@ import fr.rangephotos.model.Category
 import fr.rangephotos.model.CategoryKind
 import fr.rangephotos.model.PhotoInfo
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 
 /**
@@ -22,7 +23,7 @@ data class PlannedMove(
  * 2. Portraits / <Prénom, Solo ou Groupe> / <année>
  * 3. Dossiers de l'utilisateur (Codes-barres, Véhicules, Lieux…) : <nom> / <année> (ou <nom> / <ville>)
  * 4. Captures d'écran / <année>
- * 5. Photos / <année> / <mois> / <jour>  (un dossier par jour, ex. « 14 mars »)
+ * 5. Journées / <année> / <mois> / <jour> - <ville>  (ex. « 14 mars (sam) - Nice »)
  *
  * Une photo avec un seul visage reconnu va dans le dossier de cette personne ; avec plusieurs visages, dans « Groupe ».
  * Si [copyToPeople] est vrai, chaque proche reconnu a en plus une copie dans Portraits/<Prénom>/<année>
@@ -34,7 +35,9 @@ object Planner {
     const val SOLO = "Solo"
     const val GROUP = "Groupe"
     const val SCREENSHOTS = "Captures d'écran"
-    const val PHOTOS = "Photos"
+    const val PHOTOS = "Journées"
+
+    private val DAYS = listOf("lun", "mar", "mer", "jeu", "ven", "sam", "dim")
 
     private val MONTHS = listOf(
         "janvier", "février", "mars", "avril", "mai", "juin",
@@ -48,6 +51,8 @@ object Planner {
         copyToPeople: Boolean = true,
         zone: ZoneId = ZoneId.systemDefault(),
         categories: List<Category> = emptyList(),
+        /** Ville où l'on était chaque jour (pour nommer les dossiers de journées). */
+        dayPlaces: Map<LocalDate, String> = emptyMap(),
     ): List<PlannedMove> = photos.map { photo ->
         val date = Instant.ofEpochMilli(photo.takenAt).atZone(zone).toLocalDate()
         val year = date.year.toString()
@@ -66,7 +71,7 @@ object Planner {
             photo.isScreenshot -> listOf(SCREENSHOTS, year)
             else -> listOf(
                 PHOTOS, year, "%02d - %s".format(date.monthValue, MONTHS[date.monthValue - 1]),
-                "%02d %s".format(date.dayOfMonth, MONTHS[date.monthValue - 1]),
+                dayFolder(date, dayPlaces[date]),
             )
         }
 
@@ -78,6 +83,12 @@ object Planner {
             emptyList()
         }
         PlannedMove(photo, folder, copies)
+    }
+
+    /** « 14 mars (sam) - Nice » : classé par date dans l'explorateur de fichiers, avec la ville si on la connaît. */
+    fun dayFolder(date: LocalDate, town: String?): String {
+        val label = "%02d %s (%s)".format(date.dayOfMonth, MONTHS[date.monthValue - 1], DAYS[date.dayOfWeek.value - 1])
+        return if (town.isNullOrBlank()) label else "$label - ${sanitize(town)}"
     }
 
     private fun categoryFolder(category: Category, photo: PhotoInfo, year: String): List<String> {

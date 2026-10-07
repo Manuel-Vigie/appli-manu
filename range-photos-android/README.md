@@ -15,7 +15,7 @@ Chaque photo est classée, dans cet ordre de priorité :
 | Portrait d'une personne inconnue | `Portraits/Solo/2026/` |
 | Photo de groupe (plusieurs visages) | `Portraits/Groupe/2026/` |
 | Capture d'écran | `Captures d'écran/2026/` |
-| Tout le reste | `Photos/2026/03 - mars/14 mars/` (un dossier par jour) |
+| Tout le reste | `Journées/2026/03 - mars/14 mars (sam) - Nice/` (un dossier par jour, avec la ville si internet) |
 
 Tout est créé dans un dossier `Photos rangées` à la racine de la carte SD (ou de la mémoire du téléphone).
 

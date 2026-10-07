@@ -648,6 +648,17 @@ private fun PreviewScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (state.townsUnavailable) {
+                item {
+                    SectionCard(container = MaterialTheme.colorScheme.errorContainer) {
+                        Text(
+                            "Pas d'internet : les dossiers de journées n'auront pas le nom de la ville. " +
+                                "Si vous voulez les villes, annulez, connectez-vous et relancez.",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            }
             item {
                 if (state.reclassify) {
                     Text(

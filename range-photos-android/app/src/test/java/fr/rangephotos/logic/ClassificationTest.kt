@@ -117,7 +117,8 @@ class ClassificationTest {
         assertEquals(listOf("Randonnées", "2026-09-14 Verdon", "Portraits", "Solo"), plan.getValue(portraitInHike).folder)
         assertEquals(listOf("Portraits", "Groupe", "2026"), plan.getValue(groupAtHome).folder)
         assertEquals(listOf("Portraits", "Solo", "2026"), plan.getValue(soloAtHome).folder)
-        assertEquals(listOf("Photos", "2026", "03 - mars", "05 mars"), plan.getValue(plain).folder)
+        assertEquals(listOf("Journées", "2026", "03 - mars"), plan.getValue(plain).folder.take(3))
+        assertEquals("05 mars (jeu)", plan.getValue(plain).folder.last())
         assertEquals(listOf("Captures d'écran", "2026"), plan.getValue(screenshot).folder)
     }
 
@@ -133,7 +134,18 @@ class ClassificationTest {
         val plan = Planner.plan(all, hikes, names, zone = paris).associateBy { it.photo }
 
         assertEquals(listOf("Randonnées", "2026-09-14 Verdon"), plan.getValue(during).folder)
-        assertEquals(listOf("Photos", "2026", "09 - septembre", "14 septembre"), plan.getValue(evening).folder)
+        assertEquals(listOf("Journées", "2026", "09 - septembre"), plan.getValue(evening).folder.take(3))
+        assertEquals("14 septembre (lun)", plan.getValue(evening).folder.last())
+    }
+
+    @Test
+    fun dayFolderShowsTheTownWhenKnown() {
+        val plain = photo(LocalDateTime.of(2026, 3, 5, 12, 0))
+        val day = LocalDate.of(2026, 3, 5)
+        val withTown = Planner.plan(listOf(plain), emptyList(), emptyMap(), zone = paris, dayPlaces = mapOf(day to "Nice")).single()
+        assertEquals("05 mars (jeu) - Nice", withTown.folder.last())
+        val without = Planner.plan(listOf(plain), emptyList(), emptyMap(), zone = paris).single()
+        assertEquals("05 mars (jeu)", without.folder.last())
     }
 
     @Test

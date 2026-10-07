@@ -49,8 +49,8 @@ class CategoryPlannerTest {
     @Test
     fun vehiclePhotoNeedsEnoughConfidence() {
         assertEquals(listOf("Véhicules", "2026"), folderOf(photo(labels = mapOf("Car" to 0.9f)), vehicles))
-        assertEquals(listOf("Photos", "2026", "03 - mars", "14 mars"), folderOf(photo(labels = mapOf("Car" to 0.3f)), vehicles))
-        assertEquals(listOf("Photos", "2026", "03 - mars", "14 mars"), folderOf(photo(labels = mapOf("Dog" to 0.95f)), vehicles))
+        assertEquals(listOf("Journées", "2026", "03 - mars", "14 mars (sam)"), folderOf(photo(labels = mapOf("Car" to 0.3f)), vehicles))
+        assertEquals(listOf("Journées", "2026", "03 - mars", "14 mars (sam)"), folderOf(photo(labels = mapOf("Dog" to 0.95f)), vehicles))
     }
 
     @Test
