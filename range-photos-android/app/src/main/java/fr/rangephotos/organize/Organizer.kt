@@ -9,7 +9,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
-data class OrganizeResult(val moved: Int, val failed: Int)
+data class OrganizeResult(
+    val moved: Int,
+    val failed: Int,
+    val copied: Int = 0,
+    val copyFailed: Int = 0,
+)
 
 /**
  * Déplace réellement les photos dans leurs dossiers.
@@ -18,7 +23,10 @@ data class OrganizeResult(val moved: Int, val failed: Int)
  * perdue en cas d'interruption). Si le système ne le permet pas, on copie, on vérifie que la taille
  * est identique, et seulement ensuite on supprime l'original.
  *
- * Chaque déplacement est écrit dans un journal, ce qui permet d'annuler tout le rangement.
+ * Les copies demandées (photos de proches dans leur dossier) sont faites après le déplacement, avec la
+ * même vérification de taille. Chaque déplacement et chaque copie est écrit dans un journal, ce qui permet
+ * d'annuler tout le rangement : les photos reviennent à leur place et seules les copies créées par l'appli
+ * sont supprimées.
  */
 class Organizer(private val context: Context) {
 
@@ -43,23 +51,46 @@ class Organizer(private val context: Context) {
         val namesInDir = HashMap<String, MutableSet<String>>()
         var moved = 0
         var failed = 0
+        var copied = 0
+        var copyFailed = 0
+
+        fun namesOf(dir: DocumentFile): MutableSet<String> =
+            namesInDir.getOrPut(dir.uri.toString()) { dir.listFiles().mapNotNull { it.name }.toMutableSet() }
 
         moves.forEachIndexed { index, move ->
             try {
                 val target = targetDir(outputRoot, move.folder, dirCache)
-                val names = namesInDir.getOrPut(target.uri.toString()) {
-                    target.listFiles().mapNotNull { it.name }.toMutableSet()
-                }
+                val names = namesOf(target)
                 val finalName = uniqueName(move.photo.name, names)
                 val parentUri = move.photo.parentUri
-                val newUri = if (parentUri != null) {
+                val newUri: Uri? = if (parentUri != null) {
                     moveOrCopy(move.photo.uri, parentUri, target, move.photo.mimeType, move.photo.name, finalName)
-                } else null
+                } else {
+                    null
+                }
 
                 if (newUri != null) {
                     names += finalName
-                    journal.appendText("$newUri\t${target.uri}\t$parentUri\n")
+                    journal.appendText("M\t$newUri\t${target.uri}\t$parentUri\n")
                     moved++
+
+                    for (folder in move.copies) {
+                        try {
+                            val dir = targetDir(outputRoot, folder, dirCache)
+                            val dirNames = namesOf(dir)
+                            val copyName = uniqueName(move.photo.name, dirNames)
+                            val copyUri = copyFile(newUri, dir, move.photo.mimeType, copyName)
+                            if (copyUri != null) {
+                                dirNames += copyName
+                                journal.appendText("C\t$copyUri\n")
+                                copied++
+                            } else {
+                                copyFailed++
+                            }
+                        } catch (_: Exception) {
+                            copyFailed++
+                        }
+                    }
                 } else {
                     failed++
                 }
@@ -68,30 +99,40 @@ class Organizer(private val context: Context) {
             }
             onProgress(index + 1, moves.size)
         }
-        OrganizeResult(moved, failed)
+        OrganizeResult(moved, failed, copied, copyFailed)
     }
 
-    /** Annule le dernier rangement en remettant chaque photo dans son dossier d'origine. */
+    /** Annule le dernier rangement : supprime les copies créées par l'appli, remet chaque photo dans son dossier d'origine. */
     suspend fun undo(journal: File, onProgress: (done: Int, total: Int) -> Unit): OrganizeResult =
         withContext(Dispatchers.IO) {
             if (!journal.exists()) return@withContext OrganizeResult(0, 0)
             val lines = journal.readLines().filter { it.isNotBlank() }.reversed()
             var restored = 0
             var failed = 0
+            var removedCopies = 0
             val remaining = ArrayList<String>()
 
             lines.forEachIndexed { index, line ->
                 val parts = line.split('\t')
                 var ok = false
-                if (parts.size == 3 && parts[2] != "null") {
-                    try {
-                        ok = DocumentsContract.moveDocument(
-                            resolver, Uri.parse(parts[0]), Uri.parse(parts[1]), Uri.parse(parts[2]),
-                        ) != null
-                    } catch (_: Exception) {
+                try {
+                    when {
+                        parts[0] == "C" && parts.size == 2 -> {
+                            ok = DocumentFile.fromSingleUri(context, Uri.parse(parts[1]))?.delete() == true
+                            if (ok) removedCopies++
+                        }
+                        parts[0] == "M" && parts.size == 4 && parts[3] != "null" -> {
+                            ok = moveBack(parts[1], parts[2], parts[3])
+                            if (ok) restored++
+                        }
+                        parts.size == 3 && parts[2] != "null" -> { // ancien format de journal
+                            ok = moveBack(parts[0], parts[1], parts[2])
+                            if (ok) restored++
+                        }
                     }
+                } catch (_: Exception) {
                 }
-                if (ok) restored++ else {
+                if (!ok) {
                     failed++
                     remaining += line
                 }
@@ -99,8 +140,13 @@ class Organizer(private val context: Context) {
             }
             // On garde dans le journal ce qui n'a pas pu être annulé (ordre d'origine).
             journal.writeText(remaining.reversed().joinToString("\n", postfix = if (remaining.isEmpty()) "" else "\n"))
-            OrganizeResult(restored, failed)
+            OrganizeResult(restored, failed, removedCopies, 0)
         }
+
+    private fun moveBack(document: String, currentParent: String, originalParent: String): Boolean =
+        DocumentsContract.moveDocument(
+            resolver, Uri.parse(document), Uri.parse(currentParent), Uri.parse(originalParent),
+        ) != null
 
     private fun targetDir(
         outputRoot: DocumentFile,
@@ -154,21 +200,33 @@ class Organizer(private val context: Context) {
 
         // 2) Copie, vérification de la taille, puis suppression de l'original.
         val sourceFile = DocumentFile.fromSingleUri(context, source) ?: return null
-        val copy = target.createFile(mime, finalName) ?: return null
-        val expected = sourceFile.length()
-        try {
+        val copy = copyFile(source, target, mime, finalName) ?: return null
+        return if (sourceFile.delete()) {
+            copy
+        } else {
+            DocumentFile.fromSingleUri(context, copy)?.delete()
+            null
+        }
+    }
+
+    /** Copie [source] dans [target] et vérifie que la taille est identique. Retourne l'URI de la copie, ou null. */
+    private fun copyFile(source: Uri, target: DocumentFile, mime: String, name: String): Uri? {
+        val expected = DocumentFile.fromSingleUri(context, source)?.length() ?: return null
+        val copy = target.createFile(mime, name) ?: return null
+        return try {
             resolver.openInputStream(source)?.use { input ->
                 resolver.openOutputStream(copy.uri)?.use { output -> input.copyTo(output) }
                     ?: throw IllegalStateException("écriture impossible")
             } ?: throw IllegalStateException("lecture impossible")
 
-            if (copy.length() != expected) throw IllegalStateException("taille différente")
-        } catch (e: Exception) {
-            copy.delete() // la copie est incomplète : on la retire, l'original n'a pas bougé
-            return null
-        }
-        return if (sourceFile.delete()) copy.uri else {
-            copy.delete()
+            if (copy.length() == expected) {
+                copy.uri
+            } else {
+                copy.delete()
+                null
+            }
+        } catch (_: Exception) {
+            copy.delete() // copie incomplète : on la retire, l'original n'a pas bougé
             null
         }
     }

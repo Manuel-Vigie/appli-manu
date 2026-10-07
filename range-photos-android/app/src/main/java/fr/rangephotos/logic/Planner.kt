@@ -4,15 +4,26 @@ import fr.rangephotos.model.PhotoInfo
 import java.time.Instant
 import java.time.ZoneId
 
-/** Une photo et le chemin du dossier (sous le dossier de sortie) où elle doit aller. */
-data class PlannedMove(val photo: PhotoInfo, val folder: List<String>)
+/**
+ * Une photo, le dossier où elle va (sous « Photos rangées »), et les dossiers où en mettre une copie
+ * (photos où apparaît un proche : copie dans son dossier Portraits/<Prénom>/<année>).
+ */
+data class PlannedMove(
+    val photo: PhotoInfo,
+    val folder: List<String>,
+    val copies: List<List<String>> = emptyList(),
+)
 
 /**
  * Décide du dossier de chaque photo, en cascade :
- * 1. Randonnées / <sortie> (avec un sous-dossier Portraits pour les photos de personnes)
- * 2. Portraits / Solo ou Groupe / <année>
+ * 1. Randonnées / <sortie> (avec un sous-dossier Portraits / <Prénom, Solo ou Groupe> pour les photos de personnes)
+ * 2. Portraits / <Prénom, Solo ou Groupe> / <année>
  * 3. Captures d'écran / <année>
  * 4. Photos / <année> / <mois>
+ *
+ * Une photo avec un seul visage reconnu va dans le dossier de cette personne ; avec plusieurs visages, dans « Groupe ».
+ * Si [copyToPeople] est vrai, chaque proche reconnu a en plus une copie dans Portraits/<Prénom>/<année>
+ * (un fichier ne peut pas être à deux endroits sur une carte SD : on le copie).
  */
 object Planner {
     const val HIKES = "Randonnées"
@@ -31,23 +42,38 @@ object Planner {
         photos: List<PhotoInfo>,
         hikes: List<Hike>,
         hikeFolderNames: Map<Hike, String>,
+        copyToPeople: Boolean = true,
         zone: ZoneId = ZoneId.systemDefault(),
     ): List<PlannedMove> = photos.map { photo ->
         val date = Instant.ofEpochMilli(photo.takenAt).atZone(zone).toLocalDate()
         val year = date.year.toString()
         val hike = HikeDetector.hikeFor(photo, hikes, zone)
-        val hasPortrait = photo.faceCount > 0
+        val hasPortrait = photo.faces.isNotEmpty()
 
         val folder = when {
             hike != null -> {
                 val base = listOf(HIKES, sanitize(hikeFolderNames[hike] ?: hike.start.toString()))
-                if (hasPortrait) base + PORTRAITS else base
+                if (hasPortrait) base + PORTRAITS + portraitFolder(photo) else base
             }
-            hasPortrait -> listOf(PORTRAITS, if (photo.faceCount == 1) SOLO else GROUP, year)
+            hasPortrait -> listOf(PORTRAITS, portraitFolder(photo), year)
             photo.isScreenshot -> listOf(SCREENSHOTS, year)
             else -> listOf(PHOTOS, year, "%02d - %s".format(date.monthValue, MONTHS[date.monthValue - 1]))
         }
-        PlannedMove(photo, folder)
+
+        val copies = if (copyToPeople) {
+            photo.faces.mapNotNull { it.person }.distinct()
+                .map { listOf(PORTRAITS, sanitize(it), year) }
+                .filter { it != folder }
+        } else {
+            emptyList()
+        }
+        PlannedMove(photo, folder, copies)
+    }
+
+    /** Un visage reconnu : le prénom ; un visage inconnu : « Solo » ; plusieurs visages : « Groupe ». */
+    private fun portraitFolder(photo: PhotoInfo): String {
+        if (photo.faces.size >= 2) return GROUP
+        return photo.faces.first().person?.let { sanitize(it) } ?: SOLO
     }
 
     /** Retire les caractères interdits dans les noms de dossiers (FAT/exFAT, Android). */

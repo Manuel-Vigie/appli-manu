@@ -1,6 +1,7 @@
 package fr.rangephotos.logic
 
 import android.net.Uri
+import fr.rangephotos.model.FaceInfo
 import fr.rangephotos.model.PhotoInfo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -24,8 +25,9 @@ class ClassificationTest {
         time: LocalDateTime,
         lat: Double? = null,
         lon: Double? = null,
-        faces: Int = 0,
+        faceCount: Int = 0,
         screenshot: Boolean = false,
+        people: List<String?> = emptyList(),
     ) = PhotoInfo(
         uri = mock(Uri::class.java),
         parentUri = null,
@@ -35,7 +37,7 @@ class ClassificationTest {
         lat = lat,
         lon = lon,
         isScreenshot = screenshot,
-        faceCount = faces,
+        faces = if (people.isNotEmpty()) people.map { FaceInfo(0.3f, null, null, it) } else List(faceCount) { FaceInfo(0.3f, null, null) },
     )
 
     /** Une photo à la maison sur 6 jours différents : c'est ce qui définit le « domicile ». */
@@ -98,9 +100,9 @@ class ClassificationTest {
     @Test
     fun plannerBuildsTheExpectedFolders() {
         val hikePhotos = hikeDay(LocalDate.of(2026, 9, 14))
-        val portraitInHike = photo(LocalDateTime.of(2026, 9, 14, 11, 0), hikeLat, hikeLon, faces = 1)
-        val groupAtHome = photo(LocalDateTime.of(2026, 3, 5, 20, 0), homeLat, homeLon, faces = 2)
-        val soloAtHome = photo(LocalDateTime.of(2026, 4, 5, 20, 0), homeLat, homeLon, faces = 1)
+        val portraitInHike = photo(LocalDateTime.of(2026, 9, 14, 11, 0), hikeLat, hikeLon, faceCount = 1)
+        val groupAtHome = photo(LocalDateTime.of(2026, 3, 5, 20, 0), homeLat, homeLon, faceCount = 2)
+        val soloAtHome = photo(LocalDateTime.of(2026, 4, 5, 20, 0), homeLat, homeLon, faceCount = 1)
         val plain = photo(LocalDateTime.of(2026, 3, 5, 12, 0))
         val screenshot = photo(LocalDateTime.of(2026, 1, 2, 12, 0), screenshot = true)
 
@@ -109,14 +111,47 @@ class ClassificationTest {
         assertEquals(1, hikes.size)
         val names = mapOf(hikes[0] to "2026-09-14 Verdon")
 
-        val plan = Planner.plan(all, hikes, names, paris).associateBy { it.photo }
+        val plan = Planner.plan(all, hikes, names, zone = paris).associateBy { it.photo }
 
         assertEquals(listOf("Randonnées", "2026-09-14 Verdon"), plan.getValue(hikePhotos[0]).folder)
-        assertEquals(listOf("Randonnées", "2026-09-14 Verdon", "Portraits"), plan.getValue(portraitInHike).folder)
+        assertEquals(listOf("Randonnées", "2026-09-14 Verdon", "Portraits", "Solo"), plan.getValue(portraitInHike).folder)
         assertEquals(listOf("Portraits", "Groupe", "2026"), plan.getValue(groupAtHome).folder)
         assertEquals(listOf("Portraits", "Solo", "2026"), plan.getValue(soloAtHome).folder)
         assertEquals(listOf("Photos", "2026", "03 - mars"), plan.getValue(plain).folder)
         assertEquals(listOf("Captures d'écran", "2026"), plan.getValue(screenshot).folder)
+    }
+
+    @Test
+    fun namedPeopleGetTheirOwnFoldersAndCopies() {
+        val soloJulie = photo(LocalDateTime.of(2026, 4, 5, 20, 0), homeLat, homeLon, people = listOf("Julie"))
+        val groupe = photo(LocalDateTime.of(2026, 4, 6, 20, 0), homeLat, homeLon, people = listOf("Julie", "Maman", null))
+        val all = homePhotos() + soloJulie + groupe
+        val plan = Planner.plan(all, emptyList(), emptyMap(), true, paris).associateBy { it.photo }
+
+        assertEquals(listOf("Portraits", "Julie", "2026"), plan.getValue(soloJulie).folder)
+        assertTrue(plan.getValue(soloJulie).copies.isEmpty())
+
+        assertEquals(listOf("Portraits", "Groupe", "2026"), plan.getValue(groupe).folder)
+        assertEquals(
+            listOf(listOf("Portraits", "Julie", "2026"), listOf("Portraits", "Maman", "2026")),
+            plan.getValue(groupe).copies,
+        )
+
+        val sansCopie = Planner.plan(all, emptyList(), emptyMap(), false, paris).associateBy { it.photo }
+        assertTrue(sansCopie.getValue(groupe).copies.isEmpty())
+    }
+
+    @Test
+    fun namedPersonOnAHikeIsFiledInTheHikeAndCopiedToTheirFolder() {
+        val hikePhotos = hikeDay(LocalDate.of(2026, 9, 14))
+        val julie = photo(LocalDateTime.of(2026, 9, 14, 11, 0), hikeLat, hikeLon, people = listOf("Julie"))
+        val all = homePhotos() + hikePhotos + julie
+        val hikes = HikeDetector.detect(all, paris)
+        val names = mapOf(hikes[0] to "2026-09-14 Verdon")
+
+        val move = Planner.plan(all, hikes, names, true, paris).first { it.photo === julie }
+        assertEquals(listOf("Randonnées", "2026-09-14 Verdon", "Portraits", "Julie"), move.folder)
+        assertEquals(listOf(listOf("Portraits", "Julie", "2026")), move.copies)
     }
 
     @Test

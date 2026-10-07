@@ -1,8 +1,9 @@
 {
   "nom": "Range Photos (Android)",
-  "version": "V1",
+  "version": "V2",
   "date": "07/10/2026",
   "nouveautes": [
+    "Reconnaissance des proches : donnez un prénom une fois, leurs photos vont dans Portraits/Prénom. Les prénoms sont sauvegardés sur la carte SD.",
     "Première version : range la carte SD en dossiers (randonnées, portraits solo ou groupe, captures d'écran, année et mois), avec aperçu et bouton Annuler."
   ],
   "pastille": false,

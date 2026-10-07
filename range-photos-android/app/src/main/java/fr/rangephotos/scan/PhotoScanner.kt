@@ -72,6 +72,7 @@ class PhotoScanner(private val context: Context) {
             lat = lat,
             lon = lon,
             isScreenshot = looksLikeScreenshot(name),
+            size = file.length(),
         )
     }
 

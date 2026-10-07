@@ -12,8 +12,18 @@ android {
         applicationId = "fr.rangephotos"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+
+        // Téléphones ARM uniquement (tous les téléphones actuels) : APK plus léger.
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
+    }
+
+    // Le modèle de reconnaissance de visages est lu tel quel depuis l'APK.
+    androidResources {
+        noCompress += "onnx"
     }
 
     // Clé de signature partagée et publique (app/debug.keystore) : tous les APK compilés,
@@ -69,9 +79,13 @@ dependencies {
     // Détection de visages 100 % sur le téléphone (modèle inclus dans l'appli)
     implementation("com.google.mlkit:face-detection:16.1.7")
 
+    // Reconnaissance des personnes : modèle SFace exécuté sur le téléphone (voir THIRD_PARTY_NOTICES.md)
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.19.2")
+
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
     testImplementation("org.mockito:mockito-core:5.12.0")
 }

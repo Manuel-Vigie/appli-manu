@@ -2,6 +2,20 @@ package fr.rangephotos.model
 
 import android.net.Uri
 
+/** Un visage trouvé dans une photo. */
+class FaceInfo(
+    /** Part de la photo occupée par le visage (0 à 1). */
+    val area: Float,
+    /** Empreinte du visage (128 nombres normalisés), ou null si le visage est de profil, trop petit ou illisible. */
+    val embedding: FloatArray?,
+    /** Petite vignette JPEG du visage (112×112), pour l'écran « Mes proches ». */
+    val thumb: ByteArray?,
+    /** Prénom, si la personne est reconnue ou nommée. */
+    val person: String? = null,
+) {
+    fun withPerson(name: String?) = FaceInfo(area, embedding, thumb, name)
+}
+
 /** Une photo trouvée sur la carte SD, avec les informations utiles au classement. */
 data class PhotoInfo(
     val uri: Uri,
@@ -13,8 +27,10 @@ data class PhotoInfo(
     val lat: Double?,
     val lon: Double?,
     val isScreenshot: Boolean,
-    /** Nombre de visages nets détectés (rempli après la détection de visages). */
-    val faceCount: Int = 0,
+    /** Taille du fichier en octets. */
+    val size: Long = 0L,
+    /** Visages détectés (rempli après l'analyse des visages). */
+    val faces: List<FaceInfo> = emptyList(),
 ) {
     val hasGps: Boolean get() = lat != null && lon != null
 }
