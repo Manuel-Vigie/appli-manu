@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V36",
+  "version": "V37",
   "date": "07/10/2026",
   "nouveautes": [
+    "Nouveau bouton 💾 Sauvegarder dans le replay (et dans Mes randos), suppression d'une rando enregistrée (🗑, avec confirmation), et le bouton « Écran » est retiré.",
     "Carte plus nette (définition maximale) et couleurs rapprochées sur de très grandes zones (≈ 25 km), identiques à tous les zooms : fini les cassures de couleur au loin.",
     "Film : plus de carrés qui changent de couleur. Photos IGN sans aucune retouche, image du film plus stable, et nouveau choix « Fond de carte : Satellite » pour des couleurs régulières sur toute la vidéo.",
-    "Carte : les couleurs de toute la carte sont rapprochées de celles des photos sous le parcours (teinte neutre de la roche), pour supprimer le jaune et les zones sombres autour.",
-    "Retour aux couleurs d'origine des photos IGN (plus de jaune) et à leur pleine qualité ; seul le blanc est remplacé par le satellite. Carte un peu plus nette."
+    "Carte : les couleurs de toute la carte sont rapprochées de celles des photos sous le parcours (teinte neutre de la roche), pour supprimer le jaune et les zones sombres autour."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v36"
+    "cache": "rr3d-v37"
   },
   "fichiers": [
     "rando-3d.html",

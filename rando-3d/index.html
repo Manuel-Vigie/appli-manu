@@ -146,7 +146,6 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 .sv-top>*{pointer-events:auto}
 .sv-top .btn{box-shadow:var(--shadow)}
 .sv-row{display:flex;gap:6px;flex-wrap:wrap}
-.sv-row #svRec{background:var(--trail,#d7392a);color:#fff}
 .sv-top{top:calc(46px + env(safe-area-inset-top,0px))}
 .sv-row{max-width:100%}
 .sv-top .btn{padding:8px 11px}
@@ -175,7 +174,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 .fab{position:absolute;right:16px;bottom:calc(16px + env(safe-area-inset-bottom, 0px));display:flex;gap:10px;align-items:center}
 .fab .icon-btn{background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:var(--shadow);width:48px;height:48px}
 .fab .icon-btn.play{background:var(--trail);width:48px;height:48px}
-.fab .mini-progress{height:4px;width:90px;border-radius:2px;background:var(--panel);overflow:hidden;box-shadow:var(--shadow)}
+.fab .mini-progress{height:4px;width:60px;border-radius:2px;background:var(--panel);overflow:hidden;box-shadow:var(--shadow)}
 .fab .mini-progress i{display:block;height:100%;width:0;background:var(--path)}
 .map-status{margin-top:8px;font-size:12px;font-weight:600;display:flex;gap:7px;align-items:flex-start;color:var(--muted);line-height:1.35}
 .map-status::before{content:"";flex:none;width:8px;height:8px;border-radius:50%;margin-top:4px;background:var(--muted)}
@@ -366,6 +365,8 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 .pg-thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .pg-thumbs button{padding:0;border:0;border-radius:10px;overflow:hidden;aspect-ratio:1;background:#cfd8d3;cursor:pointer}
 .pg-thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+.pg-save{display:block;width:100%;border:0;border-radius:14px;background:var(--trail);color:#fff;font-weight:700;font-size:16px;padding:14px;margin:4px 0 10px;cursor:pointer}.pg-save:disabled{opacity:.5}
+.pg-card .pg-del{background:#e9e4dc;color:#444;padding:9px 13px}.pg-card .pg-del.sure{background:#c0392b;color:#fff}
 .pg-empty{background:#fff;border-radius:14px;padding:16px;color:var(--pg-muted);text-align:center;font-size:14.5px}
 .pg-card{display:flex;gap:10px;align-items:center;background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);color:var(--pg-ink)}
 .pg-card div{flex:1;min-width:0}
@@ -445,6 +446,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       </button>
       <button class="btn" id="ignBtn" type="button" aria-label="Carte IGN" title="Carte IGN"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg><span class="blbl">Carte IGN</span></button>
       <button class="btn" id="survolBtn" type="button" aria-label="Carte animée (essai)" title="Carte animée (essai)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 11.5l19-8.5-8.5 19-2.2-8.3z"/></svg><span class="blbl">Carte animée</span></button>
+      <button class="btn" id="saveBtn" type="button" aria-label="Sauvegarder" title="Sauvegarder cette rando"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3M8 21v-7h8v7"/></svg><span class="blbl">Sauvegarder</span></button>
       <button class="btn" id="libBtn" type="button" aria-label="Mes randos" title="Mes randos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg><span class="blbl">Mes randos</span></button>
     </div>
   </header>
@@ -533,6 +535,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
     </button>
     <button class="icon-btn" id="binoBtn2" aria-label="Jumelles" title="Jumelles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6.5" cy="15.5" r="4"/><circle cx="17.5" cy="15.5" r="4"/><path d="M10.5 15.5h3M4 12l2-7h3l1 6M20 12l-2-7h-3l-1 6"/></svg></button>
     <button class="icon-btn fs-btn" id="fsBtn2" aria-label="Plein écran" title="Plein écran" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V3h5M21 8V3h-5M3 16v5h5M21 16v5h-5"/><path d="M9 9h6v6H9z"/></svg></button>
+    <button class="icon-btn" id="saveBtn2" aria-label="Sauvegarder cette rando" title="Sauvegarder cette rando"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3M8 21v-7h8v7"/></svg></button>
     <button class="icon-btn" id="showBtn" aria-label="Afficher les réglages" title="Afficher les réglages">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
     </button>
@@ -589,7 +592,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
     <div id="svMap"></div>
     <div class="sv-load" id="svLoad">Chargement de la carte…</div>
     <div class="sv-top">
-      <div class="sv-row"><button type="button" class="btn" id="svClose">← 3D</button><button type="button" class="btn" id="svRelief" aria-pressed="true" title="Vrai relief en 3D : à essayer, peut ne pas s'afficher sur certains téléphones">Relief 3D</button><button type="button" class="btn" id="svRec" title="Enregistre ce que tu vois à l'écran (pour me montrer un problème)">● Écran</button><button type="button" class="btn primary" id="svFilm" title="Crée une vidéo MP4 stable de ta rando, pour un film YouTube">🎬 Film</button><button type="button" class="btn" id="svTop" aria-pressed="false" title="Regarde la carte de dessus, comme une photo : la caméra ne peut plus entrer dans la montagne">De dessus</button></div>
+      <div class="sv-row"><button type="button" class="btn" id="svClose">← 3D</button><button type="button" class="btn" id="svRelief" aria-pressed="true" title="Vrai relief en 3D : à essayer, peut ne pas s'afficher sur certains téléphones">Relief 3D</button><button type="button" class="btn primary" id="svFilm" title="Crée une vidéo MP4 stable de ta rando, pour un film YouTube">🎬 Film</button><button type="button" class="btn" id="svTop" aria-pressed="false" title="Regarde la carte de dessus, comme une photo : la caméra ne peut plus entrer dans la montagne">De dessus</button></div>
       <div class="seg" id="svStyle" role="group" aria-label="Fond de carte du survol">
         <button data-v="ortho" aria-pressed="false">Photos IGN</button><button data-v="sat" aria-pressed="false">Satellite</button><button data-v="scan" aria-pressed="false">TOP 25</button><button data-v="topo" aria-pressed="false">Topo</button>
       </div>
@@ -755,6 +758,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
         <button type="button" class="pg-tile" data-fwd="planBtn"><i>✏️</i><b>Créer un itinéraire</b><small>Tracer sur la carte</small></button>
         <button type="button" class="pg-tile" data-fwd="libBtn"><i>🗂️</i><b>Gérer mes randos</b><small>Sauvegarder, supprimer</small></button>
       </div>
+      <button type="button" class="pg-save" id="pgSave">💾 Sauvegarder la rando affichée</button>
       <h3 class="pg-h">Enregistrées sur ce téléphone</h3>
       <div id="pgLib"></div>
     </section>
@@ -3233,11 +3237,14 @@ function renderLib(){
 }
 $('libBtn').addEventListener('click',()=>{setPlaying(false);renderLib();$('libSaveCur').disabled=!T||T.sample||T.planBase;$('libPanel').hidden=false});
 $('libClose').addEventListener('click',()=>$('libPanel').hidden=true);
-$('libSaveCur').addEventListener('click',()=>{
-  if(!T||T.sample||T.planBase)return;
-  if(T.gr&&GRDATA){libSave({name:GRDATA.name,gr:GRDATA});return}
-  libSave({name:T.name,track:trackPayload(T),dist:T.total,up:T.up[T.N-1]});
-});
+function saveCurrent(){
+  if(!T||T.sample||T.planBase){toast("Charge d'abord une rando à sauvegarder.");return}
+  if(T.gr&&GRDATA)libSave({name:GRDATA.name,gr:GRDATA});
+  else libSave({name:T.name,track:trackPayload(T),dist:T.total,up:T.up[T.N-1]});
+  if(!$('tabPage').hidden)navPageFill('randos');
+}
+$('libSaveCur').addEventListener('click',saveCurrent);
+$('saveBtn').addEventListener('click',saveCurrent);$('saveBtn2').addEventListener('click',saveCurrent);
 $('libFileCur').addEventListener('click',()=>{
   if(!T||T.sample||T.planBase){toast("Charge d'abord une rando.");return}
   standaloneFile(T.gr&&GRDATA?{gr:GRDATA,stage:T.gr.stage}:{track:trackPayload(T)},safeName(T.name)+'.html');
@@ -3682,40 +3689,7 @@ async function openSurvol(){
     if(SV.ready){if(SV.track!==T)svUpdateTrack();svBegin()}
   }
 }
-function closeSurvol(){svRecStop();if($('tabPage').hidden)navSetActive('replay');SV.on=false;SV.intro=false;$('svPanel').hidden=true;setPlaying(false);heading=null}
-// ---- Filmer la carte (aide au réglage) : vidéo de la carte + bandeau d'infos (distance, zoom, images/s, chargement des photos) ----
-const REC_SV={rec:null,on:false};
-function svRecStop(){if(REC_SV.on&&REC_SV.rec){try{REC_SV.rec.stop()}catch(e){}}}
-function svRecStart(){
-  const m=SV.map;if(!m||!SV.ready){toast("Ouvre d'abord la carte animée.");return}
-  if(!window.MediaRecorder){toast("Ton navigateur ne sait pas filmer ici.",5000);return}
-  const src=m.getCanvas(),sc=Math.min(1,540/src.width),W=Math.round(src.width*sc),H=Math.round(src.height*sc);
-  const out=document.createElement('canvas');out.width=W;out.height=H;const x=out.getContext('2d');
-  let fr=0,t0=performance.now(),fps=0,t00=t0;
-  const draw=()=>{
-    x.drawImage(src,0,0,W,H);
-    fr++;const n=performance.now();if(n-t0>=1000){fps=Math.round(fr*1000/(n-t0));fr=0;t0=n}
-    x.fillStyle='rgba(0,0,0,.6)';x.fillRect(0,0,W,22);x.fillStyle='#fff';x.font='bold 11px Arial';x.textBaseline='middle';
-    const tl=m.areTilesLoaded()?'photos OK':'photos…';
-    x.fillText(`${fmtKm(val(T.rd,f))} km · z${m.getZoom().toFixed(1)} · ${Math.round(m.getPitch())}° · ${fps} im/s · ${tl} · ${Math.round((n-t00)/1000)} s`,6,11);
-  };
-  m.on('render',draw);
-  const types=['video/mp4;codecs=avc1','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
-  const mt=types.find(t=>MediaRecorder.isTypeSupported(t))||'';
-  const rec=new MediaRecorder(out.captureStream(30),mt?{mimeType:mt,videoBitsPerSecond:2000000}:{});
-  const chunks=[];rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
-  const timer=setInterval(()=>{$('svRec').textContent='■ Stop · '+Math.round((performance.now()-t00)/1000)+' s'},500);
-  const auto=setTimeout(()=>svRecStop(),90000);
-  rec.onstop=()=>{
-    clearInterval(timer);clearTimeout(auto);m.off('render',draw);REC_SV.on=false;REC_SV.rec=null;$('svRec').textContent='● Écran';
-    const type=rec.mimeType||mt||'video/webm',ext=/mp4/.test(type)?'mp4':'webm',blob=new Blob(chunks,{type});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='carte-animee-'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.'+ext;
-    document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(a.href)},4000);
-    toast("Vidéo enregistrée dans tes Téléchargements. Envoie-la moi dans la conversation.",8000);
-  };
-  rec.start(1000);REC_SV.rec=rec;REC_SV.on=true;$('svRec').textContent='■ Stop · 0 s';
-}
-$('svRec').addEventListener('click',()=>{if(REC_SV.on)svRecStop();else svRecStart()});
+function closeSurvol(){if($('tabPage').hidden)navSetActive('replay');SV.on=false;SV.intro=false;$('svPanel').hidden=true;setPlaying(false);heading=null}
 function svStyleUI(){
   [...$('svStyle').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===SV.style));
   $('svAttrib').textContent=[SV_STYLES[SV.style].attr,DEM_ATTR,'Moteur : MapLibre'].join(' · ');
@@ -3993,11 +3967,19 @@ function navPageFill(tab){
   if(tab==='randos'){
     const box=$('pgLib'),list=libLoad();box.innerHTML='';
     if(!list.length){box.innerHTML='<div class="pg-empty">Aucune rando enregistrée pour l\'instant.<br>Importe une trace, puis « Gérer mes randos » pour la sauvegarder.</div>'}
+    const sv=$('pgSave'),cur=T&&!T.sample&&!T.planBase?(T.gr&&GRDATA?GRDATA.name:T.name):null,already=cur&&list.some(x=>x.name===cur);
+    sv.disabled=!cur||already;sv.textContent=!cur?'💾 Charge une rando pour la sauvegarder':already?'✓ « '+cur+' » est déjà sauvegardée':'💾 Sauvegarder « '+cur+' »';
     list.forEach(rec=>{const c=document.createElement('div');c.className='pg-card';
       const d=document.createElement('div');const b=document.createElement('b');b.textContent=rec.name;const sm=document.createElement('small');
       sm.textContent=`${isFinite(rec.dist)?fmtKm(rec.dist)+' km':''}${isFinite(rec.up)?' · '+nf0.format(rec.up)+' m D+':''}${rec.gr?' · '+rec.gr.stages.length+' étapes':''}`;
       d.append(b,sm);const o=document.createElement('button');o.type='button';o.textContent='Ouvrir';
-      o.addEventListener('click',()=>{navGo('replay');setTimeout(()=>openLibItem(rec),60)});c.append(d,o);box.appendChild(c)});
+      o.addEventListener('click',()=>{navGo('replay');setTimeout(()=>openLibItem(rec),60)});
+      const x=document.createElement('button');x.type='button';x.className='pg-del';x.textContent='🗑';x.setAttribute('aria-label','Supprimer '+rec.name);
+      let tm=0;x.addEventListener('click',()=>{
+        if(!x.classList.contains('sure')){x.classList.add('sure');x.textContent='Supprimer ?';tm=setTimeout(()=>{x.classList.remove('sure');x.textContent='🗑'},4000);return}
+        clearTimeout(tm);libStore(libLoad().filter(y=>y.id!==rec.id));renderLib();navPageFill('randos');toast('« '+rec.name+' » supprimée.');
+      });
+      c.append(d,o,x);box.appendChild(c)});
   }
 }
 function navGo(tab){
@@ -4013,6 +3995,7 @@ function navGo(tab){
   navSetActive(tab);
 }
 document.querySelectorAll('#nav button').forEach(b=>b.addEventListener('click',()=>navGo(b.dataset.tab)));
+$('pgSave').addEventListener('click',saveCurrent);
 document.querySelectorAll('#tabPage [data-fwd]').forEach(b=>b.addEventListener('click',()=>{const id=b.dataset.fwd;navGo('replay');setTimeout(()=>$(id).click(),60)}));
 document.querySelectorAll('#tabPage [data-close]').forEach(b=>b.addEventListener('click',()=>{setTimeout(()=>navGo('replay'),400)}));
 // Réglages courants : une puce = un appui (au lieu d'ouvrir un panneau)
@@ -4171,7 +4154,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V36", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte plus nette (définition maximale) et couleurs rapprochées sur de très grandes zones (≈ 25 km), identiques à tous les zooms : fini les cassures de couleur au loin.", "Film : plus de carrés qui changent de couleur. Photos IGN sans aucune retouche, image du film plus stable, et nouveau choix « Fond de carte : Satellite » pour des couleurs régulières sur toute la vidéo.", "Carte : les couleurs de toute la carte sont rapprochées de celles des photos sous le parcours (teinte neutre de la roche), pour supprimer le jaune et les zones sombres autour.", "Retour aux couleurs d'origine des photos IGN (plus de jaune) et à leur pleine qualité ; seul le blanc est remplacé par le satellite. Carte un peu plus nette."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V37", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Nouveau bouton 💾 Sauvegarder dans le replay (et dans Mes randos), suppression d'une rando enregistrée (🗑, avec confirmation), et le bouton « Écran » est retiré.", "Carte plus nette (définition maximale) et couleurs rapprochées sur de très grandes zones (≈ 25 km), identiques à tous les zooms : fini les cassures de couleur au loin.", "Film : plus de carrés qui changent de couleur. Photos IGN sans aucune retouche, image du film plus stable, et nouveau choix « Fond de carte : Satellite » pour des couleurs régulières sur toute la vidéo.", "Carte : les couleurs de toute la carte sont rapprochées de celles des photos sous le parcours (teinte neutre de la roche), pour supprimer le jaune et les zones sombres autour."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
