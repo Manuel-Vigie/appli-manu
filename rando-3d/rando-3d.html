@@ -3832,36 +3832,64 @@ async function filmLabels(){
   for(const p of picked)add({kind:p.kind,pri:PR[p.kind],f:p.iNear/e,ll:ll(p.iNear),title:p.name,sub:FILM_KINDTXT[p.kind]+(isFinite(p.ele)&&p.kind!=='hut'&&p.kind!=='village'?' · '+nf0.format(p.ele)+' m':'')});
   return L;
 }
-// affiche les étiquettes visibles (position à l'écran, sans se chevaucher)
+// affiche les étiquettes visibles : cartes blanches avec pastille-icône, qui « sautent » à l'apparition (style Relive)
+const FILM_BADGE={start:'#2fa84f',end:'#d7392a',top:'#f2a51d',peak:'#4a5560',pass:'#7aa23f',hut:'#b4682c',lake:'#2e8fd1',glacier:'#5aa0c8',village:'#6b6bb0'};
+const FILM_ICON={start:'🚩',end:'🏁',top:'⛰️',peak:'🏔️',pass:'🌄',hut:'🏠',lake:'💧',glacier:'❄️',village:'🏘️'};
+const fBack=u=>{const c1=2.2,c3=c1+1;return 1+c3*Math.pow(u-1,3)+c1*Math.pow(u-1,2)};
 function filmLabelDraw(x,W,H,k,m,labs,o){
   if(!labs||!labs.length)return;
   const sans='Arial,Helvetica,sans-serif',boxes=[],top=o.titleA>.05?.25*H:.07*H,bot=o.statsA>.05?.74*H:.9*H;
   const act=[];
   for(const l of labs){
     let a=o.labA;
-    if(o.walkF!=null){const d=o.walkF-l.f,wa=d<-.03?0:d<0?fEase((d+.03)/.03):d<.1?1:d<.14?1-fEase((d-.1)/.04):0;a=Math.max(a,wa)}
-    if(a>.02)act.push({l,a});
+    if(o.walkF!=null){const d=o.walkF-l.f,wa=d<-.03?0:d<0?(d+.03)/.03:d<.1?1:d<.14?1-(d-.1)/.04:0;a=Math.max(a,wa)}
+    if(a>.01)act.push({l,a});
   }
   act.sort((p,q)=>q.l.pri-p.l.pri);
   x.save();x.textBaseline='alphabetic';
   for(const {l,a} of act){
     const pt=m.project(l.ll);if(!pt)continue;
-    const px=pt.x,py=pt.y;
-    x.font=`700 ${8.6*k}px ${sans}`;const tw=x.measureText(l.title).width;
-    let sw=0;if(l.sub){x.font=`600 ${5.8*k}px ${sans}`;sw=x.measureText(l.sub).width}
-    const w=Math.min(W*.8,Math.max(tw,sw)+16*k),h=(l.sub?24:16)*k,bx=Math.max(4*k,Math.min(W-w-4*k,px-w/2));let by=py-9*k-h,flip=false;
-    if(by<top){by=py+9*k;flip=true}
+    const px=pt.x,py=pt.y,big=l.kind==='top'?1.18:(l.kind==='start'||l.kind==='end')?1.08:1,u=k*big;
+    const col=FILM_BADGE[l.kind]||'#444';
+    x.font=`700 ${9*u}px ${sans}`;const tw=x.measureText(l.title).width;
+    let sw=0;if(l.sub){x.font=`600 ${6*u}px ${sans}`;sw=x.measureText(l.sub).width}
+    const bd=22*u,h=Math.max(30*u,bd+8*u),w=Math.min(W*.86,8*u+bd+7*u+Math.max(tw,sw)+11*u);
+    const gap=9*u;
+    let bx=Math.max(4*k,Math.min(W-w-4*k,px-w/2)),by=py-gap-h,flip=false;
+    if(by<top){by=py+gap;flip=true}
     if(py<.04*H||py>bot||px<0||px>W||by+h>bot+h*.5)continue;
     const bb=[bx-3*k,by-3*k,bx+w+3*k,by+h+3*k];
     if(boxes.some(q=>bb[0]<q[2]&&bb[2]>q[0]&&bb[1]<q[3]&&bb[3]>q[1]))continue;
     boxes.push(bb);
-    x.globalAlpha=a;
-    x.strokeStyle='rgba(255,255,255,.9)';x.lineWidth=1.2*k;x.beginPath();x.moveTo(px,flip?by:by+h);x.lineTo(px,py);x.stroke();
-    x.fillStyle=FILM_LAB[l.kind]||'#fff';x.strokeStyle='#1d2b2d';x.lineWidth=1.6*k;x.beginPath();x.arc(px,py,3.4*k,0,7);x.fill();x.stroke();
-    filmRR(x,bx,by,w,h,6*k);x.fillStyle='rgba(14,24,28,.74)';x.fill();
-    filmRR(x,bx,by,3.4*k,h,1.7*k);x.fillStyle=FILM_LAB[l.kind]||'#fff';x.fill();
-    x.textAlign='center';x.fillStyle='#fff';x.font=`700 ${8.6*k}px ${sans}`;x.fillText(l.title,bx+w/2+1.5*k,by+(l.sub?10.6:11)*k);
-    if(l.sub){x.fillStyle='rgba(255,255,255,.78)';x.font=`600 ${5.8*k}px ${sans}`;x.fillText(l.sub,bx+w/2+1.5*k,by+19.4*k)}
+    // animation : apparition avec rebond, sortie en fondu
+    const ap=Math.min(1,a),sc=ap>=1?1:Math.max(.01,fBack(ap)),al=Math.min(1,a*2.2);
+    // point sur la carte : anneau qui pulse
+    x.globalAlpha=al;
+    const ph=((o.t||0)*.9)%1;
+    x.strokeStyle=col;x.lineWidth=2*k;x.globalAlpha=al*(1-ph)*.8;x.beginPath();x.arc(px,py,(4+9*ph)*u,0,7);x.stroke();
+    x.globalAlpha=al;x.fillStyle=col;x.strokeStyle='#fff';x.lineWidth=2.2*k;x.beginPath();x.arc(px,py,4.2*u,0,7);x.fill();x.stroke();
+    // carte (mise à l'échelle depuis la pointe)
+    const ox=px,oy=flip?by-gap+gap:py;
+    x.save();x.translate(ox,py);x.scale(sc,sc);x.translate(-ox,-py);
+    x.globalAlpha=al;
+    x.shadowColor='rgba(0,0,0,.38)';x.shadowBlur=9*k;x.shadowOffsetY=2.5*k;
+    filmRR(x,bx,by,w,h,11*u);x.fillStyle='rgba(255,255,255,.97)';x.fill();
+    // petite pointe vers le point
+    x.beginPath();
+    if(flip){x.moveTo(px-5*u,by+.5);x.lineTo(px,by-5*u);x.lineTo(px+5*u,by+.5)}
+    else{x.moveTo(px-5*u,by+h-.5);x.lineTo(px,by+h+5*u);x.lineTo(px+5*u,by+h-.5)}
+    x.fill();
+    x.shadowColor='transparent';x.shadowBlur=0;x.shadowOffsetY=0;
+    // pastille-icône
+    const cx=bx+8*u+bd/2,cy=by+h/2;
+    x.fillStyle=col;x.beginPath();x.arc(cx,cy,bd/2,0,7);x.fill();
+    x.font=`${bd*.56}px sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillStyle='#fff';x.fillText(FILM_ICON[l.kind]||'📍',cx,cy+bd*.04);
+    // textes
+    x.textBaseline='alphabetic';x.textAlign='left';
+    const tx=bx+8*u+bd+7*u;
+    x.fillStyle='#17262b';x.font=`700 ${9*u}px ${sans}`;x.fillText(l.title,tx,l.sub?by+h/2-1.2*u:by+h/2+3.2*u);
+    if(l.sub){x.fillStyle=col==='#4a5560'?'#5b6770':col;x.font=`700 ${6*u}px ${sans}`;x.fillText(l.sub,tx,by+h/2+8.4*u)}
+    x.restore();
   }
   x.restore();
 }
@@ -3965,7 +3993,7 @@ async function filmRun(){
       // image = carte + textes
       x.drawImage(m.getCanvas(),0,0,W,H);
       filmHud(x,W,H,{title,sub,titleA:p.titleA,statsA:p.statsA,attr,rd:val(T.rd,p.fr),se:val(T.se,p.fr),up:val(T.up,p.fr),time:val(T.time,p.fr)});
-      filmLabelDraw(x,W,H,k,m,labs,{labA:p.labA,walkF:p.walkF,titleA:p.titleA,statsA:p.statsA});
+      filmLabelDraw(x,W,H,k,m,labs,{labA:p.labA,walkF:p.walkF,titleA:p.titleA,statsA:p.statsA,t:n/FPS});
       const vf=new VideoFrame(out,{timestamp:Math.round(n*1e6/FPS),duration:Math.round(1e6/FPS)});
       enc.encode(vf,{keyFrame:n%60===0});vf.close();
       while(enc.encodeQueueSize>6&&!FILM.cancel)await fSleep(8);
@@ -4226,7 +4254,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V38", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : étiquettes sur la carte — nom du lieu de départ (ville ou lieu de la carte), point culminant avec son altitude, arrivée, et quelques villages, cols, refuges ou lacs qui apparaissent quand on passe devant.", "Nouveau bouton 💾 Sauvegarder dans le replay (et dans Mes randos), suppression d'une rando enregistrée (🗑, avec confirmation), et le bouton « Écran » est retiré.", "Carte plus nette (définition maximale) et couleurs rapprochées sur de très grandes zones (≈ 25 km), identiques à tous les zooms : fini les cassures de couleur au loin.", "Film : plus de carrés qui changent de couleur. Photos IGN sans aucune retouche, image du film plus stable, et nouveau choix « Fond de carte : Satellite » pour des couleurs régulières sur toute la vidéo."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V39", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : étiquettes plus jolies, style Relive — cartes blanches avec pastille-icône (🚩 départ, ⛰️ sommet, 🏁 arrivée, 🏠 refuge, 💧 lac…), qui apparaissent avec un petit rebond, et un point qui pulse sur la carte.", "Film : étiquettes sur la carte — nom du lieu de départ (ville ou lieu de la carte), point culminant avec son altitude, arrivée, et quelques villages, cols, refuges ou lacs qui apparaissent quand on passe devant.", "Nouveau bouton 💾 Sauvegarder dans le replay (et dans Mes randos), suppression d'une rando enregistrée (🗑, avec confirmation), et le bouton « Écran » est retiré.", "Carte plus nette (définition maximale) et couleurs rapprochées sur de très grandes zones (≈ 25 km), identiques à tous les zooms : fini les cassures de couleur au loin."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
