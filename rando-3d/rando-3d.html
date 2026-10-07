@@ -3335,31 +3335,41 @@ function loadMapLibre(){
   });
   return mlP;
 }
-// Photos IGN : hors de France l'IGN renvoie des carrés blancs. Ici on les repère et on les remplace par la photo satellite Esri.
+// Photos IGN : hors de France (et sur la neige « brûlée ») l'IGN renvoie du blanc. Pixel par pixel, on remplace ce blanc par la photo satellite Esri,
+// légèrement désaturée pour mieux ressembler aux photos IGN (moins de différence de couleur).
 let mlProto=false;
-async function ignBlank(buf){
-  try{
-    const bm=await createImageBitmap(new Blob([buf])),c=ignBlank.c||(ignBlank.c=document.createElement('canvas'));
-    c.width=c.height=8;const x=c.getContext('2d',{willReadFrequently:true});x.clearRect(0,0,8,8);x.drawImage(bm,0,0,8,8);if(bm.close)bm.close();
-    const d=x.getImageData(0,0,8,8).data;
-    // « blanc » = presque uniforme et très clair (le blanc de l'IGN n'est pas toujours exactement 255)
-    let mn=255,mx=0,br=0;
-    for(let i=0;i<d.length;i+=4){if(d[i+3]<10){br++;continue}if(d[i]>=238&&d[i+1]>=238&&d[i+2]>=238)br++;for(let k=0;k<3;k++){const v=d[i+k];if(v<mn)mn=v;if(v>mx)mx=v}}
-    // photo « brûlée » (neige ou glacier tout blanc sur les photos IGN) : plus de la moitié du carré est blanc
-    if(br>=32)return true;
-    if(mx<mn)return true;
-    if(mn<228||mx-mn>22)return false;
-    return true;
-  }catch(e){return false}
-}
+const IGN_MIX={sat:.6,bri:.95};
+function ignCanvas(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c}
 async function ignTile(params,ac){
-  const [z,x,y]=params.url.replace('ign://','').split('/').map(Number);
-  const sg=ac&&ac.signal;
-  let buf=null;
+  const [z,x,y]=params.url.replace('ign://','').split('/').map(Number),sg=ac&&ac.signal;
+  let buf=null,bm=null;
   try{const r=await fetch(`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX=${z}&TILEROW=${y}&TILECOL=${x}&FORMAT=image/jpeg`,{signal:sg});if(r.ok)buf=await r.arrayBuffer()}catch(e){if(sg&&sg.aborted)throw e}
-  if(buf&&await ignBlank(buf))buf=null;
-  if(!buf){const r=await fetch(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`,{signal:sg});if(!r.ok)throw new Error('tuile '+r.status);buf=await r.arrayBuffer()}
-  return {data:buf};
+  if(buf){try{bm=await createImageBitmap(new Blob([buf]))}catch(e){bm=null}}
+  let w=bm?bm.width:256,h=bm?bm.height:256,mask=null,cnt=0,c1=null,x1=null,d1=null;
+  if(bm){
+    c1=ignCanvas(w,h);x1=c1.getContext('2d',{willReadFrequently:true});x1.drawImage(bm,0,0);if(bm.close)bm.close();
+    d1=x1.getImageData(0,0,w,h);const d=d1.data;mask=new Uint8Array(w*h);
+    for(let i=0,j=0;i<d.length;i+=4,j++){if(d[i+3]<10||(d[i]>=236&&d[i+1]>=236&&d[i+2]>=236)){mask[j]=1;cnt++}}
+    if(cnt<w*h*0.004)return {data:buf};   // pas de blanc : photo IGN telle quelle
+  }
+  let eb=null;
+  try{const r=await fetch(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`,{signal:sg});if(r.ok)eb=await r.arrayBuffer()}catch(e){if(sg&&sg.aborted)throw e}
+  if(!eb){if(buf)return {data:buf};throw new Error('tuile')}
+  let ebm;try{ebm=await createImageBitmap(new Blob([eb]))}catch(e){return {data:buf||eb}}
+  const c2=ignCanvas(w,h),x2=c2.getContext('2d',{willReadFrequently:true});
+  x2.filter=`saturate(${IGN_MIX.sat}) brightness(${IGN_MIX.bri})`;x2.drawImage(ebm,0,0,w,h);if(ebm.close)ebm.close();
+  let out=c2;
+  if(mask&&cnt<w*h*0.97){
+    // on agrandit un peu la zone blanche (bords adoucis), puis on copie les pixels satellite à cet endroit
+    const m2=new Uint8Array(w*h);
+    for(let yy=0;yy<h;yy++)for(let xx=0;xx<w;xx++){if(!mask[yy*w+xx])continue;for(let dy=-2;dy<=2;dy++){const y2=yy+dy;if(y2<0||y2>=h)continue;for(let dx=-2;dx<=2;dx++){const x3=xx+dx;if(x3>=0&&x3<w)m2[y2*w+x3]=1}}}
+    const d2=x2.getImageData(0,0,w,h).data,d=d1.data;
+    for(let j=0,i=0;j<m2.length;j++,i+=4){if(m2[j]){d[i]=d2[i];d[i+1]=d2[i+1];d[i+2]=d2[i+2];d[i+3]=255}}
+    x1.putImageData(d1,0,0);out=c1;
+  }
+  const blob=await new Promise(r=>out.toBlob(r,'image/jpeg',.92));
+  if(!blob)return {data:buf||eb};
+  return {data:await blob.arrayBuffer()};
 }
 function svStyleObj(){
   if(!mlProto){mlProto=true;try{maplibregl.addProtocol('ign',ignTile)}catch(e){}}
@@ -4043,7 +4053,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V24", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Zones blanches restantes (neige ou glacier « brûlés » sur les photos IGN) : ces carrés trop blancs sont remplacés par la photo satellite.", "Zones blanches quand on zoome : détection plus large des carrés blancs de l'IGN (même presque blancs), remplacés par la photo satellite.", "Fini les zones blanches hors de France (Italie, Suisse…) : là où les photos IGN manquent, l'appli met automatiquement la photo satellite à la place, sur la carte et dans le film.", "Nouveau « 🎬 Film de la carte » : crée une vraie vidéo MP4 stable de ta rando (HD, Full HD ou vertical), à mettre au début d'un film YouTube."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V25", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte et film : le blanc restant est remplacé pixel par pixel par la photo satellite, un peu adoucie en couleur pour mieux ressembler aux photos IGN.", "Zones blanches restantes (neige ou glacier « brûlés » sur les photos IGN) : ces carrés trop blancs sont remplacés par la photo satellite.", "Zones blanches quand on zoome : détection plus large des carrés blancs de l'IGN (même presque blancs), remplacés par la photo satellite.", "Fini les zones blanches hors de France (Italie, Suisse…) : là où les photos IGN manquent, l'appli met automatiquement la photo satellite à la place, sur la carte et dans le film."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;

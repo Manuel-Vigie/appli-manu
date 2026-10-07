@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V24",
+  "version": "V25",
   "date": "07/10/2026",
   "nouveautes": [
+    "Carte et film : le blanc restant est remplacé pixel par pixel par la photo satellite, un peu adoucie en couleur pour mieux ressembler aux photos IGN.",
     "Zones blanches restantes (neige ou glacier « brûlés » sur les photos IGN) : ces carrés trop blancs sont remplacés par la photo satellite.",
     "Zones blanches quand on zoome : détection plus large des carrés blancs de l'IGN (même presque blancs), remplacés par la photo satellite.",
-    "Fini les zones blanches hors de France (Italie, Suisse…) : là où les photos IGN manquent, l'appli met automatiquement la photo satellite à la place, sur la carte et dans le film.",
-    "Nouveau « 🎬 Film de la carte » : crée une vraie vidéo MP4 stable de ta rando (HD, Full HD ou vertical), à mettre au début d'un film YouTube."
+    "Fini les zones blanches hors de France (Italie, Suisse…) : là où les photos IGN manquent, l'appli met automatiquement la photo satellite à la place, sur la carte et dans le film."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v24"
+    "cache": "rr3d-v25"
   },
   "fichiers": [
     "rando-3d.html",
