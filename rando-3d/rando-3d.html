@@ -3338,7 +3338,7 @@ function loadMapLibre(){
 // Photos IGN : on les traite dans un « worker » (pour ne pas ralentir la carte) :
 //  1. le blanc (hors de France, neige brûlée) est remplacé pixel par pixel par la photo satellite Esri ;
 //  2. la teinte et le contraste de chaque carré sont rapprochés de la moyenne de ce qui a déjà été vu (moins de patchwork de couleurs).
-const IGN_MIX={sat:.6,bri:.95,cast:.9,contrast:.8,light:.55};
+const IGN_MIX={sat:.6,bri:.95,cast:1,contrast:.85,light:.75};
 function ignWorkerBody(MIX){
   const REF={n:0,r:1,g:1,b:1,sd:40,L:100};
   const cl=(v,a,b)=>v<a?a:v>b?b:v;
@@ -3349,12 +3349,12 @@ function ignWorkerBody(MIX){
     return {r:mr,g:mg,b:mb,L,sd:Math.sqrt(sd/n)};
   }
   const REGS=new Map();
-  function region(z,x,y){
-    const zp=Math.max(0,z-3),s=z-zp,key=zp+'/'+(x>>s)+'/'+(y>>s);
+  function region(zp,rx,ry){
+    const key=zp+'/'+rx+'/'+ry;
     if(REGS.has(key))return REGS.get(key);
     const pr=(async()=>{
       try{
-        const r=await fetch(`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX=${zp}&TILEROW=${y>>s}&TILECOL=${x>>s}&FORMAT=image/jpeg`);
+        const r=await fetch(`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX=${zp}&TILEROW=${ry}&TILECOL=${rx}&FORMAT=image/jpeg`);
         if(!r.ok)return null;
         const bm=await createImageBitmap(await r.blob()),c=new OffscreenCanvas(bm.width,bm.height),cx=c.getContext('2d',{willReadFrequently:true});
         cx.drawImage(bm,0,0);bm.close();
@@ -3373,6 +3373,17 @@ function ignWorkerBody(MIX){
     })();
     REGS.set(key,pr);
     return pr;
+  }
+  // statistiques « douces » : mélange des 4 zones voisines les plus proches, pour qu'il n'y ait aucune cassure entre deux zones
+  async function blend(z,x,y){
+    const zp=Math.max(0,z-3),s=z-zp,sz=Math.pow(2,s),n=Math.pow(2,zp),u=(x+.5)/sz-.5,v=(y+.5)/sz-.5,i0=Math.floor(u),j0=Math.floor(v),fu=u-i0,fv=v-j0;
+    const c=[[i0,j0,(1-fu)*(1-fv)],[i0+1,j0,fu*(1-fv)],[i0,j0+1,(1-fu)*fv],[i0+1,j0+1,fu*fv]];
+    const res=await Promise.all(c.map(([i,j])=>(i<0||j<0||i>=n||j>=n)?null:region(zp,i,j)));
+    let W=0;const o={r:0,g:0,b:0,L:0,sd:0};
+    res.forEach((st,k)=>{if(!st)return;const w=c[k][2];W+=w;o.r+=st.r*w;o.g+=st.g*w;o.b+=st.b*w;o.L+=st.L*w;o.sd+=st.sd*w});
+    if(W<.2)return null;
+    for(const k in o)o[k]/=W;
+    return o;
   }
   async function tile(z,x,y){
     let buf=null,bm=null;
@@ -3408,7 +3419,7 @@ function ignWorkerBody(MIX){
     // teinte et contraste rapprochés de la moyenne générale : mesurés sur une zone large (8×8 carrés) pour que deux carrés voisins subissent
     // exactement la même correction (sinon on verrait la grille des carrés)
     const d=d1.data;
-    let st=await region(z,x,y);
+    let st=await blend(z,x,y);
     if(!st){
       let sr=0,sg=0,sb=0,n=0;
       for(let i=0;i<d.length;i+=16){sr+=d[i];sg+=d[i+1];sb+=d[i+2];n++}
@@ -3417,8 +3428,8 @@ function ignWorkerBody(MIX){
     if(st){
       const rr=st.r/st.L,rg=st.g/st.L,rb=st.b/st.L;
       let gr=Math.pow(REF.r/rr,MIX.cast),gg=Math.pow(REF.g/rg,MIX.cast),gb=Math.pow(REF.b/rb,MIX.cast);
-      const gm=(gr+gg+gb)/3;gr=cl(gr/gm,.8,1.25);gg=cl(gg/gm,.8,1.25);gb=cl(gb/gm,.8,1.25);
-      const k=st.sd>3?cl(Math.pow(REF.sd/st.sd,MIX.contrast),.8,1.35):1,P=st.L,Lt=P+cl((REF.L-P)*MIX.light,-28,28);
+      const gm=(gr+gg+gb)/3;gr=cl(gr/gm,.75,1.33);gg=cl(gg/gm,.75,1.33);gb=cl(gb/gm,.75,1.33);
+      const k=st.sd>3?cl(Math.pow(REF.sd/st.sd,MIX.contrast),.75,1.45):1,P=st.L,Lt=P+cl((REF.L-P)*MIX.light,-40,40);
       for(let i=0;i<d.length;i+=4){
         d[i]=cl((d[i]*gr-P)*k+Lt,0,255);d[i+1]=cl((d[i+1]*gg-P)*k+Lt,0,255);d[i+2]=cl((d[i+2]*gb-P)*k+Lt,0,255);
       }
@@ -4131,7 +4142,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V28", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Photos aériennes : la correction de couleur est maintenant la même pour de grandes zones, ce qui efface la grille de petits carrés de couleurs légèrement différentes.", "Photos aériennes : harmonisation des couleurs plus forte (teinte, contraste et luminosité), pour atténuer les zones plus claires ou brumeuses.", "Carte et film : les couleurs des photos aériennes sont harmonisées carré par carré (moins de patchwork vert/gris), sans ralentir la carte.", "Carte et film : le blanc restant est remplacé pixel par pixel par la photo satellite, un peu adoucie en couleur pour mieux ressembler aux photos IGN."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V29", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Photos aériennes : les couleurs passent doucement d'une zone à l'autre (plus de cassure) et les zones trop vives ou trop claires sont mieux ramenées vers la moyenne.", "Photos aériennes : la correction de couleur est maintenant la même pour de grandes zones, ce qui efface la grille de petits carrés de couleurs légèrement différentes.", "Photos aériennes : harmonisation des couleurs plus forte (teinte, contraste et luminosité), pour atténuer les zones plus claires ou brumeuses.", "Carte et film : les couleurs des photos aériennes sont harmonisées carré par carré (moins de patchwork vert/gris), sans ralentir la carte."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
