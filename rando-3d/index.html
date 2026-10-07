@@ -3340,7 +3340,7 @@ function loadMapLibre(){
 //  2. les couleurs « de fond » sont alignées sur celles d'Esri (qui sont régulières sur tout le globe) : on garde la netteté des photos IGN
 //     mais on supprime les plaques de couleurs différentes d'une campagne de prise de vue à l'autre.
 //     La correction est un champ lisse (grille 32×32 sur une zone de 8×8 carrés), donc identique pour deux carrés voisins : pas de grille visible.
-const IGN_MIX={grid:32,strength:1,min:.55,max:1.8};
+const IGN_MIX={grid:32,strength:.8,min:.55,max:1.8};
 function ignWorkerBody(MIX){
   const cl=(v,a,b)=>v<a?a:v>b?b:v;
   const IGN=(z,x,y)=>`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX=${z}&TILEROW=${y}&TILECOL=${x}&FORMAT=image/jpeg`;
@@ -3440,6 +3440,8 @@ async function ignTile(params){
   const data=await new Promise((res,rej)=>{ignP.set(id,{res,rej});w.postMessage({id,z,x,y})});
   return {data};
 }
+// « un peu plus de soleil » : couleurs plus vives et plus lumineuses
+const SV_SUN={'raster-saturation':.28,'raster-contrast':.06,'raster-brightness-min':.04};
 function svStyleObj(){
   if(!mlProto){mlProto=true;try{maplibregl.addProtocol('ign',ignTile)}catch(e){}}
   const demTiles=['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'];
@@ -3450,10 +3452,10 @@ function svStyleObj(){
     sources[k]={type:'raster',tiles:s.tiles,tileSize:256,maxzoom:s.max};
     // photo de secours, moins nette (tuiles 4× plus grandes, donc peu nombreuses) : évite les trous quand les vraies tuiles tardent
     sources[k+'-low']={type:'raster',tiles:s.tiles,tileSize:1024,maxzoom:s.max};
-    layers.push({id:'rl-'+k,type:'raster',source:k+'-low',layout:{visibility:k===SV.style?'visible':'none'}});
-    layers.push({id:'r-'+k,type:'raster',source:k,layout:{visibility:k===SV.style?'visible':'none'}});
+    layers.push({id:'rl-'+k,type:'raster',source:k+'-low',paint:SV_SUN,layout:{visibility:k===SV.style?'visible':'none'}});
+    layers.push({id:'r-'+k,type:'raster',source:k,paint:SV_SUN,layout:{visibility:k===SV.style?'visible':'none'}});
   }
-  layers.push({id:'hs',type:'hillshade',source:'demhs',paint:{'hillshade-exaggeration':.5,'hillshade-shadow-color':'rgba(10,20,30,.6)','hillshade-highlight-color':'rgba(255,255,255,.35)','hillshade-accent-color':'rgba(10,20,30,.3)'}});
+  layers.push({id:'hs',type:'hillshade',source:'demhs',paint:{'hillshade-illumination-anchor':'map','hillshade-illumination-direction':315,'hillshade-exaggeration':.32,'hillshade-shadow-color':'rgba(20,24,40,.5)','hillshade-highlight-color':'rgba(255,240,200,.4)','hillshade-accent-color':'rgba(20,24,40,.2)'}});
   return {version:8,sources,layers,...(SV.terrain?{terrain:{source:'dem',exaggeration:1.3}}:{}),
     sky:{'sky-color':'#4f94d8','horizon-color':'#cfe6f6','fog-color':'#eaf4fb','sky-horizon-blend':.5,'horizon-fog-blend':.15,'fog-ground-blend':0}};
 }
@@ -4122,7 +4124,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V30", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Photos aériennes : nouvelle méthode pour les couleurs. On garde la netteté des photos IGN mais leurs couleurs de fond sont alignées sur la carte satellite, régulière partout : fini les plaques de couleurs différentes.", "Photos aériennes : les couleurs passent doucement d'une zone à l'autre (plus de cassure) et les zones trop vives ou trop claires sont mieux ramenées vers la moyenne.", "Photos aériennes : la correction de couleur est maintenant la même pour de grandes zones, ce qui efface la grille de petits carrés de couleurs légèrement différentes.", "Photos aériennes : harmonisation des couleurs plus forte (teinte, contraste et luminosité), pour atténuer les zones plus claires ou brumeuses."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V31", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte et film : la lumière du relief ne tourne plus avec la caméra (plus de changement de contraste quand le point avance), ombrage plus doux, couleurs plus vives et plus lumineuses, soleil plus chaud.", "Photos aériennes : nouvelle méthode pour les couleurs. On garde la netteté des photos IGN mais leurs couleurs de fond sont alignées sur la carte satellite, régulière partout : fini les plaques de couleurs différentes.", "Photos aériennes : les couleurs passent doucement d'une zone à l'autre (plus de cassure) et les zones trop vives ou trop claires sont mieux ramenées vers la moyenne.", "Photos aériennes : la correction de couleur est maintenant la même pour de grandes zones, ce qui efface la grille de petits carrés de couleurs légèrement différentes."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
