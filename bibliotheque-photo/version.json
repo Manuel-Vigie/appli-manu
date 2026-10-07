@@ -1,17 +1,17 @@
 {
   "nom": "Bibliothèque Photo",
-  "version": "V9",
+  "version": "V14",
   "date": "07/10/2026",
   "nouveautes": [
-    "Nouvelle carte « Ranger directement sur la carte SD » avec le lien pour télécharger l'appli Range Photos.",
-    "Nouvelle présentation : fond bleu nuit, bandeau lever de soleil sur les montagnes, dossiers colorés selon leur type.",
-    "Enregistrement en plusieurs petits ZIP (parties), qui marche même avec des milliers de photos : plus de ZIP bloqué ou presque vide.",
-    "Miniatures plus fiables et affichage du nombre de photos reçues du téléphone."
+    "Page simplifiée : « Mes photos rangées » en premier, avec un « Aperçu des dossiers » (tous les dossiers d'un coup, cinq photos chacun). L'ancien outil ZIP est replié plus bas.",
+    "Carte « Télécharger Range Photos » retirée.",
+    "« Mes dossiers rangés » : bouton « Tout voir » pour afficher toutes les photos et vidéos d'un coup, avec recherche par nom de dossier (Nice, 2026, Verdon…), filtre photos/vidéos et ordre.",
+    "« Mes dossiers rangés » : on peut ajouter plusieurs dossiers l'un après l'autre (pour les très gros dossiers), et le nom du dossier choisi est conservé."
   ],
   "cache": "biblio-photo-",
   "sw": {
     "fichier": "bibliotheque-sw.js",
-    "cache": "biblio-photo-V9"
+    "cache": "biblio-photo-V14"
   },
   "fichiers": [
     "bibliotheque-photo.html"
