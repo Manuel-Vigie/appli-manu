@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V41",
+  "version": "V42",
   "date": "07/10/2026",
   "nouveautes": [
+    "Film : les étiquettes restent affichées une fois apparues, un peu décollées du lieu (petit trait) pour bien voir le tracé, et légèrement plus grosses.",
     "Film : étiquettes plus petites, bleu ciel transparent, posées sur le côté du parcours (jamais dessus) pour ne pas gêner la lecture du tracé.",
     "Film : étiquettes simplifiées — juste des bulles claires avec le nom (bleu clair pour villes et lacs, vert clair pour le départ, jaune pour le sommet…), sans émoticônes.",
-    "Film : étiquettes plus jolies, style Relive — cartes blanches avec pastille-icône (🚩 départ, ⛰️ sommet, 🏁 arrivée, 🏠 refuge, 💧 lac…), qui apparaissent avec un petit rebond, et un point qui pulse sur la carte.",
-    "Film : étiquettes sur la carte — nom du lieu de départ (ville ou lieu de la carte), point culminant avec son altitude, arrivée, et quelques villages, cols, refuges ou lacs qui apparaissent quand on passe devant."
+    "Film : étiquettes plus jolies, style Relive — cartes blanches avec pastille-icône (🚩 départ, ⛰️ sommet, 🏁 arrivée, 🏠 refuge, 💧 lac…), qui apparaissent avec un petit rebond, et un point qui pulse sur la carte."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v41"
+    "cache": "rr3d-v42"
   },
   "fichiers": [
     "rando-3d.html",

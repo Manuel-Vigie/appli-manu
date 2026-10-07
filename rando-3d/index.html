@@ -3843,23 +3843,23 @@ function filmLabelDraw(x,W,H,k,m,labs,o){
   const act=[];
   for(const l of labs){
     let a=o.labA;
-    if(o.walkF!=null){const d=o.walkF-l.f,wa=d<-.03?0:d<0?(d+.03)/.03:d<.1?1:d<.14?1-(d-.1)/.04:0;a=Math.max(a,wa)}
+    if(o.walkF!=null){const d=o.walkF-l.f,wa=d<-.03?0:d<0?(d+.03)/.03:1;a=Math.max(a,wa)}
     if(a>.01)act.push({l,a});
   }
   act.sort((p,q)=>q.l.pri-p.l.pri);
   x.save();x.textBaseline='alphabetic';
   for(const {l,a} of act){
     const pt=m.project(l.ll);if(!pt)continue;
-    const px=pt.x,py=pt.y,u=k*(l.kind==='top'?.92:.8);
+    const px=pt.x,py=pt.y,u=k*(l.kind==='top'?1.08:.95);
     x.font=`700 ${9*u}px ${sans}`;const tw=x.measureText(l.title).width;
     let sw=0;if(l.sub){x.font=`600 ${6*u}px ${sans}`;sw=x.measureText(l.sub).width}
-    const h=(l.sub?25:18)*u,w=Math.min(W*.5,Math.max(tw,sw)+16*u),gap=7*u;
+    const h=(l.sub?25:18)*u,w=Math.min(W*.5,Math.max(tw,sw)+16*u),gap=17*u;
     // côté opposé au parcours : on regarde où passe le tracé autour du point
     let dx=0;for(const q of l.nb||[]){const r=m.project(q);if(r)dx+=r.x-px}
     let side=dx>0?-1:1;
     const fit=sd=>{const bx=sd>0?px+gap:px-gap-w;return bx>=3*k&&bx+w<=W-3*k?bx:null};
     let bx=fit(side);if(bx===null){side=-side;bx=fit(side)}
-    const by=py-h/2;
+    const by=py-h/2-9*u;
     if(bx===null||py<.04*H||py>bot||by<.04*H)continue;
     const bb=[bx-3*k,by-3*k,bx+w+3*k,by+h+3*k];
     if(boxes.some(q=>bb[0]<q[2]&&bb[2]>q[0]&&bb[1]<q[3]&&bb[3]>q[1]))continue;
@@ -3867,7 +3867,7 @@ function filmLabelDraw(x,W,H,k,m,labs,o){
     const ap=Math.min(1,a),sc=ap>=1?1:Math.max(.01,fBack(ap)),al=Math.min(1,a*2.2);
     x.globalAlpha=al;
     // point discret + petit trait vers la bulle
-    x.strokeStyle='rgba(255,255,255,.85)';x.lineWidth=1.4*k;x.beginPath();x.moveTo(px,py);x.lineTo(side>0?bx:bx+w,py);x.stroke();
+    x.strokeStyle='rgba(255,255,255,.85)';x.lineWidth=1.4*k;x.beginPath();x.moveTo(px,py);x.lineTo(side>0?bx:bx+w,by+h/2);x.stroke();
     x.fillStyle='#7cc4f2';x.strokeStyle='#fff';x.lineWidth=1.8*k;x.beginPath();x.arc(px,py,2.8*u,0,7);x.fill();x.stroke();
     x.save();x.translate(px,py);x.scale(sc,sc);x.translate(-px,-py);
     x.globalAlpha=al;
@@ -4243,7 +4243,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V41", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : étiquettes plus petites, bleu ciel transparent, posées sur le côté du parcours (jamais dessus) pour ne pas gêner la lecture du tracé.", "Film : étiquettes simplifiées — juste des bulles claires avec le nom (bleu clair pour villes et lacs, vert clair pour le départ, jaune pour le sommet…), sans émoticônes.", "Film : étiquettes plus jolies, style Relive — cartes blanches avec pastille-icône (🚩 départ, ⛰️ sommet, 🏁 arrivée, 🏠 refuge, 💧 lac…), qui apparaissent avec un petit rebond, et un point qui pulse sur la carte.", "Film : étiquettes sur la carte — nom du lieu de départ (ville ou lieu de la carte), point culminant avec son altitude, arrivée, et quelques villages, cols, refuges ou lacs qui apparaissent quand on passe devant."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V42", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : les étiquettes restent affichées une fois apparues, un peu décollées du lieu (petit trait) pour bien voir le tracé, et légèrement plus grosses.", "Film : étiquettes plus petites, bleu ciel transparent, posées sur le côté du parcours (jamais dessus) pour ne pas gêner la lecture du tracé.", "Film : étiquettes simplifiées — juste des bulles claires avec le nom (bleu clair pour villes et lacs, vert clair pour le départ, jaune pour le sommet…), sans émoticônes.", "Film : étiquettes plus jolies, style Relive — cartes blanches avec pastille-icône (🚩 départ, ⛰️ sommet, 🏁 arrivée, 🏠 refuge, 💧 lac…), qui apparaissent avec un petit rebond, et un point qui pulse sur la carte."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
