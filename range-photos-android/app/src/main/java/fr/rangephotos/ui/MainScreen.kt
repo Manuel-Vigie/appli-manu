@@ -1,6 +1,8 @@
 package fr.rangephotos.ui
 
+import android.content.Intent
 import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -18,6 +20,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -26,16 +30,27 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import fr.rangephotos.update.UpdateChecker
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
@@ -44,8 +59,37 @@ fun MainScreen(viewModel: MainViewModel) {
         if (uri != null) viewModel.onFolderPicked(uri)
     }
 
-    MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val versionName = remember { appVersionName(context) }
+    var update by remember { mutableStateOf<UpdateUi>(UpdateUi.Idle) }
+    val checkUpdate: () -> Unit = {
+        if (update !is UpdateUi.Checking) {
+            update = UpdateUi.Checking
+            scope.launch {
+                update = try {
+                    val latest = withContext(Dispatchers.IO) { UpdateChecker.parseLatest(UpdateChecker.fetch()) }
+                    when {
+                        latest == null -> UpdateUi.Failed("Aucune version trouvée pour l'instant.")
+                        UpdateChecker.isNewer(latest.version, versionName) -> UpdateUi.Available(latest)
+                        else -> UpdateUi.UpToDate
+                    }
+                } catch (e: Exception) {
+                    UpdateUi.Failed("Impossible de vérifier : pas d'internet ?")
+                }
+            }
+        }
+    }
+    val downloadUpdate: (UpdateChecker.Release) -> Unit = { release ->
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.apkUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (e: Exception) {
+            update = UpdateUi.Failed("Impossible d'ouvrir le téléchargement.")
+        }
+    }
+
+    MaterialTheme(colorScheme = RangeColors) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -58,6 +102,10 @@ fun MainScreen(viewModel: MainViewModel) {
                         onPick = { picker.launch(null) },
                         onUndo = viewModel::undo,
                         onPeople = viewModel::openPeople,
+                        versionLabel = "V${versionCode(context)} · $versionName",
+                        update = update,
+                        onCheckUpdate = checkUpdate,
+                        onDownloadUpdate = downloadUpdate,
                     )
                     is UiState.Working -> WorkingScreen(s)
                     is UiState.People -> PeopleScreen(s, onContinue = viewModel::applyNames, onSkip = viewModel::skipPeople)
@@ -76,32 +124,169 @@ fun MainScreen(viewModel: MainViewModel) {
 }
 
 @Composable
-private fun StartScreen(state: UiState.Start, onPick: () -> Unit, onUndo: () -> Unit, onPeople: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Range Photos", style = MaterialTheme.typography.headlineLarge)
-        Text(
-            "Range automatiquement vos photos dans des dossiers : randonnées, portraits de vos proches, " +
-                "captures d'écran, puis par année et par mois. Tout reste sur votre téléphone.",
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        Text(
-            "Choisissez le dossier à ranger (par exemple la carte SD, ou son dossier DCIM). " +
-                "Vous verrez un aperçu avant que quoi que ce soit ne bouge.",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        state.message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(onClick = onPick, modifier = Modifier.fillMaxWidth()) { Text("Choisir le dossier de photos") }
-        if (state.hasUndo) {
-            OutlinedButton(onClick = onUndo, modifier = Modifier.fillMaxWidth()) {
-                Text("Annuler le dernier rangement")
+private fun StartScreen(
+    state: UiState.Start,
+    onPick: () -> Unit,
+    onUndo: () -> Unit,
+    onPeople: () -> Unit,
+    versionLabel: String,
+    update: UpdateUi,
+    onCheckUpdate: () -> Unit,
+    onDownloadUpdate: (UpdateChecker.Release) -> Unit,
+) {
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    "Range Photos",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    "Vos photos rangées toutes seules, sans quitter votre téléphone.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+        state.message?.let { message ->
+            item { Text(message, color = MaterialTheme.colorScheme.error) }
+        }
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Ranger mes photos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Choisissez la carte SD (ou son dossier DCIM). Vous verrez un aperçu : rien ne bouge avant votre accord.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Button(onClick = onPick, modifier = Modifier.fillMaxWidth()) { Text("Choisir le dossier de photos") }
+                    if (state.hasUndo) {
+                        OutlinedButton(onClick = onUndo, modifier = Modifier.fillMaxWidth()) {
+                            Text("Annuler le dernier rangement")
+                        }
+                    }
+                }
             }
         }
         if (state.people.isNotEmpty()) {
-            Text("Mes proches : " + state.people.joinToString(", "), style = MaterialTheme.typography.bodyMedium)
-            OutlinedButton(onClick = onPeople, modifier = Modifier.fillMaxWidth()) { Text("Gérer mes proches") }
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            if (state.people.size == 1) "1 proche reconnu" else "${state.people.size} proches reconnus",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(peopleSummary(state.people), style = MaterialTheme.typography.bodyMedium)
+                        OutlinedButton(onClick = onPeople, modifier = Modifier.fillMaxWidth()) { Text("Gérer mes proches") }
+                    }
+                }
+            }
+        }
+        item { UpdateCard(versionLabel, update, onCheckUpdate, onDownloadUpdate) }
+    }
+}
+
+/** « Manu, Sandrine, Maman et 25 autres » : lisible même avec une longue liste. */
+private fun peopleSummary(names: List<String>): String {
+    val shown = names.take(4)
+    val rest = names.size - shown.size
+    return when {
+        rest <= 0 -> shown.joinToString(", ")
+        else -> shown.joinToString(", ") + " et $rest autre" + (if (rest > 1) "s" else "")
+    }
+}
+
+@Composable
+private fun UpdateCard(
+    versionLabel: String,
+    update: UpdateUi,
+    onCheck: () -> Unit,
+    onDownload: (UpdateChecker.Release) -> Unit,
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (update is UpdateUi.Available) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Mise à jour", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text("Version installée : $versionLabel", style = MaterialTheme.typography.bodyMedium)
+            when (update) {
+                UpdateUi.Idle -> Unit
+                UpdateUi.Checking -> LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                UpdateUi.UpToDate -> Text("Vous avez la dernière version.", style = MaterialTheme.typography.bodyMedium)
+                is UpdateUi.Available -> Text(
+                    "Nouvelle version disponible : ${update.release.version}. Touchez « Télécharger », puis ouvrez le fichier " +
+                        "et choisissez « Installer » : vos proches et vos réglages sont conservés.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                is UpdateUi.Failed -> Text(update.message, color = MaterialTheme.colorScheme.error)
+            }
+            if (update is UpdateUi.Available) {
+                Button(onClick = { onDownload(update.release) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Télécharger la version ${update.release.version}")
+                }
+            } else {
+                OutlinedButton(onClick = onCheck, enabled = update !is UpdateUi.Checking, modifier = Modifier.fillMaxWidth()) {
+                    Text("Chercher une mise à jour")
+                }
+            }
+            Text(
+                "Seul le numéro de version est demandé à internet. Aucune photo n'est envoyée.",
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
     }
 }
+
+private sealed interface UpdateUi {
+    data object Idle : UpdateUi
+    data object Checking : UpdateUi
+    data object UpToDate : UpdateUi
+    data class Available(val release: UpdateChecker.Release) : UpdateUi
+    data class Failed(val message: String) : UpdateUi
+}
+
+private val RangeColors = lightColorScheme(
+    primary = Color(0xFF1F5C45),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFCDE8DA),
+    onPrimaryContainer = Color(0xFF0B2A1F),
+    secondary = Color(0xFF8A5A2B),
+    background = Color(0xFFF4F7F4),
+    surface = Color.White,
+    onSurface = Color(0xFF1B1F1C),
+    outline = Color(0xFF7A8A80),
+)
+
+private fun appVersionName(context: android.content.Context): String =
+    try {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "?"
+    } catch (e: Exception) {
+        "?"
+    }
+
+@Suppress("DEPRECATION")
+private fun versionCode(context: android.content.Context): Long =
+    try {
+        val info = context.packageManager.getPackageInfo(context.packageName, 0)
+        if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
+    } catch (e: Exception) {
+        0L
+    }
 
 @Composable
 private fun WorkingScreen(state: UiState.Working) {
