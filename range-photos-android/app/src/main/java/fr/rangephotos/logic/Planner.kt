@@ -37,6 +37,13 @@ object Planner {
     const val SCREENSHOTS = "Captures d'écran"
     const val PHOTOS = "Journées"
 
+    /**
+     * Mode simple voulu par Manuel (V16) : TOUT est rangé par date (Journées/année/mois/jour - ville), rien d'autre.
+     * Plus de dossiers Randonnées/Portraits/sujets (une photo n'était qu'à un seul endroit : les dossiers des jours
+     * étaient incomplets et les portraits mélangeaient des photos sans rapport).
+     */
+    const val DATE_ONLY = true
+
     private val DAYS = listOf("lun", "mar", "mer", "jeu", "ven", "sam", "dim")
 
     private val MONTHS = listOf(
@@ -53,13 +60,15 @@ object Planner {
         categories: List<Category> = emptyList(),
         /** Ville où l'on était chaque jour (pour nommer les dossiers de journées). */
         dayPlaces: Map<LocalDate, String> = emptyMap(),
+        /** Tout par date : ni randonnées, ni portraits, ni dossiers de l'utilisateur, ni captures d'écran à part. */
+        dateOnly: Boolean = false,
     ): List<PlannedMove> = photos.map { photo ->
         val date = Instant.ofEpochMilli(photo.takenAt).atZone(zone).toLocalDate()
         val year = date.year.toString()
-        val hike = HikeDetector.hikeFor(photo, hikes, zone)
-        val hasPortrait = photo.faces.isNotEmpty()
+        val hike = if (dateOnly) null else HikeDetector.hikeFor(photo, hikes, zone)
+        val hasPortrait = !dateOnly && photo.faces.isNotEmpty()
         // Les dossiers de l'utilisateur passent après les randonnées et les portraits, avant captures d'écran et dates.
-        val category = if (hike == null && !hasPortrait) categories.firstOrNull { it.matches(photo) } else null
+        val category = if (!dateOnly && hike == null && !hasPortrait) categories.firstOrNull { it.matches(photo) } else null
 
         val folder = when {
             hike != null -> {
@@ -68,14 +77,14 @@ object Planner {
             }
             hasPortrait -> listOf(PORTRAITS, portraitFolder(photo), year)
             category != null -> categoryFolder(category, photo, year)
-            photo.isScreenshot -> listOf(SCREENSHOTS, year)
+            photo.isScreenshot && !dateOnly -> listOf(SCREENSHOTS, year)
             else -> listOf(
                 PHOTOS, year, "%02d - %s".format(date.monthValue, MONTHS[date.monthValue - 1]),
                 dayFolder(date, dayPlaces[date]),
             )
         }
 
-        val copies = if (copyToPeople) {
+        val copies = if (copyToPeople && !dateOnly) {
             photo.faces.mapNotNull { it.person }.distinct()
                 .map { listOf(PORTRAITS, sanitize(it), year) }
                 .filter { it != folder }

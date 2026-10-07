@@ -64,6 +64,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import fr.rangephotos.model.Category
 import fr.rangephotos.model.CategoryKind
 import fr.rangephotos.model.Subjects
+import fr.rangephotos.logic.Planner
 import fr.rangephotos.storage.Place
 import fr.rangephotos.storage.Places
 import fr.rangephotos.update.UpdateChecker
@@ -405,7 +406,7 @@ private fun HomeScreen(
             }
         }
 
-        if (state.access) {
+        if (state.access && !Planner.DATE_ONLY) {
             item {
                 Box(Modifier.padding(horizontal = 16.dp)) {
                     SectionCard {
@@ -436,7 +437,7 @@ private fun HomeScreen(
             }
         }
 
-        if (state.people.isNotEmpty()) {
+        if (state.people.isNotEmpty() && !Planner.DATE_ONLY) {
             item {
                 Box(Modifier.padding(horizontal = 16.dp)) {
                     SectionCard {

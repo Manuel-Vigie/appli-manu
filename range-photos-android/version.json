@@ -3,10 +3,10 @@
   "version": "V16",
   "date": "07/10/2026",
   "nouveautes": [
+    "Tout est maintenant rangé par date : Journées / année / mois / jour (avec la ville). Plus de dossiers Portraits, Randonnées ou sujets : chaque dossier de jour est complet.",
+    "Plus rapide : l'appli ne cherche plus les visages ni le contenu des photos.",
     "Nouvelle bibliothèque 3D en écran de départ : vos albums sur des étagères en bois qui s'inclinent en 3D quand vous les faites défiler. Touchez un album pour feuilleter ses photos et vidéos.",
-    "L'appli ne travaille plus que sur la carte SD : la mémoire du téléphone n'est plus touchée, rien n'est ajouté dedans.",
-    "Rangement étape par étape : 10 fichiers d'abord pour test, vous regardez, puis vous continuez ou tout annulez.",
-    "Vérification complète à la fin : chaque fichier contrôlé, aucun oublié ni perdu (compte avant/après)."
+    "L'appli ne travaille plus que sur la carte SD : la mémoire du téléphone n'est plus touchée, rien n'est ajouté dedans."
   ],
   "pastille": false,
   "fichiers": []

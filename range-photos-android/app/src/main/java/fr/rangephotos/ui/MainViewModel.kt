@@ -329,6 +329,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     return@launch
                 }
 
+                if (Planner.DATE_ONLY) {
+                    // Mode simple : tout par date. Ni randonnées, ni visages, ni analyse du contenu.
+                    hikes = emptyList()
+                    hikeNames = emptyMap()
+                    activeCategories = emptyList()
+                    photos = scanned
+                    dayPlaces = findDayPlaces(photos)
+                    clusters = emptyList()
+                    showPreview()
+                    return@launch
+                }
                 _state.value = UiState.Working("Recherche des randonnées…", 0, 0)
                 hikes = HikeDetector.detect(scanned)
                 hikeNames = nameHikes(hikes)
@@ -537,7 +548,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun skipPeople() = showPreview()
 
     private fun showPreview() {
-        val plan = Planner.plan(photos, hikes, hikeNames, copyToPeople, categories = activeCategories, dayPlaces = dayPlaces)
+        val plan = Planner.plan(
+            photos, hikes, hikeNames, copyToPeople, categories = activeCategories, dayPlaces = dayPlaces, dateOnly = Planner.DATE_ONLY,
+        )
         // Une photo déjà au bon endroit et sans copie à faire n'a rien à subir.
         pendingMoves = plan.filter { it.photo.currentFolder != it.folder || it.copies.isNotEmpty() }
         _state.value = buildPreview(plan)
