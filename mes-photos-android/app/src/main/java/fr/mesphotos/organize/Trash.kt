@@ -23,10 +23,18 @@ data class TrashResult(
  * où il est déplacé : on peut toujours le remettre exactement où il était. Seul [deleteForever] efface vraiment,
  * et seulement les fichiers qu'on lui donne.
  */
-class Trash(private val outputRoot: File, private val onChanged: (List<String>) -> Unit = {}) {
+class Trash(
+    private val outputRoot: File,
+    private val onChanged: (List<String>) -> Unit = {},
+    /** Nom du dossier dans « Photos rangées » (la même mécanique sert pour « À l'écart »). */
+    private val dirName: String = DIR_NAME,
+    /** Vrai : un sous-dossier par envoi (corbeille). Faux : on garde l'arborescence année/mois/jour (« À l'écart »). */
+    private val batched: Boolean = true,
+    private val indexName: String = "index.tsv",
+) {
 
-    val dir: File get() = File(outputRoot, DIR_NAME)
-    private val index: File get() = File(dir, "index.tsv")
+    val dir: File get() = File(outputRoot, dirName)
+    private val index: File get() = File(dir, indexName)
 
     /** Ce qui est à la corbeille (les fichiers qui ont disparu de la carte sont ignorés), du plus récent au plus ancien. */
     fun entries(): List<TrashEntry> {
@@ -69,7 +77,7 @@ class Trash(private val outputRoot: File, private val onChanged: (List<String>) 
                 if (!path.startsWith("$rootPath/") || path.startsWith("$trashPath/")) throw IOException("ce fichier n'est pas dans « Photos rangées »")
                 if (!file.isFile) throw IOException("fichier introuvable")
                 val relative = file.toRelativeString(outputRoot)
-                val destination = uniqueFile(File(File(dir, batch.toString()), relative))
+                val destination = uniqueFile(if (batched) File(File(dir, batch.toString()), relative) else File(dir, relative))
                 destination.parentFile?.mkdirs()
                 transfer(file, destination)
                 try {

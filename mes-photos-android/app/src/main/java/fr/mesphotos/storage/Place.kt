@@ -15,5 +15,8 @@ data class Place(
 
     companion object {
         const val OUTPUT_DIR = "Photos rangées"
+
+        /** Photos mises à part par la personne : dans « Photos rangées », mais ni dans la galerie, ni dans le rangement. */
+        const val ASIDE_DIR = "À l'écart"
     }
 }

@@ -12,8 +12,8 @@ android {
         applicationId = "fr.mesphotos"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.0"
     }
 
     // Clé de signature partagée et publique : l'appli se réinstalle par-dessus la précédente.

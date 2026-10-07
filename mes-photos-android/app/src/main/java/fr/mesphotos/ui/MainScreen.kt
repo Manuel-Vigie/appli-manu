@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -72,7 +73,9 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onSort = viewModel::analyze,
                         onView = viewModel::openGallery,
                         onUndo = viewModel::undo,
-                        onOpenTrash = { viewModel.openTrash() },
+                        onOpenTrash = { viewModel.openTrash(MoveKind.TRASH) },
+                        onOpenAside = { viewModel.openTrash(MoveKind.ASIDE) },
+                        onSearch = viewModel::openSearch,
                         onCheckUpdate = { viewModel.checkUpdate(version) { updateTick++ } },
                         onDownload = { url ->
                             runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
@@ -95,19 +98,28 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onInto = viewModel::browseInto,
                     onUp = viewModel::browseUp,
                     onOpen = viewModel::openViewer,
-                    onTrash = viewModel::trashSelection,
-                    onUndoTrash = viewModel::undoTrash,
+                    onMove = viewModel::moveSelection,
+                    onUndoMove = viewModel::undoMove,
+                    onSearch = viewModel::openSearch,
                 )
                 is UiState.Viewer -> ViewerScreen(
                     s,
                     onClose = viewModel::closeViewer,
-                    onTrash = { file -> viewModel.trashSelection(emptySet(), listOf(file)) },
+                    onMove = { kind, file -> viewModel.moveSelection(kind, emptySet(), listOf(file)) },
                 )
                 is UiState.TrashView -> TrashScreen(
                     s,
                     onBack = viewModel::backToStart,
-                    onRestore = viewModel::restoreFromTrash,
+                    onRestore = { items -> viewModel.restoreFromTrash(s.kind, items) },
                     onDeleteForever = viewModel::deleteFromTrash,
+                )
+                is UiState.Search -> SearchScreen(
+                    s,
+                    onSearch = viewModel::search,
+                    onBack = viewModel::backToStart,
+                    onOpen = viewModel::openViewer,
+                    onMove = viewModel::moveSelection,
+                    onUndoMove = viewModel::undoMove,
                 )
             }
         }
@@ -127,6 +139,8 @@ private fun HomeScreen(
     onView: () -> Unit,
     onUndo: () -> Unit,
     onOpenTrash: () -> Unit,
+    onOpenAside: () -> Unit,
+    onSearch: () -> Unit,
     onCheckUpdate: () -> Unit,
     onDownload: (String) -> Unit,
 ) {
@@ -197,9 +211,17 @@ private fun HomeScreen(
             item {
                 Box(Modifier.padding(horizontal = 16.dp)) { TonalBigButton("Voir mes photos", onView) }
             }
+            item {
+                Box(Modifier.padding(horizontal = 16.dp)) { SoftButton("Rechercher une photo", onSearch) }
+            }
+            if (state.asideCount > 0) {
+                item {
+                    Box(Modifier.padding(horizontal = 16.dp)) { StashTile(MoveKind.ASIDE, state.asideCount, onOpenAside) }
+                }
+            }
             if (state.trashCount > 0) {
                 item {
-                    Box(Modifier.padding(horizontal = 16.dp)) { TrashTile(state.trashCount, onOpenTrash) }
+                    Box(Modifier.padding(horizontal = 16.dp)) { StashTile(MoveKind.TRASH, state.trashCount, onOpenTrash) }
                 }
             }
         }
@@ -230,7 +252,8 @@ private fun HomeScreen(
 }
 
 @Composable
-private fun TrashTile(count: Int, onClick: () -> Unit) {
+private fun StashTile(kind: MoveKind, count: Int, onClick: () -> Unit) {
+    val aside = kind == MoveKind.ASIDE
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -246,12 +269,17 @@ private fun TrashTile(count: Int, onClick: () -> Unit) {
                 Modifier.size(46.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondary),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondary)
+                Icon(if (aside) Icons.Default.Lock else Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondary)
             }
             Column(Modifier.weight(1f)) {
-                Text("Corbeille", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                Text(if (aside) "À l'écart" else "Corbeille", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
                 Text(
-                    if (count > 1) "${spaced(count)} fichiers à remettre ou à supprimer" else "1 fichier à remettre ou à supprimer",
+                    when {
+                        aside && count > 1 -> "${spaced(count)} fichiers rangés à part"
+                        aside -> "1 fichier rangé à part"
+                        count > 1 -> "${spaced(count)} fichiers à remettre ou à supprimer"
+                        else -> "1 fichier à remettre ou à supprimer"
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                 )

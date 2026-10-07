@@ -61,6 +61,15 @@ class PhotoFilesTest {
     }
 
     @Test
+    fun asideFolderIsNeverReclassified() {
+        file("DCIM/new.jpg")
+        file("Photos rangées/Journées/2026/a.jpg")
+        file("Photos rangées/À l'écart/Journées/2026/b.jpg")
+        val all = PhotoFiles.list(place(), includeSorted = true).map { it.file.name }.sorted()
+        assertEquals(listOf("a.jpg", "new.jpg"), all)
+    }
+
+    @Test
     fun findsVideosToo() {
         file("DCIM/Camera/VID_20260914_101530.mp4")
         file("DCIM/Camera/film.MOV")

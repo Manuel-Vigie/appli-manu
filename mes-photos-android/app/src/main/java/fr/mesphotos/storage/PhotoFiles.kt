@@ -36,6 +36,7 @@ object PhotoFiles {
                 if (child.isDirectory) {
                     if (relative == null && child == output) continue
                     if (dir == place.root && name == "Android") continue
+                    if (relative != null && relative.isEmpty() && name == Place.ASIDE_DIR) continue // mis à l'écart : on n'y touche pas
                     walk(child, relative?.plus(name), depth + 1)
                 } else if (mimeOf(child) != null && child.length() > 0) {
                     result += Found(child, relative)

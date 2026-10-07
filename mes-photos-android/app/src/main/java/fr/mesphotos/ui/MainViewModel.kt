@@ -34,6 +34,12 @@ import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.math.roundToInt
 
+/** Où vont les photos choisies : la corbeille (on peut effacer pour de bon) ou « À l'écart » (rangées à part, jamais effacées). */
+enum class MoveKind { TRASH, ASIDE }
+
+/** Une photo prête pour la recherche : le fichier et son chemin sans accents ni majuscules. */
+class SearchEntry(val file: File, val text: String)
+
 sealed interface UiState {
     data class Home(
         val access: Boolean,
@@ -46,6 +52,8 @@ sealed interface UiState {
         val noticeIsError: Boolean = false,
         /** Nombre de photos et vidéos à la corbeille. */
         val trashCount: Int = 0,
+        /** Nombre de photos et vidéos mises à l'écart. */
+        val asideCount: Int = 0,
     ) : UiState
 
     /** [total] = 0 : durée inconnue. */
@@ -84,11 +92,19 @@ sealed interface UiState {
         val undoTrash: Int = 0,
     ) : UiState
 
-    /** La corbeille : ce qui a été mis de côté, à remettre ou à supprimer pour de bon. */
-    data class TrashView(val entries: List<TrashEntry>, val message: String? = null) : UiState
+    /** La corbeille (ou « À l'écart ») : ce qui a été mis de côté, à remettre (ou, pour la corbeille, à supprimer pour de bon). */
+    data class TrashView(val entries: List<TrashEntry>, val message: String? = null, val kind: MoveKind = MoveKind.TRASH) : UiState
+
+    /** Recherche : les photos dont le chemin contient tous les mots de [query]. */
+    data class Search(
+        val query: String,
+        val results: List<File>,
+        val message: String? = null,
+        val undoTrash: Int = 0,
+    ) : UiState
 
     /** Visionneuse plein écran. */
-    data class Viewer(val path: List<String>, val files: List<File>, val index: Int) : UiState
+    data class Viewer(val path: List<String>, val files: List<File>, val index: Int, val backToSearch: String? = null) : UiState
 }
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -120,7 +136,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var run = RunState()
     private var browsePath: List<String> = emptyList()
     private var trashCount = 0
-    private var lastTrashed: List<TrashEntry> = emptyList()
+    private var asideCount = 0
+    private var lastMoved: List<TrashEntry> = emptyList()
+    private var lastKind = MoveKind.TRASH
+    private var searchIndex: List<SearchEntry>? = null
+    private var searchQuery = ""
 
     // Mise à jour
     var updateMessage: String? = null
@@ -137,14 +157,28 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun hasUndo() = journal.exists() && journal.length() > 0
 
-    private fun trashOf(p: Place) = Trash(p.outputDir) { paths ->
+    private fun stashOf(p: Place, kind: MoveKind): Trash {
         // Prévient la galerie du téléphone : les photos disparaissent (ou reviennent) à leur place.
-        MediaScannerConnection.scanFile(getApplication(), paths.toTypedArray(), null, null)
+        val onChanged = { paths: List<String> -> MediaScannerConnection.scanFile(getApplication(), paths.toTypedArray(), null, null); Unit }
+        return when (kind) {
+            MoveKind.TRASH -> Trash(p.outputDir, onChanged)
+            MoveKind.ASIDE -> Trash(p.outputDir, onChanged, dirName = Place.ASIDE_DIR, batched = false, indexName = ".index-mes-photos.tsv")
+        }
+    }
+
+    private fun trashOf(p: Place) = stashOf(p, MoveKind.TRASH)
+
+    /** Où revenir après un déplacement : à la recherche si on en venait (liste ou visionneuse), sinon à la galerie. */
+    private fun returnQuery(): String? = when (val s = _state.value) {
+        is UiState.Search -> s.query
+        is UiState.Viewer -> s.backToSearch
+        else -> null
     }
 
     // ---- Accueil -------------------------------------------------------------------------------
 
     fun refresh(newNotice: String? = null, isError: Boolean = false) {
+        searchIndex = null // les photos ont peut-être changé de place
         notice = newNotice
         noticeIsError = isError
         counts = null
@@ -155,6 +189,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val found = withContext(Dispatchers.IO) {
                 trashCount = runCatching { trashOf(current).count() }.getOrDefault(0)
+                asideCount = runCatching { stashOf(current, MoveKind.ASIDE).count() }.getOrDefault(0)
                 runCatching { scanner.counts(current) }.getOrDefault(0 to 0)
             }
             counts = found
@@ -172,6 +207,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             notice = notice,
             noticeIsError = noticeIsError,
             trashCount = trashCount,
+            asideCount = asideCount,
         )
     }
 
@@ -464,96 +500,118 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun openViewer(files: List<File>, index: Int) {
-        _state.value = UiState.Viewer(browsePath, files, index)
+        _state.value = UiState.Viewer(browsePath, files, index, backToSearch = returnQuery())
     }
 
-    fun closeViewer() = browse(browsePath)
+    fun closeViewer() {
+        val query = (_state.value as? UiState.Viewer)?.backToSearch
+        if (query != null) search(query) else browse(browsePath)
+    }
 
-    // ---- Corbeille -----------------------------------------------------------------------------
+    // ---- Corbeille et « À l'écart » -------------------------------------------------------------
+
+    private fun countText(n: Int) = if (n > 1) "$n fichiers" else "$n fichier"
+
+    private fun refreshStashCounts(current: Place) {
+        trashCount = runCatching { trashOf(current).count() }.getOrDefault(trashCount)
+        asideCount = runCatching { stashOf(current, MoveKind.ASIDE).count() }.getOrDefault(asideCount)
+    }
 
     /**
-     * Met à la corbeille les photos [files] et tout le contenu des dossiers [folderNames] (du dossier qu'on regarde).
-     * Rien n'est effacé : c'est un déplacement vérifié, qu'on peut annuler tout de suite ou plus tard.
+     * Met de côté les photos [files] et tout le contenu des dossiers [folderNames] (du dossier qu'on regarde) :
+     * à la corbeille, ou « À l'écart ». Rien n'est effacé : c'est un déplacement vérifié, qu'on peut annuler.
      */
-    fun trashSelection(folderNames: Set<String>, files: List<File>) {
+    fun moveSelection(kind: MoveKind, folderNames: Set<String>, files: List<File>) {
         val current = place ?: return
         val base = browsePath
+        val backQuery = returnQuery()
+        val label = if (kind == MoveKind.TRASH) "Mise à la corbeille…" else "Mise à l'écart…"
         viewModelScope.launch {
             try {
-                _state.value = UiState.Working("Mise à la corbeille…", 0, 0)
+                _state.value = UiState.Working(label, 0, 0)
                 val result = withContext(Dispatchers.IO) {
                     val parent = base.fold(current.outputDir) { acc, name -> File(acc, name) }
                     val all = LinkedHashSet<File>(files)
                     folderNames.forEach { name -> all += Gallery.media(File(parent, name)) }
-                    trashOf(current).moveToTrash(all.toList()) { done, total ->
-                        if (done % 10 == 0 || done == total) _state.value = UiState.Working("Mise à la corbeille…", done, total)
+                    stashOf(current, kind).moveToTrash(all.toList()) { done, total ->
+                        if (done % 10 == 0 || done == total) _state.value = UiState.Working(label, done, total)
                     }
                 }
-                lastTrashed = result.entries
-                trashCount = withContext(Dispatchers.IO) { runCatching { trashOf(current).count() }.getOrDefault(trashCount) }
+                lastMoved = result.entries
+                lastKind = kind
+                searchIndex = null
+                withContext(Dispatchers.IO) { refreshStashCounts(current) }
                 val lines = ArrayList<String>()
-                lines += if (result.done == 0) "Rien n'a été mis à la corbeille."
-                else "${countText(result.done)} à la corbeille. Rien n'est effacé : vous pouvez les remettre."
+                lines += when {
+                    result.done == 0 -> "Rien n'a été déplacé."
+                    kind == MoveKind.TRASH -> "${countText(result.done)} à la corbeille. Rien n'est effacé : vous pouvez les remettre."
+                    else -> "${countText(result.done)} mis à l'écart, hors de la galerie. Dossier sur la carte : « ${Place.OUTPUT_DIR} / ${Place.ASIDE_DIR} »."
+                }
                 if (result.failed > 0) lines += "${result.failed} fichier(s) n'ont pas pu être déplacés et sont restés en place."
                 result.failures.take(2).forEach { lines += it }
-                showBrowse(base, message = lines.joinToString("\n"), undoCount = result.done)
+                val message = lines.joinToString("\n")
+                if (backQuery != null) showSearch(backQuery, message, result.done) else showBrowse(base, message = message, undoCount = result.done)
             } catch (e: Exception) {
                 refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
             }
         }
     }
 
-    /** Remet ce qu'on vient de mettre à la corbeille (bouton « Annuler » de la galerie). */
-    fun undoTrash() {
+    /** Remet ce qu'on vient de déplacer (bouton « Annuler » de la galerie ou de la recherche). */
+    fun undoMove() {
         val current = place ?: return
-        val items = lastTrashed
+        val items = lastMoved
+        val kind = lastKind
         val base = browsePath
+        val backQuery = returnQuery()
         viewModelScope.launch {
             try {
                 _state.value = UiState.Working("Remise en place…", 0, 0)
-                val result = withContext(Dispatchers.IO) { trashOf(current).restore(items) }
-                lastTrashed = emptyList()
-                trashCount = withContext(Dispatchers.IO) { runCatching { trashOf(current).count() }.getOrDefault(trashCount) }
+                val result = withContext(Dispatchers.IO) { stashOf(current, kind).restore(items) }
+                lastMoved = emptyList()
+                searchIndex = null
+                withContext(Dispatchers.IO) { refreshStashCounts(current) }
                 var text = "${countText(result.done)} remis à leur place."
-                if (result.failed > 0) text += "\n${result.failed} fichier(s) n'ont pas pu être remis (ils sont toujours à la corbeille)."
-                showBrowse(base, message = text)
+                if (result.failed > 0) text += "\n${result.failed} fichier(s) n'ont pas pu être remis (ils sont toujours mis de côté)."
+                if (backQuery != null) showSearch(backQuery, text, 0) else showBrowse(base, message = text)
             } catch (e: Exception) {
                 refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
             }
         }
     }
 
-    fun openTrash(message: String? = null) {
+    fun openTrash(kind: MoveKind = MoveKind.TRASH, message: String? = null) {
         val current = place ?: return
         viewModelScope.launch {
-            _state.value = UiState.Working("Ouverture de la corbeille…", 0, 0)
-            val entries = withContext(Dispatchers.IO) { trashOf(current).entries() }
-            trashCount = entries.size
-            _state.value = UiState.TrashView(entries, message)
+            _state.value = UiState.Working(if (kind == MoveKind.TRASH) "Ouverture de la corbeille…" else "Ouverture de « À l'écart »…", 0, 0)
+            val entries = withContext(Dispatchers.IO) { stashOf(current, kind).entries() }
+            if (kind == MoveKind.TRASH) trashCount = entries.size else asideCount = entries.size
+            _state.value = UiState.TrashView(entries, message, kind)
         }
     }
 
-    fun restoreFromTrash(items: List<TrashEntry>) {
+    fun restoreFromTrash(kind: MoveKind, items: List<TrashEntry>) {
         val current = place ?: return
         viewModelScope.launch {
             try {
                 _state.value = UiState.Working("Remise en place…", 0, 0)
                 val result = withContext(Dispatchers.IO) {
-                    trashOf(current).restore(items) { done, total ->
+                    stashOf(current, kind).restore(items) { done, total ->
                         if (done % 10 == 0 || done == total) _state.value = UiState.Working("Remise en place…", done, total)
                     }
                 }
-                lastTrashed = emptyList()
-                var text = "${countText(result.done)} remis à leur place dans « Photos rangées »."
+                lastMoved = emptyList()
+                searchIndex = null
+                var text = "${countText(result.done)} remis à leur place dans « ${Place.OUTPUT_DIR} »."
                 if (result.failed > 0) text += "\n${result.failed} fichier(s) n'ont pas pu être remis : ${result.failures.take(2).joinToString(" ; ")}"
-                openTrash(text)
+                openTrash(kind, text)
             } catch (e: Exception) {
                 refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
             }
         }
     }
 
-    /** Efface pour de bon ce qui est choisi dans la corbeille. L'écran demande toujours une confirmation avant. */
+    /** Efface pour de bon ce qui est choisi dans la corbeille (jamais dans « À l'écart »). L'écran demande toujours une confirmation avant. */
     fun deleteFromTrash(items: List<TrashEntry>) {
         val current = place ?: return
         viewModelScope.launch {
@@ -564,17 +622,43 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         if (done % 10 == 0 || done == total) _state.value = UiState.Working("Suppression définitive…", done, total)
                     }
                 }
-                lastTrashed = emptyList()
+                lastMoved = emptyList()
                 var text = "${countText(result.done)} supprimé(s) pour de bon."
                 if (result.failed > 0) text += "\n${result.failed} fichier(s) n'ont pas pu être supprimés."
-                openTrash(text)
+                openTrash(MoveKind.TRASH, text)
             } catch (e: Exception) {
                 refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
             }
         }
     }
 
-    private fun countText(n: Int) = if (n > 1) "$n fichiers" else "$n fichier"
+    // ---- Recherche -----------------------------------------------------------------------------
+
+    fun openSearch() = search(searchQuery)
+
+    fun search(query: String) {
+        if (place == null) return
+        viewModelScope.launch { showSearch(query) }
+    }
+
+    /** Cherche [query] dans le chemin de chaque photo (dossiers année, mois, jour, ville + nom du fichier). */
+    private suspend fun showSearch(query: String, message: String? = null, undoCount: Int = 0) {
+        val current = place ?: return
+        searchQuery = query
+        val index = searchIndex ?: run {
+            _state.value = UiState.Working("Préparation de la recherche…", 0, 0)
+            withContext(Dispatchers.IO) {
+                Gallery.allMedia(current.outputDir)
+                    .map { SearchEntry(it, Gallery.normalize(it.toRelativeString(current.outputDir).replace('/', ' '))) }
+                    .sortedByDescending { it.text } // les plus récentes d'abord
+            }.also { searchIndex = it }
+        }
+        val terms = Gallery.terms(query)
+        val results = if (terms.isEmpty()) emptyList() else withContext(Dispatchers.Default) {
+            index.filter { Gallery.matches(it.text, terms) }.map { it.file }
+        }
+        _state.value = UiState.Search(query, results, message, undoCount)
+    }
 
     // ---- Mise à jour ---------------------------------------------------------------------------
 

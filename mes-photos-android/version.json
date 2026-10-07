@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V2",
+  "version": "V3",
   "date": "07/10/2026",
   "nouveautes": [
-    "Nouveau look : couleurs plus douces, bandeau en dégradé, mode sombre.",
-    "Choix multiple : touchez « Choisir » dans la galerie pour sélectionner des photos ou des dossiers entiers.",
-    "Corbeille sûre : rien n'est effacé tout de suite, on peut tout remettre à sa place.",
-    "Un bouton corbeille aussi dans la visionneuse, pour une seule photo."
+    "Recherche : tapez une ville, un mois, une année ou un nom, les photos trouvées s'affichent.",
+    "« À l'écart » : cochez des photos ou des dossiers, ils sortent de la galerie et vont dans un dossier de la carte que vous récupérez quand vous voulez.",
+    "Tout se remet en place d'un geste (bouton Annuler, ou depuis l'accueil).",
+    "Nouveau look, choix multiple et corbeille (V2)."
   ],
   "pastille": false,
   "fichiers": []

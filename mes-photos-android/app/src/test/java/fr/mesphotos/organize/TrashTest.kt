@@ -153,6 +153,19 @@ class TrashTest {
     }
 
     @Test
+    fun asideKeepsTheTreeAndCanBeRestored() {
+        val aside = Trash(output, dirName = "À l'écart", batched = false, indexName = ".index-mes-photos.tsv")
+        val a = photo("Journées", "2024", "05", "a.jpg", text = "AAA")
+        aside.moveToTrash(listOf(a))
+        assertEquals("AAA", File(output, "À l'écart/Journées/2024/05/a.jpg").readText())
+        assertEquals(1, aside.count())
+        assertEquals(0, trash.count())
+        aside.restore(aside.entries())
+        assertEquals("AAA", a.readText())
+        assertFalse(File(output, "À l'écart/Journées").exists())
+    }
+
+    @Test
     fun trashFolderIsHiddenFromTheGallery() {
         val a = photo("2024", "a.jpg")
         trash.moveToTrash(listOf(a))
