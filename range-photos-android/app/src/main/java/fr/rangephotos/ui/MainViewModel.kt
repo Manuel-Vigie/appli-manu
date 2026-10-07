@@ -121,6 +121,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (uri == null) _state.value = start("Choisissez de nouveau le dossier de photos.") else analyze(uri, true)
     }
 
+    /** Ouvre « Photos rangées » dans l'appli Fichiers ; null si le dossier n'existe pas encore. */
+    fun openSortedFolder(): Intent? {
+        val root = lastRoot() ?: return null
+        val dir = runCatching {
+            androidx.documentfile.provider.DocumentFile.fromTreeUri(getApplication(), root)?.findFile(Organizer.OUTPUT_DIR)
+        }.getOrNull()
+        if (dir == null || !dir.isDirectory) return null
+        val documentUri = android.provider.DocumentsContract.buildDocumentUri(
+            dir.uri.authority, android.provider.DocumentsContract.getDocumentId(dir.uri),
+        )
+        return Intent(Intent.ACTION_VIEW)
+            .setDataAndType(documentUri, android.provider.DocumentsContract.Document.MIME_TYPE_DIR)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+
     /** Le prochain dossier choisi sera analysé en entier (reclassement complet). */
     fun armReclassify(on: Boolean) {
         reclassifyArmed = on

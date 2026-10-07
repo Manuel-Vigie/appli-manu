@@ -3,7 +3,7 @@
 Vraie appli Android (fichier APK) qui **range elle-même** les photos de la carte SD dans des dossiers. Une page web ne peut pas le faire sur Android ; c'est pour ça que celle-ci est une appli à installer.
 Tout se passe sur le téléphone : aucune photo n'est envoyée, aucune photo dans le dépôt. Détails techniques : [README](README.md).
 
-- **Adresse de téléchargement** : onglet *Releases* du dépôt, version `range-photos-v0.6.0` : https://github.com/Manuel-Vigie/appli-manu/releases (fichier `RangePhotos.apk`).
+- **Adresse de téléchargement** : onglet *Releases* du dépôt, version `range-photos-v0.7.0` : https://github.com/Manuel-Vigie/appli-manu/releases (fichier `RangePhotos.apk`).
 - **Installer** : sur le téléphone, ouvrir le lien, toucher `RangePhotos.apk`, autoriser l'installation depuis cette source si Android le demande. Une nouvelle version s'installe par-dessus l'ancienne (même clé de signature `app/debug.keystore`, publique, voulue).
 - **Utiliser** : ouvrir l'appli, « Choisir le dossier de photos » (carte SD ou son dossier DCIM), regarder l'aperçu, « Ranger maintenant ». Les photos sont déplacées dans `Photos rangées/`. « Annuler le dernier rangement » remet tout en place.
 - **Mettre à jour depuis l'appli** : écran d'accueil, carte « Mise à jour » → « Chercher une mise à jour ». Si une version plus récente existe, « Télécharger » ouvre le fichier dans le navigateur ; l'ouvrir puis « Installer » (Android le demande, c'est normal). Seul le numéro de version est demandé à GitHub, aucune photo ne part.
@@ -20,3 +20,4 @@ Tout se passe sur le téléphone : aucune photo n'est envoyée, aucune photo dan
 - 07/10/2026 : V4 (0.4.0), bouton « Relancer la recherche » (retient le dernier dossier), affichage du nombre de photos déjà rangées dans « Photos rangées » (ignorées par la recherche, c'est pourquoi le total peut être bien plus petit que le nombre de photos de la carte).
 - 07/10/2026 : V5 (0.5.0), correction d'un plantage au démarrage de la V4 : la mémoire du dernier dossier était lue avant d'être créée (ordre d'initialisation dans `MainViewModel`). La V4 ne doit plus être utilisée.
 - 07/10/2026 : V6 (0.6.0), bouton « Tout reclasser » : analyse aussi le dossier « Photos rangées » et propose de reclasser chaque photo. Les photos déjà au bon endroit ne bougent pas ; les copies de proches faites avant (même nom, même taille) ne sont ni reprises ni refaites ni supprimées ; rien n'est supprimé, annulation possible (les dossiers devenus vides restent). Test unitaire des doublons.
+- 07/10/2026 : V7 (0.7.0), bouton « Ouvrir mes photos rangées » (écran d'accueil et écran de fin) : ouvre « Photos rangées » dans l'appli Fichiers. Non essayé sur téléphone ; si l'appli Fichiers refuse, un message indique le chemin à suivre.

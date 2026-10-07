@@ -3,6 +3,7 @@ package fr.rangephotos.ui
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -88,6 +89,24 @@ fun MainScreen(viewModel: MainViewModel) {
         }
     }
 
+    val openFolder: () -> Unit = {
+        val intent = viewModel.openSortedFolder()
+        val opened = intent != null && try {
+            context.startActivity(intent)
+            true
+        } catch (e: Exception) {
+            false
+        }
+        if (!opened) {
+            val message = if (intent == null) {
+                "Le dossier « Photos rangées » n'existe pas encore : rangez d'abord vos photos."
+            } else {
+                "Ouvrez l'appli Fichiers, puis Carte SD, puis « Photos rangées »."
+            }
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
+    }
+
     MaterialTheme(colorScheme = RangeColors) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(
@@ -103,6 +122,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         onUndo = viewModel::undo,
                         onPeople = viewModel::openPeople,
                         onRescan = viewModel::rescan,
+                        onOpenFolder = openFolder,
                         onReclassify = {
                             if (s.lastFolder != null) {
                                 viewModel.rescanAll()
@@ -125,7 +145,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         onConfirm = viewModel::confirm,
                         onCancel = viewModel::backToStart,
                     )
-                    is UiState.Done -> DoneScreen(s, onUndo = viewModel::undo, onBack = viewModel::backToStart)
+                    is UiState.Done -> DoneScreen(s, onUndo = viewModel::undo, onBack = viewModel::backToStart, onOpen = openFolder)
                 }
             }
         }
@@ -139,6 +159,7 @@ private fun StartScreen(
     onUndo: () -> Unit,
     onPeople: () -> Unit,
     onRescan: () -> Unit,
+    onOpenFolder: () -> Unit,
     onReclassify: () -> Unit,
     versionLabel: String,
     update: UpdateUi,
@@ -185,6 +206,11 @@ private fun StartScreen(
                         OutlinedButton(onClick = onPick, modifier = Modifier.fillMaxWidth()) { Text("Choisir un autre dossier") }
                     } else {
                         Button(onClick = onPick, modifier = Modifier.fillMaxWidth()) { Text("Choisir le dossier de photos") }
+                    }
+                    if (state.lastFolder != null) {
+                        OutlinedButton(onClick = onOpenFolder, modifier = Modifier.fillMaxWidth()) {
+                            Text("Ouvrir mes photos rangées")
+                        }
                     }
                     if (state.hasUndo) {
                         OutlinedButton(onClick = onUndo, modifier = Modifier.fillMaxWidth()) {
@@ -514,11 +540,12 @@ private fun CountRow(name: String, count: Int) {
 }
 
 @Composable
-private fun DoneScreen(state: UiState.Done, onUndo: () -> Unit, onBack: () -> Unit) {
+private fun DoneScreen(state: UiState.Done, onUndo: () -> Unit, onBack: () -> Unit, onOpen: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(state.title, style = MaterialTheme.typography.headlineMedium)
         Text(state.details, style = MaterialTheme.typography.bodyLarge)
-        Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Terminer") }
+        Button(onClick = onOpen, modifier = Modifier.fillMaxWidth()) { Text("Ouvrir mes photos rangées") }
+        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Terminer") }
         if (state.hasUndo) {
             OutlinedButton(onClick = onUndo, modifier = Modifier.fillMaxWidth()) {
                 Text("Annuler ce rangement")
