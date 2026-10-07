@@ -3342,6 +3342,38 @@ const IGN_MIX={sat:.6,bri:.95,cast:.9,contrast:.8,light:.55};
 function ignWorkerBody(MIX){
   const REF={n:0,r:1,g:1,b:1,sd:40,L:100};
   const cl=(v,a,b)=>v<a?a:v>b?b:v;
+  // statistiques d'une zone : moyenne des couleurs, contraste (hors pixels blancs)
+  function stat(mr,mg,mb,d,n){
+    const L=(mr+mg+mb)/3;if(!(L>25&&L<235))return null;
+    let sd=0;for(let i=0;i<d.length;i+=16){const l=(d[i]+d[i+1]+d[i+2])/3-L;sd+=l*l}
+    return {r:mr,g:mg,b:mb,L,sd:Math.sqrt(sd/n)};
+  }
+  const REGS=new Map();
+  function region(z,x,y){
+    const zp=Math.max(0,z-3),s=z-zp,key=zp+'/'+(x>>s)+'/'+(y>>s);
+    if(REGS.has(key))return REGS.get(key);
+    const pr=(async()=>{
+      try{
+        const r=await fetch(`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX=${zp}&TILEROW=${y>>s}&TILECOL=${x>>s}&FORMAT=image/jpeg`);
+        if(!r.ok)return null;
+        const bm=await createImageBitmap(await r.blob()),c=new OffscreenCanvas(bm.width,bm.height),cx=c.getContext('2d',{willReadFrequently:true});
+        cx.drawImage(bm,0,0);bm.close();
+        const d=cx.getImageData(0,0,c.width,c.height).data;let sr=0,sg=0,sb=0,n=0;const keep=[];
+        for(let i=0;i<d.length;i+=16){if(d[i+3]<10||(d[i]>=236&&d[i+1]>=236&&d[i+2]>=236))continue;sr+=d[i];sg+=d[i+1];sb+=d[i+2];n++;keep.push(d[i],d[i+1],d[i+2],255)}
+        if(n<400)return null;
+        const st=stat(sr/n,sg/n,sb/n,keep.length?new Uint8Array(0):d,n);
+        if(!st)return null;
+        // contraste calculé sur les pixels gardés
+        let sd=0;for(let i=0;i<keep.length;i+=4){const l=(keep[i]+keep[i+1]+keep[i+2])/3-st.L;sd+=l*l}st.sd=Math.sqrt(sd/n);
+        // la moyenne générale suit les zones vues
+        REF.n++;const al=1/Math.min(REF.n,60),rr=st.r/st.L,rg=st.g/st.L,rb=st.b/st.L;
+        REF.r+=(rr-REF.r)*al;REF.g+=(rg-REF.g)*al;REF.b+=(rb-REF.b)*al;REF.sd+=(st.sd-REF.sd)*al;REF.L+=(st.L-REF.L)*al;
+        return st;
+      }catch(e){return null}
+    })();
+    REGS.set(key,pr);
+    return pr;
+  }
   async function tile(z,x,y){
     let buf=null,bm=null;
     try{const r=await fetch(`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX=${z}&TILEROW=${y}&TILECOL=${x}&FORMAT=image/jpeg`);if(r.ok)buf=await r.arrayBuffer()}catch(e){}
@@ -3373,20 +3405,22 @@ function ignWorkerBody(MIX){
       }
     }
     if(!d1)return buf;
-    // teinte et contraste du carré rapprochés de la moyenne générale
-    const d=d1.data;let sr=0,sg=0,sb=0,n=0;
-    for(let i=0;i<d.length;i+=16){sr+=d[i];sg+=d[i+1];sb+=d[i+2];n++}
-    const mr=sr/n,mg=sg/n,mb=sb/n,L=(mr+mg+mb)/3;
-    if(L>25&&L<235){
-      let sd=0;for(let i=0;i<d.length;i+=16){const l=(d[i]+d[i+1]+d[i+2])/3-L;sd+=l*l}sd=Math.sqrt(sd/n);
-      const rr=mr/L,rg=mg/L,rb=mb/L;
-      REF.n++;const al=1/Math.min(REF.n,150);
-      REF.r+=(rr-REF.r)*al;REF.g+=(rg-REF.g)*al;REF.b+=(rb-REF.b)*al;REF.sd+=(sd-REF.sd)*al;REF.L+=(L-REF.L)*al;
+    // teinte et contraste rapprochés de la moyenne générale : mesurés sur une zone large (8×8 carrés) pour que deux carrés voisins subissent
+    // exactement la même correction (sinon on verrait la grille des carrés)
+    const d=d1.data;
+    let st=await region(z,x,y);
+    if(!st){
+      let sr=0,sg=0,sb=0,n=0;
+      for(let i=0;i<d.length;i+=16){sr+=d[i];sg+=d[i+1];sb+=d[i+2];n++}
+      st=stat(sr/n,sg/n,sb/n,d,n);
+    }
+    if(st){
+      const rr=st.r/st.L,rg=st.g/st.L,rb=st.b/st.L;
       let gr=Math.pow(REF.r/rr,MIX.cast),gg=Math.pow(REF.g/rg,MIX.cast),gb=Math.pow(REF.b/rb,MIX.cast);
       const gm=(gr+gg+gb)/3;gr=cl(gr/gm,.8,1.25);gg=cl(gg/gm,.8,1.25);gb=cl(gb/gm,.8,1.25);
-      const k=sd>3?cl(Math.pow(REF.sd/sd,MIX.contrast),.8,1.35):1,Lt=L+cl((REF.L-L)*MIX.light,-28,28);
+      const k=st.sd>3?cl(Math.pow(REF.sd/st.sd,MIX.contrast),.8,1.35):1,P=st.L,Lt=P+cl((REF.L-P)*MIX.light,-28,28);
       for(let i=0;i<d.length;i+=4){
-        d[i]=cl((d[i]*gr-L)*k+Lt,0,255);d[i+1]=cl((d[i+1]*gg-L)*k+Lt,0,255);d[i+2]=cl((d[i+2]*gb-L)*k+Lt,0,255);
+        d[i]=cl((d[i]*gr-P)*k+Lt,0,255);d[i+1]=cl((d[i+1]*gg-P)*k+Lt,0,255);d[i+2]=cl((d[i+2]*gb-P)*k+Lt,0,255);
       }
     }
     x1.putImageData(d1,0,0);
@@ -4097,7 +4131,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V27", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Photos aériennes : harmonisation des couleurs plus forte (teinte, contraste et luminosité), pour atténuer les zones plus claires ou brumeuses.", "Carte et film : les couleurs des photos aériennes sont harmonisées carré par carré (moins de patchwork vert/gris), sans ralentir la carte.", "Carte et film : le blanc restant est remplacé pixel par pixel par la photo satellite, un peu adoucie en couleur pour mieux ressembler aux photos IGN.", "Zones blanches restantes (neige ou glacier « brûlés » sur les photos IGN) : ces carrés trop blancs sont remplacés par la photo satellite."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V28", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Photos aériennes : la correction de couleur est maintenant la même pour de grandes zones, ce qui efface la grille de petits carrés de couleurs légèrement différentes.", "Photos aériennes : harmonisation des couleurs plus forte (teinte, contraste et luminosité), pour atténuer les zones plus claires ou brumeuses.", "Carte et film : les couleurs des photos aériennes sont harmonisées carré par carré (moins de patchwork vert/gris), sans ralentir la carte.", "Carte et film : le blanc restant est remplacé pixel par pixel par la photo satellite, un peu adoucie en couleur pour mieux ressembler aux photos IGN."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
