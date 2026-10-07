@@ -3343,8 +3343,10 @@ async function ignBlank(buf){
     c.width=c.height=8;const x=c.getContext('2d',{willReadFrequently:true});x.clearRect(0,0,8,8);x.drawImage(bm,0,0,8,8);if(bm.close)bm.close();
     const d=x.getImageData(0,0,8,8).data;
     // « blanc » = presque uniforme et très clair (le blanc de l'IGN n'est pas toujours exactement 255)
-    let mn=255,mx=0;
-    for(let i=0;i<d.length;i+=4){if(d[i+3]<10)continue;for(let k=0;k<3;k++){const v=d[i+k];if(v<mn)mn=v;if(v>mx)mx=v}}
+    let mn=255,mx=0,br=0;
+    for(let i=0;i<d.length;i+=4){if(d[i+3]<10){br++;continue}if(d[i]>=238&&d[i+1]>=238&&d[i+2]>=238)br++;for(let k=0;k<3;k++){const v=d[i+k];if(v<mn)mn=v;if(v>mx)mx=v}}
+    // photo « brûlée » (neige ou glacier tout blanc sur les photos IGN) : plus de la moitié du carré est blanc
+    if(br>=32)return true;
     if(mx<mn)return true;
     if(mn<228||mx-mn>22)return false;
     return true;
@@ -4041,7 +4043,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V23", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Zones blanches quand on zoome : détection plus large des carrés blancs de l'IGN (même presque blancs), remplacés par la photo satellite.", "Fini les zones blanches hors de France (Italie, Suisse…) : là où les photos IGN manquent, l'appli met automatiquement la photo satellite à la place, sur la carte et dans le film.", "Nouveau « 🎬 Film de la carte » : crée une vraie vidéo MP4 stable de ta rando (HD, Full HD ou vertical), à mettre au début d'un film YouTube.", "La carte animée tourne beaucoup moins : la caméra suit un chemin lissé et ne réagit plus à chaque petit virage."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V24", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Zones blanches restantes (neige ou glacier « brûlés » sur les photos IGN) : ces carrés trop blancs sont remplacés par la photo satellite.", "Zones blanches quand on zoome : détection plus large des carrés blancs de l'IGN (même presque blancs), remplacés par la photo satellite.", "Fini les zones blanches hors de France (Italie, Suisse…) : là où les photos IGN manquent, l'appli met automatiquement la photo satellite à la place, sur la carte et dans le film.", "Nouveau « 🎬 Film de la carte » : crée une vraie vidéo MP4 stable de ta rando (HD, Full HD ou vertical), à mettre au début d'un film YouTube."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
