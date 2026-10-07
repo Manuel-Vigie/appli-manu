@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V29",
+  "version": "V30",
   "date": "07/10/2026",
   "nouveautes": [
+    "Photos aériennes : nouvelle méthode pour les couleurs. On garde la netteté des photos IGN mais leurs couleurs de fond sont alignées sur la carte satellite, régulière partout : fini les plaques de couleurs différentes.",
     "Photos aériennes : les couleurs passent doucement d'une zone à l'autre (plus de cassure) et les zones trop vives ou trop claires sont mieux ramenées vers la moyenne.",
     "Photos aériennes : la correction de couleur est maintenant la même pour de grandes zones, ce qui efface la grille de petits carrés de couleurs légèrement différentes.",
-    "Photos aériennes : harmonisation des couleurs plus forte (teinte, contraste et luminosité), pour atténuer les zones plus claires ou brumeuses.",
-    "Carte et film : les couleurs des photos aériennes sont harmonisées carré par carré (moins de patchwork vert/gris), sans ralentir la carte."
+    "Photos aériennes : harmonisation des couleurs plus forte (teinte, contraste et luminosité), pour atténuer les zones plus claires ou brumeuses."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v29"
+    "cache": "rr3d-v30"
   },
   "fichiers": [
     "rando-3d.html",
