@@ -145,8 +145,12 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 .sv-top{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));left:8px;right:8px;display:flex;flex-direction:column;gap:6px;align-items:flex-start;pointer-events:none}
 .sv-top>*{pointer-events:auto}
 .sv-top .btn{box-shadow:var(--shadow)}
-.sv-row{display:flex;gap:6px;flex-wrap:wrap;max-width:calc(100% - 112px)}
+.sv-row{display:flex;gap:6px;flex-wrap:wrap}
 .sv-row #svRec{background:var(--trail,#d7392a);color:#fff}
+.sv-top{top:calc(46px + env(safe-area-inset-top,0px))}
+.sv-row{max-width:100%}
+.sv-top .btn{padding:8px 11px}
+@media (max-width:600px){.stat .sub{display:none}.legend{display:none}.stats{margin-bottom:0}}
 .sv-top .btn[aria-pressed="true"]{background:var(--ink);color:var(--panel-solid)}
 .sv-top .seg{background:var(--panel-solid);box-shadow:var(--shadow);max-width:100%;overflow-x:auto}
 .sv-bottom{position:absolute;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
@@ -314,6 +318,47 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 @media (max-width:420px){
   .actions .btn span.long{display:none}
 }
+/* ===== Refonte V19 : barre du bas, pages, puces de réglage ===== */
+:root{--nav-h:60px}
+.nav{position:absolute;left:0;right:0;bottom:0;z-index:26;height:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));padding-bottom:env(safe-area-inset-bottom,0px);display:flex;justify-content:center;background:var(--panel-solid);border-top:1px solid var(--line);box-shadow:0 -4px 18px rgba(0,0,0,.14)}
+.nav button{flex:1;max-width:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:11.5px;font-weight:600;padding:6px 2px}
+.nav button svg{width:24px;height:24px}
+.nav button[aria-current="page"]{color:var(--trail)}
+.nav button:active{background:var(--trail-soft)}
+#app.welcome-on .nav{display:none}
+.actions{display:none}
+.bottom{bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));padding-bottom:8px}
+.fab{bottom:calc(var(--nav-h) + 12px + env(safe-area-inset-bottom,0px))}
+.sv-panel,.ign-panel{bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));z-index:25}
+.ign-panel{z-index:25}
+#svClose{display:none}
+.modal-back,.tag-sheet{z-index:32}
+.report-panel{z-index:34}
+.rec-layer{z-index:35}
+@media (max-width:760px){.more.sheet{bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));z-index:24}}
+@media (max-width:600px){.top{padding-right:112px}}
+.tab-page{position:absolute;left:0;right:0;top:0;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));z-index:24;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#e9eeeb;color:var(--ink);padding:calc(56px + env(safe-area-inset-top,0px)) 16px 20px}
+.tab-page section{display:none;max-width:560px;margin:0 auto}
+.tab-page section.on{display:block}
+.tab-page h2{font-family:var(--display);font-size:30px;margin:0 0 2px}
+.pg-sub{margin:0 0 14px;color:var(--muted);font-size:14px}
+.pg-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.pg-stats div{background:#fff;border-radius:12px;padding:10px 12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.pg-stats span{display:block;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.pg-stats b{font-family:var(--display);font-size:26px}
+.pg-stats small{font-size:13px;color:var(--muted);margin-left:3px}
+.pg-btns{display:flex;flex-direction:column;gap:10px}
+.pg-btn{display:flex;flex-direction:column;gap:2px;text-align:left;cursor:pointer;border:0;background:#fff;color:var(--ink);border-radius:14px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.1);font:inherit}
+.pg-btn b{font-size:17px}
+.pg-btn small{color:var(--muted);font-size:13px}
+.pg-btn.primary{background:var(--trail);color:#fff}
+.pg-btn.primary small{color:rgba(255,255,255,.85)}
+.pg-btn:active{filter:brightness(.95)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:4px 0 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;white-space:nowrap;cursor:pointer;border:1px solid var(--line);background:var(--panel-solid);color:var(--ink);border-radius:99px;padding:7px 12px;font-size:13.5px;font-weight:600}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--panel-solid);border-color:transparent}
+.chip.cyc b{color:var(--trail);font-weight:700}
 </style>
 
 <div id="app">
@@ -520,7 +565,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
     <div id="svMap"></div>
     <div class="sv-load" id="svLoad">Chargement de la carte…</div>
     <div class="sv-top">
-      <div class="sv-row"><button type="button" class="btn" id="svClose">← 3D</button><button type="button" class="btn" id="svRelief" aria-pressed="true" title="Vrai relief en 3D : à essayer, peut ne pas s'afficher sur certains téléphones">Relief 3D (essai)</button><button type="button" class="btn" id="svRec" title="Filme la carte pour m'aider à voir les problèmes">● Filmer</button><button type="button" class="btn" id="svTop" aria-pressed="false" title="Regarde la carte de dessus, comme une photo : la caméra ne peut plus entrer dans la montagne">Vue de dessus</button></div>
+      <div class="sv-row"><button type="button" class="btn" id="svClose">← 3D</button><button type="button" class="btn" id="svRelief" aria-pressed="true" title="Vrai relief en 3D : à essayer, peut ne pas s'afficher sur certains téléphones">Relief 3D</button><button type="button" class="btn" id="svRec" title="Filme la carte pour m'aider à voir les problèmes">● Filmer</button><button type="button" class="btn" id="svTop" aria-pressed="false" title="Regarde la carte de dessus, comme une photo : la caméra ne peut plus entrer dans la montagne">De dessus</button></div>
       <div class="seg" id="svStyle" role="group" aria-label="Fond de carte du survol">
         <button data-v="ortho" aria-pressed="false">Photos IGN</button><button data-v="sat" aria-pressed="false">Satellite</button><button data-v="scan" aria-pressed="false">TOP 25</button><button data-v="topo" aria-pressed="false">Topo</button>
       </div>
@@ -603,6 +648,46 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
     </div>
   </div>
   <div class="drop" id="drop" hidden>Dépose ton fichier GPX<br>ou tes photos ici</div>
+
+  <nav class="nav" id="nav" aria-label="Navigation principale">
+    <button type="button" data-tab="replay" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4.5v15l13-7.5z"/></svg><span>Replay</span></button>
+    <button type="button" data-tab="carte"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 7z"/><path d="M9 4v13M15 7v12.5"/></svg><span>Carte</span></button>
+    <button type="button" data-tab="rando"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Ma rando</span></button>
+    <button type="button" data-tab="photos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg><span>Photos</span></button>
+    <button type="button" data-tab="randos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4.5L6 21z"/></svg><span>Mes randos</span></button>
+  </nav>
+  <div class="tab-page" id="tabPage" hidden>
+    <section data-p="rando">
+      <h2>Ma rando</h2>
+      <p class="pg-sub" id="pgName"></p>
+      <div class="pg-stats" id="pgStats"></div>
+      <div class="pg-btns">
+        <button type="button" class="pg-btn" data-fwd="reportBtn"><b>Fiche rando</b><small>Résumé à imprimer ou en PDF</small></button>
+        <button type="button" class="pg-btn" data-fwd="ignBtn"><b>Carte IGN</b><small>Toucher le tracé pour voir la pente</small></button>
+        <button type="button" class="pg-btn" data-fwd="gpxOutBtn"><b>Exporter en GPX</b><small>Pour une montre ou une autre appli</small></button>
+        <label class="pg-btn" for="addTrackInput" data-close><b>＋ Trace à la suite</b><small>Ajouter le retour ou une autre étape</small></label>
+        <button type="button" class="pg-btn" data-fwd="tagBtn"><b>＋ Étiquette</b><small>Nommer un sommet, un col, un refuge</small></button>
+        <button type="button" class="pg-btn" data-fwd="stagesBtn" id="pgStages" hidden><b>Étapes</b><small>Aller à une étape du parcours</small></button>
+      </div>
+    </section>
+    <section data-p="photos">
+      <h2>Photos et vidéo</h2>
+      <p class="pg-sub" id="pgPhotos"></p>
+      <div class="pg-btns">
+        <label class="pg-btn primary" for="photoInput" data-close><b>Ajouter des photos</b><small>Elles s'affichent à l'endroit où elles ont été prises</small></label>
+        <button type="button" class="pg-btn" data-fwd="videoBtn"><b>Créer une vidéo</b><small>Le replay en vidéo, à partager</small></button>
+      </div>
+    </section>
+    <section data-p="randos">
+      <h2>Mes randos</h2>
+      <p class="pg-sub">Importer, préparer ou retrouver une rando.</p>
+      <div class="pg-btns">
+        <label class="pg-btn primary" for="gpxInput" data-close><b>Importer une trace</b><small>GPX, FIT, TCX ou KML</small></label>
+        <button type="button" class="pg-btn" data-fwd="planBtn"><b>Créer un itinéraire</b><small>Tracer un parcours sur la carte</small></button>
+        <button type="button" class="pg-btn" data-fwd="libBtn"><b>Mes randos enregistrées</b><small>Retrouver, sauvegarder, supprimer</small></button>
+      </div>
+    </section>
+  </div>
   <div class="toast" id="toast" role="status" hidden></div>
 </div>
 
@@ -1918,7 +2003,7 @@ addEventListener('resize',resize);
 
 /* ---------- Loading a hike ---------- */
 let welcomeOn=false;
-function hideWelcome(){if(!welcomeOn)return;welcomeOn=false;$('welcome').hidden=true}
+function hideWelcome(){if(!welcomeOn)return;welcomeOn=false;$('welcome').hidden=true;$('app').classList.remove('welcome-on')}
 function loadHike(raw){
   if(!raw.sample)hideWelcome();
   const src=raw.pts.map(q=>({...q}));
@@ -3352,7 +3437,7 @@ async function openSurvol(){
     if(SV.ready){if(SV.track!==T)svUpdateTrack();svBegin()}
   }
 }
-function closeSurvol(){svRecStop();SV.on=false;SV.intro=false;$('svPanel').hidden=true;setPlaying(false);heading=null}
+function closeSurvol(){svRecStop();if($('tabPage').hidden)navSetActive('replay');SV.on=false;SV.intro=false;$('svPanel').hidden=true;setPlaying(false);heading=null}
 // ---- Filmer la carte (aide au réglage) : vidéo de la carte + bandeau d'infos (distance, zoom, images/s, chargement des photos) ----
 const REC_SV={rec:null,on:false};
 function svRecStop(){if(REC_SV.on&&REC_SV.rec){try{REC_SV.rec.stop()}catch(e){}}}
@@ -3414,6 +3499,56 @@ function svFrame(dt,now){
     const cur=f*(T.N-1);
   }
 }
+/* ---------- Refonte V19 : barre du bas et pages ---------- */
+function navSetActive(tab){document.querySelectorAll('#nav button').forEach(b=>{if(b.dataset.tab===tab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')})}
+function navPageFill(tab){
+  document.querySelectorAll('#tabPage section').forEach(x=>x.classList.toggle('on',x.dataset.p===tab));
+  if(tab==='rando'&&T){
+    $('pgName').textContent=($('hikeName').textContent||'')+' · '+($('hikeMeta').textContent||'');
+    const N=T.N,items=[['Distance',fmtKm(T.total),'km'],['Dénivelé +',nf0.format(T.up[N-1]),'m'],['Dénivelé −',nf0.format(T.down[N-1]),'m'],['Altitude max',nf0.format(T.eMax),'m'],['Durée',fmtDur(T.time?T.time[N-1]:0),''],['Altitude min',nf0.format(T.eMin),'m']];
+    $('pgStats').innerHTML=items.map(([a,b,c])=>`<div><span>${a}</span><b>${b}</b>${c?`<small>${c}</small>`:''}</div>`).join('');
+    $('pgStages').hidden=$('stagesBtn').hidden;
+  }
+  if(tab==='photos'){const n=T&&T.photos?T.photos.length:0;$('pgPhotos').textContent=n?`${n} photo${n>1?'s':''} sur cette rando.`:'Aucune photo sur cette rando pour l\'instant.'}
+}
+function navGo(tab){
+  if(tab==='carte'){
+    if(!T||T.planBase){toast("Charge d'abord une trace (onglet Mes randos).");return}
+    $('tabPage').hidden=true;if(!$('ignPanel').hidden)$('ignClose').click();
+    if(!SV.on)openSurvol();navSetActive('carte');return;
+  }
+  if(SV.on)closeSurvol();
+  if(!$('ignPanel').hidden)$('ignClose').click();
+  if(tab==='replay'){$('tabPage').hidden=true}
+  else{navPageFill(tab);$('tabPage').hidden=false;$('tabPage').scrollTop=0}
+  navSetActive(tab);
+}
+document.querySelectorAll('#nav button').forEach(b=>b.addEventListener('click',()=>navGo(b.dataset.tab)));
+document.querySelectorAll('#tabPage [data-fwd]').forEach(b=>b.addEventListener('click',()=>{const id=b.dataset.fwd;navGo('replay');setTimeout(()=>$(id).click(),60)}));
+document.querySelectorAll('#tabPage [data-close]').forEach(b=>b.addEventListener('click',()=>{setTimeout(()=>navGo('replay'),400)}));
+// Réglages courants : une puce = un appui (au lieu d'ouvrir un panneau)
+(function(){
+  const dock=document.querySelector('.dock'),row=document.createElement('div');row.className='chips';row.id='chips';
+  dock.querySelector('.controls').after(row);
+  const chips=[];
+  const mk=(spec)=>{
+    const b=document.createElement('button');b.type='button';b.className='chip'+(spec.seg?' cyc':'');row.appendChild(b);
+    const sync=()=>{
+      if(spec.seg){const bs=[...$(spec.seg).querySelectorAll('button')],cur=bs.find(x=>x.getAttribute('aria-pressed')==='true');b.innerHTML=`${spec.label} <b>${cur?cur.textContent:''}</b>`}
+      else if(spec.btn){b.textContent=spec.label;b.setAttribute('aria-pressed',$(spec.btn).getAttribute('aria-pressed')==='true')}
+      else b.textContent=spec.label;
+    };
+    b.addEventListener('click',()=>{
+      if(spec.seg){const bs=[...$(spec.seg).querySelectorAll('button')],i=bs.findIndex(x=>x.getAttribute('aria-pressed')==='true');bs[(i+1)%bs.length].click()}
+      else if(spec.btn)$(spec.btn).click();else if(spec.fn)spec.fn();
+      setTimeout(syncAll,60);
+    });
+    chips.push(sync);sync();
+  };
+  const syncAll=()=>chips.forEach(f=>f());
+  [{seg:'speedSeg',label:'Vitesse'},{seg:'mapSeg',label:'Fond'},{seg:'reliefSeg',label:'Relief'},{btn:'namesBtn',label:'Noms'},{btn:'wxBtn',label:'Météo'},{btn:'slopeBtn',label:'Pente'},{btn:'kmBtn',label:'Km'},{label:'Plus ⋯',fn:()=>$('moreBtn').click()}].forEach(mk);
+  setInterval(syncAll,1000);
+})();
 $('survolBtn').addEventListener('click',openSurvol);
 $('svClose').addEventListener('click',closeSurvol);
 $('svPlay').addEventListener('click',()=>{if(!T)return;if(f>=1){f=0;svBegin();return}setPlaying(!playing)});
@@ -3508,7 +3643,7 @@ const boot=()=>{
   if(!pre&&window.RR_AUTOLOAD==='gr5')setTimeout(()=>{const have=libLoad().find(x=>x.gr&&x.gr.id==='gr5');if(have)loadGR(have.gr,0);else buildGR5()},800);
   $('loading').hidden=true;
   // sans trace choisie : page d'accueil (ciel et nuages), pas de 3D derrière
-  if(!pre&&!window.RR_AUTOLOAD){welcomeOn=true;$('welcome').hidden=false;$('wImport').focus({preventScroll:true})}
+  if(!pre&&!window.RR_AUTOLOAD){welcomeOn=true;$('app').classList.add('welcome-on');$('welcome').hidden=false;$('wImport').focus({preventScroll:true})}
   renderer.setAnimationLoop(frame);
 };
 $('wImport').addEventListener('click',()=>$('gpxInput').click());
@@ -3547,7 +3682,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V18", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte animée : nouveau bouton « Vue de dessus » (la carte vue à plat, comme une photo, sans entrer dans la montagne).", "Carte animée : caméra plus haute (elle ne rentre plus dans la montagne), relief moins extrême, plus fluide.", "Carte animée : le bouton rouge « Filmer » n'est plus caché sous la pastille de version.", "Carte animée : part toujours du départ, suit mieux les virages, zoom adapté à la rando, tracé plus fluide."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V19", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Nouvelle présentation : barre du bas (Replay, Carte, Ma rando, Photos, Mes randos) et réglages en un appui.", "Carte animée : bouton « Filmer », « De dessus », caméra plus haute en relief.", "Carte animée : le bouton rouge « Filmer » n'est plus caché sous la pastille de version.", "Carte animée : part toujours du départ, suit mieux les virages, zoom adapté à la rando, tracé plus fluide."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
