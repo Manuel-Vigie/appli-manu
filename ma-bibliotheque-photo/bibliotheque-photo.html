@@ -120,6 +120,8 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; mar
 .btn.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
 .btn.amber { background: var(--amber); color: var(--on-amber); border-color: transparent; }
 .btn.small { min-height: 42px; font-size: 15px; }
+.linkbtn { display: inline-flex; align-items: center; justify-content: center; text-align: center; text-decoration: none; }
+.sd { border-left: 5px solid var(--k-rando); }
 .btn:disabled, .drop:disabled { opacity: .45; cursor: default; }
 .btn:focus-visible, .drop:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -271,6 +273,13 @@ progress { width: 100%; height: 6px; accent-color: var(--accent); }
     <h2 id="h-save"><span class="n">4</span> Enregistrez vos dossiers</h2>
     <p class="tip" id="partsTip"></p>
     <ol class="parts" id="parts"></ol>
+  </section>
+
+  <section class="card sd" aria-labelledby="h-sd">
+    <h2 id="h-sd">Ranger directement sur la carte SD</h2>
+    <p class="tip">Cette page prépare des ZIP à extraire, car un site web ne peut pas déplacer les photos lui-même. Si vous voulez qu'elles soient rangées d'elles-mêmes dans des dossiers sur la carte SD (randonnées, portraits de vos proches, captures d'écran, année et mois), installez l'appli Android <b>Range Photos</b>.</p>
+    <a class="btn primary linkbtn" href="https://github.com/Manuel-Vigie/appli-manu/releases" target="_blank" rel="noopener">Télécharger Range Photos</a>
+    <p class="tip">Sur la page qui s'ouvre, touchez <b>RangePhotos.apk</b> dans la dernière version, puis autorisez l'installation si Android le demande.</p>
   </section>
 </div>
 
@@ -1009,7 +1018,7 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
 #maj-pastille{top:calc(24px + env(safe-area-inset-top,0px));right:24px}
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Bibliothèque Photo", "version": "V8", "date": "07/10/2026", "cache": "biblio-photo-", "nouveautes": ["Nouvelle présentation : fond bleu nuit, bandeau lever de soleil sur les montagnes, dossiers colorés selon leur type.", "Enregistrement en plusieurs petits ZIP (parties), qui marche même avec des milliers de photos : plus de ZIP bloqué ou presque vide.", "Miniatures plus fiables et affichage du nombre de photos reçues du téléphone.", "Un fichier illisible ne bloque plus le rangement ni le ZIP, et le ZIP indique combien de photos il contient."]};
+window.MAJ_APPLI={"nom": "Bibliothèque Photo", "version": "V9", "date": "07/10/2026", "cache": "biblio-photo-", "nouveautes": ["Nouvelle carte « Ranger directement sur la carte SD » avec le lien pour télécharger l'appli Range Photos.", "Nouvelle présentation : fond bleu nuit, bandeau lever de soleil sur les montagnes, dossiers colorés selon leur type.", "Enregistrement en plusieurs petits ZIP (parties), qui marche même avec des milliers de photos : plus de ZIP bloqué ou presque vide.", "Miniatures plus fiables et affichage du nombre de photos reçues du téléphone."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
