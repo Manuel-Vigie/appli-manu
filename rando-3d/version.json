@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V19",
+  "version": "V20",
   "date": "06/10/2026",
   "nouveautes": [
+    "Pages Ma rando, Photos et Mes randos : textes bien lisibles, bandeau bleu avec profil de dénivelé, miniatures et liste de tes randos.",
     "Nouvelle présentation : barre du bas (Replay, Carte, Ma rando, Photos, Mes randos) et réglages en un appui.",
     "Carte animée : bouton « Filmer », « De dessus », caméra plus haute en relief.",
-    "Carte animée : le bouton rouge « Filmer » n'est plus caché sous la pastille de version.",
-    "Carte animée : part toujours du départ, suit mieux les virages, zoom adapté à la rando, tracé plus fluide."
+    "Carte animée : le bouton rouge « Filmer » n'est plus caché sous la pastille de version."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v19"
+    "cache": "rr3d-v20"
   },
   "fichiers": [
     "rando-3d.html",

@@ -337,23 +337,41 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 .rec-layer{z-index:35}
 @media (max-width:760px){.more.sheet{bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));z-index:24}}
 @media (max-width:600px){.top{padding-right:112px}}
-.tab-page{position:absolute;left:0;right:0;top:0;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));z-index:24;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#e9eeeb;color:var(--ink);padding:calc(56px + env(safe-area-inset-top,0px)) 16px 20px}
+.tab-page{--pg-ink:#14202b;--pg-muted:#4d5b66;position:absolute;left:0;right:0;top:0;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));z-index:24;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#e9eeeb;color:var(--pg-ink);padding:calc(56px + env(safe-area-inset-top,0px)) 16px 20px}
 .tab-page section{display:none;max-width:560px;margin:0 auto}
 .tab-page section.on{display:block}
-.tab-page h2{font-family:var(--display);font-size:30px;margin:0 0 2px}
-.pg-sub{margin:0 0 14px;color:var(--muted);font-size:14px}
-.pg-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
-.pg-stats div{background:#fff;border-radius:12px;padding:10px 12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
-.pg-stats span{display:block;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.pg-stats b{font-family:var(--display);font-size:26px}
-.pg-stats small{font-size:13px;color:var(--muted);margin-left:3px}
-.pg-btns{display:flex;flex-direction:column;gap:10px}
-.pg-btn{display:flex;flex-direction:column;gap:2px;text-align:left;cursor:pointer;border:0;background:#fff;color:var(--ink);border-radius:14px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.1);font:inherit}
-.pg-btn b{font-size:17px}
-.pg-btn small{color:var(--muted);font-size:13px}
-.pg-btn.primary{background:var(--trail);color:#fff}
-.pg-btn.primary small{color:rgba(255,255,255,.85)}
-.pg-btn:active{filter:brightness(.95)}
+.tab-page h2{font-family:var(--display);font-size:32px;line-height:1.05;margin:2px 0 4px;color:#fff}
+.pg-hero{position:relative;overflow:hidden;border-radius:18px;padding:16px 16px 12px;margin-bottom:12px;color:#fff;background:linear-gradient(160deg,#2f7fd0 0%,#5aa5e3 55%,#9ccbee 100%);box-shadow:0 4px 14px rgba(20,60,110,.28)}
+.pg-hero p{margin:0;color:rgba(255,255,255,.92);font-size:14.5px}
+.pg-kick{font-family:var(--display);font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,.85)}
+.pg-big{display:flex;align-items:baseline;gap:6px;margin:6px 0 2px}
+.pg-big b{font-family:var(--display);font-size:56px;line-height:1}
+.pg-big span{font-size:18px;font-weight:600}
+.pg-prof svg{display:block;width:100%;height:84px}
+.pg-h{font-family:var(--display);font-size:20px;margin:16px 2px 8px;color:var(--pg-ink)}
+.pg-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pg-stats div{color:var(--pg-ink);background:#fff;border-radius:14px;padding:10px 12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.pg-stats span{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--pg-muted);font-weight:700}
+.pg-stats b{font-family:var(--display);font-size:28px}
+.pg-stats small{font-size:14px;color:var(--pg-muted);margin-left:3px}
+.pg-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pg-tile,.pg-import{display:flex;flex-direction:column;gap:2px;text-align:left;cursor:pointer;border:0;background:#fff;color:var(--pg-ink);border-radius:16px;padding:14px;box-shadow:0 1px 5px rgba(0,0,0,.1);font:inherit}
+.pg-tile i,.pg-import i{font-style:normal;font-size:26px;line-height:1;margin-bottom:6px}
+.pg-tile b,.pg-import b{font-size:16.5px}
+.pg-tile small,.pg-import small{color:var(--pg-muted);font-size:13.5px}
+.pg-tile.accent,.pg-import{background:var(--trail);color:#fff}
+.pg-tile.accent small,.pg-import small{color:rgba(255,255,255,.88)}
+.pg-import{margin-bottom:10px;flex-direction:column;align-items:flex-start;padding:18px 16px;border:2px dashed rgba(255,255,255,.7)}
+.pg-tile:active,.pg-import:active{filter:brightness(.95)}
+.pg-thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pg-thumbs button{padding:0;border:0;border-radius:10px;overflow:hidden;aspect-ratio:1;background:#cfd8d3;cursor:pointer}
+.pg-thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+.pg-empty{background:#fff;border-radius:14px;padding:16px;color:var(--pg-muted);text-align:center;font-size:14.5px}
+.pg-card{display:flex;gap:10px;align-items:center;background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);color:var(--pg-ink)}
+.pg-card div{flex:1;min-width:0}
+.pg-card b{display:block;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pg-card small{color:var(--pg-muted);font-size:13.5px}
+.pg-card button{flex:none;border:0;border-radius:99px;background:var(--trail);color:#fff;font-weight:700;padding:9px 16px;cursor:pointer;font-size:14.5px}
 .chips{display:flex;gap:6px;overflow-x:auto;padding:4px 0 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;white-space:nowrap;cursor:pointer;border:1px solid var(--line);background:var(--panel-solid);color:var(--ink);border-radius:99px;padding:7px 12px;font-size:13.5px;font-weight:600}
@@ -658,34 +676,50 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
   </nav>
   <div class="tab-page" id="tabPage" hidden>
     <section data-p="rando">
-      <h2>Ma rando</h2>
-      <p class="pg-sub" id="pgName"></p>
+      <div class="pg-hero">
+        <small class="pg-kick">Ma rando</small>
+        <h2 id="pgTitle"></h2>
+        <p id="pgName"></p>
+        <div class="pg-big"><b id="pgKm">0</b><span>km</span></div>
+        <div class="pg-prof" id="pgProf"></div>
+      </div>
       <div class="pg-stats" id="pgStats"></div>
-      <div class="pg-btns">
-        <button type="button" class="pg-btn" data-fwd="reportBtn"><b>Fiche rando</b><small>Résumé à imprimer ou en PDF</small></button>
-        <button type="button" class="pg-btn" data-fwd="ignBtn"><b>Carte IGN</b><small>Toucher le tracé pour voir la pente</small></button>
-        <button type="button" class="pg-btn" data-fwd="gpxOutBtn"><b>Exporter en GPX</b><small>Pour une montre ou une autre appli</small></button>
-        <label class="pg-btn" for="addTrackInput" data-close><b>＋ Trace à la suite</b><small>Ajouter le retour ou une autre étape</small></label>
-        <button type="button" class="pg-btn" data-fwd="tagBtn"><b>＋ Étiquette</b><small>Nommer un sommet, un col, un refuge</small></button>
-        <button type="button" class="pg-btn" data-fwd="stagesBtn" id="pgStages" hidden><b>Étapes</b><small>Aller à une étape du parcours</small></button>
+      <h3 class="pg-h">Que veux-tu faire ?</h3>
+      <div class="pg-grid">
+        <button type="button" class="pg-tile" data-fwd="reportBtn"><i>📄</i><b>Fiche rando</b><small>À imprimer ou en PDF</small></button>
+        <button type="button" class="pg-tile" data-fwd="ignBtn"><i>🗺️</i><b>Carte IGN</b><small>Toucher le tracé : la pente</small></button>
+        <button type="button" class="pg-tile" data-fwd="gpxOutBtn"><i>⬇️</i><b>Exporter en GPX</b><small>Montre ou autre appli</small></button>
+        <label class="pg-tile" for="addTrackInput" data-close><i>➕</i><b>Trace à la suite</b><small>Le retour, une étape…</small></label>
+        <button type="button" class="pg-tile" data-fwd="tagBtn"><i>📍</i><b>Étiquette</b><small>Sommet, col, refuge</small></button>
+        <button type="button" class="pg-tile" data-fwd="stagesBtn" id="pgStages" hidden><i>🥾</i><b>Étapes</b><small>Aller à une étape</small></button>
       </div>
     </section>
     <section data-p="photos">
-      <h2>Photos et vidéo</h2>
-      <p class="pg-sub" id="pgPhotos"></p>
-      <div class="pg-btns">
-        <label class="pg-btn primary" for="photoInput" data-close><b>Ajouter des photos</b><small>Elles s'affichent à l'endroit où elles ont été prises</small></label>
-        <button type="button" class="pg-btn" data-fwd="videoBtn"><b>Créer une vidéo</b><small>Le replay en vidéo, à partager</small></button>
+      <div class="pg-hero">
+        <small class="pg-kick">Souvenirs</small>
+        <h2>Photos et vidéo</h2>
+        <p id="pgPhotos"></p>
       </div>
+      <div class="pg-grid">
+        <label class="pg-tile accent" for="photoInput" data-close><i>📷</i><b>Ajouter des photos</b><small>Placées là où elles ont été prises</small></label>
+        <button type="button" class="pg-tile" data-fwd="videoBtn"><i>🎬</i><b>Créer une vidéo</b><small>Le replay à partager</small></button>
+      </div>
+      <h3 class="pg-h" id="pgThumbsH">Sur le parcours</h3>
+      <div class="pg-thumbs" id="pgThumbs"></div>
     </section>
     <section data-p="randos">
-      <h2>Mes randos</h2>
-      <p class="pg-sub">Importer, préparer ou retrouver une rando.</p>
-      <div class="pg-btns">
-        <label class="pg-btn primary" for="gpxInput" data-close><b>Importer une trace</b><small>GPX, FIT, TCX ou KML</small></label>
-        <button type="button" class="pg-btn" data-fwd="planBtn"><b>Créer un itinéraire</b><small>Tracer un parcours sur la carte</small></button>
-        <button type="button" class="pg-btn" data-fwd="libBtn"><b>Mes randos enregistrées</b><small>Retrouver, sauvegarder, supprimer</small></button>
+      <div class="pg-hero">
+        <small class="pg-kick">Bibliothèque</small>
+        <h2>Mes randos</h2>
+        <p>Importer, préparer ou retrouver une rando.</p>
       </div>
+      <label class="pg-import" for="gpxInput" data-close><i>⬆️</i><b>Importer une trace</b><small>GPX, FIT, TCX ou KML</small></label>
+      <div class="pg-grid">
+        <button type="button" class="pg-tile" data-fwd="planBtn"><i>✏️</i><b>Créer un itinéraire</b><small>Tracer sur la carte</small></button>
+        <button type="button" class="pg-tile" data-fwd="libBtn"><i>🗂️</i><b>Gérer mes randos</b><small>Sauvegarder, supprimer</small></button>
+      </div>
+      <h3 class="pg-h">Enregistrées sur ce téléphone</h3>
+      <div id="pgLib"></div>
     </section>
   </div>
   <div class="toast" id="toast" role="status" hidden></div>
@@ -3501,15 +3535,42 @@ function svFrame(dt,now){
 }
 /* ---------- Refonte V19 : barre du bas et pages ---------- */
 function navSetActive(tab){document.querySelectorAll('#nav button').forEach(b=>{if(b.dataset.tab===tab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')})}
+function pgProfile(){
+  const N=T.N,W=300,H=84,pad=6,lo=T.eMin,hi=Math.max(T.eMax,lo+10),st=Math.max(1,Math.floor(N/160));
+  const X=i=>(i/(N-1))*W,Y=i=>H-pad-((T.se[i]-lo)/(hi-lo))*(H-2*pad-6);
+  let area=`M0,${H}`;for(let i=0;i<N;i+=st)area+=` L${X(i).toFixed(1)},${Y(i).toFixed(1)}`;area+=` L${W},${Y(N-1).toFixed(1)} L${W},${H}Z`;
+  let lines='';
+  try{computeSlopes(T);for(const g of T.segsSlope){let d='';for(let i=g.i0;i<=Math.min(N-1,g.i1+1);i+=Math.max(1,Math.floor((g.i1-g.i0)/24)||1))d+=(d?' L':'M')+X(i).toFixed(1)+','+Y(i).toFixed(1);d+=' L'+X(Math.min(N-1,g.i1+1)).toFixed(1)+','+Y(Math.min(N-1,g.i1+1)).toFixed(1);lines+=`<path d="${d}" stroke="${SLOPE_CLS[g.cls].col}" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`}}catch(e){}
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${area}" fill="rgba(255,255,255,.28)"/>${lines}</svg>`;
+}
 function navPageFill(tab){
   document.querySelectorAll('#tabPage section').forEach(x=>x.classList.toggle('on',x.dataset.p===tab));
   if(tab==='rando'&&T){
-    $('pgName').textContent=($('hikeName').textContent||'')+' · '+($('hikeMeta').textContent||'');
-    const N=T.N,items=[['Distance',fmtKm(T.total),'km'],['Dénivelé +',nf0.format(T.up[N-1]),'m'],['Dénivelé −',nf0.format(T.down[N-1]),'m'],['Altitude max',nf0.format(T.eMax),'m'],['Durée',fmtDur(T.time?T.time[N-1]:0),''],['Altitude min',nf0.format(T.eMin),'m']];
+    const N=T.N;
+    $('pgTitle').textContent=$('hikeName').textContent||'Ma rando';
+    $('pgName').textContent=$('hikeMeta').textContent||'';
+    $('pgKm').textContent=fmtKm(T.total);
+    $('pgProf').innerHTML=pgProfile();
+    const items=[['↗ Dénivelé +',nf0.format(T.up[N-1]),'m'],['↘ Dénivelé −',nf0.format(T.down[N-1]),'m'],['⏱ Durée',fmtDur(T.time?T.time[N-1]:0),''],['⛰ Altitude max',nf0.format(T.eMax),'m']];
     $('pgStats').innerHTML=items.map(([a,b,c])=>`<div><span>${a}</span><b>${b}</b>${c?`<small>${c}</small>`:''}</div>`).join('');
     $('pgStages').hidden=$('stagesBtn').hidden;
   }
-  if(tab==='photos'){const n=T&&T.photos?T.photos.length:0;$('pgPhotos').textContent=n?`${n} photo${n>1?'s':''} sur cette rando.`:'Aucune photo sur cette rando pour l\'instant.'}
+  if(tab==='photos'){
+    const ph=T&&T.photos?T.photos:[],n=ph.length;
+    $('pgPhotos').textContent=n?`${n} photo${n>1?'s':''} sur cette rando. Touche une miniature pour y aller.`:'Aucune photo sur cette rando pour l\'instant.';
+    $('pgThumbsH').hidden=!n;const box=$('pgThumbs');box.innerHTML='';
+    ph.forEach(p=>{if(!p.url)return;const b=document.createElement('button');b.type='button';const im=document.createElement('img');im.src=p.url;im.alt='Photo du parcours';b.appendChild(im);
+      b.addEventListener('click',()=>{navGo('replay');if(isFinite(p.f)){f=p.f;holdUntil=0;setTimeout(()=>{try{showPhoto(p)}catch(e){}},80)}});box.appendChild(b)});
+  }
+  if(tab==='randos'){
+    const box=$('pgLib'),list=libLoad();box.innerHTML='';
+    if(!list.length){box.innerHTML='<div class="pg-empty">Aucune rando enregistrée pour l\'instant.<br>Importe une trace, puis « Gérer mes randos » pour la sauvegarder.</div>'}
+    list.forEach(rec=>{const c=document.createElement('div');c.className='pg-card';
+      const d=document.createElement('div');const b=document.createElement('b');b.textContent=rec.name;const sm=document.createElement('small');
+      sm.textContent=`${isFinite(rec.dist)?fmtKm(rec.dist)+' km':''}${isFinite(rec.up)?' · '+nf0.format(rec.up)+' m D+':''}${rec.gr?' · '+rec.gr.stages.length+' étapes':''}`;
+      d.append(b,sm);const o=document.createElement('button');o.type='button';o.textContent='Ouvrir';
+      o.addEventListener('click',()=>{navGo('replay');setTimeout(()=>openLibItem(rec),60)});c.append(d,o);box.appendChild(c)});
+  }
 }
 function navGo(tab){
   if(tab==='carte'){
@@ -3682,7 +3743,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V19", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Nouvelle présentation : barre du bas (Replay, Carte, Ma rando, Photos, Mes randos) et réglages en un appui.", "Carte animée : bouton « Filmer », « De dessus », caméra plus haute en relief.", "Carte animée : le bouton rouge « Filmer » n'est plus caché sous la pastille de version.", "Carte animée : part toujours du départ, suit mieux les virages, zoom adapté à la rando, tracé plus fluide."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V20", "date": "06/10/2026", "cache": "rr3d-v", "nouveautes": ["Pages Ma rando, Photos et Mes randos : textes bien lisibles, bandeau bleu avec profil de dénivelé, miniatures et liste de tes randos.", "Nouvelle présentation : barre du bas (Replay, Carte, Ma rando, Photos, Mes randos) et réglages en un appui.", "Carte animée : bouton « Filmer », « De dessus », caméra plus haute en relief.", "Carte animée : le bouton rouge « Filmer » n'est plus caché sous la pastille de version."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
