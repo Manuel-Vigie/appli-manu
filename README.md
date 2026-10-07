@@ -9,6 +9,7 @@ La marche à suivre pour Claude est dans **CLAUDE.md** ; les outils communs dans
 | Rando 3D | https://manuel-vigie.github.io/appli-manu/rando-3d/rando-3d.html | [JOURNAL](rando-3d/JOURNAL.md) |
 | Carnet de santé (coquille vide, aucune donnée) | https://manuel-vigie.github.io/appli-manu/carnet-sante/carnet-sante.html | [JOURNAL](carnet-sante/JOURNAL.md) |
 | Bibliothèque Photo | https://manuel-vigie.github.io/appli-manu/ma-bibliotheque-photo/bibliotheque-photo.html (copie de test ; ancienne adresse : `bibliotheque-photo/`) | [JOURNAL](ma-bibliotheque-photo/JOURNAL.md) |
+| Range Photos (appli Android, range la carte SD) | https://github.com/Manuel-Vigie/appli-manu/releases (fichier `RangePhotos.apk`, pas une page web) | [JOURNAL](range-photos-android/JOURNAL.md) |
 
 ## Règles
 - Un dossier par appli, noms sans espaces ni accents, adresse du type `…/NOM/NOM.html`.

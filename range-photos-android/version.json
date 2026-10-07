@@ -1,0 +1,10 @@
+{
+  "nom": "Range Photos (Android)",
+  "version": "V1",
+  "date": "07/10/2026",
+  "nouveautes": [
+    "Première version : range la carte SD en dossiers (randonnées, portraits solo ou groupe, captures d'écran, année et mois), avec aperçu et bouton Annuler."
+  ],
+  "pastille": false,
+  "fichiers": []
+}
