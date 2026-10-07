@@ -1,5 +1,6 @@
 package fr.rangephotos.scan
 
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.exifinterface.media.ExifInterface
 import fr.rangephotos.model.PhotoInfo
@@ -26,8 +27,26 @@ class PhotoScanner {
         var takenAt: Long? = null
         var lat: Double? = null
         var lon: Double? = null
+        val video = PhotoFiles.isVideo(file)
 
-        try {
+        if (video) {
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(file.absolutePath)
+                VideoMeta.parseLocation(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_LOCATION))?.let {
+                    lat = it.first
+                    lon = it.second
+                }
+                takenAt = VideoMeta.parseDate(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE))
+            } catch (_: Exception) {
+                // Vidéo sans information lisible : on se rabat sur le nom ou la date du fichier.
+            } finally {
+                try {
+                    retriever.release()
+                } catch (_: Exception) {
+                }
+            }
+        } else try {
             val exif = ExifInterface(file.absolutePath)
             takenAt = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)?.let { parseExifDate(it) }
             exif.latLong?.let {
@@ -38,19 +57,25 @@ class PhotoScanner {
             // Fichier sans EXIF lisible : on se rabat sur le nom ou la date du fichier.
         }
 
-        val date = takenAt ?: dateFromFileName(name) ?: file.lastModified()
+        // Vidéos : le nom du fichier (VID_20260914_…) est plus fiable que la date interne, souvent en heure UTC.
+        val date = if (video) {
+            dateFromFileName(name) ?: takenAt ?: file.lastModified()
+        } else {
+            takenAt ?: dateFromFileName(name) ?: file.lastModified()
+        }
         return PhotoInfo(
             uri = Uri.fromFile(file),
             parentUri = null,
             name = name,
-            mimeType = PhotoFiles.mimeOf(file) ?: "image/jpeg",
+            mimeType = PhotoFiles.mimeOf(file) ?: (if (video) "video/mp4" else "image/jpeg"),
             takenAt = date,
             lat = lat,
             lon = lon,
-            isScreenshot = looksLikeScreenshot(name),
+            isScreenshot = !video && looksLikeScreenshot(name),
             size = file.length(),
             currentFolder = currentFolder,
             path = file.absolutePath,
+            isVideo = video,
         )
     }
 

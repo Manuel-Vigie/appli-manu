@@ -129,7 +129,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
             false
         }
         if (!opened) {
-            val message = "Ouvrez l'appli Fichiers, puis « ${place.title} », puis « Photos rangées » (${place.outputDir.absolutePath})."
+            val message = "Ouvrez l'appli Fichiers, puis « ${place.title} », puis « ${place.outputDir.toRelativeString(place.root)} » (${place.outputDir.absolutePath})."
             Toast.makeText(context, message, Toast.LENGTH_LONG).show()
             viewModel.showNotice(message)
         }
@@ -147,6 +147,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onMode = viewModel::setReclassifyAll,
                     onAnalyze = viewModel::analyze,
                     onOpenFolder = openFolder,
+                    onChooseDestination = viewModel::openDestination,
                     onUndo = viewModel::undo,
                     onPeople = viewModel::openPeople,
                     onCategories = viewModel::openCategories,
@@ -154,6 +155,14 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onDownloadUpdate = downloadUpdate,
                 )
                 is UiState.Working -> WorkingScreen(s)
+                is UiState.ChooseDestination -> ChooseDestinationScreen(
+                    s,
+                    onInto = viewModel::browseInto,
+                    onUp = viewModel::browseUp,
+                    onCreate = viewModel::createFolder,
+                    onChoose = viewModel::confirmDestination,
+                    onCancel = viewModel::cancelDestination,
+                )
                 is UiState.Categories -> CategoriesScreen(
                     s,
                     onToggle = viewModel::setCategoryEnabled,
@@ -167,6 +176,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                 is UiState.Preview -> PreviewScreen(
                     s,
                     onCopyChange = viewModel::setCopyToPeople,
+                    onCleanChange = viewModel::setCleanFolders,
                     onConfirm = viewModel::confirm,
                     onCancel = viewModel::backToStart,
                 )
@@ -265,6 +275,7 @@ private fun HomeScreen(
     onMode: (Boolean) -> Unit,
     onAnalyze: (String) -> Unit,
     onOpenFolder: (Place) -> Unit,
+    onChooseDestination: (String) -> Unit,
     onUndo: () -> Unit,
     onPeople: () -> Unit,
     onCategories: () -> Unit,
@@ -331,7 +342,7 @@ private fun HomeScreen(
                                 "Nouvelle analyse de toutes les photos, même celles déjà rangées, pour les remettre chacune dans le bon dossier. " +
                                     "Cela peut durer longtemps : gardez l'écran allumé."
                             } else {
-                                "Range les photos qui ne sont pas encore dans « Photos rangées »."
+                                "Range les photos et vidéos qui ne sont pas encore dans le dossier de destination (choisi plus bas pour chaque stockage)."
                             },
                             style = MaterialTheme.typography.bodyMedium,
                         )
@@ -357,7 +368,7 @@ private fun HomeScreen(
                 }
             }
             items(state.places, key = { it.place.key }) { item ->
-                Box(Modifier.padding(horizontal = 16.dp)) { PlaceCard(item, state.reclassifyAll, onAnalyze, onOpenFolder) }
+                Box(Modifier.padding(horizontal = 16.dp)) { PlaceCard(item, state.reclassifyAll, onAnalyze, onOpenFolder, onChooseDestination) }
             }
         }
 
@@ -438,6 +449,7 @@ private fun PlaceCard(
     reclassifyAll: Boolean,
     onAnalyze: (String) -> Unit,
     onOpenFolder: (Place) -> Unit,
+    onChooseDestination: (String) -> Unit,
 ) {
     val place = item.place
     val toSort = item.toSort
@@ -453,10 +465,16 @@ private fun PlaceCard(
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         } else {
             Text(
-                "${toSort + sorted} photos  ·  $toSort à ranger  ·  $sorted déjà rangées",
+                "${toSort + sorted} photos et vidéos  ·  $toSort à ranger  ·  $sorted déjà rangées",
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
+        Text(
+            "Destination : « ${place.outputDir.toRelativeString(place.root)} »",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+        )
+        SecondaryButton("Changer le dossier de destination", { onChooseDestination(place.key) })
         PrimaryButton(
             if (reclassifyAll) "Tout reclasser : ${place.title}" else "Ranger : ${place.title}",
             { onAnalyze(place.key) },
@@ -646,18 +664,81 @@ private fun ManagePeopleScreen(state: UiState.ManagePeople, onForget: (String) -
     }
 }
 
+// ---- Dossier de destination ----------------------------------------------------------------------
+
+@Composable
+private fun ChooseDestinationScreen(
+    state: UiState.ChooseDestination,
+    onInto: (String) -> Unit,
+    onUp: () -> Unit,
+    onCreate: (String) -> Unit,
+    onChoose: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    var newName by remember { mutableStateOf("") }
+    Column(modifier = Modifier.fillMaxSize()) {
+        Header("Dossier de destination", "Où ranger les photos et vidéos (${state.placeTitle}) ?")
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            item {
+                SectionCard {
+                    Text("Dossier affiché", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        if (state.path.isEmpty()) "(toute la mémoire)" else "« ${state.path} »",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    state.message?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
+                    if (state.canGoUp) SecondaryButton("Dossier parent", onUp)
+                }
+            }
+            if (state.folders.isEmpty()) {
+                item { Text("Aucun sous-dossier ici.", style = MaterialTheme.typography.bodyMedium) }
+            }
+            items(state.folders, key = { it }) { name ->
+                SecondaryButton("📁  $name", { onInto(name) })
+            }
+            item {
+                SectionCard {
+                    Text("Nouveau dossier ici", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    OutlinedTextField(
+                        value = newName,
+                        onValueChange = { newName = it },
+                        label = { Text("Nom du dossier") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    SecondaryButton("Créer et ouvrir ce dossier", { onCreate(newName); newName = "" })
+                }
+            }
+        }
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            PrimaryButton("Choisir ce dossier", onChoose, enabled = state.canChoose)
+            SecondaryButton("Annuler", onCancel)
+        }
+    }
+}
+
 // ---- Aperçu --------------------------------------------------------------------------------------
 
 @Composable
 private fun PreviewScreen(
     state: UiState.Preview,
     onCopyChange: (Boolean) -> Unit,
+    onCleanChange: (Boolean) -> Unit,
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Header(
-            if (state.reclassify) "${state.total} photos à reclasser" else "${state.total} photos à ranger",
+            if (state.reclassify) "${state.total} fichiers à reclasser" else "${state.total} fichiers à ranger",
             "Aperçu : rien n'a encore bougé (${state.placeTitle}).",
         )
         LazyColumn(
@@ -689,6 +770,22 @@ private fun PreviewScreen(
                         "${state.alreadySorted} autres photos sont déjà rangées : elles ne bougent pas.",
                         style = MaterialTheme.typography.bodyMedium,
                     )
+                }
+            }
+            item {
+                SectionCard {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Switch(checked = state.cleanFolders, onCheckedChange = onCleanChange)
+                        Text(
+                            if (state.cleanFolders) {
+                                "Supprimer les anciens dossiers une fois vides. Un dossier où il reste le moindre fichier n'est jamais supprimé."
+                            } else {
+                                "Garder les anciens dossiers, même vides."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
             item {
@@ -734,7 +831,7 @@ private fun PreviewScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                "Les photos sont déplacées dans le dossier « Photos rangées ». Vous pourrez annuler ensuite.",
+                "Les photos et vidéos sont déplacées dans « ${state.destination} ». Vous pourrez annuler ensuite.",
                 style = MaterialTheme.typography.bodySmall,
             )
             PrimaryButton("Ranger maintenant", onConfirm)

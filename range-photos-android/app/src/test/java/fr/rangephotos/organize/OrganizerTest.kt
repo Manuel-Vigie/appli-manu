@@ -158,4 +158,96 @@ class OrganizerTest {
         )
         assertEquals(2, seen.size) // l'ancien et le nouvel emplacement
     }
+
+    // ---- Nettoyage des anciens dossiers ----
+
+    private fun cleanupFor(root: File, out: File) = FolderCleanup(root, setOf(root, out))
+
+    @Test
+    fun removesOldFoldersOnceEmptyButNeverOneWithAFileLeft() {
+        val root = tmp.newFolder("volume")
+        val old = File(root, "Vieux/Sous")
+        val a = file(old, "a.jpg")
+        val keep = File(root, "Autre")
+        val b = file(keep, "b.jpg")
+        file(keep, "notes.txt") // un autre fichier : le dossier doit rester
+        val out = File(root, "Photos rangées")
+
+        val result = Organizer().execute(
+            out,
+            listOf(PlannedMove(photo(a), listOf("Journées", "2026")), PlannedMove(photo(b), listOf("Journées", "2026"))),
+            File(tmp.root, "journal.tsv"),
+            cleanupFor(root, out),
+        )
+
+        assertEquals(2, result.moved)
+        assertFalse(File(root, "Vieux/Sous").exists()) // vide : supprimé
+        assertFalse(File(root, "Vieux").exists())      // son parent devenu vide aussi
+        assertTrue(keep.isDirectory)                   // il reste notes.txt
+        assertTrue(File(keep, "notes.txt").isFile)
+        assertEquals(2, result.foldersRemoved)
+        assertEquals(listOf("Autre"), result.foldersKept)
+    }
+
+    @Test
+    fun keepsAFolderWhenAnotherPhotoIsStillInside() {
+        val root = tmp.newFolder("volume")
+        val dir = File(root, "Album")
+        val a = file(dir, "a.jpg")
+        val other = file(dir, "restee.jpg") // pas dans le rangement : doit rester
+        val out = File(root, "Photos rangées")
+        val result = Organizer().execute(
+            out,
+            listOf(PlannedMove(photo(a), listOf("X"))),
+            File(tmp.root, "journal.tsv"),
+            cleanupFor(root, out),
+        )
+        assertEquals(1, result.moved)
+        assertEquals(0, result.foldersRemoved)
+        assertEquals(listOf("Album"), result.foldersKept)
+        assertTrue(other.isFile)
+    }
+
+    @Test
+    fun neverRemovesProtectedAndSystemFolders() {
+        val root = tmp.newFolder("volume")
+        val camera = File(root, "DCIM/Camera")
+        val a = file(camera, "a.jpg")
+        val out = File(root, "Photos rangées")
+        val result = Organizer().execute(
+            out,
+            listOf(PlannedMove(photo(a), listOf("Y"))),
+            File(tmp.root, "journal.tsv"),
+            cleanupFor(root, out),
+        )
+        assertEquals(1, result.moved)
+        assertFalse(camera.exists())                 // « Camera » vide : supprimé
+        assertTrue(File(root, "DCIM").isDirectory)    // DCIM est un dossier système : gardé
+        assertTrue(root.isDirectory)
+        assertTrue(out.isDirectory)
+    }
+
+    @Test
+    fun doesNotRemoveFoldersWhenCleanupIsOff() {
+        val root = tmp.newFolder("volume")
+        val old = File(root, "Vieux")
+        val a = file(old, "a.jpg")
+        val out = File(root, "Photos rangées")
+        Organizer().execute(out, listOf(PlannedMove(photo(a), listOf("Z"))), File(tmp.root, "journal.tsv"))
+        assertTrue(old.isDirectory)
+    }
+
+    @Test
+    fun undoRecreatesRemovedFolders() {
+        val root = tmp.newFolder("volume")
+        val a = file(File(root, "Vieux/Sous"), "a.jpg")
+        val out = File(root, "Photos rangées")
+        val journal = File(tmp.root, "journal.tsv")
+        Organizer().execute(out, listOf(PlannedMove(photo(a), listOf("Z"))), journal, cleanupFor(root, out))
+        assertFalse(a.parentFile!!.exists())
+
+        val undone = Organizer().undo(journal)
+        assertEquals(1, undone.moved)
+        assertTrue(a.isFile)
+    }
 }

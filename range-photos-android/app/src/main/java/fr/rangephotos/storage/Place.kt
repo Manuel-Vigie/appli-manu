@@ -5,7 +5,7 @@ import java.io.File
 
 /**
  * Un endroit où se trouvent des photos : la carte SD ou la mémoire du téléphone.
- * Le dossier « Photos rangées » est créé à la racine de cet endroit (même volume : déplacement instantané).
+ * Les photos rangées vont dans le dossier de destination, sur le même volume (déplacement instantané).
  */
 data class Place(
     /** « primary » pour la mémoire du téléphone, sinon l'identifiant de la carte (ex. 1234-ABCD). */
@@ -15,6 +15,8 @@ data class Place(
     val root: File,
     /** Dossiers parcourus pour trouver les photos. */
     val scanRoots: List<File>,
+    /** Dossier de destination choisi par l'utilisateur (sinon « Photos rangées » à la racine). */
+    val destination: File? = null,
 ) {
-    val outputDir: File get() = File(root, Organizer.OUTPUT_DIR)
+    val outputDir: File get() = destination ?: File(root, Organizer.OUTPUT_DIR)
 }

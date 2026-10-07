@@ -1,12 +1,12 @@
 {
   "nom": "Range Photos (Android)",
-  "version": "V12",
+  "version": "V13",
   "date": "07/10/2026",
   "nouveautes": [
-    "Nouveau bouton « Ouvrir Bibliothèque Photo » sur l'écran d'accueil : ouvre la page web Bibliothèque Photo dans le navigateur.",
-    "Journées rangées par jour avec la ville (ex. « Journées / 2026 / 03 - mars / 14 mars (sam) - Nice ») pour retrouver ce que vous avez fait un jour précis ; une randonnée ne contient plus les photos de la maison prises le soir.",
-    "Nouveau « Mes dossiers » : codes-barres, véhicules, lieux (par ville), animaux, nourriture… ou vos propres dossiers par sujets. L'appli regarde le contenu des photos sur le téléphone.",
-    "Appli refaite : accès direct aux fichiers (autorisation « tous les fichiers »), carte SD et téléphone choisis d'un appui, nouvelle présentation, erreurs affichées en clair, nombre de photos par endroit."
+    "Les vidéos sont rangées avec les photos, par date (et par ville si elles ont un lieu).",
+    "Vous choisissez le dossier de destination avant de ranger (bouton « Changer le dossier de destination »), et pouvez en créer un.",
+    "Les anciens dossiers vidés sont supprimés après le rangement ; un dossier où il reste un fichier n'est jamais supprimé (option à l'aperçu).",
+    "Nouveau bouton « Ouvrir Bibliothèque Photo » sur l'écran d'accueil : ouvre la page web Bibliothèque Photo dans le navigateur."
   ],
   "pastille": false,
   "fichiers": []

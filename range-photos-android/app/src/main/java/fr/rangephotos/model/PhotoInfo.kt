@@ -39,6 +39,8 @@ data class PhotoInfo(
     val hasBarcode: Boolean = false,
     /** Nom de la ville (GPS), si un dossier « Lieux » est actif. */
     val place: String? = null,
+    /** Vidéo (rangée par date avec les photos, jamais analysée pour les visages). */
+    val isVideo: Boolean = false,
     /** Visages détectés (rempli après l'analyse des visages). */
     val faces: List<FaceInfo> = emptyList(),
 ) {

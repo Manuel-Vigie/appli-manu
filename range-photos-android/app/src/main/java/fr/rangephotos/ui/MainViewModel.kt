@@ -1,6 +1,7 @@
 package fr.rangephotos.ui
 
 import android.app.Application
+import android.content.Context
 import android.media.MediaScannerConnection
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,6 +18,7 @@ import fr.rangephotos.model.Category
 import fr.rangephotos.model.CategoryKind
 import fr.rangephotos.model.PhotoInfo
 import fr.rangephotos.model.Subjects
+import fr.rangephotos.organize.FolderCleanup
 import fr.rangephotos.organize.Organizer
 import fr.rangephotos.people.CategoryStore
 import fr.rangephotos.people.FaceMatching
@@ -91,6 +93,23 @@ sealed interface UiState {
         val leftCopies: Int = 0,
         /** Pas de ville trouvée (hors connexion) : les dossiers de journées n'ont pas de ville. */
         val townsUnavailable: Boolean = false,
+        /** Dossier de destination, tel qu'affiché (ex. « Photos rangées »). */
+        val destination: String = "",
+        /** Supprimer les anciens dossiers une fois vides (jamais s'il reste un fichier). */
+        val cleanFolders: Boolean = true,
+    ) : UiState
+
+    /** Choix du dossier de destination : on parcourt les dossiers de l'endroit. */
+    data class ChooseDestination(
+        val placeKey: String,
+        val placeTitle: String,
+        /** Chemin du dossier affiché, relatif à la racine (vide = la racine). */
+        val path: String,
+        val folders: List<String>,
+        val canGoUp: Boolean,
+        /** Vrai si l'on peut choisir le dossier affiché. */
+        val canChoose: Boolean,
+        val message: String? = null,
     ) : UiState
 
     data class Done(
@@ -119,6 +138,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val categoryStore = CategoryStore(File(app.filesDir, "dossiers.json")).also { runCatching { it.load() } }
     private val contentAnalyzer = ContentAnalyzer()
     private val sync = PeopleSync()
+    private val prefs = app.getSharedPreferences("range_photos", Context.MODE_PRIVATE)
 
     private var places: List<Place> = emptyList()
     private var counts: Map<String, Pair<Int, Int>> = emptyMap()
@@ -139,6 +159,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var activeCategories: List<Category> = emptyList()
     private var dayPlaces: Map<LocalDate, String> = emptyMap()
     private var townsUnavailable = false
+    private var cleanFolders = true
+    private var browsing: File? = null
+    private var browsingPlace: Place? = null
 
     private val _state = MutableStateFlow<UiState>(UiState.Working("Démarrage…", 0, 0))
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -167,7 +190,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         noticeIsError = isError
         counts = emptyMap()
         val access = Access.granted(getApplication())
-        places = if (access) Places.detect(getApplication()) else emptyList()
+        places = if (access) Places.detect(getApplication()).map { withSavedDestination(it) } else emptyList()
         publishHome(access)
         if (access) {
             viewModelScope.launch {
@@ -178,6 +201,29 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 if (_state.value is UiState.Home) publishHome(true)
             }
         }
+    }
+
+    /** Applique le dossier de destination choisi (s'il existe encore et se trouve bien sur le même volume). */
+    private fun withSavedDestination(place: Place): Place {
+        val saved = prefs.getString("dest_${place.key}", null) ?: return place
+        val dir = File(saved)
+        return if (saved.startsWith(place.root.path + "/") && dir.isDirectory && destinationProblem(place, dir) == null) {
+            place.copy(destination = dir)
+        } else {
+            place
+        }
+    }
+
+    /** Pourquoi ce dossier ne peut pas servir de destination (null = il convient). */
+    private fun destinationProblem(place: Place, dir: File): String? = when {
+        dir == place.root -> "Choisissez un dossier précis, pas toute la mémoire."
+        dir.name.startsWith(".") -> "Choisissez un dossier visible (pas un dossier caché)."
+        place.scanRoots.any { it == dir } ->
+            "Ce dossier est un dossier où l'appli cherche vos photos (« ${dir.name} ») : choisissez-en un autre, ou un dossier à l'intérieur."
+        place.scanRoots.any { it.path.startsWith(dir.path + "/") } ->
+            "Ce dossier contient « ${place.scanRoots.first { it.path.startsWith(dir.path + "/") }.name} » : choisissez-en un autre."
+        dir.name.lowercase() in FORBIDDEN && dir.parentFile == place.root -> "Ce dossier est un dossier du système : choisissez-en un autre."
+        else -> null
     }
 
     private fun publishHome(access: Boolean) {
@@ -309,7 +355,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         for (chunk in list.chunked(4)) {
             val analyzed = coroutineScope {
                 chunk.map { photo ->
-                    async { if (photo.isScreenshot) photo else photo.copy(faces = faceAnalyzer.analyze(photo.uri)) }
+                    async { if (photo.isScreenshot || photo.isVideo) photo else photo.copy(faces = faceAnalyzer.analyze(photo.uri)) }
                 }.awaitAll()
             }
             result += analyzed
@@ -331,7 +377,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val zone = ZoneId.systemDefault()
         val targets = list.indices.filter { i ->
             val photo = list[i]
-            photo.faces.isEmpty() && HikeDetector.hikeFor(photo, hikes, zone) == null
+            !photo.isVideo && photo.faces.isEmpty() && HikeDetector.hikeFor(photo, hikes, zone) == null
         }
         val result = list.toMutableList()
 
@@ -494,7 +540,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             unchanged = plan.size - moving,
             leftCopies = leftCopies,
             townsUnavailable = townsUnavailable,
+            destination = currentPlace?.let { destinationLabel(it) } ?: "",
+            cleanFolders = cleanFolders,
         )
+    }
+
+    fun setCleanFolders(on: Boolean) {
+        cleanFolders = on
+        val current = _state.value
+        if (current is UiState.Preview) _state.value = current.copy(cleanFolders = on)
     }
 
     // ---- Rangement et annulation --------------------------------------------------------------
@@ -506,7 +560,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 _state.value = UiState.Working("Rangement en cours…", 0, moves.size)
                 val result = withContext(Dispatchers.IO) {
-                    val r = organizer.execute(place.outputDir, moves, journal) { done, total ->
+                    val cleanup = if (cleanFolders) FolderCleanup(place.root, setOf(place.root, place.outputDir) + place.scanRoots) else null
+                    val r = organizer.execute(place.outputDir, moves, journal, cleanup) { done, total ->
                         if (done % 5 == 0 || done == total) _state.value = UiState.Working("Rangement en cours…", done, total)
                     }
                     // Sauvegarde des prénoms à côté des photos (pour un futur téléphone).
@@ -519,9 +574,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 pendingMoves = emptyList()
 
                 val lines = ArrayList<String>()
-                lines += "${result.moved} photo(s) rangées dans « ${Organizer.OUTPUT_DIR} » (${place.title})."
+                lines += "${result.moved} photo(s) et vidéo(s) rangées dans « ${destinationLabel(place)} » (${place.title})."
                 if (result.copied > 0) lines += "${result.copied} copie(s) ajoutées dans les dossiers de vos proches."
                 if (result.copiesAlreadyThere > 0) lines += "${result.copiesAlreadyThere} copie(s) existaient déjà : rien n'a été refait."
+                if (result.foldersRemoved > 0) lines += "${result.foldersRemoved} ancien(s) dossier(s) vide(s) supprimé(s)."
+                if (result.foldersKept.isNotEmpty()) {
+                    lines += "Dossier(s) gardé(s) car il reste des fichiers dedans : ${result.foldersKept.joinToString(", ") { "« $it »" }}."
+                }
                 if (result.failed > 0) lines += "${result.failed} photo(s) n'ont pas pu être déplacées et sont restées en place."
                 if (result.copyFailed > 0) lines += "${result.copyFailed} copie(s) n'ont pas pu être faites."
                 val success = result.failed == 0 && result.copyFailed == 0
@@ -554,7 +613,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
                 val lines = ArrayList<String>()
-                lines += "${result.moved} photo(s) remises à leur place d'origine."
+                lines += "${result.moved} photo(s) et vidéo(s) remises à leur place d'origine."
                 if (result.copied > 0) lines += "${result.copied} copie(s) supprimées (celles créées par l'appli)."
                 if (result.failed > 0) lines += "${result.failed} élément(s) n'ont pas pu être annulés."
                 _state.value = UiState.Done(
@@ -573,6 +632,77 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     /** L'endroit du dernier rangement (pour le bouton « Ouvrir mes photos rangées » de l'écran de fin). */
     fun lastPlace(): Place? = currentPlace
+
+    // ---- Dossier de destination ---------------------------------------------------------------
+
+    /** Nom du dossier de destination, relatif à la racine (ex. « Photos rangées » ou « Mes souvenirs/Triées »). */
+    fun destinationLabel(place: Place): String = place.outputDir.toRelativeString(place.root)
+
+    fun openDestination(placeKey: String) {
+        val place = places.firstOrNull { it.key == placeKey } ?: return
+        browsingPlace = place
+        val start = place.outputDir.takeIf { it.isDirectory } ?: place.root
+        showFolder(start, null)
+    }
+
+    private fun showFolder(dir: File, message: String?) {
+        val place = browsingPlace ?: return
+        browsing = dir
+        val folders = (dir.listFiles() ?: emptyArray())
+            .filter { it.isDirectory && !it.name.startsWith(".") && !(dir == place.root && it.name == "Android") }
+            .map { it.name }
+            .sortedBy { it.lowercase() }
+        _state.value = UiState.ChooseDestination(
+            placeKey = place.key,
+            placeTitle = place.title,
+            path = dir.toRelativeString(place.root),
+            folders = folders,
+            canGoUp = dir != place.root,
+            canChoose = destinationProblem(place, dir) == null,
+            message = message ?: destinationProblem(place, dir),
+        )
+    }
+
+    fun browseInto(name: String) {
+        val dir = browsing ?: return
+        val child = File(dir, name)
+        if (child.isDirectory) showFolder(child, null)
+    }
+
+    fun browseUp() {
+        val dir = browsing ?: return
+        val place = browsingPlace ?: return
+        if (dir == place.root) return
+        showFolder(dir.parentFile ?: place.root, null)
+    }
+
+    fun createFolder(rawName: String) {
+        val dir = browsing ?: return
+        val name = Planner.sanitize(rawName.trim())
+        if (rawName.isBlank()) {
+            showFolder(dir, "Écrivez d'abord un nom pour le nouveau dossier.")
+            return
+        }
+        val folder = File(dir, name)
+        folder.mkdirs()
+        if (folder.isDirectory) showFolder(folder, null) else showFolder(dir, "Impossible de créer le dossier « $name ».")
+    }
+
+    fun confirmDestination() {
+        val place = browsingPlace ?: return
+        val dir = browsing ?: return
+        if (destinationProblem(place, dir) != null) return
+        prefs.edit().putString("dest_${place.key}", dir.path).apply()
+        browsing = null
+        browsingPlace = null
+        refresh("Les photos et vidéos seront rangées dans « ${dir.toRelativeString(place.root)} » (${place.title}).")
+    }
+
+    fun cancelDestination() {
+        browsing = null
+        browsingPlace = null
+        refresh()
+    }
 
     // ---- Mes proches --------------------------------------------------------------------------
 
@@ -622,5 +752,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private companion object {
         const val MAX_CLUSTERS = 30
+        val FORBIDDEN = setOf(
+            "dcim", "pictures", "movies", "download", "downloads", "documents", "music", "android",
+            "alarms", "notifications", "podcasts", "ringtones", "audiobooks", "recordings",
+        )
     }
 }

@@ -13,7 +13,17 @@ data class OrganizeResult(
     val copiesAlreadyThere: Int = 0,
     /** Les premières erreurs, en clair (nom de la photo : raison). */
     val failures: List<String> = emptyList(),
+    /** Anciens dossiers devenus vides, supprimés. */
+    val foldersRemoved: Int = 0,
+    /** Anciens dossiers gardés parce qu'il reste quelque chose dedans (quelques noms). */
+    val foldersKept: List<String> = emptyList(),
 )
+
+/**
+ * Nettoyage des anciens dossiers après un rangement : [volumeRoot] et [protectedDirs] (dossiers de photos, destination…)
+ * ne sont jamais touchés, ni les dossiers système (DCIM, Pictures…) ni les dossiers cachés.
+ */
+class FolderCleanup(val volumeRoot: File, val protectedDirs: Set<File>)
 
 /**
  * Déplace réellement les photos dans leurs dossiers, avec accès direct aux fichiers.
@@ -29,6 +39,7 @@ class Organizer(private val onChanged: (List<String>) -> Unit = {}) {
         outputRoot: File,
         moves: List<PlannedMove>,
         journal: File,
+        cleanup: FolderCleanup? = null,
         onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
     ): OrganizeResult {
         outputRoot.mkdirs()
@@ -48,6 +59,7 @@ class Organizer(private val onChanged: (List<String>) -> Unit = {}) {
         var copied = 0
         var copyFailed = 0
         var alreadyThere = 0
+        val oldFolders = LinkedHashSet<File>() // dossiers d'où une photo est partie
 
         fun note(message: String) {
             if (failures.size < MAX_FAILURES) failures += message
@@ -69,6 +81,7 @@ class Organizer(private val onChanged: (List<String>) -> Unit = {}) {
                     touched += source.absolutePath
                     touched += destination.absolutePath
                     moved++
+                    source.parentFile?.let { oldFolders += it }
                     destination
                 }
 
@@ -98,7 +111,14 @@ class Organizer(private val onChanged: (List<String>) -> Unit = {}) {
             if (touched.size >= 300) flush(touched)
         }
         flush(touched)
-        return OrganizeResult(moved, failed, copied, copyFailed, alreadyThere, failures)
+        var removed = 0
+        var kept: List<String> = emptyList()
+        if (cleanup != null) {
+            val outcome = removeEmptyFolders(oldFolders, cleanup)
+            removed = outcome.first
+            kept = outcome.second
+        }
+        return OrganizeResult(moved, failed, copied, copyFailed, alreadyThere, failures, removed, kept)
     }
 
     /** Annule le dernier rangement : supprime les copies créées par l'appli, remet chaque photo dans son dossier d'origine. */
@@ -149,6 +169,40 @@ class Organizer(private val onChanged: (List<String>) -> Unit = {}) {
         journal.writeText(remaining.reversed().joinToString("\n", postfix = if (remaining.isEmpty()) "" else "\n"))
         return OrganizeResult(restored, failed, removedCopies, 0, 0, failures)
     }
+
+    /**
+     * Supprime les anciens dossiers devenus vides, du plus profond au plus haut.
+     * Sécurité : on ne supprime qu'un dossier réellement vide (aucun fichier, même caché) ; `File.delete()` refuse
+     * d'ailleurs de supprimer un dossier non vide. Jamais de suppression récursive. Retourne (supprimés, gardés).
+     */
+    private fun removeEmptyFolders(starts: Set<File>, cleanup: FolderCleanup): Pair<Int, List<String>> {
+        val rootPath = cleanup.volumeRoot.absolutePath
+        val candidates = LinkedHashSet<File>()
+        for (start in starts) {
+            var dir: File? = start
+            while (dir != null && dir.absolutePath.startsWith("$rootPath/") && !isProtected(dir, cleanup)) {
+                candidates += dir
+                dir = dir.parentFile
+            }
+        }
+        var removed = 0
+        val kept = ArrayList<String>()
+        for (dir in candidates.sortedByDescending { it.absolutePath.length }) {
+            if (!dir.isDirectory) continue
+            val content = dir.listFiles()
+            if (content != null && content.isEmpty() && dir.delete()) {
+                removed++
+            } else if (dir in starts) {
+                kept += dir.name
+            }
+        }
+        return removed to kept.take(5)
+    }
+
+    private fun isProtected(dir: File, cleanup: FolderCleanup): Boolean =
+        dir in cleanup.protectedDirs ||
+            dir.name.startsWith(".") ||
+            (dir.parentFile == cleanup.volumeRoot && dir.name.lowercase() in SYSTEM_FOLDERS)
 
     private fun flush(touched: MutableList<String>) {
         if (touched.isEmpty()) return
@@ -213,5 +267,9 @@ class Organizer(private val onChanged: (List<String>) -> Unit = {}) {
     companion object {
         const val OUTPUT_DIR = "Photos rangées"
         private const val MAX_FAILURES = 8
+        private val SYSTEM_FOLDERS = setOf(
+            "dcim", "pictures", "movies", "download", "downloads", "documents", "music", "android",
+            "alarms", "notifications", "podcasts", "ringtones", "audiobooks", "recordings",
+        )
     }
 }

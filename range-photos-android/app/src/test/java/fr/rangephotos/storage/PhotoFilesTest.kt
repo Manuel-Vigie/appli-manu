@@ -59,4 +59,16 @@ class PhotoFilesTest {
         assertEquals(1, sorted)
         assertTrue(place().outputDir.isDirectory)
     }
+
+    @Test
+    fun findsVideosToo() {
+        file("DCIM/Camera/VID_20260914_101530.mp4")
+        file("DCIM/Camera/film.MOV")
+        file("DCIM/Camera/a.jpg")
+        file("DCIM/Camera/son.m4a")
+        val found = PhotoFiles.list(place(), includeSorted = false).map { it.file.name }.sorted()
+        assertEquals(listOf("VID_20260914_101530.mp4", "a.jpg", "film.MOV"), found)
+        assertTrue(PhotoFiles.isVideo(File("x.MP4")))
+        assertTrue(!PhotoFiles.isVideo(File("x.jpg")))
+    }
 }

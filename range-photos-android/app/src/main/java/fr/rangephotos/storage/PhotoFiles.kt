@@ -2,18 +2,22 @@ package fr.rangephotos.storage
 
 import java.io.File
 
-/** Liste les fichiers photo d'un endroit (sans toucher à leur contenu). */
+/** Liste les fichiers photo et vidéo d'un endroit (sans toucher à leur contenu). */
 object PhotoFiles {
 
     private val MIME_BY_EXTENSION = mapOf(
         "jpg" to "image/jpeg", "jpeg" to "image/jpeg", "png" to "image/png",
         "webp" to "image/webp", "heic" to "image/heic", "heif" to "image/heif",
+        "mp4" to "video/mp4", "m4v" to "video/mp4", "mov" to "video/quicktime", "3gp" to "video/3gpp",
+        "mkv" to "video/x-matroska", "webm" to "video/webm", "avi" to "video/x-msvideo",
     )
 
     /** [relative] : chemin sous « Photos rangées » si la photo y est déjà, sinon null. */
     class Found(val file: File, val relative: List<String>?)
 
     fun mimeOf(file: File): String? = MIME_BY_EXTENSION[file.extension.lowercase()]
+
+    fun isVideo(file: File): Boolean = mimeOf(file)?.startsWith("video/") == true
 
     /**
      * Par défaut, les photos déjà rangées ne sont pas reprises ; avec [includeSorted] elles le sont,

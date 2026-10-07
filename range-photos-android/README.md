@@ -17,7 +17,19 @@ Chaque photo est classée, dans cet ordre de priorité :
 | Capture d'écran | `Captures d'écran/2026/` |
 | Tout le reste | `Journées/2026/03 - mars/14 mars (sam) - Nice/` (un dossier par jour, avec la ville si internet) |
 
-Tout est créé dans un dossier `Photos rangées` à la racine de la carte SD (ou de la mémoire du téléphone).
+Tout est créé dans le **dossier de destination** : par défaut `Photos rangées` à la racine de la carte SD (ou de la
+mémoire du téléphone), mais on le choisit avant tout rangement (bouton « Changer le dossier de destination » sur
+chaque stockage ; création de dossier possible ; mémorisé). Refusés : la racine, DCIM/Pictures… et les dossiers où
+l'appli cherche les photos. Si vous changez de destination, les prénoms sauvegardés (`mes-proches.json`) sont lus et
+écrits dans la destination courante.
+
+**Vidéos** : rangées avec les photos, par date (date du nom de fichier, sinon date interne, sinon date du fichier ;
+ville si la vidéo contient un lieu). Elles ne passent pas par la reconnaissance de visages ni l'analyse de contenu.
+
+**Nettoyage** : après le rangement, les anciens dossiers devenus vides sont supprimés (interrupteur à l'aperçu, activé
+par défaut). Sécurité : un dossier n'est supprimé que s'il est réellement vide (aucun fichier, même caché) ; jamais
+récursif ; jamais la racine, la destination, DCIM/Pictures/Movies/Download…, ni les dossiers cachés. Un dossier qui
+contient encore quelque chose est gardé et signalé. « Annuler » recrée les dossiers.
 
 - **Aperçu avant déplacement** : rien ne bouge tant que vous n'avez pas appuyé sur « Ranger maintenant ».
 - **Sécurité** : les photos sont *déplacées* par le système (aucune copie, aucun risque de perte en cas

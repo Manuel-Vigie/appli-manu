@@ -7,7 +7,6 @@ import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.Settings
 import androidx.core.content.ContextCompat
-import fr.rangephotos.organize.Organizer
 import java.io.File
 
 /** Détection de la carte SD et de la mémoire du téléphone, et autorisation d'accès aux fichiers. */
@@ -35,7 +34,7 @@ object Places {
 
     /** Ouvre le dossier « Photos rangées » dans l'appli Fichiers du téléphone. */
     fun openIntent(place: Place): Intent {
-        val documentId = place.key + ":" + Organizer.OUTPUT_DIR
+        val documentId = place.key + ":" + place.outputDir.toRelativeString(place.root)
         val uri = DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", documentId)
         return Intent(Intent.ACTION_VIEW)
             .setDataAndType(uri, DocumentsContract.Document.MIME_TYPE_DIR)
