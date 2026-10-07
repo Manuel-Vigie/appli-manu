@@ -12,8 +12,12 @@ android {
         applicationId = "fr.mesphotos"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 4
+        versionName = "1.3.0"
+        // Le moteur de reconnaissance n'est embarqué que pour les téléphones courants (pas les PC / émulateurs).
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     // Clé de signature partagée et publique : l'appli se réinstalle par-dessus la précédente.
@@ -63,6 +67,9 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-core")
+
+    // Reconnaissance sur le téléphone (aucune photo n'est envoyée) : moteur ONNX Runtime.
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.19.2")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 

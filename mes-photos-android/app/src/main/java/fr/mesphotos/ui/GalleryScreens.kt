@@ -117,7 +117,7 @@ private fun SelectionHeader(selectedCount: Int, allSelected: Boolean, onCancel: 
 
 /** Barre du bas en mode « Choisir » : « À l'écart » (rangées à part) ou « Corbeille ». */
 @Composable
-private fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit) {
+private fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNotThat: (() -> Unit)? = null) {
     Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp, tonalElevation = 2.dp) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).navigationBarsPadding(),
@@ -146,6 +146,7 @@ private fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit) {
                     Text("Corbeille", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 }
             }
+            if (onNotThat != null) SoftButton("Ce n'est pas ça : retirer de la liste", onNotThat, enabled = count > 0)
             Text(
                 "Rien n'est effacé : tout peut être remis.",
                 style = MaterialTheme.typography.bodySmall,
@@ -357,6 +358,139 @@ private fun FolderRow(folder: FolderItem, selecting: Boolean, selected: Boolean,
             if (selecting) SelectMark(selected, onPhoto = false, modifier = Modifier.padding(end = 6.dp))
             else Text("›", fontSize = 28.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 6.dp))
         }
+    }
+}
+
+// ---- Suggestions de la recherche automatique -------------------------------------------------------
+
+@Composable
+fun ReviewScreen(
+    state: UiState.Review,
+    onBack: () -> Unit,
+    onOpen: (List<File>, Int) -> Unit,
+    onMove: (MoveKind, Set<String>, List<File>) -> Unit,
+    onUndoMove: () -> Unit,
+    onDismiss: (List<File>) -> Unit,
+    onRescan: () -> Unit,
+) {
+    var selecting by remember(state) { mutableStateOf(false) }
+    var selected by remember(state) { mutableStateOf(emptySet<String>()) }
+    var confirm by remember(state) { mutableStateOf<MoveKind?>(null) }
+
+    fun stopSelecting() {
+        selecting = false
+        selected = emptySet()
+    }
+
+    fun toggle(path: String) {
+        selecting = true
+        selected = if (path in selected) selected - path else selected + path
+    }
+
+    BackHandler { if (selecting) stopSelecting() else onBack() }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        if (selecting) {
+            val allSelected = selected.isNotEmpty() && selected.size == state.files.size
+            SelectionHeader(
+                selectedCount = selected.size,
+                allSelected = allSelected,
+                onCancel = { stopSelecting() },
+                onToggleAll = { selected = if (allSelected) emptySet() else state.files.map { it.absolutePath }.toSet() },
+            )
+        } else {
+            Header(
+                title = "Suggestions",
+                subtitle = when {
+                    state.files.isEmpty() -> "Aucune photo à regarder."
+                    state.files.size > 1 -> "${spaced(state.files.size)} photos semblent montrer des personnes nues. L'appli peut se tromper : regardez avant de décider."
+                    else -> "1 photo semble montrer des personnes nues. L'appli peut se tromper : regardez avant de décider."
+                },
+                top = {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Accueil", color = Color.White, fontSize = 16.sp)
+                        }
+                        Spacer(Modifier.weight(1f))
+                        if (state.files.isNotEmpty()) HeaderButton("Choisir") { selecting = true }
+                    }
+                },
+            )
+        }
+
+        state.message?.let { message ->
+            Box(Modifier.padding(start = 14.dp, end = 14.dp, top = 12.dp)) {
+                NoticeCard(
+                    message,
+                    isError = false,
+                    actionLabel = if (state.undoTrash > 0) "Annuler" else null,
+                    onAction = if (state.undoTrash > 0) onUndoMove else null,
+                )
+            }
+        }
+
+        if (state.files.isEmpty()) {
+            Column(
+                modifier = Modifier.weight(1f).fillMaxWidth().padding(28.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    "Rien à proposer pour l'instant.\nSi vous avez ajouté des photos depuis, relancez la recherche : seules les nouvelles sont regardées.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(20.dp))
+                BigButton("Relancer la recherche", onRescan)
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(104.dp),
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                itemsIndexed(state.files, key = { _, f -> "s:" + f.absolutePath }) { index, file ->
+                    val path = file.absolutePath
+                    PhotoTile(
+                        file,
+                        selecting = selecting,
+                        selected = path in selected,
+                        onClick = { if (selecting) toggle(path) else onOpen(state.files, index) },
+                        onLongClick = { toggle(path) },
+                    )
+                }
+            }
+        }
+
+        if (selecting) {
+            MoveBar(
+                selected.size,
+                onAside = { confirm = MoveKind.ASIDE },
+                onTrash = { confirm = MoveKind.TRASH },
+                onNotThat = {
+                    val chosen = state.files.filter { it.absolutePath in selected }
+                    stopSelecting()
+                    onDismiss(chosen)
+                },
+            )
+        }
+    }
+
+    confirm?.let { kind ->
+        ConfirmMoveDialog(
+            kind = kind,
+            summary = describeSelection(selected.size, 0, selected.size),
+            onConfirm = {
+                confirm = null
+                onMove(kind, emptySet(), state.files.filter { it.absolutePath in selected })
+            },
+            onDismiss = { confirm = null },
+        )
     }
 }
 

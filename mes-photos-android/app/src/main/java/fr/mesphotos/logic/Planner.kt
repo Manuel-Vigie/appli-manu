@@ -12,10 +12,13 @@ data class PlannedMove(val photo: PhotoInfo, val folder: List<String>)
  * Une seule règle, simple : tout est rangé par date.
  * Journées / année / mois / jour (avec la ville si on la connaît), photos et vidéos ensemble.
  * Sans date fiable : Journées / Date incertaine / année / mois (pour ne jamais mal dater un souvenir).
+ * Sans date fiable ET sans lieu (pas de GPS) : tous dans un seul dossier, Journées / Sans date ni lieu,
+ * pour que la personne les trie elle-même.
  */
 object Planner {
     const val PHOTOS = "Journées"
     const val UNDATED = "Date incertaine"
+    const val NOTHING = "Sans date ni lieu"
 
     // Anciens dossiers de proches (ancienne appli) : leurs copies ne sont pas reclassées une seconde fois.
     const val PORTRAITS = "Portraits"
@@ -37,10 +40,10 @@ object Planner {
     ): List<PlannedMove> = photos.map { photo ->
         val date = Instant.ofEpochMilli(photo.takenAt).atZone(zone).toLocalDate()
         val month = "%02d - %s".format(date.monthValue, MONTHS[date.monthValue - 1])
-        val folder = if (photo.dateGuessed) {
-            listOf(PHOTOS, UNDATED, date.year.toString(), month)
-        } else {
-            listOf(PHOTOS, date.year.toString(), month, dayFolder(date, dayPlaces[date]))
+        val folder = when {
+            photo.dateGuessed && !photo.hasGps -> listOf(PHOTOS, NOTHING)
+            photo.dateGuessed -> listOf(PHOTOS, UNDATED, date.year.toString(), month)
+            else -> listOf(PHOTOS, date.year.toString(), month, dayFolder(date, dayPlaces[date]))
         }
         PlannedMove(photo, folder)
     }

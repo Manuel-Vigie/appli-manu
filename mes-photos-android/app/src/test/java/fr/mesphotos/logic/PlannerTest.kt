@@ -28,9 +28,26 @@ class PlannerTest {
     }
 
     @Test
-    fun undatedPhotosGoApart() {
-        val moves = Planner.plan(listOf(PhotoInfo("a.jpg", ms(2026, 10, 1), dateGuessed = true)), zone)
+    fun undatedPhotosWithAPlaceGoApartByMonth() {
+        val photo = PhotoInfo("a.jpg", ms(2026, 10, 1), lat = 43.7, lon = 7.26, dateGuessed = true)
+        val moves = Planner.plan(listOf(photo), zone)
         assertEquals(listOf("Journées", "Date incertaine", "2026", "10 - octobre"), moves[0].folder)
+    }
+
+    @Test
+    fun photosWithNeitherDateNorPlaceAllGoInOneFolder() {
+        val a = PhotoInfo("a.jpg", ms(2026, 10, 1), dateGuessed = true)
+        val b = PhotoInfo("b.jpg", ms(2019, 2, 3), dateGuessed = true)
+        val moves = Planner.plan(listOf(a, b), zone)
+        assertEquals(listOf("Journées", "Sans date ni lieu"), moves[0].folder)
+        assertEquals(moves[0].folder, moves[1].folder)
+    }
+
+    @Test
+    fun aReliableDateWithoutPlaceStaysByDay() {
+        val moves = Planner.plan(listOf(PhotoInfo("a.jpg", ms(2026, 3, 14))), zone)
+        assertEquals("Journées", moves[0].folder[0])
+        assertEquals("2026", moves[0].folder[1])
     }
 
     @Test

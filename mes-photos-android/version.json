@@ -1,11 +1,11 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V3",
+  "version": "V4",
   "date": "07/10/2026",
   "nouveautes": [
-    "Recherche : tapez une ville, un mois, une année ou un nom, les photos trouvées s'affichent.",
-    "« À l'écart » : cochez des photos ou des dossiers, ils sortent de la galerie et vont dans un dossier de la carte que vous récupérez quand vous voulez.",
-    "Tout se remet en place d'un geste (bouton Annuler, ou depuis l'accueil).",
+    "Recherche automatique : l'appli propose les photos qui semblent montrer des personnes nues. Vous regardez et vous décidez.",
+    "Les photos sans date ni lieu vont toutes dans un seul dossier : « Sans date ni lieu ».",
+    "Recherche par mots et dossier « À l'écart » (V3).",
     "Nouveau look, choix multiple et corbeille (V2)."
   ],
   "pastille": false,

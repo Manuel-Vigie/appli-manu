@@ -5,3 +5,4 @@ Dossier de destination : `Photos rangées/Journées/année/mois/jour - ville` ; 
 Compilée par GitHub Actions (`.github/workflows/mes-photos-android.yml`), publiée dans Releases (`mes-photos-v<version>`, `MesPhotos.apk`).
 Corbeille : `Photos rangées/.Corbeille` (dossier caché, ignoré par le rangement et la galerie). Mettre à la corbeille déplace sans rien effacer ; seule la suppression définitive depuis l'écran Corbeille efface, après confirmation.
 « À l'écart » : `Photos rangées/À l'écart` (visible dans un gestionnaire de fichiers, mais ni galerie, ni recherche, ni rangement). On y met ce qu'on choisit à la main ; tout se remet en place.
+Recherche automatique de personnes nues : modèle NudeNet embarqué (`app/src/main/assets/nudenet/320n.onnx`, AGPL-3.0, voir `NOTICE.md`), exécuté sur le téléphone ; elle propose, c'est la personne qui décide.

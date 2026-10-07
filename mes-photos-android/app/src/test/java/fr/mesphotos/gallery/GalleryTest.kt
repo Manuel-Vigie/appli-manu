@@ -47,6 +47,12 @@ class GalleryTest {
     }
 
     @Test
+    fun noDateNoPlaceFolderComesLast() {
+        val sorted = listOf("Sans date ni lieu", "Date incertaine", "2024").sortedWith { a, b -> Gallery.compareFolders(a, b) }
+        assertEquals(listOf("2024", "Date incertaine", "Sans date ni lieu"), sorted)
+    }
+
+    @Test
     fun journeesComesFirst() {
         val sorted = listOf("Autre", "Journées").sortedWith { a, b -> Gallery.compareFolders(a, b) }
         assertEquals(listOf("Journées", "Autre"), sorted)

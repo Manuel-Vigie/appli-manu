@@ -74,11 +74,12 @@ object Gallery {
     /** Vrai si tous les mots se trouvent dans le chemin (déjà normalisé) de la photo. */
     fun matches(haystack: String, terms: List<String>): Boolean = terms.isNotEmpty() && terms.all { haystack.contains(it) }
 
-    /** Journées d'abord ; les années, mois et jours du plus récent au plus ancien ; « Date incertaine » à la fin. */
+    /** Journées d'abord ; les années, mois et jours du plus récent au plus ancien ; « Date incertaine », puis « Sans date ni lieu » à la fin. */
     fun compareFolders(a: String, b: String): Int {
         fun group(name: String) = when {
             name == Planner.PHOTOS -> 0
             name == Planner.UNDATED -> 3
+            name == Planner.NOTHING -> 4
             name.firstOrNull()?.isDigit() == true -> 1
             else -> 2
         }

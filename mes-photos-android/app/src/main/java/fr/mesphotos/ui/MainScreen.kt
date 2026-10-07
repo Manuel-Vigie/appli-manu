@@ -3,6 +3,7 @@ package fr.mesphotos.ui
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,6 +35,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -76,6 +79,8 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onOpenTrash = { viewModel.openTrash(MoveKind.TRASH) },
                         onOpenAside = { viewModel.openTrash(MoveKind.ASIDE) },
                         onSearch = viewModel::openSearch,
+                        onScan = viewModel::startNudityScan,
+                        onReview = viewModel::openReview,
                         onCheckUpdate = { viewModel.checkUpdate(version) { updateTick++ } },
                         onDownload = { url ->
                             runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
@@ -113,6 +118,16 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onRestore = { items -> viewModel.restoreFromTrash(s.kind, items) },
                     onDeleteForever = viewModel::deleteFromTrash,
                 )
+                is UiState.NudityScan -> NudityScanScreen(s, onStop = viewModel::stopNudityScan)
+                is UiState.Review -> ReviewScreen(
+                    s,
+                    onBack = viewModel::backToStart,
+                    onOpen = viewModel::openViewer,
+                    onMove = viewModel::moveSelection,
+                    onUndoMove = viewModel::undoMove,
+                    onDismiss = viewModel::dismissSuggestions,
+                    onRescan = viewModel::startNudityScan,
+                )
                 is UiState.Search -> SearchScreen(
                     s,
                     onSearch = viewModel::search,
@@ -141,6 +156,8 @@ private fun HomeScreen(
     onOpenTrash: () -> Unit,
     onOpenAside: () -> Unit,
     onSearch: () -> Unit,
+    onScan: () -> Unit,
+    onReview: () -> Unit,
     onCheckUpdate: () -> Unit,
     onDownload: (String) -> Unit,
 ) {
@@ -213,6 +230,18 @@ private fun HomeScreen(
             }
             item {
                 Box(Modifier.padding(horizontal = 16.dp)) { SoftButton("Rechercher une photo", onSearch) }
+            }
+            item {
+                Box(Modifier.padding(horizontal = 16.dp)) {
+                    Section {
+                        Title("Recherche automatique")
+                        Body("L'appli regarde vos photos, sur le téléphone seulement, et vous propose celles qui semblent montrer des personnes nues. Elle peut se tromper : c'est vous qui décidez, rien ne bouge sans votre accord.")
+                        if (state.suggestions > 0) {
+                            TonalBigButton(if (state.suggestions > 1) "Voir les ${spaced(state.suggestions)} suggestions" else "Voir la suggestion", onReview)
+                        }
+                        SoftButton(if (state.suggestions > 0) "Relancer la recherche" else "Lancer la recherche", onScan)
+                    }
+                }
             }
             if (state.asideCount > 0) {
                 item {
@@ -316,6 +345,54 @@ private fun WorkingScreen(state: UiState.Working) {
     }
 }
 
+@Composable
+private fun NudityScanScreen(state: UiState.NudityScan, onStop: () -> Unit) {
+    BackHandler { onStop() }
+    // L'écran reste allumé pendant la recherche.
+    val view = LocalView.current
+    DisposableEffect(Unit) {
+        view.keepScreenOn = true
+        onDispose { view.keepScreenOn = false }
+    }
+    Column(modifier = Modifier.fillMaxSize()) {
+        Header("Recherche en cours", "Sur le téléphone seulement. Rien ne bouge.")
+        Column(
+            modifier = Modifier.weight(1f).fillMaxWidth().padding(28.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                if (state.total == 0) "Préparation…" else "${spaced(state.done)} / ${spaced(state.total)} photos regardées",
+                fontSize = 21.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(20.dp))
+            if (state.total > 0) {
+                LinearProgressIndicator(
+                    progress = { state.done.toFloat() / state.total },
+                    modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)),
+                )
+            } else {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)))
+            }
+            Spacer(Modifier.height(20.dp))
+            Text(
+                if (state.found > 1) "${state.found} suggestions pour l'instant" else "${state.found} suggestion pour l'instant",
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Spacer(Modifier.height(20.dp))
+            Text(
+                "Gardez l'écran allumé. Vous pouvez arrêter quand vous voulez : ce qui est déjà vu est retenu, la prochaine fois on reprend là.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+        BottomActions { SoftButton("Arrêter et voir les suggestions", onStop) }
+    }
+}
+
 // ---- Ranger : aperçu, lot test, résultat ---------------------------------------------------------
 
 @Composable
@@ -349,11 +426,19 @@ private fun PreviewScreen(state: UiState.Preview, onConfirm: () -> Unit, onCance
                     NoticeCard("Pas d'internet : les dossiers de jours n'auront pas le nom de la ville. Pour les villes, annulez, connectez-vous et recommencez.", isError = true)
                 }
             }
+            if (state.nothing > 0) {
+                item {
+                    Section(MaterialTheme.colorScheme.secondaryContainer) {
+                        Title("${spaced(state.nothing)} fichier(s) sans date ni lieu")
+                        Body("Rien ne dit quand ni où ils ont été pris. Ils iront tous ensemble dans un seul dossier, « Journées / Sans date ni lieu », pour que vous les triiez vous-même.")
+                    }
+                }
+            }
             if (state.undated > 0) {
                 item {
                     Section(MaterialTheme.colorScheme.errorContainer) {
                         Title("${state.undated} fichier(s) sans date fiable")
-                        Body("Ni le fichier ni son nom ne donnent la date de prise de vue. Pour ne pas les mélanger avec vos vrais souvenirs, ils iront à part : « Journées / Date incertaine ».")
+                        Body("Ni le fichier ni son nom ne donnent la date de prise de vue, mais le lieu est connu. Pour ne pas les mélanger avec vos vrais souvenirs, ils iront à part : « Journées / Date incertaine ».")
                     }
                 }
             }

@@ -4,6 +4,9 @@ import android.app.Application
 import android.media.MediaScannerConnection
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import fr.mesphotos.detect.NudityCache
+import fr.mesphotos.detect.NudityDetector
+import fr.mesphotos.detect.NudityModel
 import fr.mesphotos.gallery.FolderItem
 import fr.mesphotos.gallery.Gallery
 import fr.mesphotos.logic.Duplicates
@@ -23,6 +26,9 @@ import fr.mesphotos.storage.Place
 import fr.mesphotos.storage.Places
 import fr.mesphotos.update.UpdateChecker
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,6 +38,7 @@ import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
 
 /** Où vont les photos choisies : la corbeille (on peut effacer pour de bon) ou « À l'écart » (rangées à part, jamais effacées). */
@@ -54,6 +61,8 @@ sealed interface UiState {
         val trashCount: Int = 0,
         /** Nombre de photos et vidéos mises à l'écart. */
         val asideCount: Int = 0,
+        /** Nombre de suggestions de la recherche automatique (photos qui semblent montrer des personnes nues). */
+        val suggestions: Int = 0,
     ) : UiState
 
     /** [total] = 0 : durée inconnue. */
@@ -63,6 +72,8 @@ sealed interface UiState {
         val toMove: Int,
         val alreadyOk: Int,
         val undated: Int,
+        /** Sans date fiable ET sans lieu : tous dans « Sans date ni lieu ». */
+        val nothing: Int,
         val townsUnavailable: Boolean,
         /** Années et nombre de fichiers. */
         val years: List<Pair<String, Int>>,
@@ -104,7 +115,19 @@ sealed interface UiState {
     ) : UiState
 
     /** Visionneuse plein écran. */
-    data class Viewer(val path: List<String>, val files: List<File>, val index: Int, val backToSearch: String? = null) : UiState
+    data class Viewer(
+        val path: List<String>,
+        val files: List<File>,
+        val index: Int,
+        val backToSearch: String? = null,
+        val backToReview: Boolean = false,
+    ) : UiState
+
+    /** Recherche automatique en cours. [total] = 0 : pas encore compté. */
+    data class NudityScan(val done: Int, val total: Int, val found: Int) : UiState
+
+    /** Suggestions de la recherche automatique : à regarder, puis à mettre de côté ou à retirer de la liste. */
+    data class Review(val files: List<File>, val message: String? = null, val undoTrash: Int = 0) : UiState
 }
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -141,6 +164,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var lastKind = MoveKind.TRASH
     private var searchIndex: List<SearchEntry>? = null
     private var searchQuery = ""
+    private var suggestionCount = 0
+    private var scanJob: Job? = null
+    private val nudityCache by lazy { NudityCache(File(getApplication<Application>().filesDir, "nudite.tsv")) }
 
     // Mise à jour
     var updateMessage: String? = null
@@ -168,6 +194,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun trashOf(p: Place) = stashOf(p, MoveKind.TRASH)
 
+    private fun returnsToReview(): Boolean = when (val s = _state.value) {
+        is UiState.Review -> true
+        is UiState.Viewer -> s.backToReview
+        else -> false
+    }
+
     /** Où revenir après un déplacement : à la recherche si on en venait (liste ou visionneuse), sinon à la galerie. */
     private fun returnQuery(): String? = when (val s = _state.value) {
         is UiState.Search -> s.query
@@ -190,6 +222,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val found = withContext(Dispatchers.IO) {
                 trashCount = runCatching { trashOf(current).count() }.getOrDefault(0)
                 asideCount = runCatching { stashOf(current, MoveKind.ASIDE).count() }.getOrDefault(0)
+                if (scanJob?.isActive != true) suggestionCount = runCatching { currentSuggestions(current).size }.getOrDefault(0)
                 runCatching { scanner.counts(current) }.getOrDefault(0 to 0)
             }
             counts = found
@@ -208,6 +241,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             noticeIsError = noticeIsError,
             trashCount = trashCount,
             asideCount = asideCount,
+            suggestions = suggestionCount,
         )
     }
 
@@ -251,12 +285,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 // Ce qui est déjà au bon endroit ne bouge pas.
                 pendingMoves = plan.filter { it.photo.currentFolder != it.folder }
                 val years = plan.groupingBy { it.folder.getOrNull(1) ?: "" }.eachCount()
-                    .filterKeys { it != Planner.UNDATED }
+                    .filterKeys { it != Planner.UNDATED && it != Planner.NOTHING }
                     .toList().sortedByDescending { it.first }
                 _state.value = UiState.Preview(
                     toMove = pendingMoves.size,
                     alreadyOk = plan.size - pendingMoves.size,
-                    undated = plan.count { it.photo.dateGuessed },
+                    undated = plan.count { it.photo.dateGuessed && it.photo.hasGps },
+                    nothing = plan.count { it.photo.dateGuessed && !it.photo.hasGps },
                     townsUnavailable = townsUnavailable,
                     years = years,
                 )
@@ -500,12 +535,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun openViewer(files: List<File>, index: Int) {
-        _state.value = UiState.Viewer(browsePath, files, index, backToSearch = returnQuery())
+        _state.value = UiState.Viewer(browsePath, files, index, backToSearch = returnQuery(), backToReview = returnsToReview())
     }
 
     fun closeViewer() {
-        val query = (_state.value as? UiState.Viewer)?.backToSearch
-        if (query != null) search(query) else browse(browsePath)
+        val viewer = _state.value as? UiState.Viewer
+        val query = viewer?.backToSearch
+        when {
+            query != null -> search(query)
+            viewer?.backToReview == true -> openReview()
+            else -> browse(browsePath)
+        }
     }
 
     // ---- Corbeille et « À l'écart » -------------------------------------------------------------
@@ -525,6 +565,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val current = place ?: return
         val base = browsePath
         val backQuery = returnQuery()
+        val toReview = returnsToReview()
         val label = if (kind == MoveKind.TRASH) "Mise à la corbeille…" else "Mise à l'écart…"
         viewModelScope.launch {
             try {
@@ -550,7 +591,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 if (result.failed > 0) lines += "${result.failed} fichier(s) n'ont pas pu être déplacés et sont restés en place."
                 result.failures.take(2).forEach { lines += it }
                 val message = lines.joinToString("\n")
-                if (backQuery != null) showSearch(backQuery, message, result.done) else showBrowse(base, message = message, undoCount = result.done)
+                when {
+                    backQuery != null -> showSearch(backQuery, message, result.done)
+                    toReview -> showReview(message, result.done)
+                    else -> showBrowse(base, message = message, undoCount = result.done)
+                }
             } catch (e: Exception) {
                 refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
             }
@@ -564,6 +609,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val kind = lastKind
         val base = browsePath
         val backQuery = returnQuery()
+        val toReview = returnsToReview()
         viewModelScope.launch {
             try {
                 _state.value = UiState.Working("Remise en place…", 0, 0)
@@ -573,7 +619,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 withContext(Dispatchers.IO) { refreshStashCounts(current) }
                 var text = "${countText(result.done)} remis à leur place."
                 if (result.failed > 0) text += "\n${result.failed} fichier(s) n'ont pas pu être remis (ils sont toujours mis de côté)."
-                if (backQuery != null) showSearch(backQuery, text, 0) else showBrowse(base, message = text)
+                when {
+                    backQuery != null -> showSearch(backQuery, text, 0)
+                    toReview -> showReview(text)
+                    else -> showBrowse(base, message = text)
+                }
             } catch (e: Exception) {
                 refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
             }
@@ -658,6 +708,83 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             index.filter { Gallery.matches(it.text, terms) }.map { it.file }
         }
         _state.value = UiState.Search(query, results, message, undoCount)
+    }
+
+    // ---- Recherche automatique de personnes nues -----------------------------------------------
+    // Le modèle tourne sur le téléphone. L'appli ne fait que PROPOSER : rien ne bouge sans l'accord de la personne.
+
+    /** Les photos proposées : score assez haut, toujours là, dans « Photos rangées » (ni « À l'écart », ni corbeille). */
+    private fun currentSuggestions(p: Place): List<File> {
+        nudityCache.load()
+        val out = p.outputDir.absolutePath
+        return nudityCache.hits(NudityModel.THRESHOLD).map { File(it.path) }.filter {
+            val path = it.absolutePath
+            path.startsWith("$out/") && !path.startsWith("$out/${Place.ASIDE_DIR}/") && !path.startsWith("$out/.")
+        }
+    }
+
+    /** Regarde les photos pas encore vues (les autres sont retenues), puis montre les suggestions. */
+    fun startNudityScan() {
+        val current = place ?: return
+        if (scanJob?.isActive == true) return
+        scanJob = viewModelScope.launch {
+            var detector: NudityDetector? = null
+            try {
+                _state.value = UiState.NudityScan(0, 0, 0)
+                val todo = withContext(Dispatchers.IO) {
+                    nudityCache.load()
+                    Gallery.allMedia(current.outputDir).filter { !PhotoFiles.isVideo(it) && nudityCache.get(it) == null }
+                }
+                var found = withContext(Dispatchers.IO) { currentSuggestions(current).size }
+                if (todo.isNotEmpty()) {
+                    val d = withContext(Dispatchers.IO) { NudityDetector(getApplication()) }
+                    detector = d
+                    for ((i, file) in todo.withIndex()) {
+                        ensureActive()
+                        val score = withContext(Dispatchers.Default) { runCatching { d.score(file) }.getOrNull() } ?: 0f
+                        withContext(Dispatchers.IO) { nudityCache.put(file, score) }
+                        if (score >= NudityModel.THRESHOLD) found++
+                        if ((i + 1) % 5 == 0 || i + 1 == todo.size) _state.value = UiState.NudityScan(i + 1, todo.size, found)
+                    }
+                }
+                showReview(if (todo.isEmpty()) "Rien de nouveau à regarder : tout a déjà été vu." else null)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                refresh("La recherche automatique a échoué : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            } finally {
+                detector?.close()
+            }
+        }
+    }
+
+    /** Arrête la recherche en cours et montre ce qui a été trouvé jusque-là (on pourra reprendre sans tout refaire). */
+    fun stopNudityScan() {
+        val job = scanJob
+        viewModelScope.launch {
+            job?.cancelAndJoin()
+            showReview("Recherche arrêtée. Vous pourrez la reprendre : les photos déjà vues ne sont pas refaites.")
+        }
+    }
+
+    fun openReview() {
+        if (place == null) return
+        viewModelScope.launch { showReview() }
+    }
+
+    private suspend fun showReview(message: String? = null, undoCount: Int = 0) {
+        val current = place ?: return
+        val files = withContext(Dispatchers.IO) { currentSuggestions(current) }
+        suggestionCount = files.size
+        _state.value = UiState.Review(files, message, undoCount)
+    }
+
+    /** « Ce n'est pas ça » : ces photos ne sont plus proposées. Elles ne bougent pas. */
+    fun dismissSuggestions(files: List<File>) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { nudityCache.dismiss(files) }
+            showReview("${countText(files.size)} retiré(s) de la liste. Elles n'ont pas bougé.")
+        }
     }
 
     // ---- Mise à jour ---------------------------------------------------------------------------

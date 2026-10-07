@@ -43,6 +43,20 @@ object Thumbs {
         return bitmap
     }
 
+    /** Comme [load], mais sans garder l'image en mémoire : pour parcourir des milliers de photos d'affilée. À recycler par l'appelant. */
+    suspend fun loadUncached(file: File, maxSize: Int): Bitmap? =
+        gate.withPermit {
+            withContext(Dispatchers.IO) {
+                try {
+                    decode(file, maxSize)
+                } catch (e: Exception) {
+                    null
+                } catch (e: OutOfMemoryError) {
+                    null
+                }
+            }
+        }
+
     private fun decode(file: File, maxSize: Int): Bitmap? {
         if (PhotoFiles.isVideo(file)) return videoFrame(file, maxSize)
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
