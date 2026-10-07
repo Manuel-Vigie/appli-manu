@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -402,6 +403,22 @@ private fun HomeScreen(
                         )
                         Text(peopleSummary(state.people), style = MaterialTheme.typography.bodyMedium)
                         SecondaryButton("Gérer mes proches", onPeople)
+                    }
+                }
+            }
+        }
+
+        item {
+            val uriHandler = LocalUriHandler.current
+            Box(Modifier.padding(horizontal = 16.dp)) {
+                SectionCard {
+                    Text("Bibliothèque Photo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "La page web du même auteur : elle trie vos photos par date et les enregistre en ZIP. Elle s'ouvre dans votre navigateur.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    SecondaryButton("Ouvrir Bibliothèque Photo") {
+                        uriHandler.openUri("https://manuel-vigie.github.io/appli-manu/ma-bibliotheque-photo/bibliotheque-photo.html")
                     }
                 }
             }
