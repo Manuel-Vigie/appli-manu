@@ -3,7 +3,6 @@ package fr.rangephotos.ui
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -97,14 +96,8 @@ fun MainScreen(viewModel: MainViewModel) {
         } catch (e: Exception) {
             false
         }
-        if (!opened) {
-            val message = if (intent == null) {
-                "Le dossier « Photos rangées » n'existe pas encore : rangez d'abord vos photos."
-            } else {
-                "Ouvrez l'appli Fichiers, puis Carte SD, puis « Photos rangées »."
-            }
-            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-        }
+        // Dans tous les cas, l'écran d'accueil explique ce qui existe (ou pas) dans le dossier.
+        viewModel.checkSortedFolder(openFailed = intent != null && !opened)
     }
 
     MaterialTheme(colorScheme = RangeColors) {
@@ -182,7 +175,13 @@ private fun StartScreen(
             }
         }
         state.message?.let { message ->
-            item { Text(message, color = MaterialTheme.colorScheme.error) }
+            item {
+                Text(
+                    message,
+                    color = if (state.info) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
         }
         item {
             Card(

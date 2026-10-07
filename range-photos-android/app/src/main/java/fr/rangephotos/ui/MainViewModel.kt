@@ -18,6 +18,7 @@ import fr.rangephotos.people.FaceMatching
 import fr.rangephotos.people.PeopleStore
 import fr.rangephotos.people.PeopleSync
 import fr.rangephotos.scan.PhotoScanner
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -25,13 +26,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /** Un groupe de visages qui se ressemblent : probablement une même personne, à nommer. */
 class ClusterUi(val id: Int, val photos: Int, val thumbs: List<ByteArray>)
 
 sealed interface UiState {
-    data class Start(val hasUndo: Boolean, val message: String? = null, val people: List<String> = emptyList(), val lastFolder: String? = null) : UiState
+    data class Start(val hasUndo: Boolean, val message: String? = null, val people: List<String> = emptyList(), val lastFolder: String? = null, val info: Boolean = false) : UiState
 
     /** [total] = 0 signifie « durée inconnue » (barre de progression indéterminée). */
     data class Working(val label: String, val done: Int, val total: Int) : UiState
@@ -106,8 +108,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }.getOrNull() ?: "dernier dossier"
     }
 
-    private fun start(message: String? = null) =
-        UiState.Start(hasUndo(), message, store.people.map { it.name }, runCatching { lastFolderName() }.getOrNull())
+    private fun start(message: String? = null, info: Boolean = false) =
+        UiState.Start(hasUndo(), message, store.people.map { it.name }, runCatching { lastFolderName() }.getOrNull(), info)
 
     /** Relance la recherche sur le même dossier (nouvelles photos ajoutées depuis). */
     fun rescan() {
@@ -134,6 +136,33 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         return Intent(Intent.ACTION_VIEW)
             .setDataAndType(documentUri, android.provider.DocumentsContract.Document.MIME_TYPE_DIR)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+
+    /** Dit clairement où en est le dossier « Photos rangées » (existe ? combien de photos ?). */
+    fun checkSortedFolder(openFailed: Boolean) {
+        viewModelScope.launch {
+            val root = lastRoot()
+            val name = lastFolderName()
+            val text = if (root == null || name == null) {
+                "L'appli ne se souvient pas du dossier. Touchez « Tout reclasser » ou « Choisir un autre dossier » pour le choisir de nouveau."
+            } else {
+                val exists = withContext(Dispatchers.IO) {
+                    runCatching {
+                        androidx.documentfile.provider.DocumentFile.fromTreeUri(getApplication(), root)
+                            ?.findFile(Organizer.OUTPUT_DIR)?.isDirectory == true
+                    }.getOrDefault(false)
+                }
+                if (!exists) {
+                    "Il n'y a pas de dossier « ${Organizer.OUTPUT_DIR} » dans « $name » : aucune photo n'a encore été rangée ici. " +
+                        "Si vous avez rangé ailleurs, choisissez ce dossier-là."
+                } else {
+                    val count = runCatching { scanner.countAlreadySorted(root) }.getOrDefault(0)
+                    "Le dossier « ${Organizer.OUTPUT_DIR} » existe dans « $name » et contient $count photos." +
+                        if (openFailed) " Ouvrez l'appli Fichiers, puis « $name », puis « ${Organizer.OUTPUT_DIR} »." else ""
+                }
+            }
+            _state.value = start(text, info = true)
+        }
     }
 
     /** Le prochain dossier choisi sera analysé en entier (reclassement complet). */
