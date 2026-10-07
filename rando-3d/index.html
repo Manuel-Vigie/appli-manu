@@ -3866,9 +3866,14 @@ function filmLabelDraw(x,W,H,k,m,labs,o){
     boxes.push(bb);
     const ap=Math.min(1,a),sc=ap>=1?1:Math.max(.01,fBack(ap)),al=Math.min(1,a*2.2);
     x.globalAlpha=al;
-    // point discret + petit trait vers la bulle
-    x.strokeStyle='rgba(255,255,255,.85)';x.lineWidth=1.4*k;x.beginPath();x.moveTo(px,py);x.lineTo(side>0?bx:bx+w,by+h/2);x.stroke();
-    x.fillStyle='#7cc4f2';x.strokeStyle='#fff';x.lineWidth=1.8*k;x.beginPath();x.arc(px,py,2.8*u,0,7);x.fill();x.stroke();
+    // trait bien visible (liseré sombre + trait blanc) entre le lieu et la bulle, puis point sur le lieu
+    const ex=side>0?bx:bx+w,ey=by+h/2;
+    x.save();x.translate(px,py);x.scale(sc,sc);x.translate(-px,-py);x.globalAlpha=al;x.lineCap='round';
+    x.strokeStyle='rgba(8,30,50,.55)';x.lineWidth=4.2*k;x.beginPath();x.moveTo(px,py);x.lineTo(ex,ey);x.stroke();
+    x.strokeStyle='#ffffff';x.lineWidth=2.2*k;x.beginPath();x.moveTo(px,py);x.lineTo(ex,ey);x.stroke();
+    x.restore();
+    x.globalAlpha=al;
+    x.fillStyle='#4aa8ee';x.strokeStyle='#fff';x.lineWidth=2.4*k;x.beginPath();x.arc(px,py,4*u,0,7);x.fill();x.stroke();
     x.save();x.translate(px,py);x.scale(sc,sc);x.translate(-px,-py);
     x.globalAlpha=al;
     x.shadowColor='rgba(0,0,0,.2)';x.shadowBlur=5*k;
@@ -4243,7 +4248,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V42", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : les étiquettes restent affichées une fois apparues, un peu décollées du lieu (petit trait) pour bien voir le tracé, et légèrement plus grosses.", "Film : étiquettes plus petites, bleu ciel transparent, posées sur le côté du parcours (jamais dessus) pour ne pas gêner la lecture du tracé.", "Film : étiquettes simplifiées — juste des bulles claires avec le nom (bleu clair pour villes et lacs, vert clair pour le départ, jaune pour le sommet…), sans émoticônes.", "Film : étiquettes plus jolies, style Relive — cartes blanches avec pastille-icône (🚩 départ, ⛰️ sommet, 🏁 arrivée, 🏠 refuge, 💧 lac…), qui apparaissent avec un petit rebond, et un point qui pulse sur la carte."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V43", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : un trait bien visible (blanc avec liseré sombre) relie chaque bulle à l'emplacement exact du lieu, marqué par un point bleu.", "Film : les étiquettes restent affichées une fois apparues, un peu décollées du lieu (petit trait) pour bien voir le tracé, et légèrement plus grosses.", "Film : étiquettes plus petites, bleu ciel transparent, posées sur le côté du parcours (jamais dessus) pour ne pas gêner la lecture du tracé.", "Film : étiquettes simplifiées — juste des bulles claires avec le nom (bleu clair pour villes et lacs, vert clair pour le départ, jaune pour le sommet…), sans émoticônes."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
