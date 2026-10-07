@@ -1,17 +1,17 @@
 {
   "nom": "Bibliothèque Photo",
-  "version": "V6",
+  "version": "V7",
   "date": "07/10/2026",
   "nouveautes": [
+    "Enregistrement en plusieurs petits ZIP (parties), qui marche même avec des milliers de photos : plus de ZIP bloqué ou presque vide.",
     "Miniatures plus fiables et affichage du nombre de photos reçues du téléphone.",
     "Un fichier illisible ne bloque plus le rangement ni le ZIP, et le ZIP indique combien de photos il contient.",
-    "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser.",
-    "Appli installable sur le téléphone (icône, mode hors connexion)."
+    "Nouveau classement « Randonnées + date » : les sorties sont repérées grâce à la position GPS des photos."
   ],
   "cache": "biblio-photo-",
   "sw": {
     "fichier": "bibliotheque-sw.js",
-    "cache": "biblio-photo-V6"
+    "cache": "biblio-photo-V7"
   },
   "fichiers": [
     "bibliotheque-photo.html"

@@ -169,6 +169,14 @@ details.group[open] > summary::after { transform: rotate(45deg); }
 .bar-stats { flex: 1 1 100px; min-width: 0; margin: 0; white-space: nowrap; font: 500 13px var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
 .bar-row .btn { flex: 1 1 170px; }
 progress { width: 100%; height: 6px; accent-color: var(--accent); }
+.parts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.parts li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
+.parts li.ok { background: var(--tile); }
+.ptxt { flex: 1 1 150px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ptxt b { font-family: var(--font-display); font-weight: 500; }
+.ptxt small { font: 400 12.5px var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.ptxt small.err { color: var(--danger); }
+.parts .btn { flex: 0 1 auto; min-width: 120px; }
 .msg { margin: 0; font-size: 14px; min-height: 1.3em; }
 .msg.err { color: var(--danger); }
 @media (prefers-reduced-motion: reduce) { details.group > summary::after { transition: none; } }
@@ -234,13 +242,19 @@ progress { width: 100%; height: 6px; accent-color: var(--accent); }
     <h2 id="h-fold"><span class="n">3</span> Vos dossiers</h2>
     <div class="folders" id="groups"></div>
   </section>
+
+  <section class="card" id="step4" aria-labelledby="h-save" hidden>
+    <h2 id="h-save"><span class="n">4</span> Enregistrez vos dossiers</h2>
+    <p class="tip" id="partsTip"></p>
+    <ol class="parts" id="parts"></ol>
+  </section>
 </div>
 
 <div class="bar" id="bar" hidden>
   <div class="bar-in">
     <div class="bar-row">
       <p class="bar-stats" id="barStats"></p>
-      <button class="btn amber" id="exportAll" type="button">Tout enregistrer en ZIP</button>
+      <button class="btn amber" id="exportAll" type="button">Enregistrer en ZIP</button>
     </div>
     <progress id="prog" max="1" value="0" hidden></progress>
     <p class="msg" id="msg" aria-live="polite"></p>
@@ -510,7 +524,10 @@ async function buildZip(entries, onProgress) {
   for (const e of entries) {
     let crc;
     try { crc = await crcOfFile(e.file, n => { done += n; if (onProgress) onProgress(total ? done / total : 1); }); }
-    catch (err) { ignores.push(e.file.name); continue; }
+    catch (err) {
+      try { crc = await crcOfFile(e.file); } /* deuxième essai avant d'abandonner ce fichier */
+      catch (err2) { ignores.push(e.file.name); continue; }
+    }
     const key = e.file.size + ":" + crc;
     let path = e.path;
     if (seen.has(key)) path = "Doublons/" + e.file.name; else seen.add(key);
@@ -702,7 +719,7 @@ function render() {
     more.addEventListener("click", () => showMore(g, grid, more));
     const exp = document.createElement("button"); exp.className = "btn small primary"; exp.type = "button";
     exp.textContent = "Enregistrer ce dossier en ZIP"; exp.dataset.export = "1"; exp.disabled = busy;
-    exp.addEventListener("click", () => exportGroups([g], "Bibliotheque-" + g.segs.join("-").replace(/\s+/g, "") + ".zip"));
+    exp.addEventListener("click", () => exportGroup(g));
     body.append(grid, more, exp);
     d.append(s, body);
     d.addEventListener("toggle", () => { if (d.open && g.shown === 0) showMore(g, grid, more); });
@@ -729,6 +746,8 @@ function render() {
   $("barStats").textContent = items.length + " fichier" + (items.length > 1 ? "s" : "") + " · " + fmtSize(size);
   $("step2").hidden = !items.length;
   $("step3").hidden = !items.length;
+  $("step4").hidden = !items.length;
+  planParts(); renderParts();
   $("bar").hidden = !items.length;
   $("clear").hidden = !items.length;
   $("tip").hidden = items.length > 0;
@@ -737,8 +756,11 @@ function render() {
 }
 
 function refreshButtons() {
-  $("exportAll").disabled = busy || !items.length;
-  document.querySelectorAll("[data-export]").forEach(b => { b.disabled = busy; });
+  const n = parts.length, nx = nextPart();
+  const b = $("exportAll");
+  b.disabled = busy || !items.length || nx < 0;
+  b.textContent = !n ? "Enregistrer en ZIP" : nx < 0 ? "Tout est enregistré ✓" : n === 1 ? "Enregistrer en ZIP" : "Enregistrer la partie " + (nx + 1) + " sur " + n;
+  document.querySelectorAll("[data-export]").forEach(x => { x.disabled = busy; });
   $("pick").disabled = busy; $("browse").disabled = busy; $("clear").disabled = busy;
 }
 
@@ -747,28 +769,128 @@ async function save(blob, filename) {
   const a = document.createElement("a");
   a.href = u; a.download = filename;
   document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(u), 120000);
+  setTimeout(() => URL.revokeObjectURL(u), 600000);
 }
 
-async function exportGroups(list, filename) {
-  if (busy) return;
-  const entries = [];
-  for (const g of list) for (const it of g.items) entries.push({ path: g.segs.join("/") + "/" + it.file.name, file: it.file, date: it.date });
+// ---- Enregistrement en plusieurs ZIP -------------------------------------------------------
+// Un seul ZIP de plusieurs milliers de photos dépasse ce qu'un téléphone peut fabriquer : on
+// découpe en parties de taille raisonnable, enregistrées l'une après l'autre. Les dossiers
+// restent entiers dans une même partie tant que c'est possible.
+const PART_BYTES = 500e6, PART_FILES = 250;
+let parts = [];
+const pad = (n, w) => String(n).padStart(w || 2, "0");
+
+function planParts() {
+  parts = [];
+  let cur = null;
+  const add = (g, list) => {
+    for (const it of list) {
+      if (!cur) { cur = { entries: [], bytes: 0, state: "", saved: 0, ignored: 0 }; parts.push(cur); }
+      cur.entries.push({ path: g.segs.join("/") + "/" + it.file.name, file: it.file, date: it.date });
+      cur.bytes += it.file.size;
+    }
+  };
+  for (const g of groups) {
+    const gb = g.items.reduce((a, i) => a + i.file.size, 0), gn = g.items.length;
+    const fits = p => p && p.entries.length + gn <= PART_FILES && p.bytes + gb <= PART_BYTES;
+    if (fits(cur)) { add(g, g.items); continue; }
+    // un dossier un peu plus gros que la limite reste entier dans sa propre partie
+    if (gn <= PART_FILES * 1.5 && gb <= PART_BYTES * 1.5) { cur = null; add(g, g.items); continue; }
+    // dossier très gros : coupé en morceaux de taille égale
+    const k = Math.ceil(Math.max(gn / PART_FILES, gb / PART_BYTES));
+    const cible = gb / k;
+    cur = null;
+    let n = 0;
+    for (const it of g.items) {
+      if (cur && n < k - 1 && cur.bytes >= cible) cur = null, n++;
+      add(g, [it]);
+    }
+    cur = null;
+  }
+}
+const nextPart = () => parts.findIndex(p => p.state !== "ok" && p.state !== "partiel");
+
+function renderParts() {
+  const ol = $("parts");
+  ol.textContent = "";
+  const n = parts.length;
+  $("partsTip").textContent = n > 1
+    ? "Pour que l'enregistrement marche même avec des milliers de photos, vos dossiers sont répartis en " + n +
+      " ZIP. Touchez « Enregistrer » pour chaque partie, l'une après l'autre. Ensuite, dans l'application Fichiers, ouvrez chaque ZIP et touchez « Extraire »."
+    : "Touchez « Enregistrer », puis ouvrez le ZIP avec l'application Fichiers et touchez « Extraire ».";
+  parts.forEach((p, i) => {
+    const li = document.createElement("li");
+    li.className = p.state === "ok" || p.state === "partiel" ? "ok" : "";
+    const t = document.createElement("span"); t.className = "ptxt";
+    const b = document.createElement("b"); b.textContent = n > 1 ? "Partie " + (i + 1) + " sur " + n : "Votre ZIP";
+    const sm = document.createElement("small");
+    let txt = plural(p.entries.length, "fichier", "fichiers") + " · " + fmtSize(p.bytes);
+    if (p.state === "ok") txt += " · ✓ " + plural(p.saved, "fichier enregistré", "fichiers enregistrés");
+    if (p.state === "partiel") { txt += " · " + p.saved + " sur " + p.entries.length + " enregistrés, " + plural(p.ignored, "illisible", "illisibles"); sm.className = "err"; }
+    if (p.state === "erreur") { txt += " · l'enregistrement a échoué, réessayez"; sm.className = "err"; }
+    sm.textContent = txt;
+    t.append(b, sm);
+    const btn = document.createElement("button");
+    btn.type = "button"; btn.className = "btn small" + (p.state ? "" : " primary"); btn.dataset.export = "1"; btn.disabled = busy;
+    btn.textContent = p.state === "ok" || p.state === "partiel" ? "Refaire" : "Enregistrer";
+    btn.addEventListener("click", () => savePart(i));
+    li.append(t, btn);
+    ol.appendChild(li);
+  });
+}
+
+async function makeZipFile(entries, filename) {
   busy = true; refreshButtons();
   $("prog").hidden = false; $("prog").value = 0;
-  setMsg("Préparation du ZIP…");
   try {
     const zip = await buildZip(entries, p => { $("prog").value = p; });
     if (!zip.nbFichiers) throw new Error("vide");
     await save(zip, filename);
-    let t = "ZIP prêt : " + plural(zip.nbFichiers, "fichier rangé", "fichiers rangés") + " sur " + entries.length + ". Il est dans vos Téléchargements : ouvrez-le avec l'application Fichiers pour extraire les dossiers.";
-    if (zip.ignores.length) t += " " + plural(zip.ignores.length, "fichier illisible n'a pas été mis", "fichiers illisibles n'ont pas été mis") + " dedans.";
-    setMsg(t, zip.ignores.length > 0);
-  } catch (e) {
-    if (e && e.message === "trop_gros") setMsg("Trop de données pour un seul ZIP. Enregistrez les dossiers un par un.", true);
-    else setMsg("L'enregistrement a échoué. Essayez avec un seul dossier.", true);
+    return zip;
   } finally {
-    busy = false; $("prog").hidden = true; refreshButtons();
+    busy = false; $("prog").hidden = true;
+  }
+}
+
+async function savePart(i) {
+  if (busy) return;
+  const p = parts[i], n = parts.length;
+  setMsg("Préparation " + (n > 1 ? "de la partie " + (i + 1) + " sur " + n : "du ZIP") + "… patientez, ne quittez pas la page.");
+  try {
+    const name = n > 1 ? "Bibliotheque-Photo-partie-" + pad(i + 1) + "-sur-" + pad(n) + ".zip" : "Bibliotheque-Photo.zip";
+    const zip = await makeZipFile(p.entries, name);
+    p.saved = zip.nbFichiers; p.ignored = zip.ignores.length;
+    p.state = p.ignored ? "partiel" : "ok";
+  } catch (e) {
+    p.state = "erreur";
+    setMsg(e && e.message === "trop_gros" ? "Cette partie est trop grosse pour le téléphone." : "L'enregistrement a échoué : réessayez cette partie.", true);
+    renderParts(); refreshButtons();
+    return;
+  }
+  renderParts(); refreshButtons();
+  const nx = nextPart();
+  const saved = parts.reduce((a, x) => a + x.saved, 0), total = parts.reduce((a, x) => a + x.entries.length, 0);
+  if (nx < 0) setMsg("Terminé : " + saved + " fichiers enregistrés sur " + total + " dans " + plural(n, "ZIP", "ZIP") +
+    (n > 1 ? ". Ouvrez-les" : ". Ouvrez-le") + " avec l'application Fichiers pour extraire les dossiers." + (saved < total ? " " + (total - saved) + " fichiers illisibles n'ont pas pu être mis." : ""), saved < total);
+  else setMsg((n > 1 ? "Partie " + (i + 1) + " sur " + n + " enregistrée" : "ZIP prêt") + " (" + plural(p.saved, "fichier", "fichiers") +
+    "). Il reste " + plural(parts.filter(x => x.state !== "ok" && x.state !== "partiel").length, "partie", "parties") + " : touchez le bouton orange.", !!p.ignored);
+}
+
+// Un seul dossier en ZIP (bouton dans chaque dossier)
+async function exportGroup(g) {
+  if (busy) return;
+  const bytes = g.items.reduce((a, i) => a + i.file.size, 0);
+  if (bytes > 1e9 || g.items.length > 600) { setMsg("Ce dossier est trop gros pour un seul ZIP : utilisez les parties de l'étape 4.", true); return; }
+  setMsg("Préparation du ZIP…");
+  try {
+    const entries = g.items.map(it => ({ path: g.segs.join("/") + "/" + it.file.name, file: it.file, date: it.date }));
+    const zip = await makeZipFile(entries, "Bibliotheque-" + g.segs.join("-").replace(/\s+/g, "") + ".zip");
+    setMsg("ZIP prêt : " + plural(zip.nbFichiers, "fichier rangé", "fichiers rangés") + " sur " + entries.length + ". Il est dans vos Téléchargements." +
+      (zip.ignores.length ? " " + plural(zip.ignores.length, "fichier illisible n'a pas été mis", "fichiers illisibles n'ont pas été mis") + " dedans." : ""), zip.ignores.length > 0);
+  } catch (e) {
+    setMsg("L'enregistrement a échoué. Réessayez.", true);
+  } finally {
+    refreshButtons();
   }
 }
 
@@ -823,7 +945,7 @@ for (const id of ["files", "files2"]) {
 }
 $("clear").addEventListener("click", clearAll);
 document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener("change", () => { if (items.length) render(); }));
-$("exportAll").addEventListener("click", () => exportGroups(groups, "Bibliotheque-Photo.zip"));
+$("exportAll").addEventListener("click", () => { const i = nextPart(); if (i >= 0) savePart(i); });
 
 // Glisser-déposer (ordinateur)
 window.addEventListener("dragover", e => { e.preventDefault(); $("pick").classList.add("dragover"); });
@@ -863,7 +985,7 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
 #maj-pastille{top:calc(24px + env(safe-area-inset-top,0px));right:24px}
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Bibliothèque Photo", "version": "V6", "date": "07/10/2026", "cache": "biblio-photo-", "nouveautes": ["Miniatures plus fiables et affichage du nombre de photos reçues du téléphone.", "Un fichier illisible ne bloque plus le rangement ni le ZIP, et le ZIP indique combien de photos il contient.", "Nouveau classement « Randonnées + date » : les sorties sont repérées grâce à la position GPS des photos.", "Pastille de mise à jour en haut à droite : version, date et bouton Actualiser."]};
+window.MAJ_APPLI={"nom": "Bibliothèque Photo", "version": "V7", "date": "07/10/2026", "cache": "biblio-photo-", "nouveautes": ["Enregistrement en plusieurs petits ZIP (parties), qui marche même avec des milliers de photos : plus de ZIP bloqué ou presque vide.", "Miniatures plus fiables et affichage du nombre de photos reçues du téléphone.", "Un fichier illisible ne bloque plus le rangement ni le ZIP, et le ZIP indique combien de photos il contient.", "Nouveau classement « Randonnées + date » : les sorties sont repérées grâce à la position GPS des photos."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
