@@ -120,6 +120,21 @@ h2 { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; mar
 .btn.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
 .btn.amber { background: var(--amber); color: var(--on-amber); border-color: transparent; }
 .btn.small { min-height: 42px; font-size: 15px; }
+.oldtool > summary { cursor: pointer; font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; min-height: 44px; display: flex; align-items: center; }
+.oldtool[open] > summary { margin-bottom: 14px; }
+.old-body { display: flex; flex-direction: column; gap: 16px; }
+.old-body .card { box-shadow: none; background: transparent; padding: 14px; border: 1px solid var(--line); }
+.aide > summary { cursor: pointer; color: var(--accent); font-size: 14px; min-height: 36px; display: flex; align-items: center; }
+.vr-folder { border-top: 1px solid var(--line); }
+.vr-folder > summary { list-style: none; display: flex; flex-direction: column; gap: 8px; padding: 12px 0; cursor: pointer; }
+.vr-folder > summary::-webkit-details-marker { display: none; }
+.vr-ft { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.vr-fn { font-family: var(--font-display); font-weight: 500; font-size: 1.02rem; overflow-wrap: anywhere; }
+.vr-folder[open] .vr-fn { color: var(--accent); }
+.vr-fc { flex: none; font: 500 12.5px var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.vr-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; min-height: 50px; }
+.vr-strip .thumb { border-radius: 6px; }
+.vr-fbody { display: flex; flex-direction: column; gap: 12px; padding-bottom: 14px; }
 .linkbtn { display: inline-flex; align-items: center; justify-content: center; text-align: center; text-decoration: none; }
 .sd { border-left: 5px solid var(--k-rando); }
 .btn:disabled, .drop:disabled { opacity: .45; cursor: default; }
@@ -244,6 +259,47 @@ progress { width: 100%; height: 6px; accent-color: var(--accent); }
     </svg>
   </header>
 
+  <section class="card" aria-labelledby="h-vr">
+    <h2 id="h-vr">Mes photos rangées</h2>
+    <p class="tip">Choisissez le dossier « Photos rangées » créé par Range Photos. Rien n'est modifié ni envoyé : c'est seulement pour regarder.</p>
+    <details class="aide"><summary>Si rien ne s'affiche</summary><p class="tip">Si votre dossier est très gros (des milliers de photos), ajoutez-le par morceaux : un sous-dossier à la fois (une année, puis une autre…). Ils s'additionnent.</p></details>
+    <input type="file" id="vrDir" webkitdirectory multiple hidden>
+    <input type="file" id="vrFiles" multiple hidden>
+    <div class="row">
+      <button class="btn primary" id="vrPick" type="button">Choisir le dossier rangé</button>
+      <button class="btn" id="vrPickFiles" type="button">Ou choisir des fichiers</button>
+    </div>
+    <p class="msg" id="vrMsg" aria-live="polite"></p>
+    <div id="vrView" hidden>
+      <div class="row">
+        <button class="btn small primary" id="vrModeOver" type="button">Aperçu des dossiers</button>
+        <button class="btn small" id="vrModeAll" type="button">Tout voir</button>
+        <button class="btn small" id="vrModeDirs" type="button" hidden>Par dossiers</button>
+        <button class="btn small" id="vrClose" type="button">Fermer la vue</button>
+      </div>
+      <div id="vrAllBox">
+        <input type="search" id="vrSearch" class="vr-input" placeholder="Chercher un dossier (ex. Nice, 2026, Verdon, Portraits)" autocomplete="off">
+        <div class="row">
+          <select id="vrType" class="vr-input" aria-label="Type"><option value="all">Photos et vidéos</option><option value="photo">Photos seulement</option><option value="video">Vidéos seulement</option></select>
+          <select id="vrSort" class="vr-input" aria-label="Ordre"><option value="desc">Plus récent d'abord</option><option value="asc">Plus ancien d'abord</option></select>
+        </div>
+        <p class="tip" id="vrAllInfo" aria-live="polite"></p>
+        <div id="vrAll"></div>
+        <button class="btn" id="vrAllMore" type="button" hidden>Afficher plus</button>
+      </div>
+      <div id="vrTree" hidden>
+        <p class="vr-path" id="vrPath"></p>
+        <div class="row"><button class="btn small" id="vrUp" type="button">⬆ Dossier parent</button></div>
+        <div class="vr-list" id="vrDirs"></div>
+        <div class="grid" id="vrGrid"></div>
+        <button class="btn" id="vrMore" type="button" hidden>Afficher plus</button>
+      </div>
+    </div>
+  </section>
+
+  <details class="card oldtool" id="oldTool">
+    <summary>Trier d'autres photos en ZIP (ancien outil)</summary>
+    <div class="old-body">
   <section class="card" aria-labelledby="h-add">
     <h2 id="h-add"><span class="n">1</span> Ajoutez vos photos</h2>
     <button class="drop" id="pick" type="button">
@@ -291,48 +347,9 @@ progress { width: 100%; height: 6px; accent-color: var(--accent); }
     <ol class="parts" id="parts"></ol>
   </section>
 
-  <section class="card" aria-labelledby="h-vr">
-    <h2 id="h-vr">Mes dossiers rangés (Range Photos)</h2>
-    <p class="tip">Retrouvez ici les dossiers créés par l'appli Range Photos : randonnées, journées par ville, portraits, vos dossiers… Appuyez sur le bouton, puis choisissez le dossier de destination (par défaut « Photos rangées »). Si votre dossier est très gros (des milliers de photos) et que rien ne s'affiche, ajoutez-le par morceaux : un sous-dossier à la fois (une année, puis une autre…) ; ils s'additionnent. Les photos ne quittent pas votre téléphone et rien n'est modifié ni supprimé : c'est seulement pour regarder.</p>
-    <input type="file" id="vrDir" webkitdirectory multiple hidden>
-    <input type="file" id="vrFiles" multiple hidden>
-    <div class="row">
-      <button class="btn primary" id="vrPick" type="button">Choisir le dossier rangé</button>
-      <button class="btn" id="vrPickFiles" type="button">Ou choisir des fichiers</button>
     </div>
-    <p class="msg" id="vrMsg" aria-live="polite"></p>
-    <div id="vrView" hidden>
-      <div class="row">
-        <button class="btn small primary" id="vrModeAll" type="button">Tout voir</button>
-        <button class="btn small" id="vrModeDirs" type="button">Par dossiers</button>
-        <button class="btn small" id="vrClose" type="button">Fermer la vue</button>
-      </div>
-      <div id="vrAllBox">
-        <input type="search" id="vrSearch" class="vr-input" placeholder="Chercher un dossier (ex. Nice, 2026, Verdon, Portraits)" autocomplete="off">
-        <div class="row">
-          <select id="vrType" class="vr-input" aria-label="Type"><option value="all">Photos et vidéos</option><option value="photo">Photos seulement</option><option value="video">Vidéos seulement</option></select>
-          <select id="vrSort" class="vr-input" aria-label="Ordre"><option value="desc">Plus récent d'abord</option><option value="asc">Plus ancien d'abord</option></select>
-        </div>
-        <p class="tip" id="vrAllInfo" aria-live="polite"></p>
-        <div id="vrAll"></div>
-        <button class="btn" id="vrAllMore" type="button" hidden>Afficher plus</button>
-      </div>
-      <div id="vrTree" hidden>
-        <p class="vr-path" id="vrPath"></p>
-        <div class="row"><button class="btn small" id="vrUp" type="button">⬆ Dossier parent</button></div>
-        <div class="vr-list" id="vrDirs"></div>
-        <div class="grid" id="vrGrid"></div>
-        <button class="btn" id="vrMore" type="button" hidden>Afficher plus</button>
-      </div>
-    </div>
-  </section>
+  </details>
 
-  <section class="card sd" aria-labelledby="h-sd">
-    <h2 id="h-sd">Ranger directement sur la carte SD</h2>
-    <p class="tip">Cette page prépare des ZIP à extraire, car un site web ne peut pas déplacer les photos lui-même. Si vous voulez qu'elles soient rangées d'elles-mêmes dans des dossiers sur la carte SD (randonnées, portraits de vos proches, captures d'écran, année et mois), installez l'appli Android <b>Range Photos</b>.</p>
-    <a class="btn primary linkbtn" href="https://github.com/Manuel-Vigie/appli-manu/releases" target="_blank" rel="noopener">Télécharger Range Photos</a>
-    <p class="tip">Sur la page qui s'ouvre, touchez <b>RangePhotos.apk</b> dans la dernière version, puis autorisez l'installation si Android le demande.</p>
-  </section>
 </div>
 
 <div class="bar" id="bar" hidden>
@@ -1123,7 +1140,7 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
 
   // ---- « Tout voir » : tous les fichiers reçus, filtrables par nom de dossier et par type ----
   const CHUNK = 96;
-  let entries = [], entryPos = 0, allGrid = null;
+  let entries = [], entryPos = 0, allGrid = null, vrMode = "over", stripObs = null;
 
   function folderPathOf(f) {
     const segs = (f.webkitRelativePath || "").split("/").filter(Boolean);
@@ -1150,6 +1167,13 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
     }
     const keys = [...groups.keys()].sort((a, b) => a.localeCompare(b, "fr", { numeric: true }));
     if (!asc) keys.reverse();
+    if (vrMode === "over") {
+      el("vrAllInfo").textContent = n
+        ? plural(n, "fichier", "fichiers") + " dans " + plural(keys.length, "dossier", "dossiers") + (q ? " (filtre : « " + el("vrSearch").value.trim() + " »). " : ". ") + "Touchez un dossier pour voir toutes ses photos."
+        : "Aucun fichier ne correspond.";
+      drawOverview(keys, groups, asc);
+      return;
+    }
     entries = [];
     for (const k of keys) {
       const list = groups.get(k).sort((a, b) => asc ? a.lastModified - b.lastModified : b.lastModified - a.lastModified);
@@ -1162,6 +1186,62 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
       ? plural(n, "fichier", "fichiers") + " dans " + plural(keys.length, "dossier", "dossiers") + (q ? " (filtre : « " + el("vrSearch").value.trim() + " »)." : ".")
       : "Aucun fichier ne correspond.";
     moreAll();
+  }
+
+  function drawOverview(keys, groups, asc) {
+    const box = el("vrAll");
+    box.textContent = "";
+    el("vrAllMore").hidden = true;
+    if (stripObs) stripObs.disconnect();
+    stripObs = new IntersectionObserver(es => {
+      for (const e of es) if (e.isIntersecting) { stripObs.unobserve(e.target); if (e.target._fill) e.target._fill(); }
+    }, { rootMargin: "300px" });
+    // Les segments communs à tous les dossiers (ex. « Photos rangées ») sont retirés de l'affichage.
+    const split = keys.map(k => k.split(" / "));
+    let common = 0;
+    while (split.length && split.every(a => a.length > common + 1 && a[common] === split[0][common])) common++;
+    for (const k of keys) {
+      const list = groups.get(k).sort((a, b) => asc ? a.lastModified - b.lastModified : b.lastModified - a.lastModified);
+      const d = document.createElement("details"); d.className = "vr-folder";
+      const s = document.createElement("summary");
+      const ft = document.createElement("div"); ft.className = "vr-ft";
+      const nm = document.createElement("span"); nm.className = "vr-fn"; nm.textContent = "📁 " + k.split(" / ").slice(common).join(" / ");
+      const ct = document.createElement("span"); ct.className = "vr-fc"; ct.textContent = plural(list.length, "fichier", "fichiers");
+      ft.append(nm, ct);
+      const strip = document.createElement("div"); strip.className = "vr-strip";
+      strip._fill = () => {
+        const photos = list.filter(f => !VIDEO.test(f.name));
+        const pick = (photos.length ? photos : list).slice(0, 5);
+        for (const f of pick) {
+          const t = document.createElement("div"); t.className = "thumb";
+          t.textContent = VIDEO.test(f.name) ? "VIDÉO" : f.name.split(".").pop().toUpperCase();
+          if (!VIDEO.test(f.name)) makeThumb(f).then(u => {
+            if (!u) return;
+            const img = document.createElement("img"); img.alt = ""; img.src = u;
+            img.onerror = () => img.remove();
+            t.textContent = ""; t.appendChild(img);
+          });
+          strip.appendChild(t);
+        }
+      };
+      s.append(ft, strip);
+      const body = document.createElement("div"); body.className = "vr-fbody";
+      const grid = document.createElement("div"); grid.className = "grid";
+      const more = document.createElement("button"); more.type = "button"; more.className = "btn small"; more.hidden = true;
+      let pos = 0;
+      const next = () => {
+        const part = list.slice(pos, pos + 48); pos += part.length;
+        for (const f of part) grid.appendChild(tile(f));
+        const left = list.length - pos;
+        more.hidden = left <= 0; more.textContent = "Afficher " + Math.min(48, left) + " de plus";
+      };
+      more.addEventListener("click", next);
+      d.addEventListener("toggle", () => { if (d.open && pos === 0) next(); });
+      body.append(grid, more);
+      d.append(s, body);
+      box.appendChild(d);
+      stripObs.observe(strip);
+    }
   }
 
   function moreAll() {
@@ -1185,12 +1265,13 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
   }
 
   function setMode(m) {
-    const all = m === "all";
-    el("vrAllBox").hidden = !all;
-    el("vrTree").hidden = all;
-    el("vrModeAll").className = "btn small" + (all ? " primary" : "");
-    el("vrModeDirs").className = "btn small" + (all ? "" : " primary");
-    if (all) buildAll();
+    vrMode = m;
+    el("vrAllBox").hidden = m === "dirs";
+    el("vrTree").hidden = m !== "dirs";
+    el("vrModeOver").className = "btn small" + (m === "over" ? " primary" : "");
+    el("vrModeAll").className = "btn small" + (m === "all" ? " primary" : "");
+    el("vrModeDirs").className = "btn small" + (m === "dirs" ? " primary" : "");
+    if (m !== "dirs") buildAll();
   }
 
   function more() {
@@ -1239,7 +1320,7 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
     let start = root;
     while (start.files.length === 0 && start.dirs.size === 1) start = [...start.dirs.values()][0];
     show(start);
-    setMode("all");
+    setMode("over");
   }
 
   el("vrPick").addEventListener("click", () => { say("Choisissez le dossier, puis appuyez sur « Importer » si Android le demande…"); el("vrDir").click(); });
@@ -1262,6 +1343,7 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
   el("vrClose").addEventListener("click", () => { root = cur = null; all.length = 0; seen.clear(); el("vrView").hidden = true; el("vrGrid").textContent = ""; say(""); });
   el("vrMore").addEventListener("click", more);
   el("vrAllMore").addEventListener("click", moreAll);
+  el("vrModeOver").addEventListener("click", () => setMode("over"));
   el("vrModeAll").addEventListener("click", () => setMode("all"));
   el("vrModeDirs").addEventListener("click", () => setMode("dirs"));
   let typing = null;
@@ -1301,7 +1383,7 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){addEvent
 #maj-pastille{top:calc(24px + env(safe-area-inset-top,0px));right:24px}
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Bibliothèque Photo", "version": "V13", "date": "07/10/2026", "cache": "biblio-photo-", "nouveautes": ["« Mes dossiers rangés » : bouton « Tout voir » pour afficher toutes les photos et vidéos d'un coup, avec recherche par nom de dossier (Nice, 2026, Verdon…), filtre photos/vidéos et ordre.", "« Mes dossiers rangés » : on peut ajouter plusieurs dossiers l'un après l'autre (pour les très gros dossiers), et le nom du dossier choisi est conservé.", "« Mes dossiers rangés » : messages à chaque étape (dossier reçu, nombre de fichiers, erreurs) pour comprendre s'il y a un problème.", "Nouvelle carte « Mes dossiers rangés » : choisissez le dossier créé par Range Photos et parcourez-le (randonnées, journées par ville, portraits…) avec miniatures, photos en grand et vidéos."]};
+window.MAJ_APPLI={"nom": "Bibliothèque Photo", "version": "V14", "date": "07/10/2026", "cache": "biblio-photo-", "nouveautes": ["Page simplifiée : « Mes photos rangées » en premier, avec un « Aperçu des dossiers » (tous les dossiers d'un coup, cinq photos chacun). L'ancien outil ZIP est replié plus bas.", "Carte « Télécharger Range Photos » retirée.", "« Mes dossiers rangés » : bouton « Tout voir » pour afficher toutes les photos et vidéos d'un coup, avec recherche par nom de dossier (Nice, 2026, Verdon…), filtre photos/vidéos et ordre.", "« Mes dossiers rangés » : on peut ajouter plusieurs dossiers l'un après l'autre (pour les très gros dossiers), et le nom du dossier choisi est conservé."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;

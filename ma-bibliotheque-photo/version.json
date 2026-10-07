@@ -1,17 +1,17 @@
 {
   "nom": "Bibliothèque Photo",
-  "version": "V13",
+  "version": "V14",
   "date": "07/10/2026",
   "nouveautes": [
+    "Page simplifiée : « Mes photos rangées » en premier, avec un « Aperçu des dossiers » (tous les dossiers d'un coup, cinq photos chacun). L'ancien outil ZIP est replié plus bas.",
+    "Carte « Télécharger Range Photos » retirée.",
     "« Mes dossiers rangés » : bouton « Tout voir » pour afficher toutes les photos et vidéos d'un coup, avec recherche par nom de dossier (Nice, 2026, Verdon…), filtre photos/vidéos et ordre.",
-    "« Mes dossiers rangés » : on peut ajouter plusieurs dossiers l'un après l'autre (pour les très gros dossiers), et le nom du dossier choisi est conservé.",
-    "« Mes dossiers rangés » : messages à chaque étape (dossier reçu, nombre de fichiers, erreurs) pour comprendre s'il y a un problème.",
-    "Nouvelle carte « Mes dossiers rangés » : choisissez le dossier créé par Range Photos et parcourez-le (randonnées, journées par ville, portraits…) avec miniatures, photos en grand et vidéos."
+    "« Mes dossiers rangés » : on peut ajouter plusieurs dossiers l'un après l'autre (pour les très gros dossiers), et le nom du dossier choisi est conservé."
   ],
   "cache": "biblio-photo-",
   "sw": {
     "fichier": "bibliotheque-sw.js",
-    "cache": "biblio-photo-V13"
+    "cache": "biblio-photo-V14"
   },
   "fichiers": [
     "bibliotheque-photo.html"
