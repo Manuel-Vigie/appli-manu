@@ -1,11 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V1",
+  "version": "V2",
   "date": "07/10/2026",
   "nouveautes": [
-    "Nouvelle appli simple : un bouton pour ranger la carte SD par date, un bouton pour regarder les photos.",
-    "Ordre : un petit test sur 10 photos, puis tout, puis une vérification complète.",
-    "Les photos sans date fiable vont à part dans « Date incertaine »."
+    "Nouveau look : couleurs plus douces, bandeau en dégradé, mode sombre.",
+    "Choix multiple : touchez « Choisir » dans la galerie pour sélectionner des photos ou des dossiers entiers.",
+    "Corbeille sûre : rien n'est effacé tout de suite, on peut tout remettre à sa place.",
+    "Un bouton corbeille aussi dans la visionneuse, pour une seule photo."
   ],
   "pastille": false,
   "fichiers": []

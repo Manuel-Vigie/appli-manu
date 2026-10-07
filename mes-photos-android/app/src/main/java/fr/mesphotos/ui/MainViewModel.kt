@@ -13,6 +13,8 @@ import fr.mesphotos.logic.Planner
 import fr.mesphotos.model.PhotoInfo
 import fr.mesphotos.organize.FolderCleanup
 import fr.mesphotos.organize.Organizer
+import fr.mesphotos.organize.Trash
+import fr.mesphotos.organize.TrashEntry
 import fr.mesphotos.organize.Verifier
 import fr.mesphotos.scan.PhotoScanner
 import fr.mesphotos.storage.Access
@@ -42,6 +44,8 @@ sealed interface UiState {
         val hasUndo: Boolean,
         val notice: String? = null,
         val noticeIsError: Boolean = false,
+        /** Nombre de photos et vidéos à la corbeille. */
+        val trashCount: Int = 0,
     ) : UiState
 
     /** [total] = 0 : durée inconnue. */
@@ -71,7 +75,17 @@ sealed interface UiState {
     data class CleanConfirm(val folders: List<String>) : UiState
 
     /** Galerie : un dossier de « Photos rangées ». */
-    data class Browse(val path: List<String>, val folders: List<FolderItem>, val files: List<File>, val message: String? = null) : UiState
+    data class Browse(
+        val path: List<String>,
+        val folders: List<FolderItem>,
+        val files: List<File>,
+        val message: String? = null,
+        /** Nombre de fichiers qu'on vient de mettre à la corbeille et qu'on peut remettre d'un geste (0 = rien). */
+        val undoTrash: Int = 0,
+    ) : UiState
+
+    /** La corbeille : ce qui a été mis de côté, à remettre ou à supprimer pour de bon. */
+    data class TrashView(val entries: List<TrashEntry>, val message: String? = null) : UiState
 
     /** Visionneuse plein écran. */
     data class Viewer(val path: List<String>, val files: List<File>, val index: Int) : UiState
@@ -105,6 +119,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var remainingMoves: List<PlannedMove> = emptyList()
     private var run = RunState()
     private var browsePath: List<String> = emptyList()
+    private var trashCount = 0
+    private var lastTrashed: List<TrashEntry> = emptyList()
 
     // Mise à jour
     var updateMessage: String? = null
@@ -121,6 +137,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun hasUndo() = journal.exists() && journal.length() > 0
 
+    private fun trashOf(p: Place) = Trash(p.outputDir) { paths ->
+        // Prévient la galerie du téléphone : les photos disparaissent (ou reviennent) à leur place.
+        MediaScannerConnection.scanFile(getApplication(), paths.toTypedArray(), null, null)
+    }
+
     // ---- Accueil -------------------------------------------------------------------------------
 
     fun refresh(newNotice: String? = null, isError: Boolean = false) {
@@ -132,7 +153,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         publishHome(access)
         val current = place ?: return
         viewModelScope.launch {
-            val found = withContext(Dispatchers.IO) { runCatching { scanner.counts(current) }.getOrDefault(0 to 0) }
+            val found = withContext(Dispatchers.IO) {
+                trashCount = runCatching { trashOf(current).count() }.getOrDefault(0)
+                runCatching { scanner.counts(current) }.getOrDefault(0 to 0)
+            }
             counts = found
             if (_state.value is UiState.Home) publishHome(true)
         }
@@ -147,6 +171,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             hasUndo = hasUndo(),
             notice = notice,
             noticeIsError = noticeIsError,
+            trashCount = trashCount,
         )
     }
 
@@ -403,17 +428,32 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun openGallery() = browse(emptyList())
 
     fun browse(path: List<String>) {
-        val current = place ?: return
-        browsePath = path
+        if (place == null) return
         viewModelScope.launch {
             _state.value = UiState.Working("Ouverture…", 0, 0)
-            val listing = withContext(Dispatchers.IO) { Gallery.list(current.outputDir, path) }
-            val empty = listing.folders.isEmpty() && listing.files.isEmpty()
-            _state.value = UiState.Browse(
-                path, listing.folders, listing.files,
-                message = if (empty && path.isEmpty()) "Rien à voir pour l'instant : rangez d'abord vos photos." else null,
-            )
+            showBrowse(path)
         }
+    }
+
+    /**
+     * Affiche un dossier de la galerie. Si le dossier est (devenu) vide, on remonte au premier dossier qui contient
+     * encore quelque chose. [undoCount] : combien de fichiers on peut remettre d'un geste (bouton « Annuler »).
+     */
+    private suspend fun showBrowse(startPath: List<String>, message: String? = null, undoCount: Int = 0) {
+        val current = place ?: return
+        var path = startPath
+        var listing = withContext(Dispatchers.IO) { Gallery.list(current.outputDir, path) }
+        while (path.isNotEmpty() && listing.folders.isEmpty() && listing.files.isEmpty()) {
+            path = path.dropLast(1)
+            listing = withContext(Dispatchers.IO) { Gallery.list(current.outputDir, path) }
+        }
+        browsePath = path
+        val empty = listing.folders.isEmpty() && listing.files.isEmpty()
+        _state.value = UiState.Browse(
+            path, listing.folders, listing.files,
+            message = message ?: if (empty && path.isEmpty()) "Rien à voir pour l'instant : rangez d'abord vos photos." else null,
+            undoTrash = undoCount,
+        )
     }
 
     fun browseInto(name: String) = browse(browsePath + name)
@@ -428,6 +468,113 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun closeViewer() = browse(browsePath)
+
+    // ---- Corbeille -----------------------------------------------------------------------------
+
+    /**
+     * Met à la corbeille les photos [files] et tout le contenu des dossiers [folderNames] (du dossier qu'on regarde).
+     * Rien n'est effacé : c'est un déplacement vérifié, qu'on peut annuler tout de suite ou plus tard.
+     */
+    fun trashSelection(folderNames: Set<String>, files: List<File>) {
+        val current = place ?: return
+        val base = browsePath
+        viewModelScope.launch {
+            try {
+                _state.value = UiState.Working("Mise à la corbeille…", 0, 0)
+                val result = withContext(Dispatchers.IO) {
+                    val parent = base.fold(current.outputDir) { acc, name -> File(acc, name) }
+                    val all = LinkedHashSet<File>(files)
+                    folderNames.forEach { name -> all += Gallery.media(File(parent, name)) }
+                    trashOf(current).moveToTrash(all.toList()) { done, total ->
+                        if (done % 10 == 0 || done == total) _state.value = UiState.Working("Mise à la corbeille…", done, total)
+                    }
+                }
+                lastTrashed = result.entries
+                trashCount = withContext(Dispatchers.IO) { runCatching { trashOf(current).count() }.getOrDefault(trashCount) }
+                val lines = ArrayList<String>()
+                lines += if (result.done == 0) "Rien n'a été mis à la corbeille."
+                else "${countText(result.done)} à la corbeille. Rien n'est effacé : vous pouvez les remettre."
+                if (result.failed > 0) lines += "${result.failed} fichier(s) n'ont pas pu être déplacés et sont restés en place."
+                result.failures.take(2).forEach { lines += it }
+                showBrowse(base, message = lines.joinToString("\n"), undoCount = result.done)
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
+    /** Remet ce qu'on vient de mettre à la corbeille (bouton « Annuler » de la galerie). */
+    fun undoTrash() {
+        val current = place ?: return
+        val items = lastTrashed
+        val base = browsePath
+        viewModelScope.launch {
+            try {
+                _state.value = UiState.Working("Remise en place…", 0, 0)
+                val result = withContext(Dispatchers.IO) { trashOf(current).restore(items) }
+                lastTrashed = emptyList()
+                trashCount = withContext(Dispatchers.IO) { runCatching { trashOf(current).count() }.getOrDefault(trashCount) }
+                var text = "${countText(result.done)} remis à leur place."
+                if (result.failed > 0) text += "\n${result.failed} fichier(s) n'ont pas pu être remis (ils sont toujours à la corbeille)."
+                showBrowse(base, message = text)
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
+    fun openTrash(message: String? = null) {
+        val current = place ?: return
+        viewModelScope.launch {
+            _state.value = UiState.Working("Ouverture de la corbeille…", 0, 0)
+            val entries = withContext(Dispatchers.IO) { trashOf(current).entries() }
+            trashCount = entries.size
+            _state.value = UiState.TrashView(entries, message)
+        }
+    }
+
+    fun restoreFromTrash(items: List<TrashEntry>) {
+        val current = place ?: return
+        viewModelScope.launch {
+            try {
+                _state.value = UiState.Working("Remise en place…", 0, 0)
+                val result = withContext(Dispatchers.IO) {
+                    trashOf(current).restore(items) { done, total ->
+                        if (done % 10 == 0 || done == total) _state.value = UiState.Working("Remise en place…", done, total)
+                    }
+                }
+                lastTrashed = emptyList()
+                var text = "${countText(result.done)} remis à leur place dans « Photos rangées »."
+                if (result.failed > 0) text += "\n${result.failed} fichier(s) n'ont pas pu être remis : ${result.failures.take(2).joinToString(" ; ")}"
+                openTrash(text)
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
+    /** Efface pour de bon ce qui est choisi dans la corbeille. L'écran demande toujours une confirmation avant. */
+    fun deleteFromTrash(items: List<TrashEntry>) {
+        val current = place ?: return
+        viewModelScope.launch {
+            try {
+                _state.value = UiState.Working("Suppression définitive…", 0, 0)
+                val result = withContext(Dispatchers.IO) {
+                    trashOf(current).deleteForever(items) { done, total ->
+                        if (done % 10 == 0 || done == total) _state.value = UiState.Working("Suppression définitive…", done, total)
+                    }
+                }
+                lastTrashed = emptyList()
+                var text = "${countText(result.done)} supprimé(s) pour de bon."
+                if (result.failed > 0) text += "\n${result.failed} fichier(s) n'ont pas pu être supprimés."
+                openTrash(text)
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
+    private fun countText(n: Int) = if (n > 1) "$n fichiers" else "$n fichier"
 
     // ---- Mise à jour ---------------------------------------------------------------------------
 

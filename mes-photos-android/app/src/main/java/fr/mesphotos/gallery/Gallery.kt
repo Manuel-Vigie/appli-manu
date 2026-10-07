@@ -30,8 +30,8 @@ object Gallery {
         return Listing(path, folders, files)
     }
 
-    /** Tous les fichiers photo/vidéo sous [dir] (parcours limité en profondeur). */
-    private fun media(dir: File, depth: Int): List<File> {
+    /** Tous les fichiers photo/vidéo sous [dir] (parcours limité en profondeur, dossiers cachés ignorés). */
+    fun media(dir: File, depth: Int = 0): List<File> {
         if (depth > 12) return emptyList()
         val result = ArrayList<File>()
         for (child in dir.listFiles() ?: return emptyList()) {

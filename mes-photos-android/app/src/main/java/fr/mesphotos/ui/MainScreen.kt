@@ -2,84 +2,51 @@ package fr.mesphotos.ui
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.net.Uri
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import fr.mesphotos.gallery.FolderItem
-import fr.mesphotos.gallery.Thumbs
-import fr.mesphotos.storage.PhotoFiles
-import java.io.File
-
-private val Green = Color(0xFF1F5C45)
-private val GreenLight = Color(0xFF2F7D5E)
-private val Cream = Color(0xFFF6F3EC)
-
-private val AppColors = lightColorScheme(
-    primary = Green,
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFD7EBDD),
-    onPrimaryContainer = Color(0xFF0E3322),
-    background = Cream,
-    surface = Color.White,
-    errorContainer = Color(0xFFFBE3DD),
-)
 
 private fun versionOf(context: Context): String = try {
     context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "?"
@@ -94,7 +61,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
     val version = remember { versionOf(context) }
     var updateTick by remember { mutableIntStateOf(0) }
 
-    MaterialTheme(colorScheme = AppColors) {
+    MesPhotosTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when (val s = state) {
                 is UiState.Home -> {
@@ -105,6 +72,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onSort = viewModel::analyze,
                         onView = viewModel::openGallery,
                         onUndo = viewModel::undo,
+                        onOpenTrash = { viewModel.openTrash() },
                         onCheckUpdate = { viewModel.checkUpdate(version) { updateTick++ } },
                         onDownload = { url ->
                             runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
@@ -122,60 +90,29 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                 )
                 is UiState.Done -> DoneScreen(s, onClean = viewModel::askClean, onUndo = viewModel::undo, onView = viewModel::openGallery, onBack = viewModel::backToStart)
                 is UiState.CleanConfirm -> CleanConfirmScreen(s, onConfirm = viewModel::confirmClean, onCancel = viewModel::backToStart)
-                is UiState.Browse -> BrowseScreen(s, onInto = viewModel::browseInto, onUp = viewModel::browseUp, onOpen = viewModel::openViewer)
-                is UiState.Viewer -> ViewerScreen(s, onClose = viewModel::closeViewer)
+                is UiState.Browse -> BrowseScreen(
+                    s,
+                    onInto = viewModel::browseInto,
+                    onUp = viewModel::browseUp,
+                    onOpen = viewModel::openViewer,
+                    onTrash = viewModel::trashSelection,
+                    onUndoTrash = viewModel::undoTrash,
+                )
+                is UiState.Viewer -> ViewerScreen(
+                    s,
+                    onClose = viewModel::closeViewer,
+                    onTrash = { file -> viewModel.trashSelection(emptySet(), listOf(file)) },
+                )
+                is UiState.TrashView -> TrashScreen(
+                    s,
+                    onBack = viewModel::backToStart,
+                    onRestore = viewModel::restoreFromTrash,
+                    onDeleteForever = viewModel::deleteFromTrash,
+                )
             }
         }
     }
 }
-
-// ---- Éléments communs ----------------------------------------------------------------------------
-
-@Composable
-private fun Header(title: String, subtitle: String? = null) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(GreenLight, RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-            .statusBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(title, color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-        if (subtitle != null) Text(subtitle, color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp)
-    }
-}
-
-@Composable
-private fun Section(container: Color = MaterialTheme.colorScheme.surface, content: @Composable () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = container),
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) { content() }
-    }
-}
-
-@Composable
-private fun BigButton(text: String, onClick: () -> Unit, enabled: Boolean = true) {
-    Button(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().height(64.dp), shape = RoundedCornerShape(16.dp)) {
-        Text(text, fontSize = 19.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun SoftButton(text: String, onClick: () -> Unit, enabled: Boolean = true) {
-    OutlinedButton(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(14.dp)) {
-        Text(text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-    }
-}
-
-@Composable
-private fun Title(text: String) = Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-
-@Composable
-private fun Body(text: String) = Text(text, style = MaterialTheme.typography.bodyLarge)
 
 // ---- Accueil -------------------------------------------------------------------------------------
 
@@ -189,6 +126,7 @@ private fun HomeScreen(
     onSort: () -> Unit,
     onView: () -> Unit,
     onUndo: () -> Unit,
+    onOpenTrash: () -> Unit,
     onCheckUpdate: () -> Unit,
     onDownload: (String) -> Unit,
 ) {
@@ -197,15 +135,20 @@ private fun HomeScreen(
         contentPadding = PaddingValues(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        item { Header("Mes Photos", "Vos photos et vidéos de la carte SD, rangées par date.") }
+        item {
+            Header("Mes Photos", "Votre carte SD, rangée par date.") {
+                if (state.access && state.hasCard) {
+                    Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        StatChip(state.toSort?.let { spaced(it) } ?: "…", "à ranger", Modifier.weight(1f))
+                        StatChip(state.sorted?.let { spaced(it) } ?: "…", "déjà rangées", Modifier.weight(1f))
+                    }
+                }
+            }
+        }
 
         state.notice?.let { message ->
             item {
-                Box(Modifier.padding(horizontal = 16.dp)) {
-                    Section(if (state.noticeIsError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer) {
-                        Text(message, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                    }
-                }
+                Box(Modifier.padding(horizontal = 16.dp)) { NoticeCard(message, isError = state.noticeIsError) }
             }
         }
 
@@ -235,25 +178,29 @@ private fun HomeScreen(
             item {
                 Box(Modifier.padding(horizontal = 16.dp)) {
                     Section {
-                        val toSort = state.toSort
-                        val sorted = state.sorted
-                        if (toSort == null || sorted == null) {
+                        Title("Ranger la carte")
+                        if (state.toSort == null || state.sorted == null) {
                             Body("Comptage des photos…")
                             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                         } else {
-                            Title("${toSort + sorted} photos et vidéos sur la carte")
-                            Body("$toSort à ranger  ·  $sorted déjà dans « Photos rangées »")
+                            Body("Chaque photo ira dans le dossier de son jour.")
                         }
                         BigButton("Ranger mes photos", onSort)
                         Text(
                             "Rien ne bouge avant votre accord. Vous voyez un aperçu, puis un petit essai de 10 fichiers.",
                             style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
             }
             item {
-                Box(Modifier.padding(horizontal = 16.dp)) { BigButton("Voir mes photos", onView) }
+                Box(Modifier.padding(horizontal = 16.dp)) { TonalBigButton("Voir mes photos", onView) }
+            }
+            if (state.trashCount > 0) {
+                item {
+                    Box(Modifier.padding(horizontal = 16.dp)) { TrashTile(state.trashCount, onOpenTrash) }
+                }
             }
         }
 
@@ -283,25 +230,60 @@ private fun HomeScreen(
 }
 
 @Composable
+private fun TrashTile(count: Int, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.size(46.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondary),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondary)
+            }
+            Column(Modifier.weight(1f)) {
+                Text("Corbeille", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                Text(
+                    if (count > 1) "${spaced(count)} fichiers à remettre ou à supprimer" else "1 fichier à remettre ou à supprimer",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+            Text("›", fontSize = 28.sp, color = MaterialTheme.colorScheme.onSecondaryContainer)
+        }
+    }
+}
+
+@Composable
 private fun WorkingScreen(state: UiState.Working) {
     Column(modifier = Modifier.fillMaxSize()) {
         Header("Mes Photos")
         Column(
-            modifier = Modifier.fillMaxSize().padding(24.dp),
+            modifier = Modifier.fillMaxSize().padding(28.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(state.label, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(16.dp))
+            Text(state.label, fontSize = 21.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(20.dp))
             if (state.total > 0) {
-                LinearProgressIndicator(progress = { state.done.toFloat() / state.total }, modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(8.dp))
-                Text("${state.done} / ${state.total}")
+                LinearProgressIndicator(
+                    progress = { state.done.toFloat() / state.total },
+                    modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)),
+                )
+                Spacer(Modifier.height(10.dp))
+                Text("${spaced(state.done)} / ${spaced(state.total)}", style = MaterialTheme.typography.bodyLarge)
             } else {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)))
             }
-            Spacer(Modifier.height(16.dp))
-            Text("Gardez l'écran allumé.", style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(20.dp))
+            Text("Gardez l'écran allumé.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -309,9 +291,19 @@ private fun WorkingScreen(state: UiState.Working) {
 // ---- Ranger : aperçu, lot test, résultat ---------------------------------------------------------
 
 @Composable
+private fun BottomActions(content: @Composable () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp, tonalElevation = 2.dp) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) { content() }
+    }
+}
+
+@Composable
 private fun PreviewScreen(state: UiState.Preview, onConfirm: () -> Unit, onCancel: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize()) {
-        Header("${state.toMove} fichiers à ranger", "Aperçu : rien n'a encore bougé.")
+        Header("${spaced(state.toMove)} fichiers à ranger", "Aperçu : rien n'a encore bougé.")
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(16.dp),
@@ -321,14 +313,12 @@ private fun PreviewScreen(state: UiState.Preview, onConfirm: () -> Unit, onCance
                 Section {
                     Title("Où ils iront")
                     Body("Journées / année / mois / jour (avec la ville si internet). Photos et vidéos ensemble.")
-                    if (state.alreadyOk > 0) Body("${state.alreadyOk} sont déjà au bon endroit : ils ne bougent pas.")
+                    if (state.alreadyOk > 0) Body("${spaced(state.alreadyOk)} sont déjà au bon endroit : ils ne bougent pas.")
                 }
             }
             if (state.townsUnavailable) {
                 item {
-                    Section(MaterialTheme.colorScheme.errorContainer) {
-                        Body("Pas d'internet : les dossiers de jours n'auront pas le nom de la ville. Pour les villes, annulez, connectez-vous et recommencez.")
-                    }
+                    NoticeCard("Pas d'internet : les dossiers de jours n'auront pas le nom de la ville. Pour les villes, annulez, connectez-vous et recommencez.", isError = true)
                 }
             }
             if (state.undated > 0) {
@@ -345,19 +335,16 @@ private fun PreviewScreen(state: UiState.Preview, onConfirm: () -> Unit, onCance
                         Title("Par année")
                         state.years.forEach { (year, count) ->
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(year)
-                                Text("$count", fontWeight = FontWeight.SemiBold)
+                                Text(year, style = MaterialTheme.typography.bodyLarge)
+                                Text(spaced(count), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyLarge)
                             }
                         }
                     }
                 }
             }
         }
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text("D'abord un essai de 10 fichiers, pour que vous regardiez. Vous pourrez tout annuler.", style = MaterialTheme.typography.bodySmall)
+        BottomActions {
+            Text("D'abord un essai de 10 fichiers, pour que vous regardiez. Vous pourrez tout annuler.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             BigButton("Commencer par 10 fichiers", onConfirm, enabled = state.toMove > 0)
             SoftButton("Annuler", onCancel)
         }
@@ -383,7 +370,7 @@ private fun StepDoneScreen(
                 Section {
                     Title("${state.moved} fichier(s) rangés")
                     Body("Dossiers créés :")
-                    state.folders.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
+                    state.folders.forEach { Text("•  $it", style = MaterialTheme.typography.bodyMedium) }
                     if (state.problems.isEmpty()) Body("Contrôle fichier par fichier : tout est bien arrivé.")
                 }
             }
@@ -391,18 +378,15 @@ private fun StepDoneScreen(
                 item {
                     Section(MaterialTheme.colorScheme.errorContainer) {
                         Title("À regarder avant de continuer")
-                        state.problems.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
+                        state.problems.forEach { Text("•  $it", style = MaterialTheme.typography.bodyMedium) }
                     }
                 }
             }
-            item { Body("Il reste ${state.remaining} fichier(s) à ranger. « Tout annuler » remet ces fichiers exactement où ils étaient.") }
+            item { Body("Il reste ${spaced(state.remaining)} fichier(s) à ranger. « Tout annuler » remet ces fichiers exactement où ils étaient.") }
         }
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        BottomActions {
             SoftButton("Voir le résultat", onViewResult)
-            BigButton("Continuer : ranger les ${state.remaining} autres", onContinue)
+            BigButton("Continuer : ranger les ${spaced(state.remaining)} autres", onContinue)
             SoftButton("Arrêter ici (garder ce lot)", onStop)
             SoftButton("Tout annuler", onCancelAll)
         }
@@ -421,10 +405,15 @@ private fun DoneScreen(state: UiState.Done, onClean: () -> Unit, onUndo: () -> U
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        modifier = Modifier.size(48.dp).clip(CircleShape).background(if (state.success) Green else MaterialTheme.colorScheme.error),
+                        modifier = Modifier.size(52.dp).clip(CircleShape).background(if (state.success) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(if (state.success) "✓" else "!", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        Icon(
+                            if (state.success) Icons.Default.Check else Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp),
+                        )
                     }
                     Text(state.details, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                 }
@@ -433,15 +422,12 @@ private fun DoneScreen(state: UiState.Done, onClean: () -> Unit, onUndo: () -> U
                 item {
                     Section(MaterialTheme.colorScheme.errorContainer) {
                         Title("Ce qui n'a pas marché")
-                        state.failures.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
+                        state.failures.forEach { Text("•  $it", style = MaterialTheme.typography.bodyMedium) }
                     }
                 }
             }
         }
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        BottomActions {
             BigButton("Voir mes photos", onView)
             if (state.cleanable > 0) SoftButton("Voir les ${state.cleanable} anciens dossiers vides à supprimer", onClean)
             if (state.hasUndo) SoftButton("Annuler ce rangement", onUndo)
@@ -457,137 +443,14 @@ private fun CleanConfirmScreen(state: UiState.CleanConfirm, onConfirm: () -> Uni
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            item { Body("Ces dossiers sont vides (aucun fichier dedans). Si l'un d'eux contient quelque chose au dernier moment, il sera gardé.") }
-            items(state.folders.size) { i -> Text("📁  ${state.folders[i]}", style = MaterialTheme.typography.bodyMedium) }
-        }
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            item { Body("Ces dossiers sont vides (aucun fichier dedans). Si l'un d'eux contient quelque chose au dernier moment, il sera gardé.") }
+            items(state.folders) { folder -> Text("📁  $folder", style = MaterialTheme.typography.bodyMedium) }
+        }
+        BottomActions {
             BigButton("Oui, supprimer ces dossiers vides", onConfirm)
             SoftButton("Non, les garder", onCancel)
         }
-    }
-}
-
-// ---- Galerie -------------------------------------------------------------------------------------
-
-@Composable
-private fun Thumb(file: File, size: Int, modifier: Modifier = Modifier) {
-    var bitmap by remember(file) { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(file) { bitmap = Thumbs.load(file, size) }
-    Box(modifier.background(Color(0xFFDDE3DF)), contentAlignment = Alignment.Center) {
-        bitmap?.let { Image(it.asImageBitmap(), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
-        if (PhotoFiles.isVideo(file)) {
-            Text("▶", color = Color.White, fontSize = 22.sp, modifier = Modifier.background(Color(0x99000000), CircleShape).padding(horizontal = 9.dp, vertical = 3.dp))
-        }
-    }
-}
-
-@Composable
-private fun BrowseScreen(state: UiState.Browse, onInto: (String) -> Unit, onUp: () -> Unit, onOpen: (List<File>, Int) -> Unit) {
-    BackHandler { onUp() }
-    val title = if (state.path.isEmpty()) "Mes photos" else state.path.last()
-    Column(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(GreenLight, RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-                .statusBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onUp) { Text(if (state.path.isEmpty()) "← Accueil" else "← Retour", color = Color.White, fontSize = 16.sp) }
-            }
-            Text(title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp))
-            if (state.path.size > 1) {
-                Text(state.path.dropLast(1).joinToString(" / "), color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
-            }
-        }
-        state.message?.let { Text(it, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodyLarge) }
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(104.dp),
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 12.dp, bottom = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            items(state.folders, key = { "d:" + it.name }, span = { GridItemSpan(maxLineSpan) }) { folder -> FolderRow(folder, onInto) }
-            itemsIndexed(state.files, key = { _, f -> "f:" + f.absolutePath }) { index, file ->
-                Thumb(file, 256, Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).clickable { onOpen(state.files, index) })
-            }
-        }
-    }
-}
-
-@Composable
-private fun FolderRow(folder: FolderItem, onInto: (String) -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable { onInto(folder.name) },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
-        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            val cover = folder.cover
-            if (cover != null) Thumb(cover, 200, Modifier.size(64.dp).clip(RoundedCornerShape(12.dp)))
-            else Box(Modifier.size(64.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFFDDE3DF)))
-            Column(Modifier.weight(1f)) {
-                Text(folder.name, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                Text(if (folder.count > 1) "${folder.count} photos et vidéos" else "1 photo ou vidéo", style = MaterialTheme.typography.bodyMedium)
-            }
-            Text("›", fontSize = 28.sp)
-        }
-    }
-}
-
-@Composable
-private fun ViewerScreen(state: UiState.Viewer, onClose: () -> Unit) {
-    BackHandler { onClose() }
-    val context = LocalContext.current
-    val pager = rememberPagerState(initialPage = state.index.coerceIn(0, (state.files.size - 1).coerceAtLeast(0))) { state.files.size }
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        HorizontalPager(state = pager, modifier = Modifier.fillMaxSize(), beyondViewportPageCount = 1) { page ->
-            val file = state.files[page]
-            var bitmap by remember(file) { mutableStateOf<Bitmap?>(null) }
-            LaunchedEffect(file) { bitmap = Thumbs.load(file, 1600) }
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                bitmap?.let { Image(it.asImageBitmap(), contentDescription = file.name, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
-                if (bitmap == null) Text("Chargement…", color = Color.White)
-                if (PhotoFiles.isVideo(file)) {
-                    Button(onClick = { playVideo(context, file) }, modifier = Modifier.height(60.dp)) { Text("▶  Lire la vidéo", fontSize = 18.sp) }
-                }
-            }
-        }
-        val current = state.files.getOrNull(pager.currentPage)
-        Column(
-            modifier = Modifier.fillMaxWidth().background(Color(0x99000000)).statusBarsPadding().padding(12.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onClose) { Text("✕ Fermer", color = Color.White, fontSize = 16.sp) }
-                Spacer(Modifier.weight(1f))
-                Text("${pager.currentPage + 1} / ${state.files.size}", color = Color.White)
-            }
-            if (current != null) {
-                Text(current.name, color = Color.White, fontSize = 14.sp)
-                Text(dateText(current), color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp)
-            }
-        }
-    }
-}
-
-private fun dateText(file: File): String =
-    "Fichier du " + java.text.SimpleDateFormat("d MMMM yyyy", java.util.Locale.FRANCE).format(java.util.Date(file.lastModified()))
-
-private fun playVideo(context: Context, file: File) {
-    try {
-        val uri = FileProvider.getUriForFile(context, context.packageName + ".files", file)
-        val intent = Intent(Intent.ACTION_VIEW)
-            .setDataAndType(uri, PhotoFiles.mimeOf(file) ?: "video/*")
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(intent)
-    } catch (e: Exception) {
-        android.widget.Toast.makeText(context, "Impossible d'ouvrir la vidéo.", android.widget.Toast.LENGTH_LONG).show()
     }
 }
