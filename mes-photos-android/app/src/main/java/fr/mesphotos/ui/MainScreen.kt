@@ -434,6 +434,14 @@ private fun PreviewScreen(state: UiState.Preview, onConfirm: () -> Unit, onCance
                     }
                 }
             }
+            if (state.duplicates > 0) {
+                item {
+                    Section(MaterialTheme.colorScheme.secondaryContainer) {
+                        Title("${spaced(state.duplicates)} doublon(s) exact(s)")
+                        Body("Ce sont des copies identiques d'une photo déjà présente. Elles iront dans « Doublons », rangées par ancien dossier. Rien n'est supprimé : vous vérifierez et supprimerez vous-même.")
+                    }
+                }
+            }
             if (state.undated > 0) {
                 item {
                     Section(MaterialTheme.colorScheme.errorContainer) {

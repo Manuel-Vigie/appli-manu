@@ -74,6 +74,8 @@ sealed interface UiState {
         val undated: Int,
         /** Sans date fiable ET sans lieu : tous dans « Sans date ni lieu ». */
         val nothing: Int,
+        /** Copies exactes à ranger dans « Doublons ». */
+        val duplicates: Int = 0,
         val townsUnavailable: Boolean,
         /** Années et nombre de fichiers. */
         val years: List<Pair<String, Int>>,
@@ -279,19 +281,27 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     refresh("Aucune photo ni vidéo trouvée sur la carte SD.")
                     return@launch
                 }
-                val (unique, _) = Duplicates.keepOnePerPhoto(scanned)
-                val (dayPlaces, townsUnavailable) = findDayPlaces(unique)
-                plan = Planner.plan(unique, dayPlaces = dayPlaces)
+                _state.value = UiState.Working("Recherche des doublons…", 0, 0)
+                val split = withContext(Dispatchers.IO) {
+                    Duplicates.split(scanned, onProgress = { done, total ->
+                        if (done % 20 == 0) _state.value = UiState.Working("Recherche des doublons…", done, total)
+                    })
+                }
+                val (dayPlaces, townsUnavailable) = findDayPlaces(split.originals)
+                plan = Planner.plan(split.originals, dayPlaces = dayPlaces) +
+                    split.duplicates.map { PlannedMove(it, Planner.duplicateFolder(it)) }
                 // Ce qui est déjà au bon endroit ne bouge pas.
                 pendingMoves = plan.filter { it.photo.currentFolder != it.folder }
-                val years = plan.groupingBy { it.folder.getOrNull(1) ?: "" }.eachCount()
+                val dated = plan.filter { it.folder.firstOrNull() == Planner.PHOTOS }
+                val years = dated.groupingBy { it.folder.getOrNull(1) ?: "" }.eachCount()
                     .filterKeys { it != Planner.UNDATED && it != Planner.NOTHING }
                     .toList().sortedByDescending { it.first }
                 _state.value = UiState.Preview(
                     toMove = pendingMoves.size,
                     alreadyOk = plan.size - pendingMoves.size,
-                    undated = plan.count { it.photo.dateGuessed && it.photo.hasGps },
-                    nothing = plan.count { it.photo.dateGuessed && !it.photo.hasGps },
+                    undated = dated.count { it.photo.dateGuessed && it.photo.hasGps },
+                    nothing = dated.count { it.photo.dateGuessed && !it.photo.hasGps },
+                    duplicates = pendingMoves.count { it.folder.firstOrNull() == Planner.DUPLICATES },
                     townsUnavailable = townsUnavailable,
                     years = years,
                 )

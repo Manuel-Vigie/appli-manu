@@ -10,6 +10,10 @@ object PhotoFiles {
         "webp" to "image/webp", "heic" to "image/heic", "heif" to "image/heif",
         "mp4" to "video/mp4", "m4v" to "video/mp4", "mov" to "video/quicktime", "3gp" to "video/3gpp",
         "mkv" to "video/x-matroska", "webm" to "video/webm", "avi" to "video/x-msvideo",
+        "gif" to "image/gif", "bmp" to "image/bmp", "dng" to "image/x-adobe-dng", "tif" to "image/tiff", "tiff" to "image/tiff",
+        "jfif" to "image/jpeg", "jpe" to "image/jpeg", "avif" to "image/avif",
+        "mpg" to "video/mpeg", "mpeg" to "video/mpeg", "mts" to "video/mp2t", "m2ts" to "video/mp2t",
+        "wmv" to "video/x-ms-wmv", "flv" to "video/x-flv", "3g2" to "video/3gpp2",
     )
 
     /** [relative] : chemin sous « Photos rangées » si la photo y est déjà, sinon null. */

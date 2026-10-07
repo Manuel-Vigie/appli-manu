@@ -80,4 +80,14 @@ class PhotoFilesTest {
         assertTrue(PhotoFiles.isVideo(File("x.MP4")))
         assertTrue(!PhotoFiles.isVideo(File("x.jpg")))
     }
+
+    @Test
+    fun findsMoreFileTypes() {
+        file("DCIM/a.gif")
+        file("DCIM/b.DNG")
+        file("DCIM/c.mpg")
+        file("DCIM/d.txt")
+        val found = PhotoFiles.list(place(), includeSorted = false).map { it.file.name }.sorted()
+        assertEquals(listOf("a.gif", "b.DNG", "c.mpg"), found)
+    }
 }

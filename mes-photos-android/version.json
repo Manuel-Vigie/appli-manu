@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V4",
+  "version": "V5",
   "date": "07/10/2026",
   "nouveautes": [
-    "Recherche automatique : l'appli propose les photos qui semblent montrer des personnes nues. Vous regardez et vous décidez.",
-    "Les photos sans date ni lieu vont toutes dans un seul dossier : « Sans date ni lieu ».",
-    "Recherche par mots et dossier « À l'écart » (V3).",
-    "Nouveau look, choix multiple et corbeille (V2)."
+    "Les copies identiques d'une photo vont maintenant dans un dossier « Doublons » (rien n'est supprimé) : il ne reste plus de photos oubliées.",
+    "Plus de types de fichiers rangés (gif, dng, tiff, vidéos mpg…).",
+    "Recherche automatique de personnes nues (V4).",
+    "Recherche par mots et dossier « À l'écart » (V3)."
   ],
   "pastille": false,
   "fichiers": []
