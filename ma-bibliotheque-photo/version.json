@@ -1,17 +1,17 @@
 {
   "nom": "Bibliothèque Photo",
-  "version": "V12",
+  "version": "V13",
   "date": "07/10/2026",
   "nouveautes": [
+    "« Mes dossiers rangés » : bouton « Tout voir » pour afficher toutes les photos et vidéos d'un coup, avec recherche par nom de dossier (Nice, 2026, Verdon…), filtre photos/vidéos et ordre.",
     "« Mes dossiers rangés » : on peut ajouter plusieurs dossiers l'un après l'autre (pour les très gros dossiers), et le nom du dossier choisi est conservé.",
     "« Mes dossiers rangés » : messages à chaque étape (dossier reçu, nombre de fichiers, erreurs) pour comprendre s'il y a un problème.",
-    "Nouvelle carte « Mes dossiers rangés » : choisissez le dossier créé par Range Photos et parcourez-le (randonnées, journées par ville, portraits…) avec miniatures, photos en grand et vidéos.",
-    "Nouvelle carte « Ranger directement sur la carte SD » avec le lien pour télécharger l'appli Range Photos."
+    "Nouvelle carte « Mes dossiers rangés » : choisissez le dossier créé par Range Photos et parcourez-le (randonnées, journées par ville, portraits…) avec miniatures, photos en grand et vidéos."
   ],
   "cache": "biblio-photo-",
   "sw": {
     "fichier": "bibliotheque-sw.js",
-    "cache": "biblio-photo-V12"
+    "cache": "biblio-photo-V13"
   },
   "fichiers": [
     "bibliotheque-photo.html"
