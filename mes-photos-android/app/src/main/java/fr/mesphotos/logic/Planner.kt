@@ -17,7 +17,7 @@ object Planner {
     const val PHOTOS = "Journées"
     const val UNDATED = "Date incertaine"
 
-    // Anciens dossiers de proches (Range Photos) : leurs copies ne sont pas reclassées une seconde fois.
+    // Anciens dossiers de proches (ancienne appli) : leurs copies ne sont pas reclassées une seconde fois.
     const val PORTRAITS = "Portraits"
     const val SOLO = "Solo"
     const val GROUP = "Groupe"
