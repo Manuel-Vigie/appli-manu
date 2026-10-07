@@ -43,10 +43,14 @@ object HikeDetector {
         val gps = photos.filter { it.hasGps }
         val home = findHome(gps, zone) ?: return emptyList()
 
-        data class DayGroup(val date: LocalDate, val photos: List<PhotoInfo>, val lat: Double, val lon: Double) {
-            val first get() = photos.minOf { it.takenAt }
-            val last get() = photos.maxOf { it.takenAt }
-        }
+        data class DayGroup(
+            val date: LocalDate,
+            val photos: List<PhotoInfo>,
+            val lat: Double,
+            val lon: Double,
+            val first: Long,
+            val last: Long,
+        )
 
         val days = gps
             .groupBy { toDate(it.takenAt, zone) }
@@ -55,7 +59,10 @@ object HikeDetector {
                 if (far.size < MIN_PHOTOS) return@mapNotNull null
                 val spanMinutes = (far.maxOf { it.takenAt } - far.minOf { it.takenAt }) / 60_000
                 if (spanMinutes < MIN_SPAN_MINUTES) return@mapNotNull null
-                DayGroup(date, far, far.map { it.lat!! }.average(), far.map { it.lon!! }.average())
+                DayGroup(
+                    date, far, far.map { it.lat!! }.average(), far.map { it.lon!! }.average(),
+                    far.minOf { it.takenAt }, far.maxOf { it.takenAt },
+                )
             }
             .sortedBy { it.date }
 
