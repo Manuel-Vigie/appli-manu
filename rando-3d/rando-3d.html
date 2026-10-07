@@ -3320,7 +3320,7 @@ $('ignSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b
 const ML_VER='5.24.0';
 const SV={top:false,terrain:true,on:false,map:null,ready:false,follow:true,intro:false,hd:null,style:null,track:null,marker:null,mStart:null,mEnd:null,last:0,pLast:-1,zoom:14.2,pitch:64};
 const SV_STYLES={
-  ortho:{tiles:['https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/jpeg'],max:19,attr:'Photos aériennes © IGN'},
+  ortho:{tiles:['ign://{z}/{x}/{y}'],max:19,attr:'Photos aériennes © IGN'},
   sat:{tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],max:19,attr:'Imagerie © Esri, Maxar, Earthstar Geographics'},
   scan:{tiles:['https://data.geopf.fr/private/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.MAPS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/jpeg&apikey=ign_scan_ws'],max:16,attr:'Carte © IGN – TOP 25 (SCAN 25)'},
   topo:{tiles:['a','b','c'].map(s=>`https://${s}.tile.opentopomap.org/{z}/{x}/{y}.png`),max:17,attr:'Carte © OpenTopoMap (CC-BY-SA) · données © OpenStreetMap'}
@@ -3335,7 +3335,28 @@ function loadMapLibre(){
   });
   return mlP;
 }
+// Photos IGN : hors de France l'IGN renvoie des carrés blancs. Ici on les repère et on les remplace par la photo satellite Esri.
+let mlProto=false;
+async function ignBlank(buf){
+  try{
+    const bm=await createImageBitmap(new Blob([buf])),c=ignBlank.c||(ignBlank.c=document.createElement('canvas'));
+    c.width=c.height=8;const x=c.getContext('2d',{willReadFrequently:true});x.clearRect(0,0,8,8);x.drawImage(bm,0,0,8,8);if(bm.close)bm.close();
+    const d=x.getImageData(0,0,8,8).data;
+    for(let i=0;i<d.length;i+=4){if(d[i+3]>=10&&(d[i]<250||d[i+1]<250||d[i+2]<250))return false}
+    return true;
+  }catch(e){return false}
+}
+async function ignTile(params,ac){
+  const [z,x,y]=params.url.replace('ign://','').split('/').map(Number);
+  const sg=ac&&ac.signal;
+  let buf=null;
+  try{const r=await fetch(`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX=${z}&TILEROW=${y}&TILECOL=${x}&FORMAT=image/jpeg`,{signal:sg});if(r.ok)buf=await r.arrayBuffer()}catch(e){if(sg&&sg.aborted)throw e}
+  if(buf&&await ignBlank(buf))buf=null;
+  if(!buf){const r=await fetch(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`,{signal:sg});if(!r.ok)throw new Error('tuile '+r.status);buf=await r.arrayBuffer()}
+  return {data:buf};
+}
 function svStyleObj(){
+  if(!mlProto){mlProto=true;try{maplibregl.addProtocol('ign',ignTile)}catch(e){}}
   const demTiles=['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'];
   // deux sources identiques : une pour le relief 3D, une pour l'ombrage (meilleur rendu)
   const sources={dem:{type:'raster-dem',tiles:demTiles,encoding:'terrarium',tileSize:256,maxzoom:12},demhs:{type:'raster-dem',tiles:demTiles,encoding:'terrarium',tileSize:256,maxzoom:12}};
@@ -4016,7 +4037,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V21", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Nouveau « 🎬 Film de la carte » : crée une vraie vidéo MP4 stable de ta rando (HD, Full HD ou vertical), à mettre au début d'un film YouTube.", "La carte animée tourne beaucoup moins : la caméra suit un chemin lissé et ne réagit plus à chaque petit virage.", "Pages Ma rando, Photos et Mes randos : textes bien lisibles, bandeau bleu avec profil de dénivelé, miniatures et liste de tes randos.", "Nouvelle présentation : barre du bas (Replay, Carte, Ma rando, Photos, Mes randos) et réglages en un appui."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V22", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Fini les zones blanches hors de France (Italie, Suisse…) : là où les photos IGN manquent, l'appli met automatiquement la photo satellite à la place, sur la carte et dans le film.", "Nouveau « 🎬 Film de la carte » : crée une vraie vidéo MP4 stable de ta rando (HD, Full HD ou vertical), à mettre au début d'un film YouTube.", "La carte animée tourne beaucoup moins : la caméra suit un chemin lissé et ne réagit plus à chaque petit virage.", "Pages Ma rando, Photos et Mes randos : textes bien lisibles, bandeau bleu avec profil de dénivelé, miniatures et liste de tes randos."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
