@@ -417,9 +417,9 @@ private fun HomeScreen(
                         "La page web du même auteur : elle trie vos photos par date et les enregistre en ZIP. Elle s'ouvre dans votre navigateur.",
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    SecondaryButton("Ouvrir Bibliothèque Photo") {
+                    SecondaryButton("Ouvrir Bibliothèque Photo", onClick = {
                         uriHandler.openUri("https://manuel-vigie.github.io/appli-manu/ma-bibliotheque-photo/bibliotheque-photo.html")
-                    }
+                    })
                 }
             }
         }
