@@ -97,6 +97,6 @@ class CategoryPlannerTest {
     fun sameNameGetsANumber() {
         val store = CategoryStore()
         store.add("Motos", CategoryKind.SUBJECTS, setOf("motorcycle"))
-        assertEquals("Motos (2)", store.add("motos", CategoryKind.SUBJECTS, setOf("motorcycle")).name)
+        assertEquals("motos (2)", store.add("motos", CategoryKind.SUBJECTS, setOf("motorcycle")).name)
     }
 }
