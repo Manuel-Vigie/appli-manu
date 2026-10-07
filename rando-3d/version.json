@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V26",
+  "version": "V27",
   "date": "07/10/2026",
   "nouveautes": [
+    "Photos aériennes : harmonisation des couleurs plus forte (teinte, contraste et luminosité), pour atténuer les zones plus claires ou brumeuses.",
     "Carte et film : les couleurs des photos aériennes sont harmonisées carré par carré (moins de patchwork vert/gris), sans ralentir la carte.",
     "Carte et film : le blanc restant est remplacé pixel par pixel par la photo satellite, un peu adoucie en couleur pour mieux ressembler aux photos IGN.",
-    "Zones blanches restantes (neige ou glacier « brûlés » sur les photos IGN) : ces carrés trop blancs sont remplacés par la photo satellite.",
-    "Zones blanches quand on zoome : détection plus large des carrés blancs de l'IGN (même presque blancs), remplacés par la photo satellite."
+    "Zones blanches restantes (neige ou glacier « brûlés » sur les photos IGN) : ces carrés trop blancs sont remplacés par la photo satellite."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v26"
+    "cache": "rr3d-v27"
   },
   "fichiers": [
     "rando-3d.html",

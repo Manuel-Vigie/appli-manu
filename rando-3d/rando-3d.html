@@ -3338,9 +3338,9 @@ function loadMapLibre(){
 // Photos IGN : on les traite dans un « worker » (pour ne pas ralentir la carte) :
 //  1. le blanc (hors de France, neige brûlée) est remplacé pixel par pixel par la photo satellite Esri ;
 //  2. la teinte et le contraste de chaque carré sont rapprochés de la moyenne de ce qui a déjà été vu (moins de patchwork de couleurs).
-const IGN_MIX={sat:.6,bri:.95,cast:.6,contrast:.5};
+const IGN_MIX={sat:.6,bri:.95,cast:.9,contrast:.8,light:.55};
 function ignWorkerBody(MIX){
-  const REF={n:0,r:1,g:1,b:1,sd:40};
+  const REF={n:0,r:1,g:1,b:1,sd:40,L:100};
   const cl=(v,a,b)=>v<a?a:v>b?b:v;
   async function tile(z,x,y){
     let buf=null,bm=null;
@@ -3381,12 +3381,12 @@ function ignWorkerBody(MIX){
       let sd=0;for(let i=0;i<d.length;i+=16){const l=(d[i]+d[i+1]+d[i+2])/3-L;sd+=l*l}sd=Math.sqrt(sd/n);
       const rr=mr/L,rg=mg/L,rb=mb/L;
       REF.n++;const al=1/Math.min(REF.n,150);
-      REF.r+=(rr-REF.r)*al;REF.g+=(rg-REF.g)*al;REF.b+=(rb-REF.b)*al;REF.sd+=(sd-REF.sd)*al;
+      REF.r+=(rr-REF.r)*al;REF.g+=(rg-REF.g)*al;REF.b+=(rb-REF.b)*al;REF.sd+=(sd-REF.sd)*al;REF.L+=(L-REF.L)*al;
       let gr=Math.pow(REF.r/rr,MIX.cast),gg=Math.pow(REF.g/rg,MIX.cast),gb=Math.pow(REF.b/rb,MIX.cast);
-      const gm=(gr+gg+gb)/3;gr=cl(gr/gm,.88,1.14);gg=cl(gg/gm,.88,1.14);gb=cl(gb/gm,.88,1.14);
-      const k=sd>3?cl(Math.pow(REF.sd/sd,MIX.contrast),.88,1.2):1;
+      const gm=(gr+gg+gb)/3;gr=cl(gr/gm,.8,1.25);gg=cl(gg/gm,.8,1.25);gb=cl(gb/gm,.8,1.25);
+      const k=sd>3?cl(Math.pow(REF.sd/sd,MIX.contrast),.8,1.35):1,Lt=L+cl((REF.L-L)*MIX.light,-28,28);
       for(let i=0;i<d.length;i+=4){
-        d[i]=cl((d[i]*gr-L)*k+L,0,255);d[i+1]=cl((d[i+1]*gg-L)*k+L,0,255);d[i+2]=cl((d[i+2]*gb-L)*k+L,0,255);
+        d[i]=cl((d[i]*gr-L)*k+Lt,0,255);d[i+1]=cl((d[i+1]*gg-L)*k+Lt,0,255);d[i+2]=cl((d[i+2]*gb-L)*k+Lt,0,255);
       }
     }
     x1.putImageData(d1,0,0);
@@ -4097,7 +4097,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V26", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte et film : les couleurs des photos aériennes sont harmonisées carré par carré (moins de patchwork vert/gris), sans ralentir la carte.", "Carte et film : le blanc restant est remplacé pixel par pixel par la photo satellite, un peu adoucie en couleur pour mieux ressembler aux photos IGN.", "Zones blanches restantes (neige ou glacier « brûlés » sur les photos IGN) : ces carrés trop blancs sont remplacés par la photo satellite.", "Zones blanches quand on zoome : détection plus large des carrés blancs de l'IGN (même presque blancs), remplacés par la photo satellite."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V27", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Photos aériennes : harmonisation des couleurs plus forte (teinte, contraste et luminosité), pour atténuer les zones plus claires ou brumeuses.", "Carte et film : les couleurs des photos aériennes sont harmonisées carré par carré (moins de patchwork vert/gris), sans ralentir la carte.", "Carte et film : le blanc restant est remplacé pixel par pixel par la photo satellite, un peu adoucie en couleur pour mieux ressembler aux photos IGN.", "Zones blanches restantes (neige ou glacier « brûlés » sur les photos IGN) : ces carrés trop blancs sont remplacés par la photo satellite."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
