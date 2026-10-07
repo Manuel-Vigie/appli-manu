@@ -44,6 +44,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -85,7 +86,7 @@ import java.io.File
 
 // ---- Éléments communs : choix multiple, boutons du bas, confirmations ------------------------------
 
-private fun describeSelection(files: Int, folders: Int, total: Int): String {
+internal fun describeSelection(files: Int, folders: Int, total: Int): String {
     val parts = ArrayList<String>()
     if (folders > 0) parts += if (folders > 1) "$folders dossiers" else "1 dossier"
     if (files > 0) parts += if (files > 1) "$files photos ou vidéos" else "1 photo ou vidéo"
@@ -95,7 +96,7 @@ private fun describeSelection(files: Int, folders: Int, total: Int): String {
 
 /** Bandeau du mode « Choisir » : combien de choisis, Annuler, Tout sélectionner. */
 @Composable
-private fun SelectionHeader(selectedCount: Int, allSelected: Boolean, onCancel: () -> Unit, onToggleAll: () -> Unit) {
+internal fun SelectionHeader(selectedCount: Int, allSelected: Boolean, onCancel: () -> Unit, onToggleAll: () -> Unit) {
     Header(
         title = if (selectedCount == 0) "Choisissez" else if (selectedCount > 1) "$selectedCount choisis" else "1 choisi",
         subtitle = "Touchez les photos (et les dossiers) à mettre de côté.",
@@ -117,7 +118,7 @@ private fun SelectionHeader(selectedCount: Int, allSelected: Boolean, onCancel: 
 
 /** Barre du bas en mode « Choisir » : « À l'écart » (rangées à part) ou « Corbeille ». */
 @Composable
-private fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNotThat: (() -> Unit)? = null) {
+internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNotThat: (() -> Unit)? = null) {
     Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp, tonalElevation = 2.dp) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).navigationBarsPadding(),
@@ -159,7 +160,7 @@ private fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNotT
 }
 
 @Composable
-private fun ConfirmMoveDialog(kind: MoveKind, summary: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+internal fun ConfirmMoveDialog(kind: MoveKind, summary: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     val aside = kind == MoveKind.ASIDE
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -250,7 +251,7 @@ fun BrowseScreen(
                             Text(if (state.path.isEmpty()) "Accueil" else "Retour", color = Color.White, fontSize = 16.sp)
                         }
                         Spacer(Modifier.weight(1f))
-                        HeaderButton("Rechercher", onSearch)
+                        HeaderButton("Visages", onSearch)
                         if (itemCount > 0) {
                             Spacer(Modifier.width(8.dp))
                             HeaderButton("Choisir") { selecting = true }
@@ -494,35 +495,20 @@ fun ReviewScreen(
     }
 }
 
-// ---- Recherche -----------------------------------------------------------------------------------
+// ---- Recherche par visage ------------------------------------------------------------------------
 
 @Composable
-fun SearchScreen(
-    state: UiState.Search,
-    onSearch: (String) -> Unit,
+fun FaceResultsScreen(
+    state: UiState.FaceResults,
     onBack: () -> Unit,
+    onLevel: (Int) -> Unit,
     onOpen: (List<File>, Int) -> Unit,
     onMove: (MoveKind, Set<String>, List<File>) -> Unit,
     onUndoMove: () -> Unit,
 ) {
-    var text by remember { mutableStateOf(state.query) }
     var selecting by remember(state) { mutableStateOf(false) }
     var selected by remember(state) { mutableStateOf(emptySet<String>()) }
     var confirm by remember(state) { mutableStateOf<MoveKind?>(null) }
-    val focus = LocalFocusManager.current
-    val focusRequester = remember { FocusRequester() }
-    val hasTerms = Gallery.terms(state.query).isNotEmpty()
-
-    // La recherche part toute seule un instant après la dernière lettre tapée.
-    LaunchedEffect(text) {
-        if (text != state.query) {
-            delay(350)
-            onSearch(text)
-        }
-    }
-    LaunchedEffect(Unit) {
-        if (state.query.isEmpty()) runCatching { focusRequester.requestFocus() }
-    }
 
     fun stopSelecting() {
         selecting = false
@@ -542,52 +528,24 @@ fun SearchScreen(
             )
         } else {
             Header(
-                title = "Rechercher",
+                title = "Même personne",
+                subtitle = when {
+                    state.results.isEmpty() -> "Aucune photo trouvée."
+                    state.results.size > 1 -> "${spaced(state.results.size)} photos. Les plus ressemblantes d'abord. L'appli peut se tromper : regardez."
+                    else -> "1 photo. L'appli peut se tromper : regardez."
+                },
                 top = {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Accueil", color = Color.White, fontSize = 16.sp)
+                            Text("Visages", color = Color.White, fontSize = 16.sp)
                         }
                         Spacer(Modifier.weight(1f))
                         if (state.results.isNotEmpty()) HeaderButton("Choisir") { selecting = true }
                     }
                 },
-            ) {
-                val ink = Color(0xFF1B2723)
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-                    singleLine = true,
-                    placeholder = { Text("Ville, mois, année, nom…") },
-                    shape = RoundedCornerShape(18.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedTextColor = ink,
-                        unfocusedTextColor = ink,
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent,
-                        cursorColor = Color(0xFF14705A),
-                        focusedPlaceholderColor = Color(0xFF6B7B74),
-                        unfocusedPlaceholderColor = Color(0xFF6B7B74),
-                    ),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = {
-                        focus.clearFocus()
-                        onSearch(text)
-                    }),
-                    trailingIcon = {
-                        if (text.isNotEmpty()) {
-                            IconButton(onClick = { text = "" }) {
-                                Icon(Icons.Default.Close, contentDescription = "Effacer", tint = Color(0xFF4A5A54))
-                            }
-                        }
-                    },
-                )
-            }
+            )
         }
 
         state.message?.let { message ->
@@ -601,53 +559,50 @@ fun SearchScreen(
             }
         }
 
-        when {
-            !hasTerms -> Box(Modifier.weight(1f).fillMaxWidth().padding(28.dp), contentAlignment = Alignment.Center) {
+        if (!selecting) {
+            Row(
+                Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                listOf("Sûr", "Normal", "Large").forEachIndexed { level, label ->
+                    FilterChip(selected = state.level == level, onClick = { onLevel(level) }, label = { Text(label) })
+                }
+            }
+        }
+
+        if (state.results.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth().padding(28.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    "Tapez un mot : une ville, un mois, une année ou un bout de nom de fichier.\n\nExemples : « août 2024 », « Nice », « 14 mars », « IMG ».\nPlusieurs mots : on garde les photos qui les contiennent tous.",
+                    "Aucune photo ne ressemble à ce visage" + if (state.level < 2) ".\n\nEssayez « Large » pour voir plus de photos." else ".\n\nSi l'analyse n'a pas été faite sur toutes vos photos, relancez-la depuis l'écran des visages.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
             }
-            state.results.isEmpty() -> Box(Modifier.weight(1f).fillMaxWidth().padding(28.dp), contentAlignment = Alignment.Center) {
-                Text(
-                    "Aucune photo ne correspond à « ${state.query.trim()} ».",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-            }
-            else -> {
-                Text(
-                    if (state.results.size > 1) "${spaced(state.results.size)} photos et vidéos trouvées" else "1 photo ou vidéo trouvée",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 18.dp, top = 12.dp),
-                )
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(104.dp),
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
-                    verticalArrangement = Arrangement.spacedBy(5.dp),
-                ) {
-                    itemsIndexed(state.results, key = { _, f -> "r:" + f.absolutePath }) { index, file ->
-                        val path = file.absolutePath
-                        PhotoTile(
-                            file,
-                            selecting = selecting,
-                            selected = path in selected,
-                            onClick = {
-                                if (selecting) selected = if (path in selected) selected - path else selected + path
-                                else onOpen(state.results, index)
-                            },
-                            onLongClick = {
-                                selecting = true
-                                selected = if (path in selected) selected - path else selected + path
-                            },
-                        )
-                    }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(104.dp),
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                itemsIndexed(state.results, key = { _, f -> "f:" + f.absolutePath }) { index, file ->
+                    val path = file.absolutePath
+                    PhotoTile(
+                        file,
+                        selecting = selecting,
+                        selected = path in selected,
+                        onClick = {
+                            if (selecting) selected = if (path in selected) selected - path else selected + path
+                            else onOpen(state.results, index)
+                        },
+                        onLongClick = {
+                            selecting = true
+                            selected = if (path in selected) selected - path else selected + path
+                        },
+                    )
                 }
             }
         }

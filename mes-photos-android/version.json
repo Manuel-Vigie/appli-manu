@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V5",
+  "version": "V6",
   "date": "07/10/2026",
   "nouveautes": [
-    "Les copies identiques d'une photo vont maintenant dans un dossier « Doublons » (rien n'est supprimé) : il ne reste plus de photos oubliées.",
-    "Plus de types de fichiers rangés (gif, dng, tiff, vidéos mpg…).",
+    "Recherche par visage : vous choisissez une photo, l'appli retrouve toutes celles où la même personne apparaît. Elle remplace la recherche par mots.",
+    "Les copies identiques vont dans « Doublons » (V5).",
     "Recherche automatique de personnes nues (V4).",
-    "Recherche par mots et dossier « À l'écart » (V3)."
+    "Dossier « À l'écart » (V3)."
   ],
   "pastille": false,
   "fichiers": []

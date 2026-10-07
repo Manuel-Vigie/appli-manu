@@ -13,25 +13,6 @@ class GalleryTest {
     val tmp = TemporaryFolder()
 
     @Test
-    fun searchIgnoresCaseAndAccents() {
-        val terms = Gallery.terms("  AOÛT   2024 ")
-        assertEquals(listOf("aout", "2024"), terms)
-        assertTrue(Gallery.matches(Gallery.normalize("Journées 2024 08 - août 14 août (sam) - Nice IMG_1.jpg"), terms))
-    }
-
-    @Test
-    fun everyWordMustMatch() {
-        val path = Gallery.normalize("Journées 2024 08 - août 14 août (sam) - Nice a.jpg")
-        assertTrue(Gallery.matches(path, Gallery.terms("nice 2024")))
-        assertFalse(Gallery.matches(path, Gallery.terms("nice 2023")))
-    }
-
-    @Test
-    fun emptyQueryMatchesNothing() {
-        assertFalse(Gallery.matches("abc", Gallery.terms("   ")))
-    }
-
-    @Test
     fun asideFolderIsInvisibleToTheGalleryAndTheSearch() {
         val root = tmp.newFolder("Photos rangées")
         File(root, "Journées/2024/a.jpg").apply { parentFile!!.mkdirs(); writeText("x") }

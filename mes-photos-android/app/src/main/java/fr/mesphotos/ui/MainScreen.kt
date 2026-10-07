@@ -4,6 +4,18 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -78,7 +90,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onUndo = viewModel::undo,
                         onOpenTrash = { viewModel.openTrash(MoveKind.TRASH) },
                         onOpenAside = { viewModel.openTrash(MoveKind.ASIDE) },
-                        onSearch = viewModel::openSearch,
+                        onSearch = viewModel::openFaces,
                         onScan = viewModel::startNudityScan,
                         onReview = viewModel::openReview,
                         onCheckUpdate = { viewModel.checkUpdate(version) { updateTick++ } },
@@ -105,7 +117,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onOpen = viewModel::openViewer,
                     onMove = viewModel::moveSelection,
                     onUndoMove = viewModel::undoMove,
-                    onSearch = viewModel::openSearch,
+                    onSearch = viewModel::openFaces,
                 )
                 is UiState.Viewer -> ViewerScreen(
                     s,
@@ -128,10 +140,18 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onDismiss = viewModel::dismissSuggestions,
                     onRescan = viewModel::startNudityScan,
                 )
-                is UiState.Search -> SearchScreen(
+                is UiState.Faces -> FacesScreen(
                     s,
-                    onSearch = viewModel::search,
                     onBack = viewModel::backToStart,
+                    onScan = viewModel::startFaceScan,
+                    onPicked = viewModel::searchFaceFromPhoto,
+                )
+                is UiState.FaceScan -> FaceScanScreen(s, onStop = viewModel::stopFaceScan)
+                is UiState.FacePick -> FacePickScreen(s, onChoose = viewModel::chooseFace, onBack = { viewModel.openFaces() })
+                is UiState.FaceResults -> FaceResultsScreen(
+                    s,
+                    onBack = { viewModel.openFaces() },
+                    onLevel = viewModel::setFaceLevel,
                     onOpen = viewModel::openViewer,
                     onMove = viewModel::moveSelection,
                     onUndoMove = viewModel::undoMove,
@@ -229,7 +249,7 @@ private fun HomeScreen(
                 Box(Modifier.padding(horizontal = 16.dp)) { TonalBigButton("Voir mes photos", onView) }
             }
             item {
-                Box(Modifier.padding(horizontal = 16.dp)) { SoftButton("Rechercher une photo", onSearch) }
+                Box(Modifier.padding(horizontal = 16.dp)) { SoftButton("Rechercher par visage", onSearch) }
             }
             item {
                 Box(Modifier.padding(horizontal = 16.dp)) {
@@ -390,6 +410,137 @@ private fun NudityScanScreen(state: UiState.NudityScan, onStop: () -> Unit) {
             )
         }
         BottomActions { SoftButton("Arrêter et voir les suggestions", onStop) }
+    }
+}
+
+// ---- Recherche par visage ------------------------------------------------------------------------
+
+@Composable
+private fun FacesScreen(state: UiState.Faces, onBack: () -> Unit, onScan: () -> Unit, onPicked: (Uri) -> Unit) {
+    BackHandler { onBack() }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> if (uri != null) onPicked(uri) }
+    val missing = state.total - state.analysed
+    Column(modifier = Modifier.fillMaxSize()) {
+        Header(
+            title = "Recherche par visage",
+            subtitle = "Sur le téléphone seulement. Rien n'est envoyé nulle part.",
+            top = {
+                TextButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Accueil", color = Color.White, fontSize = 16.sp)
+                }
+            },
+        )
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            state.message?.let { message -> item { NoticeCard(message, isError = false) } }
+            item {
+                Section {
+                    Title("1. Analyser vos photos")
+                    Body(
+                        when {
+                            state.total == 0 -> "Il n'y a pas encore de photos dans « Photos rangées »."
+                            missing <= 0 -> "Toutes vos photos ont été analysées (${spaced(state.total)} photos, ${spaced(state.faces)} visages)."
+                            state.analysed == 0 -> "L'appli doit d'abord regarder vos ${spaced(state.total)} photos pour repérer les visages. C'est long (gardez l'écran allumé), mais on ne le fait qu'une fois."
+                            else -> "${spaced(state.analysed)} photos analysées sur ${spaced(state.total)}. Il en reste ${spaced(missing)}."
+                        },
+                    )
+                    if (state.total > 0 && missing > 0) BigButton(if (state.analysed == 0) "Analyser mes photos" else "Continuer l'analyse", onScan)
+                    if (state.total > 0 && missing <= 0) SoftButton("Chercher les nouvelles photos", onScan)
+                }
+            }
+            item {
+                Section {
+                    Title("2. Choisir un visage")
+                    Body("Choisissez une photo où la personne est bien visible. L'appli montre alors toutes les photos où elle apparaît, et vous pourrez les mettre à l'écart ou à la corbeille.")
+                    BigButton("Choisir une photo", { picker.launch("image/*") }, enabled = state.analysed > 0)
+                    if (state.analysed == 0) Text("Disponible après l'analyse.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    else if (missing > 0) Text("Les photos pas encore analysées ne seront pas dans les résultats.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FaceScanScreen(state: UiState.FaceScan, onStop: () -> Unit) {
+    BackHandler { onStop() }
+    val view = LocalView.current
+    DisposableEffect(Unit) {
+        view.keepScreenOn = true
+        onDispose { view.keepScreenOn = false }
+    }
+    Column(modifier = Modifier.fillMaxSize()) {
+        Header("Analyse des visages", "Sur le téléphone seulement. Rien ne bouge.")
+        Column(
+            modifier = Modifier.weight(1f).fillMaxWidth().padding(28.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                if (state.total == 0) "Préparation…" else "${spaced(state.done)} / ${spaced(state.total)} photos regardées",
+                fontSize = 21.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(20.dp))
+            if (state.total > 0) {
+                LinearProgressIndicator(
+                    progress = { state.done.toFloat() / state.total },
+                    modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)),
+                )
+            } else {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)))
+            }
+            Spacer(Modifier.height(20.dp))
+            Text("${spaced(state.faces)} visages repérés pour l'instant", style = MaterialTheme.typography.bodyLarge)
+            Spacer(Modifier.height(20.dp))
+            Text(
+                "Gardez l'écran allumé. Vous pouvez arrêter quand vous voulez : ce qui est déjà vu est retenu, la prochaine fois on reprend là.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+        BottomActions { SoftButton("Arrêter", onStop) }
+    }
+}
+
+@Composable
+private fun FacePickScreen(state: UiState.FacePick, onChoose: (Int) -> Unit, onBack: () -> Unit) {
+    BackHandler { onBack() }
+    Column(modifier = Modifier.fillMaxSize()) {
+        Header(
+            title = "Quel visage ?",
+            subtitle = "Plusieurs visages sur cette photo. Touchez celui à chercher.",
+            top = {
+                TextButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Retour", color = Color.White, fontSize = 16.sp)
+                }
+            },
+        )
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(130.dp),
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            itemsIndexed(state.crops) { index, crop ->
+                Image(
+                    bitmap = crop.asImageBitmap(),
+                    contentDescription = "Visage ${index + 1}",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(18.dp)).clickable { onChoose(index) },
+                )
+            }
+        }
     }
 }
 
