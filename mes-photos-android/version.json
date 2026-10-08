@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V21",
+  "version": "V22",
   "date": "08/10/2026",
   "nouveautes": [
+    "Le menu déroulant des raccourcis est fermé à chaque fois qu'on revient sur la page : il se referme derrière vous.",
     "Photos et vidéos qui n'apparaissaient pas : l'appli essaie maintenant plusieurs lecteurs (HEIC, WebP, vidéos difficiles…). Sinon la case indique le format, et en grand un bouton « Ouvrir avec une autre appli ».",
     "Coffre-fort : des photos cachées que personne ne voit, même en cherchant ailleurs. Ouverture avec le verrouillage du téléphone. Bouton « Coffre-fort » en mode Choisir, dans la visionneuse et dans Outils.",
-    "Raccourcis dans des tons de vert assortis à l'appli (une teinte par classement), en clair comme en sombre.",
-    "Raccourcis en menu déroulant : de grands boutons colorés avec le nombre de photos. Un raccourci est une recherche enregistrée (ex. Immatriculation) ; « + Nouveau raccourci » en crée sans photo, appui long pour modifier ou retirer."
+    "Raccourcis dans des tons de vert assortis à l'appli (une teinte par classement), en clair comme en sombre."
   ],
   "pastille": false,
   "fichiers": []

@@ -227,7 +227,8 @@ fun BrowseScreen(
 ) {
     var editing by remember { mutableStateOf<ShortcutItem?>(null) }
     var creating by remember { mutableStateOf(false) }
-    var drawerOpen by rememberSaveable { mutableStateOf(true) }
+    // Le menu des raccourcis est fermé à chaque retour sur la page (il se referme derrière nous).
+    var drawerOpen by remember { mutableStateOf(false) }
     var selecting by remember(state) { mutableStateOf(false) }
     var selectedFolders by remember(state) { mutableStateOf(emptySet<String>()) }
     var selectedFiles by remember(state) { mutableStateOf(emptySet<String>()) }
