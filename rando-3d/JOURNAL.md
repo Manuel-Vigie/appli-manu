@@ -88,3 +88,5 @@ Vider les données de sites de Chrome les efface. Aucune fonction de sauvegarde 
 - 08/10/2026 — V49 (Manuel : pouvoir supprimer des parcours dans Mes randos et un bouton « rajouter à mes parcours ») : suppression et sauvegarde existaient depuis V37 mais peu visibles. Bandeau `#addBar` « ＋ Ajouter à mes randos » après chaque import de trace (`offerSave`, 20 s, absent si déjà ajoutée) ; boutons renommés « Ajouter … à mes randos » (pgSave, libSaveCur, toast) ; ✕ de la fenêtre Mes randos : confirmation en 2 appuis comme 🗑, et rafraîchit la page Mes randos.
 
 - 08/10/2026 — V50 (Manuel : « je n'arrive pas à supprimer ce parcours », capture = carte GR5 des Grands itinéraires, pas une rando enregistrée) : bouton « ✕ Retirer » dans la fenêtre Mes randos masque la carte GR5 (`grVisible`, clé `rr3d-hidegr`), bouton « Réafficher les grands itinéraires ». Rien n'est supprimé des randos enregistrées.
+
+- 08/10/2026 — V51 (Manuel : retirer le bandeau à l'ouverture, il ajoutera lui-même depuis Mes randos) : `#addBar`, son CSS et `offerSave` supprimés ; le bouton « Ajouter à mes randos » de l'onglet Mes randos reste.

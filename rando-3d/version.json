@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V50",
+  "version": "V51",
   "date": "08/10/2026",
   "nouveautes": [
+    "Le bandeau « Ajouter à mes randos » à l'ouverture d'une trace est supprimé : on ajoute une rando depuis l'onglet Mes randos.",
     "Mes randos : bouton « ✕ Retirer » sur les Grands itinéraires (GR5) pour les enlever de la liste ; un bouton permet de les réafficher.",
     "Mes randos : dès que tu importes une trace, un bandeau « ＋ Ajouter à mes randos » apparaît en haut. Le bouton s'appelle maintenant « Ajouter à mes randos » partout, et la suppression (🗑 ou ✕) demande une confirmation en deux appuis.",
-    "Film : deux étiquettes au même endroit (ex. « Grotte » au bout d'une boucle, déjà occupé par « La Gare ») ne se cachent plus : l'une est décalée automatiquement au-dessus ou en dessous. Les étiquettes restent affichées tant que leur lieu est à l'écran.",
-    "Film : « Ajouter un lieu » se fait maintenant sur la carte. Un point orange « Ici » suit le curseur le long du parcours (avec boutons ◀ ▶ pour ajuster au plus près), puis tu donnes le nom."
+    "Film : deux étiquettes au même endroit (ex. « Grotte » au bout d'une boucle, déjà occupé par « La Gare ») ne se cachent plus : l'une est décalée automatiquement au-dessus ou en dessous. Les étiquettes restent affichées tant que leur lieu est à l'écran."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v50"
+    "cache": "rr3d-v51"
   },
   "fichiers": [
     "rando-3d.html",

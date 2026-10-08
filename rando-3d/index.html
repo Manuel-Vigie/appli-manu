@@ -117,7 +117,6 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 @keyframes pop{from{opacity:0;transform:translate(-50%,-50%) rotate(2deg) scale(.9)}}
 
 .drop{position:absolute;z-index:41;inset:12px;border:2px dashed var(--trail);border-radius:14px;display:grid;place-items:center;background:rgba(215,57,42,.12);font-family:var(--display);font-weight:700;font-size:26px;color:var(--ink);text-align:center;padding:16px;pointer-events:none}
-.add-bar{position:absolute;left:50%;top:64px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;background:var(--panel-solid);color:var(--ink);border-left:4px solid var(--trail);padding:8px 10px;border-radius:8px;box-shadow:var(--shadow);width:max-content;max-width:calc(100% - 24px);z-index:39;font-size:13.5px}.add-bar[hidden]{display:none}
 .toast{position:absolute;left:50%;top:16px;transform:translateX(-50%);background:var(--panel-solid);color:var(--ink);border-left:4px solid var(--trail);padding:10px 14px;border-radius:6px;box-shadow:var(--shadow);max-width:min(520px,calc(100% - 32px));z-index:40;font-size:13.5px}
 /* Page d'accueil : ciel bleu et nuages, sans 3D */
 .welcome{position:absolute;inset:0;z-index:12;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(64px + env(safe-area-inset-top,0px)) 20px calc(28px + env(safe-area-inset-bottom,0px));color:#14303f;
@@ -779,7 +778,6 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <div id="pgLib"></div>
     </section>
   </div>
-  <div class="add-bar" id="addBar" hidden><span id="addBarTxt"></span><button type="button" class="btn primary" id="addBarGo">＋ Ajouter à mes randos</button><button type="button" class="icon-btn" id="addBarX" aria-label="Fermer">✕</button></div>
   <div class="toast" id="toast" role="status" hidden></div>
 </div>
 
@@ -2160,10 +2158,10 @@ async function handleFiles(files){
   const imgs=files.filter(isImg);
   if(gpx){
     try{
-      if(tracks.length>1){const j=joinTracks(await readTracks(tracks));startHike(j);joinedToast(j);offerSave();if(imgs.length)await addPhotos(imgs);return}
+      if(tracks.length>1){const j=joinTracks(await readTracks(tracks));startHike(j);joinedToast(j);if(imgs.length)await addPhotos(imgs);return}
       const {name,pts}=await readTrackFile(gpx);
       setPlaying(false);loadHike({name:trackTitle(name,gpx),pts});
-      replayView();const tr=T;offerSave();
+      replayView();const tr=T;
       // start the replay once the real map and the names are in (or after 25 s at most)
       Promise.race([tr.ready,new Promise(r=>setTimeout(r,25000))]).then(()=>{if(T===tr&&!REC)setTimeout(()=>setPlaying(true),600)});
     }catch(e){toast(e.message||'Import impossible.',8000)}
@@ -3257,14 +3255,6 @@ function renderLib(){
 }
 $('libBtn').addEventListener('click',()=>{setPlaying(false);renderLib();$('libSaveCur').disabled=!T||T.sample||T.planBase;$('libPanel').hidden=false});
 $('libClose').addEventListener('click',()=>$('libPanel').hidden=true);
-let addBarT=0;
-function offerSave(){
-  if(!T||T.sample||T.planBase)return;
-  const nm=T.gr&&GRDATA?GRDATA.name:T.name;if(libLoad().some(x=>x.name===nm))return;
-  $('addBarTxt').textContent='« '+nm+' » est chargée.';$('addBar').hidden=false;clearTimeout(addBarT);addBarT=setTimeout(()=>$('addBar').hidden=true,20000);
-}
-$('addBarGo').addEventListener('click',()=>{$('addBar').hidden=true;saveCurrent()});
-$('addBarX').addEventListener('click',()=>{$('addBar').hidden=true});
 function saveCurrent(){
   if(!T||T.sample||T.planBase){toast("Charge d'abord une rando à sauvegarder.");return}
   if(T.gr&&GRDATA)libSave({name:GRDATA.name,gr:GRDATA});
@@ -4338,7 +4328,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V50", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Mes randos : bouton « ✕ Retirer » sur les Grands itinéraires (GR5) pour les enlever de la liste ; un bouton permet de les réafficher.", "Mes randos : dès que tu importes une trace, un bandeau « ＋ Ajouter à mes randos » apparaît en haut. Le bouton s'appelle maintenant « Ajouter à mes randos » partout, et la suppression (🗑 ou ✕) demande une confirmation en deux appuis.", "Film : deux étiquettes au même endroit (ex. « Grotte » au bout d'une boucle, déjà occupé par « La Gare ») ne se cachent plus : l'une est décalée automatiquement au-dessus ou en dessous. Les étiquettes restent affichées tant que leur lieu est à l'écran.", "Film : « Ajouter un lieu » se fait maintenant sur la carte. Un point orange « Ici » suit le curseur le long du parcours (avec boutons ◀ ▶ pour ajuster au plus près), puis tu donnes le nom."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V51", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Le bandeau « Ajouter à mes randos » à l'ouverture d'une trace est supprimé : on ajoute une rando depuis l'onglet Mes randos.", "Mes randos : bouton « ✕ Retirer » sur les Grands itinéraires (GR5) pour les enlever de la liste ; un bouton permet de les réafficher.", "Mes randos : dès que tu importes une trace, un bandeau « ＋ Ajouter à mes randos » apparaît en haut. Le bouton s'appelle maintenant « Ajouter à mes randos » partout, et la suppression (🗑 ou ✕) demande une confirmation en deux appuis.", "Film : deux étiquettes au même endroit (ex. « Grotte » au bout d'une boucle, déjà occupé par « La Gare ») ne se cachent plus : l'une est décalée automatiquement au-dessus ou en dessous. Les étiquettes restent affichées tant que leur lieu est à l'écran."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
