@@ -76,7 +76,7 @@ fun Header(
     top: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
-    val shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp)
+    val shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -87,11 +87,11 @@ fun Header(
                 drawCircle(Color.White.copy(alpha = 0.05f), radius = size.minDimension * 0.55f, center = Offset(size.width * 0.04f, size.height))
             }
             .statusBarsPadding()
-            .padding(horizontal = 22.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 18.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         if (top != null) top()
-        Text(title, color = Color.White, style = MaterialTheme.typography.headlineMedium)
+        Text(title, color = Color.White, style = MaterialTheme.typography.titleLarge)
         if (subtitle != null) Text(subtitle, color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyMedium)
         content()
     }

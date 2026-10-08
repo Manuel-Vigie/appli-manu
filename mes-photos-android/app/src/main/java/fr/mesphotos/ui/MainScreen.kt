@@ -38,6 +38,10 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -77,6 +81,18 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
     val version = remember { versionOf(context) }
     var updateTick by remember { mutableIntStateOf(0) }
 
+    // Les trois onglets du bas : Photos, Visages, Outils.
+    val tabs: (Int) -> (@Composable () -> Unit) = { selected ->
+        {
+            AppNavBar(
+                selected = selected,
+                onPhotos = viewModel::openGallery,
+                onFaces = viewModel::openFaces,
+                onTools = viewModel::backToStart,
+            )
+        }
+    }
+
     MesPhotosTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when (val s = state) {
@@ -86,11 +102,9 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         s, version, viewModel.updateMessage, viewModel.updateUrl,
                         onRequestAccess = onRequestAccess,
                         onSort = viewModel::analyze,
-                        onView = viewModel::openGallery,
                         onUndo = viewModel::undo,
                         onOpenTrash = { viewModel.openTrash(MoveKind.TRASH) },
                         onOpenAside = { viewModel.openTrash(MoveKind.ASIDE) },
-                        onSearch = viewModel::openFaces,
                         onDuplicates = viewModel::findDuplicates,
                         onScan = viewModel::startNudityScan,
                         onReview = viewModel::openReview,
@@ -98,6 +112,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onDownload = { url ->
                             runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                         },
+                        tabs = tabs(2),
                     )
                 }
                 is UiState.Working -> WorkingScreen(s)
@@ -118,7 +133,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onOpen = viewModel::openViewer,
                     onMove = viewModel::moveSelection,
                     onUndoMove = viewModel::undoMove,
-                    onSearch = viewModel::openFaces,
+                    tabs = tabs(0),
                 )
                 is UiState.Viewer -> ViewerScreen(
                     s,
@@ -150,9 +165,9 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                 )
                 is UiState.Faces -> FacesScreen(
                     s,
-                    onBack = viewModel::backToStart,
                     onScan = viewModel::startFaceScan,
                     onPicked = viewModel::searchFaceFromPhoto,
+                    tabs = tabs(1),
                 )
                 is UiState.FaceScan -> FaceScanScreen(s, onStop = viewModel::stopFaceScan)
                 is UiState.FacePick -> FacePickScreen(s, onChoose = viewModel::chooseFace, onBack = { viewModel.openFaces() })
@@ -169,7 +184,15 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
     }
 }
 
-// ---- Accueil -------------------------------------------------------------------------------------
+// ---- Outils (l'ancien accueil) ---------------------------------------------------------------------
+
+private class Tool(
+    val icon: ImageVector,
+    val title: String,
+    val subtitle: String,
+    val highlight: Boolean = false,
+    val onClick: () -> Unit,
+)
 
 @Composable
 private fun HomeScreen(
@@ -179,42 +202,32 @@ private fun HomeScreen(
     updateUrl: String?,
     onRequestAccess: () -> Unit,
     onSort: () -> Unit,
-    onView: () -> Unit,
     onUndo: () -> Unit,
     onOpenTrash: () -> Unit,
     onOpenAside: () -> Unit,
-    onSearch: () -> Unit,
     onDuplicates: () -> Unit,
     onScan: () -> Unit,
     onReview: () -> Unit,
     onCheckUpdate: () -> Unit,
     onDownload: (String) -> Unit,
+    tabs: @Composable () -> Unit,
 ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        item {
-            Header("Mes Photos", "Votre carte SD, rangée par date.") {
-                if (state.access && state.hasCard) {
-                    Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        StatChip(state.toSort?.let { spaced(it) } ?: "…", "à ranger", Modifier.weight(1f))
-                        StatChip(state.sorted?.let { spaced(it) } ?: "…", "déjà rangées", Modifier.weight(1f))
-                    }
-                }
+    Column(modifier = Modifier.fillMaxSize()) {
+        TopBar(
+            "Outils",
+            if (state.access && state.hasCard) "${state.toSort?.let { spaced(it) } ?: "…"} à ranger  ·  ${state.sorted?.let { spaced(it) } ?: "…"} rangées" else null,
+        )
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            state.notice?.let { message ->
+                item { NoticeCard(message, isError = state.noticeIsError) }
             }
-        }
 
-        state.notice?.let { message ->
-            item {
-                Box(Modifier.padding(horizontal = 16.dp)) { NoticeCard(message, isError = state.noticeIsError) }
-            }
-        }
-
-        if (!state.access) {
-            item {
-                Box(Modifier.padding(horizontal = 16.dp)) {
+            if (!state.access) {
+                item {
                     Section {
                         Title("Une autorisation est nécessaire")
                         Body(
@@ -224,134 +237,104 @@ private fun HomeScreen(
                         BigButton("Autoriser l'accès", onRequestAccess)
                     }
                 }
-            }
-        } else if (!state.hasCard) {
-            item {
-                Box(Modifier.padding(horizontal = 16.dp)) {
+            } else if (!state.hasCard) {
+                item {
                     Section {
                         Title("Aucune carte SD trouvée")
                         Body("L'appli ne range que sur la carte SD, jamais dans la mémoire du téléphone. Vérifiez que la carte est bien insérée, puis rouvrez l'appli.")
                     }
                 }
-            }
-        } else {
-            item {
-                Box(Modifier.padding(horizontal = 16.dp)) {
-                    Section {
-                        Title("Ranger la carte")
-                        if (state.toSort == null || state.sorted == null) {
-                            Body("Comptage des photos…")
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                        } else {
-                            Body("Chaque photo ira dans le dossier de son jour.")
-                        }
-                        BigButton("Ranger mes photos", onSort)
-                        Text(
-                            "Rien ne bouge avant votre accord. Vous voyez un aperçu, puis un petit essai de 10 fichiers.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-            item {
-                Box(Modifier.padding(horizontal = 16.dp)) { TonalBigButton("Voir mes photos", onView) }
-            }
-            item {
-                Box(Modifier.padding(horizontal = 16.dp)) { SoftButton("Rechercher par visage", onSearch) }
-            }
-            item {
-                Box(Modifier.padding(horizontal = 16.dp)) {
-                    Section {
-                        Title("Doublons")
-                        Body("L'appli retrouve les photos en double (même contenu), propose la meilleure à garder dans chaque groupe, et vous vérifiez avant que les autres aillent à la corbeille.")
-                        SoftButton("Chercher les doublons", onDuplicates)
-                    }
-                }
-            }
-            item {
-                Box(Modifier.padding(horizontal = 16.dp)) {
-                    Section {
-                        Title("Recherche automatique")
-                        Body("L'appli regarde vos photos, sur le téléphone seulement, et vous propose celles qui semblent montrer des personnes nues. Elle peut se tromper : c'est vous qui décidez, rien ne bouge sans votre accord.")
-                        if (state.suggestions > 0) {
-                            TonalBigButton(if (state.suggestions > 1) "Voir les ${spaced(state.suggestions)} suggestions" else "Voir la suggestion", onReview)
-                        }
-                        SoftButton(if (state.suggestions > 0) "Relancer la recherche" else "Lancer la recherche", onScan)
-                    }
-                }
-            }
-            if (state.asideCount > 0) {
-                item {
-                    Box(Modifier.padding(horizontal = 16.dp)) { StashTile(MoveKind.ASIDE, state.asideCount, onOpenAside) }
-                }
-            }
-            if (state.trashCount > 0) {
-                item {
-                    Box(Modifier.padding(horizontal = 16.dp)) { StashTile(MoveKind.TRASH, state.trashCount, onOpenTrash) }
-                }
-            }
-        }
+            } else {
+                item { SortCard(state.toSort, onSort) }
 
-        if (state.hasUndo) {
-            item {
-                Box(Modifier.padding(horizontal = 16.dp)) {
-                    Section {
-                        Title("Dernier rangement")
-                        Body("Vous pouvez tout remettre comme avant.")
-                        SoftButton("Annuler le dernier rangement", onUndo)
+                val tools = ArrayList<Tool>()
+                tools += Tool(AppIcons.Copy, "Doublons", "Comparer et garder une seule photo", onClick = onDuplicates)
+                tools += Tool(
+                    Icons.Default.Search,
+                    "Détection",
+                    if (state.suggestions > 0) "${spaced(state.suggestions)} suggestion(s) à voir" else "Recherche automatique",
+                    highlight = state.suggestions > 0,
+                    onClick = if (state.suggestions > 0) onReview else onScan,
+                )
+                tools += Tool(Icons.Default.Lock, "À l'écart", if (state.asideCount > 0) "${spaced(state.asideCount)} fichier(s)" else "Vide", onClick = onOpenAside)
+                tools += Tool(Icons.Default.Delete, "Corbeille", if (state.trashCount > 0) "${spaced(state.trashCount)} fichier(s)" else "Vide", onClick = onOpenTrash)
+                if (state.hasUndo) tools += Tool(Icons.Default.Refresh, "Annuler le rangement", "Tout remettre comme avant", onClick = onUndo)
+                tools.chunked(2).forEach { pair ->
+                    item {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            pair.forEach { ToolTile(it, Modifier.weight(1f)) }
+                            if (pair.size == 1) Spacer(Modifier.weight(1f))
+                        }
                     }
                 }
             }
-        }
 
-        item {
-            Box(Modifier.padding(horizontal = 16.dp).navigationBarsPadding()) {
-                Section {
-                    Text("Version $version", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                    if (updateMessage != null) Text(updateMessage, style = MaterialTheme.typography.bodyMedium)
+            item {
+                Column(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Version $version", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (updateMessage != null) Text(updateMessage, style = MaterialTheme.typography.bodySmall)
                     if (updateUrl != null) BigButton("Télécharger la nouvelle version", { onDownload(updateUrl) })
                     TextButton(onClick = onCheckUpdate) { Text("Chercher une mise à jour") }
                 }
             }
         }
+        tabs()
     }
 }
 
+/** Le gros bouton « Ranger » : une seule carte, compacte. */
 @Composable
-private fun StashTile(kind: MoveKind, count: Int, onClick: () -> Unit) {
-    val aside = kind == MoveKind.ASIDE
+private fun SortCard(toSort: Int?, onSort: () -> Unit) {
     Card(
-        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.padding(start = 18.dp, end = 14.dp, top = 14.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                Modifier.size(46.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondary),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(if (aside) Icons.Default.Lock else Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondary)
-            }
             Column(Modifier.weight(1f)) {
-                Text(if (aside) "À l'écart" else "Corbeille", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                Text("Ranger mes photos", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Text(
                     when {
-                        aside && count > 1 -> "${spaced(count)} fichiers rangés à part"
-                        aside -> "1 fichier rangé à part"
-                        count > 1 -> "${spaced(count)} fichiers à remettre ou à supprimer"
-                        else -> "1 fichier à remettre ou à supprimer"
+                        toSort == null -> "Comptage…"
+                        toSort == 0 -> "Tout est rangé par date."
+                        else -> "${spaced(toSort)} fichier(s) à ranger. Aperçu et essai avant."
                     },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
-            Text("›", fontSize = 28.sp, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            Button(onClick = onSort, shape = RoundedCornerShape(16.dp)) { Text("Ranger", fontWeight = FontWeight.Bold) }
+        }
+    }
+}
+
+/** Une case d'outil : icône, nom, une ligne de détail. */
+@Composable
+private fun ToolTile(tool: Tool, modifier: Modifier = Modifier) {
+    Card(
+        onClick = tool.onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (tool.highlight) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(
+                Modifier.size(38.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(tool.icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(22.dp))
+            }
+            Column {
+                Text(tool.title, style = MaterialTheme.typography.titleMedium)
+                Text(tool.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, minLines = 2, maxLines = 2)
+            }
         }
     }
 }
@@ -434,25 +417,14 @@ private fun NudityScanScreen(state: UiState.NudityScan, onStop: () -> Unit) {
 // ---- Recherche par visage ------------------------------------------------------------------------
 
 @Composable
-private fun FacesScreen(state: UiState.Faces, onBack: () -> Unit, onScan: () -> Unit, onPicked: (Uri) -> Unit) {
-    BackHandler { onBack() }
+private fun FacesScreen(state: UiState.Faces, onScan: () -> Unit, onPicked: (Uri) -> Unit, tabs: @Composable () -> Unit) {
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> if (uri != null) onPicked(uri) }
     val missing = state.total - state.analysed
     Column(modifier = Modifier.fillMaxSize()) {
-        Header(
-            title = "Recherche par visage",
-            subtitle = "Sur le téléphone seulement. Rien n'est envoyé nulle part.",
-            top = {
-                TextButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Accueil", color = Color.White, fontSize = 16.sp)
-                }
-            },
-        )
+        TopBar("Visages", "Retrouver une personne · sur le téléphone seulement")
         LazyColumn(
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             state.message?.let { message -> item { NoticeCard(message, isError = false) } }
@@ -462,8 +434,8 @@ private fun FacesScreen(state: UiState.Faces, onBack: () -> Unit, onScan: () -> 
                     Body(
                         when {
                             state.total == 0 -> "Il n'y a pas encore de photos dans « Photos rangées »."
-                            missing <= 0 -> "Toutes vos photos ont été analysées (${spaced(state.total)} photos, ${spaced(state.faces)} visages)."
-                            state.analysed == 0 -> "L'appli doit d'abord regarder vos ${spaced(state.total)} photos pour repérer les visages. C'est long (gardez l'écran allumé), mais on ne le fait qu'une fois."
+                            missing <= 0 -> "Toutes vos photos sont analysées (${spaced(state.total)} photos, ${spaced(state.faces)} visages)."
+                            state.analysed == 0 -> "L'appli regarde d'abord vos ${spaced(state.total)} photos pour repérer les visages. C'est long (écran allumé), mais une seule fois."
                             else -> "${spaced(state.analysed)} photos analysées sur ${spaced(state.total)}. Il en reste ${spaced(missing)}."
                         },
                     )
@@ -474,13 +446,14 @@ private fun FacesScreen(state: UiState.Faces, onBack: () -> Unit, onScan: () -> 
             item {
                 Section {
                     Title("2. Choisir un visage")
-                    Body("Choisissez une photo où la personne est bien visible. L'appli montre alors toutes les photos où elle apparaît, et vous pourrez les mettre à l'écart ou à la corbeille.")
+                    Body("Choisissez une photo où la personne est bien visible : l'appli montre toutes les photos où elle apparaît.")
                     BigButton("Choisir une photo", { picker.launch("image/*") }, enabled = state.analysed > 0)
                     if (state.analysed == 0) Text("Disponible après l'analyse.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     else if (missing > 0) Text("Les photos pas encore analysées ne seront pas dans les résultats.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
+        tabs()
     }
 }
 

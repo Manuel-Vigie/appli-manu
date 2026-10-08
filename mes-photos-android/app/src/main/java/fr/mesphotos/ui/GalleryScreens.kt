@@ -8,6 +8,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -182,6 +184,7 @@ internal fun ConfirmMoveDialog(kind: MoveKind, summary: String, onConfirm: () ->
 
 // ---- Galerie : dossiers, photos ------------------------------------------------------------------
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BrowseScreen(
     state: UiState.Browse,
@@ -190,7 +193,7 @@ fun BrowseScreen(
     onOpen: (List<File>, Int) -> Unit,
     onMove: (MoveKind, Set<String>, List<File>) -> Unit,
     onUndoMove: () -> Unit,
-    onSearch: () -> Unit,
+    tabs: @Composable () -> Unit,
 ) {
     var selecting by remember(state) { mutableStateOf(false) }
     var selectedFolders by remember(state) { mutableStateOf(emptySet<String>()) }
@@ -215,9 +218,10 @@ fun BrowseScreen(
         selectedFiles = if (path in selectedFiles) selectedFiles - path else selectedFiles + path
     }
 
-    BackHandler { if (selecting) stopSelecting() else onUp() }
+    // À la racine, « retour » quitte l'appli comme dans toute appli photo.
+    BackHandler(enabled = selecting || state.path.isNotEmpty()) { if (selecting) stopSelecting() else onUp() }
 
-    val title = if (state.path.isEmpty()) "Mes photos" else state.path.last()
+    val title = if (state.path.isEmpty()) "Photos" else state.path.last()
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (selecting) {
@@ -238,33 +242,19 @@ fun BrowseScreen(
             )
         } else {
             val counts = ArrayList<String>()
-            if (state.folders.isNotEmpty()) counts += if (state.folders.size > 1) "${state.folders.size} dossiers" else "1 dossier"
+            if (state.folders.isNotEmpty()) counts += if (state.folders.size > 1) "${state.folders.size} albums" else "1 album"
             if (state.files.isNotEmpty()) counts += if (state.files.size > 1) "${spaced(state.files.size)} photos et vidéos" else "1 photo ou vidéo"
-            Header(
+            TopBar(
                 title = title,
-                subtitle = if (state.path.size > 1) state.path.dropLast(1).joinToString(" / ") else null,
-                top = {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = onUp) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(if (state.path.isEmpty()) "Accueil" else "Retour", color = Color.White, fontSize = 16.sp)
-                        }
-                        Spacer(Modifier.weight(1f))
-                        HeaderButton("Visages", onSearch)
-                        if (itemCount > 0) {
-                            Spacer(Modifier.width(8.dp))
-                            HeaderButton("Choisir") { selecting = true }
-                        }
-                    }
-                },
+                subtitle = counts.joinToString("  ·  ").ifEmpty { null },
+                onBack = if (state.path.isEmpty()) null else onUp,
             ) {
-                if (counts.isNotEmpty()) Text(counts.joinToString("  ·  "), color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyMedium)
+                if (itemCount > 0) TopAction("Choisir") { selecting = true }
             }
         }
 
         state.message?.let { message ->
-            Box(Modifier.padding(start = 14.dp, end = 14.dp, top = 12.dp)) {
+            Box(Modifier.padding(start = 14.dp, end = 14.dp, top = 6.dp, bottom = 6.dp)) {
                 NoticeCard(
                     message,
                     isError = false,
@@ -275,14 +265,14 @@ fun BrowseScreen(
         }
 
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(104.dp),
+            columns = GridCells.Fixed(6),
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp),
+            contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            items(state.folders, key = { "d:" + it.name }, span = { GridItemSpan(maxLineSpan) }) { folder ->
-                FolderRow(
+            items(state.folders, key = { "d:" + it.name }, span = { GridItemSpan(3) }) { folder ->
+                AlbumCard(
                     folder,
                     selecting = selecting,
                     selected = folder.name in selectedFolders,
@@ -290,7 +280,7 @@ fun BrowseScreen(
                     onLongClick = { toggleFolder(folder.name) },
                 )
             }
-            itemsIndexed(state.files, key = { _, f -> "f:" + f.absolutePath }) { index, file ->
+            itemsIndexed(state.files, key = { _, f -> "f:" + f.absolutePath }, span = { _, _ -> GridItemSpan(2) }) { index, file ->
                 PhotoTile(
                     file,
                     selecting = selecting,
@@ -302,6 +292,7 @@ fun BrowseScreen(
         }
 
         if (selecting) MoveBar(selectedCount, onAside = { confirm = MoveKind.ASIDE }, onTrash = { confirm = MoveKind.TRASH })
+        else tabs()
     }
 
     confirm?.let { kind ->
@@ -319,46 +310,31 @@ fun BrowseScreen(
     }
 }
 
+/** Un album (dossier) : sa photo de couverture en grand, le nom et le nombre de photos par-dessus. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FolderRow(folder: FolderItem, selecting: Boolean, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
-    val shape = RoundedCornerShape(20.dp)
-    Card(
-        modifier = Modifier.fillMaxWidth().clip(shape).combinedClickable(onClick = onClick, onLongClick = onLongClick),
-        shape = shape,
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-        ),
-        border = BorderStroke(
-            if (selected) 2.dp else 1.dp,
-            if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-        ),
+private fun AlbumCard(folder: FolderItem, selecting: Boolean, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
+    val shape = RoundedCornerShape(18.dp)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .aspectRatio(1.1f)
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .then(if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, shape) else Modifier)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
-        Row(
-            modifier = Modifier.padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            val cover = folder.cover
-            if (cover != null) {
-                Thumb(cover, 200, Modifier.size(68.dp).clip(RoundedCornerShape(14.dp)))
-            } else {
-                Box(
-                    Modifier.size(68.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center,
-                ) { Text("📁", fontSize = 28.sp) }
-            }
-            Column(Modifier.weight(1f)) {
-                Text(folder.name, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    if (folder.count > 1) "${spaced(folder.count)} photos et vidéos" else "1 photo ou vidéo",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (selecting) SelectMark(selected, onPhoto = false, modifier = Modifier.padding(end = 6.dp))
-            else Text("›", fontSize = 28.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 6.dp))
+        folder.cover?.let { Thumb(it, 400, Modifier.fillMaxSize()) }
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000)))))
+        Column(Modifier.align(Alignment.BottomStart).padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Text(folder.name, color = Color.White, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+            Text(
+                if (folder.count > 1) "${spaced(folder.count)} photos" else "1 photo",
+                color = Color.White.copy(alpha = 0.85f),
+                fontSize = 13.sp,
+            )
         }
+        if (selecting) SelectMark(selected, onPhoto = true, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp))
     }
 }
 
@@ -412,7 +388,7 @@ fun ReviewScreen(
                         TextButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Accueil", color = Color.White, fontSize = 16.sp)
+                            Text("Outils", color = Color.White, fontSize = 16.sp)
                         }
                         Spacer(Modifier.weight(1f))
                         if (state.files.isNotEmpty()) HeaderButton("Choisir") { selecting = true }
@@ -739,7 +715,7 @@ fun TrashScreen(
                     TextButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Accueil", color = Color.White, fontSize = 16.sp)
+                        Text("Outils", color = Color.White, fontSize = 16.sp)
                     }
                 }
             },

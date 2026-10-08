@@ -76,7 +76,7 @@ fun DupReviewScreen(
                 TextButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Accueil", color = Color.White, fontSize = 16.sp)
+                    Text("Outils", color = Color.White, fontSize = 16.sp)
                 }
             },
         )

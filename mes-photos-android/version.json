@@ -1,10 +1,10 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V8",
-  "date": "07/10/2026",
+  "version": "V9",
+  "date": "08/10/2026",
   "nouveautes": [
-    "Doublons : bouton « Sélectionner automatiquement tous les doublons » (l'original est toujours gardé).",
-    "Doublons dans un seul dossier et écran de comparaison (V7).",
+    "Nouvelle présentation façon appli photo : barre du bas (Photos, Visages, Outils), albums en grandes cartes, boutons regroupés dans « Outils ».",
+    "Doublons : sélection automatique, un seul dossier « Doublons » (V7-V8).",
     "Recherche par visage (V6).",
     "Les copies identiques ne restent plus en vrac (V5)."
   ],

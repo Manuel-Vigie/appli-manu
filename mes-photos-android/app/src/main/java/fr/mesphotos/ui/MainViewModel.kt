@@ -205,6 +205,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         refresh()
+        // Comme une appli photo : on arrive directement sur les photos.
+        if (place != null) browse(emptyList())
     }
 
     private fun hasUndo() = journal.exists() && journal.length() > 0
