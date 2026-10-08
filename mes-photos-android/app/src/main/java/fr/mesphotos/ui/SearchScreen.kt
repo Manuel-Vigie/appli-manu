@@ -246,7 +246,7 @@ fun SearchScreen(
             }
         }
 
-        if (selecting) MoveBar(selected.size, onAside = { confirm = MoveKind.ASIDE }, onTrash = { confirm = MoveKind.TRASH })
+        if (selecting) MoveBar(selected.size, onAside = { confirm = MoveKind.ASIDE }, onTrash = { confirm = MoveKind.TRASH }, onVault = { confirm = MoveKind.VAULT })
     }
 
     confirm?.let { kind ->

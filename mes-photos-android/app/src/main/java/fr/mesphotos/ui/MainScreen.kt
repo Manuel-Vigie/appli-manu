@@ -78,6 +78,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import android.app.Activity
+import android.app.KeyguardManager
+import android.content.ContextWrapper
+import android.view.WindowManager
+import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.io.File
 
@@ -102,6 +107,42 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
         if (path != null) viewModel.photoTaken(File(path), ok)
     }
     var askLabel by remember { mutableStateOf(false) }
+
+    // Coffre-fort : on demande le verrouillage du téléphone (code, schéma, empreinte…) avant de l'ouvrir.
+    val unlock = rememberLauncherForActivityResult(StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) viewModel.unlockVault()
+    }
+    val openVault: () -> Unit = {
+        if (viewModel.isVaultOpen()) {
+            viewModel.openVault()
+        } else {
+            val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+            val intent = if (keyguard.isDeviceSecure) keyguard.createConfirmDeviceCredentialIntent("Coffre-fort", "Confirmez que c'est bien vous.") else null
+            if (intent == null) {
+                viewModel.showNotice(
+                    "Pour ouvrir le coffre-fort, le téléphone doit avoir un verrouillage (code, schéma ou empreinte). Activez-le dans les réglages d'Android, « Sécurité », puis réessayez.",
+                    isError = true,
+                )
+            } else {
+                try {
+                    unlock.launch(intent)
+                } catch (e: Exception) {
+                    viewModel.showNotice("Impossible de demander le verrouillage du téléphone.", isError = true)
+                }
+            }
+        }
+    }
+
+    // Écran protégé : pas de capture d'écran, et l'aperçu des applis récentes est noir, tant qu'on est dans le coffre-fort.
+    val inVault = state is UiState.VaultView || (state is UiState.Viewer && (state as UiState.Viewer).fromVault)
+    DisposableEffect(inVault) {
+        var activity: Context? = context
+        while (activity is ContextWrapper && activity !is Activity) activity = activity.baseContext
+        val window = (activity as? Activity)?.window
+        if (inVault) window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
+    }
+
     val takePhoto: (String) -> Unit = { label ->
         val file = viewModel.newShotFile(label)
         if (file == null) {
@@ -155,6 +196,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onUndo = viewModel::undo,
                         onOpenTrash = { viewModel.openTrash(MoveKind.TRASH) },
                         onOpenAside = { viewModel.openTrash(MoveKind.ASIDE) },
+                        onOpenVault = openVault,
                         onDuplicates = viewModel::findDuplicates,
                         onTakePhoto = { askLabel = true },
                         onScan = viewModel::startNudityScan,
@@ -199,6 +241,14 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onRename = viewModel::renameFile,
                     categories = viewModel::shortcutCategories,
                     onSaveShortcut = { name, category, words -> viewModel.saveShortcut(name, category, words, null) },
+                    onRestoreFromVault = { file -> viewModel.restoreFromVaultFile(file) },
+                )
+                is UiState.VaultView -> VaultScreen(
+                    s,
+                    onBack = viewModel::backToStart,
+                    onOpen = viewModel::openVaultViewer,
+                    onRestore = viewModel::restoreFromVault,
+                    onDeleteForever = viewModel::deleteFromVault,
                 )
                 is UiState.Search -> SearchScreen(
                     s,
@@ -273,6 +323,7 @@ private fun HomeScreen(
     onUndo: () -> Unit,
     onOpenTrash: () -> Unit,
     onOpenAside: () -> Unit,
+    onOpenVault: () -> Unit,
     onDuplicates: () -> Unit,
     onTakePhoto: () -> Unit,
     onScan: () -> Unit,
@@ -327,6 +378,7 @@ private fun HomeScreen(
                     onClick = if (state.suggestions > 0) onReview else onScan,
                 )
                 tools += Tool(Icons.Default.Lock, "À l'écart", if (state.asideCount > 0) "${spaced(state.asideCount)} fichier(s)" else "Vide", onClick = onOpenAside)
+                tools += Tool(AppIcons.Shield, "Coffre-fort", "Photos cachées, avec le verrouillage du téléphone", onClick = onOpenVault)
                 tools += Tool(Icons.Default.Delete, "Corbeille", if (state.trashCount > 0) "${spaced(state.trashCount)} fichier(s)" else "Vide", onClick = onOpenTrash)
                 if (state.hasUndo) tools += Tool(Icons.Default.Refresh, "Annuler le rangement", "Tout remettre comme avant", onClick = onUndo)
                 tools.chunked(2).forEach { pair ->

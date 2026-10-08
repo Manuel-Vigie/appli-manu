@@ -35,6 +35,12 @@ class MainActivity : ComponentActivity() {
         viewModel.onResume()
     }
 
+    override fun onStop() {
+        super.onStop()
+        // Le coffre-fort se referme dès qu'on quitte l'appli (sauf simple rotation de l'écran).
+        if (!isChangingConfigurations) viewModel.lockVault()
+    }
+
     private fun requestAccess() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val specific = Access.settingsIntent(this)

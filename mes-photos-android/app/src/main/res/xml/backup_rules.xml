@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Le coffre-fort ne part jamais dans une sauvegarde automatique (Google, etc.). -->
+<full-backup-content>
+    <exclude domain="file" path="coffre/" />
+    <exclude domain="file" path="coffre" />
+</full-backup-content>

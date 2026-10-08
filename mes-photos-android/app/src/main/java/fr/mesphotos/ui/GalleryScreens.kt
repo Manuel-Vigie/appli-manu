@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
@@ -129,7 +130,7 @@ internal fun SelectionHeader(selectedCount: Int, allSelected: Boolean, onCancel:
 
 /** Barre du bas en mode « Choisir » : « À l'écart » (rangées à part) ou « Corbeille ». */
 @Composable
-internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNotThat: (() -> Unit)? = null) {
+internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNotThat: (() -> Unit)? = null, onVault: (() -> Unit)? = null) {
     Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp, tonalElevation = 2.dp) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).navigationBarsPadding(),
@@ -158,6 +159,18 @@ internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNot
                     Text("Corbeille", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 }
             }
+            if (onVault != null) {
+                FilledTonalButton(
+                    onClick = onVault,
+                    enabled = count > 0,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(18.dp),
+                ) {
+                    Icon(AppIcons.Shield, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Coffre-fort (photos cachées)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            }
             if (onNotThat != null) SoftButton("Ce n'est pas ça : retirer de la liste", onNotThat, enabled = count > 0)
             Text(
                 "Rien n'est effacé : tout peut être remis.",
@@ -173,19 +186,21 @@ internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNot
 @Composable
 internal fun ConfirmMoveDialog(kind: MoveKind, summary: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     val aside = kind == MoveKind.ASIDE
+    val vault = kind == MoveKind.VAULT
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (aside) "Mettre à l'écart ?" else "Mettre à la corbeille ?") },
+        title = { Text(if (vault) "Mettre au coffre-fort ?" else if (aside) "Mettre à l'écart ?" else "Mettre à la corbeille ?") },
         text = {
             Text(
                 summary + "\n\n" + (
-                    if (aside) "Ils quittent la galerie (celle de l'appli et celle du téléphone) mais restent sur la carte, dans « Photos rangées / À l'écart ». Vous pourrez les remettre."
+                    if (vault) "Ils sont copiés (et vérifiés) dans la mémoire privée de l'appli, puis retirés de la carte et de la galerie du téléphone. Personne ne les voit sans le verrouillage de votre téléphone. Attention : si vous désinstallez l'appli, ils sont perdus."
+                    else if (aside) "Ils quittent la galerie (celle de l'appli et celle du téléphone) mais restent sur la carte, dans « Photos rangées / À l'écart ». Vous pourrez les remettre."
                     else "Rien n'est effacé : vous pourrez tout remettre depuis la corbeille."
                     ),
             )
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) { Text(if (aside) "Mettre à l'écart" else "Mettre à la corbeille", fontWeight = FontWeight.Bold) }
+            TextButton(onClick = onConfirm) { Text(if (vault) "Mettre au coffre" else if (aside) "Mettre à l'écart" else "Mettre à la corbeille", fontWeight = FontWeight.Bold) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Garder") } },
     )
@@ -329,7 +344,7 @@ fun BrowseScreen(
             }
         }
 
-        if (selecting) MoveBar(selectedCount, onAside = { confirm = MoveKind.ASIDE }, onTrash = { confirm = MoveKind.TRASH })
+        if (selecting) MoveBar(selectedCount, onAside = { confirm = MoveKind.ASIDE }, onTrash = { confirm = MoveKind.TRASH }, onVault = { confirm = MoveKind.VAULT })
         else tabs()
     }
 
@@ -602,6 +617,7 @@ fun ReviewScreen(
                 selected.size,
                 onAside = { confirm = MoveKind.ASIDE },
                 onTrash = { confirm = MoveKind.TRASH },
+                onVault = { confirm = MoveKind.VAULT },
                 onNotThat = {
                     val chosen = state.files.filter { it.absolutePath in selected }
                     stopSelecting()
@@ -736,7 +752,7 @@ fun FaceResultsScreen(
             }
         }
 
-        if (selecting) MoveBar(selected.size, onAside = { confirm = MoveKind.ASIDE }, onTrash = { confirm = MoveKind.TRASH })
+        if (selecting) MoveBar(selected.size, onAside = { confirm = MoveKind.ASIDE }, onTrash = { confirm = MoveKind.TRASH }, onVault = { confirm = MoveKind.VAULT })
     }
 
     confirm?.let { kind ->
@@ -762,6 +778,7 @@ fun ViewerScreen(
     onRename: (File, String) -> Unit,
     categories: () -> List<String>,
     onSaveShortcut: (name: String, category: String, words: String) -> Unit,
+    onRestoreFromVault: (File) -> Unit = {},
 ) {
     BackHandler { onClose() }
     val context = LocalContext.current
@@ -803,13 +820,21 @@ fun ViewerScreen(
                 }
                 Spacer(Modifier.weight(1f))
                 Text("${pager.currentPage + 1} / ${state.files.size}", color = Color.White)
-                if (current != null) {
+                if (current != null && state.fromVault) {
+                    IconButton(onClick = { onRestoreFromVault(current) }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Sortir du coffre-fort", tint = Color.White)
+                    }
+                }
+                if (current != null && !state.fromVault) {
                     IconButton(onClick = { renaming = true }) {
                         Icon(Icons.Default.Edit, contentDescription = "Renommer", tint = Color.White)
                     }
                     // Étoile : créer un raccourci (une recherche enregistrée) d'après cette photo.
                     IconButton(onClick = { shortcutDialog = true }) {
                         Icon(Icons.Default.Star, contentDescription = "Créer un raccourci", tint = Color.White)
+                    }
+                    IconButton(onClick = { confirm = MoveKind.VAULT }) {
+                        Icon(AppIcons.Shield, contentDescription = "Mettre au coffre-fort", tint = Color.White)
                     }
                     IconButton(onClick = { confirm = MoveKind.ASIDE }) {
                         Icon(Icons.Default.Lock, contentDescription = "Mettre à l'écart", tint = Color.White)

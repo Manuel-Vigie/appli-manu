@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Le coffre-fort ne part jamais dans une sauvegarde ni dans un transfert vers un autre téléphone. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="coffre/" />
+        <exclude domain="file" path="coffre" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="coffre/" />
+        <exclude domain="file" path="coffre" />
+    </device-transfer>
+</data-extraction-rules>

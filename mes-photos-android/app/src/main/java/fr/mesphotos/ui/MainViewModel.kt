@@ -33,6 +33,8 @@ import fr.mesphotos.organize.FolderCleanup
 import fr.mesphotos.organize.Organizer
 import fr.mesphotos.organize.Trash
 import fr.mesphotos.organize.TrashEntry
+import fr.mesphotos.organize.Vault
+import fr.mesphotos.organize.VaultEntry
 import fr.mesphotos.organize.Verifier
 import fr.mesphotos.scan.DateChoice
 import fr.mesphotos.scan.PhotoScanner
@@ -58,7 +60,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
 
 /** Où vont les photos choisies : la corbeille (on peut effacer pour de bon) ou « À l'écart » (rangées à part, jamais effacées). */
-enum class MoveKind { TRASH, ASIDE }
+enum class MoveKind { TRASH, ASIDE, VAULT }
 
 /** Un raccourci et le nombre de photos qu'il montre en ce moment. */
 class ShortcutItem(val shortcut: Shortcut, val count: Int)
@@ -126,6 +128,9 @@ sealed interface UiState {
         val shortcuts: List<ShortcutItem> = emptyList(),
     ) : UiState
 
+    /** Le coffre-fort ouvert : ce qu'il contient (jamais montré ailleurs dans l'appli). */
+    data class VaultView(val entries: List<VaultEntry>, val message: String? = null) : UiState
+
     /** La corbeille (ou « À l'écart ») : ce qui a été mis de côté, à remettre (ou, pour la corbeille, à supprimer pour de bon). */
     data class TrashView(val entries: List<TrashEntry>, val message: String? = null, val kind: MoveKind = MoveKind.TRASH) : UiState
 
@@ -170,6 +175,8 @@ sealed interface UiState {
         /** Petit message affiché en bas (ex. « Renommée : … »). */
         val message: String? = null,
         val backToReview: Boolean = false,
+        /** Vrai quand on regarde une photo du coffre-fort. */
+        val fromVault: Boolean = false,
     ) : UiState
 
     /** Recherche automatique en cours. [total] = 0 : pas encore compté. */
@@ -225,6 +232,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val tags by lazy { Tags(File(getApplication<Application>().filesDir, "etiquettes.txt")).also { it.load() } }
     private val shortcuts by lazy { Shortcuts(File(getApplication<Application>().filesDir, "raccourcis.tsv")).also { it.load() } }
 
+    private val vault by lazy { Vault(File(getApplication<Application>().filesDir, "coffre")) }
+    private var vaultOpen = false
+
     // Mise à jour
     var updateMessage: String? = null
         private set
@@ -248,6 +258,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         return when (kind) {
             MoveKind.TRASH -> Trash(p.outputDir, onChanged)
             MoveKind.ASIDE -> Trash(p.outputDir, onChanged, dirName = Place.ASIDE_DIR, batched = false, indexName = ".index-mes-photos.tsv")
+            MoveKind.VAULT -> throw IllegalStateException("Le coffre-fort n'est pas une corbeille.")
         }
     }
 
@@ -700,6 +711,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val viewer = _state.value as? UiState.Viewer
         val query = viewer?.backToSearch
         when {
+            viewer?.fromVault == true -> if (vaultOpen) openVault() else backToStart()
             viewer?.backToFaces == true -> viewModelScope.launch { showFaceResults() }
             viewer?.backToDups == true -> viewModelScope.launch { showDupReview() }
             query != null -> search(query)
@@ -722,6 +734,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * à la corbeille, ou « À l'écart ». Rien n'est effacé : c'est un déplacement vérifié, qu'on peut annuler.
      */
     fun moveSelection(kind: MoveKind, folderNames: Set<String>, files: List<File>) {
+        if (kind == MoveKind.VAULT) {
+            moveToVault(folderNames, files)
+            return
+        }
         val current = place ?: return
         val base = browsePath
         val toFaces = returnsToFaces()
@@ -760,6 +776,127 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     toReview -> showReview(message, result.done)
                     else -> showBrowse(base, message = message, undoCount = result.done)
                 }
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
+    // ---- Coffre-fort ------------------------------------------------------------------------------
+    // Les photos y sont copiées (copie contrôlée) dans la mémoire privée de l'appli, puis retirées de la carte.
+    // L'accès demande le verrouillage du téléphone (voir MainScreen) ; il se referme dès qu'on quitte l'appli.
+
+    /** Met les photos [files] et le contenu des dossiers [folderNames] au coffre-fort. */
+    private fun moveToVault(folderNames: Set<String>, files: List<File>) {
+        val current = place ?: return
+        val base = browsePath
+        val toFaces = returnsToFaces()
+        val toDups = returnsToDups()
+        val toSearch = returnQuery()
+        val toReview = returnsToReview()
+        val label = "Mise au coffre-fort…"
+        viewModelScope.launch {
+            try {
+                _state.value = UiState.Working(label, 0, 0)
+                val result = withContext(Dispatchers.IO) {
+                    val parent = base.fold(current.outputDir) { acc, name -> File(acc, name) }
+                    val all = LinkedHashSet<File>(files)
+                    folderNames.forEach { name -> all += Gallery.media(File(parent, name)) }
+                    val r = vault.add(all.toList()) { done, total ->
+                        if (done % 5 == 0 || done == total) _state.value = UiState.Working(label, done, total)
+                    }
+                    // Prévient la galerie du téléphone : ces photos n'y sont plus.
+                    if (r.removedPaths.isNotEmpty()) MediaScannerConnection.scanFile(getApplication(), r.removedPaths.toTypedArray(), null, null)
+                    r
+                }
+                searchIndex = null
+                val lines = ArrayList<String>()
+                lines += if (result.done == 0) "Rien n'a été mis au coffre-fort." else
+                    "${countText(result.done)} au coffre-fort. Ils ont quitté la carte et ne se voient plus nulle part ailleurs. Pour les revoir : Outils, « Coffre-fort »."
+                if (result.failed > 0) lines += "${result.failed} fichier(s) n'ont pas pu être mis au coffre et sont restés en place."
+                result.failures.take(2).forEach { lines += it }
+                val message = lines.joinToString("\n")
+                when {
+                    toFaces -> showFaceResults(message)
+                    toDups -> showDupReview(message)
+                    toSearch != null -> showSearch(toSearch, message, 0)
+                    toReview -> showReview(message)
+                    else -> showBrowse(base, message = message)
+                }
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
+    /** À appeler une fois le verrouillage du téléphone vérifié. */
+    fun unlockVault() {
+        vaultOpen = true
+        openVault()
+    }
+
+    /** Referme le coffre-fort (quand on quitte l'appli) : si on était dedans, retour aux outils. */
+    fun lockVault() {
+        vaultOpen = false
+        val s = _state.value
+        if (s is UiState.VaultView || (s is UiState.Viewer && s.fromVault)) refresh()
+    }
+
+    fun isVaultOpen() = vaultOpen
+
+    fun openVault(message: String? = null) {
+        if (!vaultOpen) return
+        viewModelScope.launch {
+            _state.value = UiState.Working("Ouverture du coffre-fort…", 0, 0)
+            val entries = withContext(Dispatchers.IO) { vault.entries() }
+            _state.value = UiState.VaultView(entries, message)
+        }
+    }
+
+    fun openVaultViewer(entries: List<VaultEntry>, index: Int) {
+        if (!vaultOpen) return
+        _state.value = UiState.Viewer(emptyList(), entries.map { it.file }, index, fromVault = true)
+    }
+
+    /** Remet des photos du coffre sur la carte, à leur ancienne place (sinon dans « Photos à trier »). */
+    fun restoreFromVault(items: List<VaultEntry>) {
+        val current = place ?: return
+        if (!vaultOpen) return
+        viewModelScope.launch {
+            try {
+                _state.value = UiState.Working("Remise sur la carte…", 0, 0)
+                val result = withContext(Dispatchers.IO) {
+                    val r = vault.restore(items, current.captureDir) { done, total ->
+                        if (done % 5 == 0 || done == total) _state.value = UiState.Working("Remise sur la carte…", done, total)
+                    }
+                    if (r.arrivedPaths.isNotEmpty()) MediaScannerConnection.scanFile(getApplication(), r.arrivedPaths.toTypedArray(), null, null)
+                    r
+                }
+                searchIndex = null
+                var text = "${countText(result.done)} sorti(s) du coffre-fort et remis sur la carte."
+                if (result.failed > 0) text += "\n${result.failed} fichier(s) n'ont pas pu être remis (ils sont toujours au coffre) : ${result.failures.take(2).joinToString(" ; ")}"
+                openVault(text)
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
+    /** Depuis la visionneuse du coffre : sort la photo regardée. */
+    fun restoreFromVaultFile(file: File) {
+        val entry = vault.entries().firstOrNull { it.file.absolutePath == file.absolutePath } ?: return
+        restoreFromVault(listOf(entry))
+    }
+
+    fun deleteFromVault(items: List<VaultEntry>) {
+        if (!vaultOpen) return
+        viewModelScope.launch {
+            try {
+                _state.value = UiState.Working("Suppression…", 0, 0)
+                val result = withContext(Dispatchers.IO) { vault.deleteForever(items) }
+                var text = "${countText(result.done)} supprimé(s) pour de bon."
+                if (result.failed > 0) text += "\n" + result.failures.joinToString(" ")
+                openVault(text)
             } catch (e: Exception) {
                 refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
             }
