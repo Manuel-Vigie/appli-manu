@@ -244,7 +244,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onSaveShortcut = { name, category, words -> viewModel.saveShortcut(name, category, words, null) },
                     onRestoreFromVault = { file -> viewModel.restoreFromVaultFile(file) },
                 )
-                is UiState.HealthView -> HealthScreen(s, onBack = viewModel::backToStart, onRepair = viewModel::repairHealth)
+                is UiState.HealthView -> HealthScreen(s, onBack = viewModel::backToStart, onRepair = viewModel::repairHealth, onTrashUnusable = viewModel::trashUnusable)
                 is UiState.VaultView -> VaultScreen(
                     s,
                     onBack = viewModel::backToStart,

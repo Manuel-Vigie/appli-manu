@@ -86,6 +86,8 @@ class HealthReport(
     val unknownKinds: List<Pair<String, Int>> = emptyList(),
     /** Analyse poussée des « contenu inconnu » : début / milieu / fin brouillés ou non, trace de JPEG ailleurs dans le fichier. */
     val deepKinds: List<Pair<String, Int>> = emptyList(),
+    /** Les fichiers définitivement inutilisables (inconnus, brouillés, vides) : ceux qu'on propose de mettre à la corbeille. */
+    val unusable: List<File> = emptyList(),
     val message: String? = null,
 )
 
@@ -825,6 +827,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     val repairable = ArrayList<Pair<File, Health>>()
                     val unknown = HashMap<String, Int>()
                     val deep = HashMap<String, Int>()
+                    val unusable = ArrayList<File>()
                     val dateFormat = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.FRANCE)
                     for ((i, file) in all.withIndex()) {
                         val checked = healthOf(file)
@@ -842,6 +845,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                             folders[folder] = (folders[folder] ?: 0) + 1
                             if (samples.size < 25) samples += "${file.name} : ${verdictText(health.verdict)}"
                             if (health.verdict == Verdict.REPAIRABLE) repairable += file to health
+                            if (health.verdict in UNUSABLE) unusable += file
                         }
                         if (i % 40 == 0 || i == total - 1) _state.value = UiState.Working("Vérification des fichiers…", i + 1, total)
                     }
@@ -852,6 +856,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         samples, repairable,
                         unknownKinds = unknown.entries.sortedByDescending { it.value }.take(8).map { it.key to it.value },
                         deepKinds = deep.entries.sortedByDescending { it.value }.map { it.key to it.value },
+                        unusable = unusable,
                     )
                 }
                 _state.value = UiState.HealthView(report)
@@ -903,6 +908,41 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     } catch (e: Exception) {
         "illisible (erreur de la carte)"
+    }
+
+    /**
+     * Nettoyage : met à la CORBEILLE les fichiers inutilisables trouvés par la vérification (jamais d'effacement direct).
+     * Ils peuvent être remis d'un geste (bouton « Annuler » ou Outils, « Corbeille »), et ne sont supprimés pour de bon que
+     * si on le demande depuis la corbeille.
+     */
+    fun trashUnusable() {
+        val current = place ?: return
+        val state = _state.value as? UiState.HealthView ?: return
+        val files = state.report.unusable
+        if (files.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                val label = "Mise à la corbeille…"
+                _state.value = UiState.Working(label, 0, files.size)
+                val result = withContext(Dispatchers.IO) {
+                    trashOf(current).moveToTrash(files) { done, total ->
+                        if (done % 10 == 0 || done == total) _state.value = UiState.Working(label, done, total)
+                    }
+                }
+                lastMoved = result.entries
+                lastKind = MoveKind.TRASH
+                searchIndex = null
+                withContext(Dispatchers.IO) { refreshStashCounts(current) }
+                val lines = ArrayList<String>()
+                lines += if (result.done == 0) "Rien n'a été déplacé."
+                else "${countText(result.done)} abîmé(s) mis à la corbeille. Rien n'est effacé : pour les supprimer pour de bon, choisissez-les ici puis « Supprimer pour de bon »."
+                if (result.failed > 0) lines += "${result.failed} fichier(s) n'ont pas pu être déplacés et sont restés en place (probablement hors de « ${Place.OUTPUT_DIR} »)."
+                result.failures.take(2).forEach { lines += it }
+                openTrash(MoveKind.TRASH, lines.joinToString("\n"))
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
     }
 
     private fun verdictText(v: Verdict) = when (v) {
@@ -968,7 +1008,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 _state.value = UiState.HealthView(
                     HealthReport(
                         state.report.total, state.report.counts, state.report.byDate, state.report.byFolder,
-                        state.report.samples, emptyList(), unknownKinds = state.report.unknownKinds, deepKinds = state.report.deepKinds, message = text + if (made < todo.size) "\n${todo.size - made} n'ont pas pu l'être." else "",
+                        state.report.samples, emptyList(), unknownKinds = state.report.unknownKinds, deepKinds = state.report.deepKinds, unusable = state.report.unusable, message = text + if (made < todo.size) "\n${todo.size - made} n'ont pas pu l'être." else "",
                     ),
                 )
             } catch (e: Exception) {
@@ -1624,6 +1664,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private companion object {
+        val UNUSABLE = setOf(Verdict.UNKNOWN, Verdict.SCRAMBLED, Verdict.ZEROS, Verdict.EMPTY)
         const val FIRST_BATCH = 10
 
         /** Ressemblance minimale (cosinus) selon le niveau : sûr, normal, large. */

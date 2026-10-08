@@ -16,12 +16,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,9 +37,11 @@ import fr.mesphotos.logic.Verdict
 
 /** Résultat de « Vérifier les photos » : un bilan en clair, sans rien modifier. */
 @Composable
-fun HealthScreen(state: UiState.HealthView, onBack: () -> Unit, onRepair: () -> Unit) {
+fun HealthScreen(state: UiState.HealthView, onBack: () -> Unit, onRepair: () -> Unit, onTrashUnusable: () -> Unit) {
     BackHandler { onBack() }
+    var confirmTrash by remember { mutableStateOf(false) }
     val r = state.report
+    if (confirmTrash) TrashConfirm(r.unusable.size, onConfirm = { confirmTrash = false; onTrashUnusable() }, onDismiss = { confirmTrash = false })
     fun n(v: Verdict) = r.counts[v] ?: 0
     val bad = r.total - n(Verdict.OK)
     Column(Modifier.fillMaxSize()) {
@@ -108,6 +115,18 @@ fun HealthScreen(state: UiState.HealthView, onBack: () -> Unit, onRepair: () -> 
                 }
             }
         }
+        if (r.unusable.isNotEmpty()) {
+            Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp, tonalElevation = 2.dp) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    DangerOutlineButton("Nettoyer : ${spaced(r.unusable.size)} fichier(s) abîmés à la corbeille…", onClick = { confirmTrash = true })
+                    Text(
+                        "Rien n'est effacé tout de suite : ils vont à la corbeille et peuvent être remis.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
         if (r.repairable.isNotEmpty()) {
             Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp, tonalElevation = 2.dp) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -129,4 +148,21 @@ private fun Line(label: String, count: Int) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         Text(spaced(count), fontWeight = FontWeight.Bold, fontSize = 16.sp)
     }
+}
+
+@Composable
+private fun TrashConfirm(count: Int, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Nettoyer ?") },
+        text = {
+            Text(
+                "$count fichier(s) abîmés (impossibles à afficher) vont à la corbeille. " +
+                    "Rien n'est effacé : vous pourrez les remettre, ou les supprimer pour de bon depuis « Corbeille » dans Outils.\n\n" +
+                    "Gardez-les à la corbeille tant que vous n'avez pas retrouvé de copies saines : leurs noms servent à les retrouver.",
+            )
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Mettre à la corbeille", fontWeight = FontWeight.Bold) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
+    )
 }
