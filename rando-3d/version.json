@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V52",
+  "version": "V53",
   "date": "08/10/2026",
   "nouveautes": [
+    "Film : les étiquettes bougent beaucoup moins. Elles suivent la carte d'un bloc avec leur point (plus de glissement ni de trait qui s'étire), et ne changent de côté que si le parcours passe vraiment dessus.",
     "Nouvel onglet « Mes films » (barre du bas) : chaque film créé y est gardé ; tu peux le lire, l'enregistrer, le renommer ou le supprimer. Les randos de « Mes randos » peuvent aussi être renommées (✏️).",
     "Le bandeau « Ajouter à mes randos » à l'ouverture d'une trace est supprimé : on ajoute une rando depuis l'onglet Mes randos.",
-    "Mes randos : bouton « ✕ Retirer » sur les Grands itinéraires (GR5) pour les enlever de la liste ; un bouton permet de les réafficher.",
-    "Mes randos : dès que tu importes une trace, un bandeau « ＋ Ajouter à mes randos » apparaît en haut. Le bouton s'appelle maintenant « Ajouter à mes randos » partout, et la suppression (🗑 ou ✕) demande une confirmation en deux appuis."
+    "Mes randos : bouton « ✕ Retirer » sur les Grands itinéraires (GR5) pour les enlever de la liste ; un bouton permet de les réafficher."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v52"
+    "cache": "rr3d-v53"
   },
   "fichiers": [
     "rando-3d.html",
