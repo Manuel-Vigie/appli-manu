@@ -12,8 +12,8 @@ android {
         applicationId = "fr.mesphotos"
         minSdk = 26
         targetSdk = 35
-        versionCode = 35
-        versionName = "1.30.0"
+        versionCode = 36
+        versionName = "1.31.0"
         // Le moteur de reconnaissance n'est embarqué que pour les téléphones courants (pas les PC / émulateurs).
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
@@ -70,6 +70,9 @@ dependencies {
 
     // Reconnaissance sur le téléphone (aucune photo n'est envoyée) : moteur ONNX Runtime.
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.19.2")
+
+    // Reconnaissance du contenu des photos (plage, voiture…), modèle embarqué : fonctionne hors connexion.
+    implementation("com.google.mlkit:image-labeling:17.0.9")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 

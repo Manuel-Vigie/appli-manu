@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V35",
+  "version": "V36",
   "date": "08/10/2026",
   "nouveautes": [
+    "Outils > Recherche > « Classer mes photos » : l'appli reconnaît plage, voiture, repas, document… sur le téléphone, vous propose des mots à cocher, puis renomme d'un coup et crée les raccourcis. Essayez d'abord sur 20 photos.",
     "« Toutes les photos » cache maintenant celles qui sont déjà renommées : il ne reste que celles à faire. Une puce en haut permet de les revoir.",
     "Après « Renommer », vous voyez tout de suite les photos renommées (liste des photos qui portent le mot), et une case permet de créer le raccourci en même temps.",
-    "Renommer plusieurs photos d'un coup : choisissez-les, touchez « Renommer », choisissez un mot (Immatriculation…) : il est ajouté devant leur nom, la date est gardée, et un raccourci du même mot les retrouve.",
-    "« Toutes les photos » (en haut de l'onglet Photos) : toutes les photos et vidéos à la suite, en petites vignettes, avec l'ordre au choix (récentes, anciennes, nom, grosses). Choisir en nombre, puis coffre-fort, à l'écart ou corbeille."
+    "Renommer plusieurs photos d'un coup : choisissez-les, touchez « Renommer », choisissez un mot (Immatriculation…) : il est ajouté devant leur nom, la date est gardée, et un raccourci du même mot les retrouve."
   ],
   "pastille": false,
   "fichiers": []

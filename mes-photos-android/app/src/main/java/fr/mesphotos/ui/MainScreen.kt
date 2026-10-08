@@ -216,6 +216,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onOpenAside = { viewModel.openTrash(MoveKind.ASIDE) },
                         onOpenVault = openVault,
                         onHealth = viewModel::startHealthCheck,
+                        onClassify = viewModel::startLabeling,
                         onDuplicates = viewModel::findDuplicates,
                         onTakePhoto = { askLabel = true },
                         onScan = viewModel::startNudityScan,
@@ -264,6 +265,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onSaveShortcut = { name, category, words -> viewModel.saveShortcut(name, category, words, null) },
                     onRestoreFromVault = { file -> viewModel.restoreFromVaultFile(file) },
                 )
+                is UiState.LabelView -> LabelScreen(s, onBack = viewModel::backToStart, onApply = viewModel::applyLabels)
                 is UiState.HealthView -> HealthScreen(s, onBack = viewModel::backToStart, onRepair = viewModel::repairHealth, onTrashUnusable = viewModel::trashUnusable)
                 is UiState.VaultView -> VaultScreen(
                     s,
@@ -358,6 +360,7 @@ private fun HomeScreen(
     onOpenAside: () -> Unit,
     onOpenVault: () -> Unit,
     onHealth: () -> Unit,
+    onClassify: (Int) -> Unit,
     onDuplicates: () -> Unit,
     onTakePhoto: () -> Unit,
     onScan: () -> Unit,
@@ -410,6 +413,8 @@ private fun HomeScreen(
                     ToolGroup(
                         "Recherche",
                         listOf(
+                            Tool(Icons.Default.Search, "Classer mes photos (essai : 20)", "L'appli reconnaît plage, voiture, repas… sur 20 photos, vous validez", onClick = { onClassify(20) }),
+                            Tool(Icons.Default.Search, "Classer toutes mes photos", "Même chose sur toutes les photos pas encore renommées", onClick = { onClassify(0) }),
                             Tool(AppIcons.Copy, "Doublons", "Comparer et garder une seule photo", onClick = onDuplicates),
                             Tool(
                                 Icons.Default.Search,

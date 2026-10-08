@@ -17,6 +17,8 @@ import fr.mesphotos.faces.FaceEngine
 import fr.mesphotos.gallery.FolderItem
 import fr.mesphotos.gallery.Gallery
 import fr.mesphotos.gallery.Thumbs
+import fr.mesphotos.labels.LabelNames
+import fr.mesphotos.labels.Labeler
 import fr.mesphotos.logic.DupGroup
 import fr.mesphotos.logic.FileHealth
 import fr.mesphotos.logic.Health
@@ -164,6 +166,8 @@ sealed interface UiState {
 
     /** Résultat de « Vérifier les photos ». */
     data class HealthView(val report: HealthReport) : UiState
+    /** Résultat de « Classer mes photos » : des groupes proposés (mot + photos), à cocher avant d'appliquer. */
+    data class LabelView(val groups: List<LabelGroup>, val scanned: Int, val unknown: Int, val message: String? = null) : UiState
 
     /** Le coffre-fort ouvert : ce qu'il contient (jamais montré ailleurs dans l'appli). */
     data class VaultView(val entries: List<VaultEntry>, val message: String? = null) : UiState
@@ -1403,6 +1407,91 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val terms = Gallery.terms(shortcut.words)
             ShortcutItem(shortcut, if (terms.isEmpty()) 0 else index.count { Gallery.matches(it.text, terms) })
         }
+
+    // ---- Classer par reconnaissance (Google ML Kit, sur le téléphone) -----------------------------
+
+    class LabelGroup(val name: String, val files: List<File>)
+
+    /**
+     * Regarde les photos pas encore renommées (les plus récentes d'abord, [limit] au plus ; 0 = toutes) et les range en groupes
+     * par mot (« Plage », « Voiture »…). Rien n'est renommé ici : on propose, on applique ensuite avec [applyLabels].
+     */
+    fun startLabeling(limit: Int) {
+        val current = place ?: return
+        viewModelScope.launch {
+            try {
+                _state.value = UiState.Working("Recherche des photos…", 0, 0)
+                val view = withContext(Dispatchers.IO) {
+                    val candidates = PhotoFiles.list(current, includeSorted = true).map { it.file }
+                        .filter { !PhotoFiles.isVideo(it) && !isRenamed(it.name) }
+                        .sortedByDescending { it.lastModified() }
+                        .let { if (limit > 0) it.take(limit) else it }
+                    val groups = LinkedHashMap<String, ArrayList<File>>()
+                    var unknown = 0
+                    Labeler().use { labeler ->
+                        for ((i, file) in candidates.withIndex()) {
+                            val bitmap = Thumbs.loadUncached(file, 320)
+                            val word = bitmap?.let { LabelNames.pick(labeler.labels(it)) }
+                            if (word == null) unknown++ else groups.getOrPut(word) { ArrayList() } += file
+                            if (i % 5 == 0 || i == candidates.size - 1) _state.value = UiState.Working("Reconnaissance des photos…", i + 1, candidates.size)
+                        }
+                    }
+                    val sorted = groups.entries.sortedByDescending { it.value.size }.map { LabelGroup(it.key, it.value) }
+                    UiState.LabelView(sorted, candidates.size, unknown)
+                }
+                _state.value = view
+            } catch (e: Exception) {
+                refresh("La reconnaissance n'a pas pu se faire : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
+    /** Ajoute le mot de chaque groupe coché devant le nom de ses photos, et crée un raccourci du même nom. */
+    fun applyLabels(chosen: Set<String>) {
+        val view = _state.value as? UiState.LabelView ?: return
+        val groups = view.groups.filter { it.name in chosen }
+        if (groups.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                val total = groups.sumOf { it.files.size }
+                _state.value = UiState.Working("Renommage…", 0, total)
+                val stats = withContext(Dispatchers.IO) {
+                    val touched = ArrayList<String>()
+                    var done = 0
+                    var failed = 0
+                    var seen = 0
+                    for (group in groups) {
+                        var groupDone = 0
+                        for (file in group.files) {
+                            seen++
+                            val name = RenameNames.build(group.name, file.name, keepOriginal = true)
+                            val dir = file.parentFile
+                            if (!file.isFile || name == null || dir == null) { failed++; continue }
+                            val target = RenameNames.unique(dir, name)
+                            if (file.renameTo(target) && target.isFile && !file.exists()) {
+                                touched += file.absolutePath
+                                touched += target.absolutePath
+                                updateJournalPath(file, target)
+                                done++
+                                groupDone++
+                            } else failed++
+                            if (seen % 10 == 0) _state.value = UiState.Working("Renommage…", seen, total)
+                        }
+                        if (groupDone > 0) shortcuts.put(group.name, "Classement automatique", group.name)
+                    }
+                    if (touched.isNotEmpty()) MediaScannerConnection.scanFile(getApplication(), touched.toTypedArray(), null, null)
+                    done to failed
+                }
+                searchIndex = null
+                val (done, failed) = stats
+                val text = StringBuilder("${countText(done)} renommé(s) selon ce que l'appli a reconnu. Les raccourcis (classement « Classement automatique ») les retrouvent, en haut de l'onglet Photos.")
+                if (failed > 0) text.append("\n$failed fichier(s) n'ont pas pu être renommés et sont restés tels quels.")
+                refresh(text.toString())
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
 
     // ---- Renommer une photo --------------------------------------------------------------------
 
