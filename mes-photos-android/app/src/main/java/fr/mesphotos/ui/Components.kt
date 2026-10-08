@@ -251,11 +251,11 @@ fun SelectMark(selected: Boolean, onPhoto: Boolean, modifier: Modifier = Modifie
 
 /** Vignette d'une photo ou d'une vidéo (lue directement dans le fichier, gardée en mémoire un moment). */
 @Composable
-fun Thumb(file: File, size: Int, modifier: Modifier = Modifier) {
+fun Thumb(file: File, size: Int, modifier: Modifier = Modifier, scale: ContentScale = ContentScale.Crop) {
     var bitmap by remember(file) { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(file) { bitmap = Thumbs.load(file, size) }
     Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-        bitmap?.let { Image(it.asImageBitmap(), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
+        bitmap?.let { Image(it.asImageBitmap(), contentDescription = null, contentScale = scale, modifier = Modifier.fillMaxSize()) }
         if (PhotoFiles.isVideo(file)) {
             Box(Modifier.size(34.dp).clip(CircleShape).background(Color(0x99000000)), contentAlignment = Alignment.Center) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))

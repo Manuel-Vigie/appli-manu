@@ -179,7 +179,6 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     s,
                     onSearch = viewModel::search,
                     onBack = viewModel::openGallery,
-                    onOpenShortcut = viewModel::openShortcut,
                     onOpen = viewModel::openViewer,
                     onMove = viewModel::moveSelection,
                     onUndoMove = viewModel::undoMove,

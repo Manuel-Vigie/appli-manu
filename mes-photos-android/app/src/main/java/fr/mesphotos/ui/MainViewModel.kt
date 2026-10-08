@@ -59,6 +59,9 @@ import kotlin.math.roundToInt
 /** Où vont les photos choisies : la corbeille (on peut effacer pour de bon) ou « À l'écart » (rangées à part, jamais effacées). */
 enum class MoveKind { TRASH, ASIDE }
 
+/** Un raccourci et sa photo (null si elle est introuvable : à la corbeille, à l'écart ou effacée). */
+class ShortcutItem(val shortcut: Shortcut, val file: File?)
+
 /** Une photo prête pour la recherche : le fichier et son chemin sans accents ni majuscules. */
 class SearchEntry(val file: File, val text: String)
 
@@ -118,6 +121,8 @@ sealed interface UiState {
         val message: String? = null,
         /** Nombre de fichiers qu'on vient de mettre à la corbeille et qu'on peut remettre d'un geste (0 = rien). */
         val undoTrash: Int = 0,
+        /** Les raccourcis, montrés en haut de la page d'accueil des photos (à la racine seulement). */
+        val shortcuts: List<ShortcutItem> = emptyList(),
     ) : UiState
 
     /** La corbeille (ou « À l'écart ») : ce qui a été mis de côté, à remettre (ou, pour la corbeille, à supprimer pour de bon). */
@@ -130,7 +135,7 @@ sealed interface UiState {
         val message: String? = null,
         val undoTrash: Int = 0,
         /** Les raccourcis : tous quand rien n'est tapé, sinon ceux dont le nom ou le classement correspond. */
-        val shortcuts: List<Shortcut> = emptyList(),
+        val shortcuts: List<ShortcutItem> = emptyList(),
     ) : UiState
 
     /** Accueil de la recherche par visage : combien de photos ont déjà été regardées. */
@@ -627,10 +632,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         browsePath = path
         val empty = listing.folders.isEmpty() && listing.files.isEmpty()
+        val items = if (path.isEmpty()) withContext(Dispatchers.IO) { shortcutItems(shortcuts.all(), current) } else emptyList()
         _state.value = UiState.Browse(
             path, listing.folders, listing.files,
-            message = message ?: if (empty && path.isEmpty()) "Rien à voir pour l'instant : rangez d'abord vos photos." else null,
+            message = message ?: if (empty && path.isEmpty() && items.isEmpty()) "Rien à voir pour l'instant : rangez d'abord vos photos." else null,
             undoTrash = undoCount,
+            shortcuts = items,
         )
     }
 
@@ -824,7 +831,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val results = if (terms.isEmpty()) emptyList() else withContext(Dispatchers.Default) {
             index.filter { Gallery.matches(it.text, terms) }.map { it.file }
         }
-        val matchingShortcuts = if (terms.isEmpty()) shortcuts.all() else shortcuts.matching(terms)
+        val matchingShortcuts = withContext(Dispatchers.IO) { shortcutItems(if (terms.isEmpty()) shortcuts.all() else shortcuts.matching(terms), current) }
         _state.value = UiState.Search(query, results, message, undoCount, matchingShortcuts)
     }
 
@@ -852,18 +859,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = viewer.copy(message = "Raccourci « ${shortcut.name} » retiré. La photo n'a pas bougé.")
     }
 
-    /** Ouvre la photo d'un raccourci ; si elle a changé de place ou de nom, on la retrouve. */
-    fun openShortcut(shortcut: Shortcut) {
-        val current = place ?: return
-        val query = searchQuery
-        viewModelScope.launch {
-            val file = withContext(Dispatchers.IO) { shortcuts.resolve(shortcut) { Gallery.allMedia(current.outputDir) } }
-            if (file == null) {
-                showSearch(query, "La photo du raccourci « ${shortcut.name} » est introuvable (peut-être à la corbeille ou à l'écart). Vous pouvez la remettre, ou refaire le raccourci avec une autre photo.")
-            } else {
-                openViewer(listOf(file), 0)
-            }
-        }
+    /** Les raccourcis avec leur photo ; si elle a changé de place ou de nom, on la retrouve (même nom, même taille). */
+    private fun shortcutItems(list: List<Shortcut>, current: Place): List<ShortcutItem> {
+        if (list.isEmpty()) return emptyList()
+        val candidates by lazy { Gallery.allMedia(current.outputDir) }
+        return list.map { ShortcutItem(it, shortcuts.resolve(it) { candidates }) }
     }
 
     // ---- Renommer une photo --------------------------------------------------------------------

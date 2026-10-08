@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V14",
+  "version": "V15",
   "date": "08/10/2026",
   "nouveautes": [
+    "Raccourcis en vignettes : en haut de l'onglet Photos, chaque raccourci montre sa photo en entier (ex. toutes les immatriculations d'un coup d'œil), classés par catégorie. Un appui l'ouvre, glissez pour passer au suivant.",
     "Prendre une photo : onglet Outils, « Prendre une photo ». L'appareil photo du téléphone s'ouvre et la photo est enregistrée sur la carte SD, dans « Photos à trier », prête à être rangée par date.",
     "Raccourcis : ouvrez une photo, touchez l'étoile, donnez un nom (ex. Immatriculation) et un classement (ex. Véhicule). Ils apparaissent dès que vous touchez la loupe.",
-    "Renommer une photo : ouvrez-la, touchez le crayon. La recherche par nom est de retour : loupe en haut de l'onglet Photos.",
-    "Zoom des photos corrigé (V10-V11)."
+    "Renommer une photo : ouvrez-la, touchez le crayon. La recherche par nom est de retour : loupe en haut de l'onglet Photos."
   ],
   "pastille": false,
   "fichiers": []

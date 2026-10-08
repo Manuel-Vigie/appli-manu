@@ -279,6 +279,25 @@ fun BrowseScreen(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
+            // Les raccourcis, en tête de la page d'accueil des photos : la photo en vignette, un appui l'ouvre.
+            if (!selecting && state.shortcuts.isNotEmpty()) {
+                item(key = "raccourcis", span = { GridItemSpan(maxLineSpan) }) {
+                    ShortcutList(
+                        state.shortcuts,
+                        heading = "Raccourcis",
+                        onOpen = { item ->
+                            val files = state.shortcuts.mapNotNull { it.file }
+                            val index = files.indexOf(item.file)
+                            if (index >= 0) onOpen(files, index)
+                        },
+                    )
+                }
+                if (state.folders.isNotEmpty()) {
+                    item(key = "albums", span = { GridItemSpan(maxLineSpan) }) {
+                        Text("Albums", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 6.dp, top = 10.dp))
+                    }
+                }
+            }
             items(state.folders, key = { "d:" + it.name }, span = { GridItemSpan(3) }) { folder ->
                 AlbumCard(
                     folder,

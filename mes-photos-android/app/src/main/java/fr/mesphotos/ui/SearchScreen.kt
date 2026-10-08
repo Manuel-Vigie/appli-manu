@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -44,6 +45,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -52,7 +56,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.mesphotos.gallery.Gallery
-import fr.mesphotos.logic.Shortcut
 import kotlinx.coroutines.delay
 import java.io.File
 
@@ -63,7 +66,6 @@ fun SearchScreen(
     state: UiState.Search,
     onSearch: (String) -> Unit,
     onBack: () -> Unit,
-    onOpenShortcut: (Shortcut) -> Unit,
     onOpen: (List<File>, Int) -> Unit,
     onMove: (MoveKind, Set<String>, List<File>) -> Unit,
     onUndoMove: () -> Unit,
@@ -90,6 +92,13 @@ fun SearchScreen(
     fun stopSelecting() {
         selecting = false
         selected = emptySet()
+    }
+
+    // Un raccourci ouvre sa photo ; on peut ensuite passer d'un raccourci à l'autre en glissant.
+    fun openShortcut(item: ShortcutItem) {
+        val files = state.shortcuts.mapNotNull { it.file }
+        val index = files.indexOf(item.file)
+        if (index >= 0) onOpen(files, index)
     }
 
     BackHandler { if (selecting) stopSelecting() else onBack() }
@@ -178,7 +187,7 @@ fun SearchScreen(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 24.dp),
             ) {
-                item { ShortcutList(state.shortcuts, onOpenShortcut) }
+                item { ShortcutList(state.shortcuts, onOpen = { openShortcut(it) }) }
                 item {
                     Text(
                         "Ou tapez un mot : une ville, un mois, une année, un bout de nom de fichier.",
@@ -205,7 +214,7 @@ fun SearchScreen(
                     verticalArrangement = Arrangement.spacedBy(5.dp),
                 ) {
                     if (hasShortcuts) {
-                        item(key = "raccourcis", span = { GridItemSpan(maxLineSpan) }) { ShortcutList(state.shortcuts, onOpenShortcut) }
+                        item(key = "raccourcis", span = { GridItemSpan(maxLineSpan) }) { ShortcutList(state.shortcuts, onOpen = { openShortcut(it) }) }
                     }
                     if (state.results.isNotEmpty()) {
                         item(key = "compte", span = { GridItemSpan(maxLineSpan) }) {
@@ -253,31 +262,56 @@ fun SearchScreen(
     }
 }
 
-/** Les raccourcis, groupés par classement (« Véhicule », « Papiers »…) : un appui ouvre la photo. */
+/** Les raccourcis, groupés par classement (« Véhicule », « Papiers »…) : chaque raccourci montre sa photo en vignette, un appui l'ouvre. */
 @Composable
-private fun ShortcutList(shortcuts: List<Shortcut>, onOpen: (Shortcut) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        shortcuts.groupBy { it.category }.forEach { (category, list) ->
+internal fun ShortcutList(items: List<ShortcutItem>, onOpen: (ShortcutItem) -> Unit, heading: String? = null) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (heading != null) {
+            Text(heading, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 6.dp, top = 4.dp))
+        }
+        items.groupBy { it.shortcut.category }.forEach { (category, list) ->
             Text(
                 category,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 6.dp, top = 6.dp),
+                modifier = Modifier.padding(start = 6.dp, top = 4.dp),
             )
-            list.forEach { shortcut ->
-                Card(
-                    modifier = Modifier.fillMaxWidth().clickable { onOpen(shortcut) },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                ) {
-                    Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFE0A800), modifier = Modifier.size(22.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Text(shortcut.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    }
+            list.chunked(2).forEach { pair ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    pair.forEach { ShortcutTile(it, Modifier.weight(1f)) { onOpen(it) } }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
+        }
+    }
+}
+
+/** Un bouton raccourci : la photo en entier (pour lire une plaque, un numéro…) et son nom en bas. */
+@Composable
+private fun ShortcutTile(item: ShortcutItem, modifier: Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(18.dp)
+    val file = item.file
+    Box(
+        modifier
+            .aspectRatio(1.3f)
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(enabled = file != null, onClick = onClick),
+    ) {
+        if (file != null) Thumb(file, 900, Modifier.fillMaxSize(), scale = ContentScale.Fit)
+        else Text(
+            "Photo introuvable\n(corbeille, à l'écart ou effacée)",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.align(Alignment.Center).padding(12.dp),
+        )
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(0.62f to Color.Transparent, 1f to Color(0xCC000000))))
+        Row(Modifier.align(Alignment.BottomStart).padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFD54F), modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(item.shortcut.name, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 2)
         }
     }
 }
