@@ -607,13 +607,16 @@ fun ViewerScreen(state: UiState.Viewer, onClose: () -> Unit, onMove: (MoveKind, 
     val context = LocalContext.current
     var confirm by remember { mutableStateOf<MoveKind?>(null) }
     val pager = rememberPagerState(initialPage = state.index.coerceIn(0, (state.files.size - 1).coerceAtLeast(0))) { state.files.size }
+    // Photo agrandie : le doigt fait glisser la photo au lieu de passer à la suivante.
+    var zoomed by remember { mutableStateOf(false) }
+    LaunchedEffect(pager.currentPage) { zoomed = false }
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        HorizontalPager(state = pager, modifier = Modifier.fillMaxSize(), beyondViewportPageCount = 1) { page ->
+        HorizontalPager(state = pager, modifier = Modifier.fillMaxSize(), beyondViewportPageCount = 1, userScrollEnabled = !zoomed) { page ->
             val file = state.files[page]
             var bitmap by remember(file) { mutableStateOf<Bitmap?>(null) }
             LaunchedEffect(file) { bitmap = Thumbs.load(file, 1600) }
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                bitmap?.let { Image(it.asImageBitmap(), contentDescription = file.name, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
+                bitmap?.let { ZoomableImage(it, file.name) { isZoomed -> if (pager.currentPage == page) zoomed = isZoomed } }
                 if (bitmap == null) Text("Chargement…", color = Color.White)
                 if (PhotoFiles.isVideo(file)) {
                     Button(onClick = { playVideo(context, file) }, modifier = Modifier.height(60.dp), shape = RoundedCornerShape(18.dp)) {

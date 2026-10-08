@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V9",
+  "version": "V10",
   "date": "08/10/2026",
   "nouveautes": [
-    "Nouvelle présentation façon appli photo : barre du bas (Photos, Visages, Outils), albums en grandes cartes, boutons regroupés dans « Outils ».",
-    "Doublons : sélection automatique, un seul dossier « Doublons » (V7-V8).",
-    "Recherche par visage (V6).",
-    "Les copies identiques ne restent plus en vrac (V5)."
+    "Photos : on peut zoomer (pincer avec deux doigts ou toucher deux fois) et déplacer la photo agrandie.",
+    "Nouvelle présentation façon appli photo (V9).",
+    "Doublons : sélection automatique et dossier unique (V7-V8).",
+    "Recherche par visage (V6)."
   ],
   "pastille": false,
   "fichiers": []
