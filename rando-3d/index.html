@@ -759,7 +759,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <div class="pg-stats" id="pgStats"></div>
       <h3 class="pg-h">Que veux-tu faire ?</h3>
       <div class="pg-grid">
-        <button type="button" class="pg-tile" data-fwd="reportBtn"><i>📄</i><b>Rapport rando</b><small>Débutants · imprimer, mail, SMS</small></button>
+        <button type="button" class="pg-tile" data-fwd="reportBtn"><i>📄</i><b>Rapport rando</b><small>Estimation · imprimer, mail, SMS</small></button>
         <button type="button" class="pg-tile" data-fwd="svFilm"><i>🎞️</i><b>Film de la carte</b><small>MP4 stable pour YouTube</small></button>
         <button type="button" class="pg-tile" data-fwd="ignBtn"><i>🗺️</i><b>Carte IGN</b><small>Toucher le tracé : la pente</small></button>
         <button type="button" class="pg-tile" data-fwd="gpxOutBtn"><i>⬇️</i><b>Exporter en GPX</b><small>Montre ou autre appli</small></button>
@@ -2909,7 +2909,7 @@ function beginnerData(D){
   let lv=kmA<8?0:kmA<15?1:kmA<25?2:kmA<35?3:4;
   if(steep>12&&lv<4&&lv>0)lv++;
   const L=[{n:'Très facile',col:'#2e9e5b',t:'Une balade tranquille, accessible à tout le monde, même sans entraînement.'},
-    {n:'Facile',col:'#7cb342',t:'Accessible à un débutant en bonne santé : on marche à son rythme, avec quelques pauses.'},
+    {n:'Facile',col:'#7cb342',t:'Accessible à toute personne en bonne santé : on marche à son rythme, avec quelques pauses.'},
     {n:'Moyenne',col:'#f0a21a',t:'Demande un peu d’habitude : mieux vaut avoir déjà fait quelques sorties de 2 à 3 heures.'},
     {n:'Soutenue',col:'#e8731a',t:'Pour des marcheurs qui ont déjà un peu de condition : on sent les jambes et le souffle.'},
     {n:'Difficile',col:'#d7392a',t:'Longue ou très pentue : réservée aux marcheurs entraînés, à préparer sérieusement.'}][lv];
@@ -2937,7 +2937,7 @@ const isRecorded=tr=>reportPrep!==null?!reportPrep:(!!tr.hasTime&&!tr.planned); 
 function beginnerHTML(D){
   if(isRecorded(D.tr))return '';
   const B=beginnerData(D);
-  return `<section class="rp-beg"><h2>Pour les débutants</h2>
+  return `<section class="rp-beg"><h2>Estimation de la sortie</h2>
    <div class="rp-modesel"><span>Type de sortie :</span>${Object.keys(REPORT_MODES).map(k=>`<button type="button" data-mode="${k}" aria-pressed="${k===reportMode}">${REPORT_MODES[k].short}</button>`).join('')}</div>
    <div class="rp-modesel"><span>Ma vitesse moyenne :</span><input type="number" data-speed inputmode="decimal" min="0.5" max="8" step="0.1" value="${reportSpeed||''}" placeholder="auto" aria-label="Vitesse moyenne en km/h"><span>km/h, pauses comprises</span></div>
    <div class="rp-modesel"><span>Temps de pause (total) :</span><input type="number" data-pausemin inputmode="numeric" min="0" max="600" step="5" value="${reportPauseMin!==null?reportPauseMin:''}" placeholder="${Math.round(B.totH*60*(1-B.walkH/B.totH)/5)*5}" aria-label="Temps de pause total en minutes"><span>min (laisser vide = automatique)</span></div>
@@ -4667,7 +4667,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V75", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : l'appli compare plusieurs cartes (OpenStreetMap, Nominatim, IGN) pour le nom du départ et de l'arrivée et te propose les noms trouvés, avec la carte d'origine. Un appui pour choisir.", "Rapport rando : tu peux corriger le nom du départ et de l'arrivée (ex. « Le Pra »), avec un bouton « Utiliser … » tiré du titre de la rando. Le nom est gardé pour cette rando et repris dans le film.", "Rapport rando : les points de passage n'affichent plus « 0 m » quand l'altitude du lieu est inconnue ; on prend alors l'altitude du chemin à cet endroit. Corrigé aussi sur la carte (lieux gardés en mémoire).", "Rapport rando : les pauses se règlent en minutes (temps de pause total) au lieu de pourcentages ; vide = automatique."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V76", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : la partie « Pour les débutants » devient « Estimation de la sortie », puisqu'elle s'adapte à tous les niveaux (vitesse, pauses, sac).", "Rapport rando : l'appli compare plusieurs cartes (OpenStreetMap, Nominatim, IGN) pour le nom du départ et de l'arrivée et te propose les noms trouvés, avec la carte d'origine. Un appui pour choisir.", "Rapport rando : tu peux corriger le nom du départ et de l'arrivée (ex. « Le Pra »), avec un bouton « Utiliser … » tiré du titre de la rando. Le nom est gardé pour cette rando et repris dans le film.", "Rapport rando : les points de passage n'affichent plus « 0 m » quand l'altitude du lieu est inconnue ; on prend alors l'altitude du chemin à cet endroit. Corrigé aussi sur la carte (lieux gardés en mémoire)."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
