@@ -1063,15 +1063,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     "${countText(result.done)} au coffre-fort. Ils ont quitté la carte et ne se voient plus nulle part ailleurs. Pour les revoir : Outils, « Coffre-fort »."
                 if (result.failed > 0) lines += "${result.failed} fichier(s) n'ont pas pu être mis au coffre et sont restés en place."
                 result.failures.take(2).forEach { lines += it }
-                // Le raccourci : premier mot = nom, deuxième = classement ; il cherche le premier mot.
-                val words = label.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                if (makeShortcut && done > 0 && words.isNotEmpty()) {
-                    shortcuts.put(words[0], words.getOrNull(1) ?: "", words[0])
-                    lines += "Raccourci « ${words[0]} » créé (menu Raccourcis, en haut de l'onglet Photos)."
+                val message = lines.joinToString("\n")
+                when {
+                    toFaces -> showFaceResults(message)
+                    toDups -> showDupReview(message)
+                    toSearch != null -> showSearch(toSearch, message, 0)
+                    toReview -> showReview(message)
+                    else -> showBrowse(base, message = message)
                 }
-                // On montre tout de suite les photos qui portent le mot : celles qu'on vient de renommer y sont, et on sait où on en est.
-                lines += "Voici les photos qui portent « ${words.joinToString(" ")} »."
-                showSearch(words.joinToString(" "), lines.joinToString("\n"), 0)
             } catch (e: Exception) {
                 refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
             }
