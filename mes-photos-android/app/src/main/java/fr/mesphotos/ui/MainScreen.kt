@@ -370,29 +370,43 @@ private fun HomeScreen(
             } else {
                 item { SortCard(state.toSort, onSort) }
 
-                val tools = ArrayList<Tool>()
-                tools += Tool(AppIcons.Camera, "Prendre une photo", "Enregistrée sur la carte, dans « Photos à trier »", onClick = onTakePhoto)
-                tools += Tool(AppIcons.Copy, "Doublons", "Comparer et garder une seule photo", onClick = onDuplicates)
-                tools += Tool(
-                    Icons.Default.Search,
-                    "Détection",
-                    if (state.suggestions > 0) "${spaced(state.suggestions)} suggestion(s) à voir" else "Recherche automatique",
-                    highlight = state.suggestions > 0,
-                    onClick = if (state.suggestions > 0) onReview else onScan,
+                // Un menu déroulant par catégorie, fermé au départ : des boutons à plat, un par ligne.
+                val groups = listOf(
+                    ToolGroup(
+                        "Prendre une photo",
+                        listOf(Tool(AppIcons.Camera, "Prendre une photo", "Enregistrée sur la carte, dans « Photos à trier »", onClick = onTakePhoto)),
+                    ),
+                    ToolGroup(
+                        "Recherche",
+                        listOf(
+                            Tool(AppIcons.Copy, "Doublons", "Comparer et garder une seule photo", onClick = onDuplicates),
+                            Tool(
+                                Icons.Default.Search,
+                                "Détection",
+                                if (state.suggestions > 0) "${spaced(state.suggestions)} suggestion(s) à voir" else "Recherche automatique",
+                                highlight = state.suggestions > 0,
+                                onClick = if (state.suggestions > 0) onReview else onScan,
+                            ),
+                        ),
+                        badge = if (state.suggestions > 0) "${spaced(state.suggestions)} à voir" else null,
+                    ),
+                    ToolGroup(
+                        "Mises de côté",
+                        listOf(
+                            Tool(AppIcons.Shield, "Coffre-fort", "Photos cachées, avec le verrouillage du téléphone", onClick = onOpenVault),
+                            Tool(Icons.Default.Lock, "À l'écart", if (state.asideCount > 0) "${spaced(state.asideCount)} fichier(s)" else "Vide", onClick = onOpenAside),
+                            Tool(Icons.Default.Delete, "Corbeille", if (state.trashCount > 0) "${spaced(state.trashCount)} fichier(s)" else "Vide", onClick = onOpenTrash),
+                        ),
+                    ),
+                    ToolGroup(
+                        "Réparation",
+                        buildList {
+                            add(Tool(Icons.Default.Check, "Vérifier les photos", "Repère les fichiers abîmés ou brouillés, et nettoie", onClick = onHealth))
+                            if (state.hasUndo) add(Tool(Icons.Default.Refresh, "Annuler le rangement", "Tout remettre comme avant", onClick = onUndo))
+                        },
+                    ),
                 )
-                tools += Tool(Icons.Default.Lock, "À l'écart", if (state.asideCount > 0) "${spaced(state.asideCount)} fichier(s)" else "Vide", onClick = onOpenAside)
-                tools += Tool(AppIcons.Shield, "Coffre-fort", "Photos cachées, avec le verrouillage du téléphone", onClick = onOpenVault)
-                tools += Tool(Icons.Default.Delete, "Corbeille", if (state.trashCount > 0) "${spaced(state.trashCount)} fichier(s)" else "Vide", onClick = onOpenTrash)
-                if (state.hasUndo) tools += Tool(Icons.Default.Refresh, "Annuler le rangement", "Tout remettre comme avant", onClick = onUndo)
-                tools += Tool(Icons.Default.Check, "Vérifier les photos", "Repère les fichiers abîmés ou brouillés", onClick = onHealth)
-                tools.chunked(2).forEach { pair ->
-                    item {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            pair.forEach { ToolTile(it, Modifier.weight(1f)) }
-                            if (pair.size == 1) Spacer(Modifier.weight(1f))
-                        }
-                    }
-                }
+                groups.forEach { group -> item { ToolGroupCard(group) } }
             }
 
             item {
@@ -439,28 +453,62 @@ private fun SortCard(toSort: Int?, onSort: () -> Unit) {
 }
 
 /** Une case d'outil : icône, nom, une ligne de détail. */
+private class ToolGroup(val title: String, val tools: List<Tool>, val badge: String? = null)
+
+/** Un menu déroulant : le titre de la catégorie, et dessous (une fois ouvert) un grand bouton à plat par outil. */
 @Composable
-private fun ToolTile(tool: Tool, modifier: Modifier = Modifier) {
+private fun ToolGroupCard(group: ToolGroup) {
+    var open by remember { mutableStateOf(false) }
     Card(
-        onClick = tool.onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (tool.highlight) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
-        ),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
     ) {
-        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(
-                Modifier.size(38.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center,
+        Column {
+            Row(
+                Modifier.fillMaxWidth().clickable { open = !open }.padding(horizontal = 18.dp, vertical = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(tool.icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(22.dp))
+                Text(group.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                if (group.badge != null) {
+                    Text(group.badge, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(12.dp))
+                }
+                Text(if (open) "▴" else "▾", fontSize = 18.sp, color = MaterialTheme.colorScheme.primary)
             }
-            Column {
-                Text(tool.title, style = MaterialTheme.typography.titleMedium)
-                Text(tool.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, minLines = 2, maxLines = 2)
+            if (open) {
+                Column(Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    group.tools.forEach { ToolRow(it) }
+                }
             }
+        }
+    }
+}
+
+/** Un outil : un bouton à plat sur toute la largeur (icône ronde, nom, petite explication). */
+@Composable
+private fun ToolRow(tool: Tool) {
+    val shape = RoundedCornerShape(16.dp)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(if (tool.highlight) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = tool.onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(tool.icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(22.dp))
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(tool.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(tool.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

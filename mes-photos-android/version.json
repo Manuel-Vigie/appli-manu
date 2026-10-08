@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V28",
+  "version": "V29",
   "date": "08/10/2026",
   "nouveautes": [
+    "Outils refait : des boutons à plat (un par ligne) rangés dans quatre menus déroulants fermés au départ : Prendre une photo, Recherche, Mises de côté (coffre-fort, à l'écart, corbeille) et Réparation.",
     "Nettoyage des photos abîmées : bouton en bas de « Vérifier les photos » qui les met à la CORBEILLE (rien n'est effacé, tout peut être remis ; suppression définitive seulement depuis la corbeille).",
     "Vérifier les photos : analyse poussée des fichiers inconnus (début, milieu, fin brouillés ou non, trace de photo encore présente) pour savoir si un morceau est récupérable.",
-    "Dans Outils, « Vérifier les photos » est maintenant tout en bas de la liste.",
-    "Vérification plus juste : un JPEG n'est dit « coupé » que si on ne trouve vraiment pas sa fin (beaucoup de photos ont des données en plus après). Pour les fichiers au contenu inconnu, on affiche leurs premiers octets pour comprendre ce qu'ils sont."
+    "Dans Outils, « Vérifier les photos » est maintenant tout en bas de la liste."
   ],
   "pastille": false,
   "fichiers": []
