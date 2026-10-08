@@ -4133,10 +4133,10 @@ function filmLabelDraw(x,W,H,k,m,labs,o){
   act.sort((p,q)=>((q.vis>.05)-(p.vis>.05))||(q.pri-p.pri));
   x.save();x.textBaseline='alphabetic';
   for(const l of act){
-    const pt=m.project(l.ll);let ok=!!pt&&l.want===1,px=0,py=0,bx=0,by=0,w=0,h=0,ex=0,ey=0,u=k*(l.kind==='top'?1.35:1.2);
+    const pt=m.project(l.ll);let ok=!!pt&&l.want===1,px=0,py=0,bx=0,by=0,w=0,h=0,ex=0,ey=0,u=k*(l.kind==='top'?1.0:.9)*(l.sc||1);   // taille liée à la vidéo : titre ≈ 2,6 % de la plus petite dimension (≈ 29 px en 1080p)
     if(pt){
       px=pt.x;py=pt.y;
-      const maxT=W*.5-16*u;
+      const maxT=Math.min(W,H)*.62-11*u;   // une étiquette ne dépasse jamais ≈ 40 % de la largeur 16:9 (62 % en vertical)
       x.font=`700 ${10.6*u}px ${sans}`;let tit=l.title;
       while(tit.length>4&&x.measureText(tit).width>maxT)tit=tit.slice(0,-2).trimEnd()+'…';
       const tw=x.measureText(tit).width;
@@ -4170,6 +4170,7 @@ function filmLabelDraw(x,W,H,k,m,labs,o){
         if(boxes.some(q=>bb[0]<q[2]&&bb[2]>q[0]&&bb[1]<q[3]&&bb[3]>q[1]))continue;
         res={X,Y,bb};if(l.vis>.3)l.lock=[X-px,Y-py];break;
       }
+      if(!res&&(l.sc||1)>.8&&l.vis<.5)l.sc=Math.max(.8,(l.sc||1)-.06);   // pas de place : l'étiquette rétrécit (jusqu'à -20 %) avant de renoncer
       if(!res||py<.03*H||py>.97*H)ok=false;
       else{bx=res.X;by=res.Y;if(ok)boxes.push(res.bb)}
       if(!ok&&l.vis<=.02)l.lock=null;
@@ -4703,7 +4704,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V79", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport trekking : bivouac en autonomie (tente) au lieu de refuge : le plan jour par jour parle de « Bivouac », ne propose plus de refuge et indique un lac proche pour l'eau quand il y en a un.", "Rapport rando (trekking) : heure de départ le matin, heure d'arrivée au camp le soir et nombre de nuits. L'appli découpe la rando jour par jour (horaires, km, dénivelé, altitude et lieu du camp) et les heures de passage suivent.", "Film : durée « Auto » (par défaut, 40 à 100 s) qui s'adapte à la longueur de la rando, caméra reculée si la marche reste trop rapide à l'écran, et étiquettes plus petites avec un texte plus gros.", "Rapport rando : la partie « Pour les débutants » devient « Estimation de la sortie », puisqu'elle s'adapte à tous les niveaux (vitesse, pauses, sac)."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V80", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : étiquettes environ 25 % plus petites, dimensionnées automatiquement d'après la vidéo (même taille relative en 16:9 et en vertical), jamais plus larges que 40 % de l'écran, et elles rétrécissent d'elles-mêmes (jusqu'à -20 %) quand la place manque.", "Rapport trekking : bivouac en autonomie (tente) au lieu de refuge : le plan jour par jour parle de « Bivouac », ne propose plus de refuge et indique un lac proche pour l'eau quand il y en a un.", "Rapport rando (trekking) : heure de départ le matin, heure d'arrivée au camp le soir et nombre de nuits. L'appli découpe la rando jour par jour (horaires, km, dénivelé, altitude et lieu du camp) et les heures de passage suivent.", "Film : durée « Auto » (par défaut, 40 à 100 s) qui s'adapte à la longueur de la rando, caméra reculée si la marche reste trop rapide à l'écran, et étiquettes plus petites avec un texte plus gros."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
