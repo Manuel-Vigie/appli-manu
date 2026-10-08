@@ -18,6 +18,7 @@ import fr.mesphotos.logic.Health
 import fr.mesphotos.logic.Verdict
 import fr.mesphotos.logic.DuplicateReview
 import fr.mesphotos.logic.Duplicates
+import fr.mesphotos.logic.PhotoTags
 import fr.mesphotos.logic.PlaceNamer
 import fr.mesphotos.logic.CaptureNames
 import fr.mesphotos.logic.RenameNames
@@ -234,6 +235,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val tags by lazy { Tags(File(getApplication<Application>().filesDir, "etiquettes.txt")).also { it.load() } }
     private val shortcuts by lazy { Shortcuts(File(getApplication<Application>().filesDir, "raccourcis.tsv")).also { it.load() } }
 
+    private val photoTags by lazy { PhotoTags(File(getApplication<Application>().filesDir, "mots-photos.tsv")) }
     private val vault by lazy { Vault(File(getApplication<Application>().filesDir, "coffre")) }
     private var vaultOpen = false
 
@@ -1338,8 +1340,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun buildSearchIndex(current: Place): List<SearchEntry> =
         Gallery.allMedia(current.outputDir)
             // Les vidéos portent en plus le mot « videos » : c'est ce qui permet le raccourci « Vidéos » (et de taper « videos » dans la loupe).
-            .map { SearchEntry(it, Gallery.normalize(it.toRelativeString(current.outputDir).replace('/', ' ')) + if (PhotoFiles.isVideo(it)) " videos" else "") }
-            .sortedByDescending { it.text } // les plus récentes d'abord
+            .map { it to Gallery.normalize(it.toRelativeString(current.outputDir).replace('/', ' ')) + if (PhotoFiles.isVideo(it)) " videos" else "" }
+            .sortedByDescending { it.second } // les plus récentes d'abord
+            // Les mots que Manuel a associés à la photo (noms de personnes…) comptent comme le reste, sans que la photo bouge ni change de nom.
+            .map { (file, text) -> SearchEntry(file, text + photoTags.of(file).let { w -> if (w.isEmpty()) "" else " " + Gallery.normalize(w) }) }
             .also { searchIndex = it }
 
     /** Les raccourcis avec le nombre de photos qu'ils montrent. */
@@ -1407,6 +1411,33 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
             } catch (e: Exception) {
                 refresh("Les photos partagées n'ont pas pu être cherchées : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
+    // ---- Associer un nom à des photos sans les toucher ------------------------------------------------
+
+    /**
+     * Retient que [label] (un nom de personne, par exemple) est sur ces photos : elles ne sont ni renommées ni déplacées. La loupe et les
+     * raccourcis les retrouvent ensuite. Puis on montre tout de suite les photos qui portent ce nom.
+     */
+    fun tagFiles(files: List<File>, label: String, makeShortcut: Boolean) {
+        val words = label.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        if (words.isEmpty() || files.isEmpty()) { refresh("Aucun mot choisi : rien n'a été retenu."); return }
+        viewModelScope.launch {
+            try {
+                val touched = withContext(Dispatchers.IO) { photoTags.add(files, words) }
+                searchIndex = null
+                val lines = ArrayList<String>()
+                lines += "« ${words.joinToString(" ")} » retenu pour ${countText(files.size)} (rien n'a été renommé ni déplacé)."
+                if (touched < files.size) lines += "${countText(files.size - touched)} l'avaient déjà."
+                if (makeShortcut) {
+                    shortcuts.put(words[0], words.getOrNull(1) ?: "Personnes", words[0])
+                    lines += "Raccourci « ${words[0]} » créé (menu Raccourcis, en haut de l'onglet Photos)."
+                }
+                showSearch(words.joinToString(" "), lines.joinToString("\n"), 0)
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
             }
         }
     }

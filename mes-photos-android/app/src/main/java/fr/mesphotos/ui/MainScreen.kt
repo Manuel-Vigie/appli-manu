@@ -190,16 +190,16 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
         val sharedBatch by viewModel.shared.collectAsStateWithLifecycle()
         sharedBatch?.let { batch ->
             TagDialog(
-                title = "Quel mot ajouter ?",
-                confirmText = "Renommer ${batch.files.size}",
-                help = "${batch.files.size} photo(s) retrouvée(s) sur la carte, sur ${batch.received} partagée(s) depuis la galerie du téléphone. Le mot est ajouté devant leur nom ; la date est gardée.",
+                title = "Qui ou quoi est sur ces photos ?",
+                confirmText = "Retenir pour ${batch.files.size}",
+                help = "${batch.files.size} photo(s) retrouvée(s) sur la carte, sur ${batch.received} partagée(s) depuis la galerie du téléphone. Tapez un nom (Najet, Gilles…) : l'appli le retient pour ces photos, sans les renommer ni les déplacer. Ensuite, la loupe et les raccourcis les retrouvent.",
                 shortcutOption = true,
                 choices = viewModel.tagChoices(),
                 onAdd = viewModel::addTag,
                 onRemove = viewModel::removeTag,
                 onConfirm = { chosen, withShortcut ->
                     viewModel.clearShared()
-                    viewModel.renameMany(emptySet(), batch.files, Tags.join(chosen), withShortcut)
+                    viewModel.tagFiles(batch.files, Tags.join(chosen), withShortcut)
                 },
                 onDismiss = { viewModel.clearShared() },
             )
