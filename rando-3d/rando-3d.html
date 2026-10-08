@@ -2909,7 +2909,8 @@ function beginnerData(D){
   const tips=[...(reportMode!=='day'?['Avec un sac lourd, on avance plus lentement, surtout en montée : prévois large et choisis des étapes courtes.']:[]),'Pars tôt pour finir avant la nuit et avoir de la marge.','Regarde la météo la veille ; en cas d’orage ou de brouillard épais, on renonce.','Garde un rythme où tu peux encore parler : si tu es essoufflé, ralentis.','On peut faire demi-tour à tout moment : il n’y a aucune honte.','Préviens quelqu’un de ton itinéraire et de ton heure de retour.'];
   return {lv,L,MD,km,up,down,kmE,steep,tot:hm(tot),walk:hm(walk),avg,lines,gear,tips};
 }
-const isRecorded=tr=>!!tr.hasTime&&!tr.planned;   // rando déjà faite (heures réelles) : pas d'estimation débutant
+let reportPrep=null;   // null = automatique ; true = rando à préparer ; false = rando déjà faite
+const isRecorded=tr=>reportPrep!==null?!reportPrep:(!!tr.hasTime&&!tr.planned);   // rando déjà faite (heures réelles) : pas d'estimation débutant
 function beginnerHTML(D){
   if(isRecorded(D.tr))return '';
   const B=beginnerData(D);
@@ -2979,6 +2980,7 @@ function reportHTML(D,wx){
   <header class="rp-head"><div class="rp-eye"><span class="rp-gr"></span>Rapport de rando</div><h1>${escH(tr.name)}</h1>
    <p>${[date,D.timed?`départ ${clock(0)}`:'',tr.planned?`allure : ${nf1.format(pace.flat)} km/h · ${pace.up} m/h en montée · ${pace.down} m/h en descente`:''].filter(Boolean).join(' · ')}</p>
    ${wx?`<p class="rp-wx">${escH(wx)}</p>`:''}</header>
+  <div class="rp-modesel rp-prep"><span>Ce rapport est pour :</span><button type="button" data-prep="1" aria-pressed="${!isRecorded(tr)}">Une rando à préparer</button><button type="button" data-prep="0" aria-pressed="${isRecorded(tr)}">Une rando déjà faite</button></div>
   <section class="rp-ends">${ends}</section>
   <p class="rp-note" style="margin-top:10px">Toutes les explications des chiffres sont détaillées en bas de la fiche, dans <a href="#rpGuide" class="rp-link">« Comment lire cette fiche »</a>.</p>
   <section class="rp-kpis">${kpi('Distance',fmtKm(tr.total),'km')}${kpi('Dénivelé +',nf0.format(tr.up[tr.N-1]),'m')}${kpi('Dénivelé −',nf0.format(tr.down[tr.N-1]),'m')}${kpi(tr.planned||!tr.hasTime?'Durée estimée':'Durée',fmtDur(tot),'')}${D.timed?kpi('Arrivée',clock(tot),''):''}${kpi('Altitude max',nf0.format(tr.eMax),'m')}<div class="rp-kpi"><span>km-effort</span><b>${nf1.format(kmE)}<small>km</small></b><em>${fmtKm(tr.total)} km de rando = ${nf1.format(kmE)} km à plat</em></div></section>
@@ -3086,12 +3088,13 @@ const REPORT_CSS=`.rp{--ink:#1d2b2d;--mut:#5b6b6c;--line:#dfe5e2;font-family:"Ba
 .rp-foot{margin-top:24px;font-size:11.5px;color:var(--mut)}
 @media (max-width:520px){.rp{padding:16px 14px 22px}.rp h1{font-size:28px}.rp-kpi b{font-size:23px}.rp-chip{margin-left:0}}`;
 let lastReport=null;
-$('reportBody').addEventListener('click',e=>{const b=e.target.closest('[data-mode]');if(!b||!lastReport)return;reportMode=b.dataset.mode;try{localStorage.setItem('rr3d-reportmode',reportMode)}catch(_){}const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(lastReport.D,lastReport.wx);$('reportPanel').scrollTop=y});
+$('reportBody').addEventListener('click',e=>{const b=e.target.closest('[data-mode],[data-prep]');if(!b||!lastReport)return;if(b.dataset.prep!==undefined)reportPrep=b.dataset.prep==='1';else{reportMode=b.dataset.mode;try{localStorage.setItem('rr3d-reportmode',reportMode)}catch(_){}}const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(lastReport.D,lastReport.wx);$('reportPanel').scrollTop=y});
 function reportFileHTML(tr){
-  const doc=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(tr.name)} · fiche rando</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap"><style>body{margin:0;background:#eef1ee}${REPORT_CSS}</style></head><body>${$('reportBody').innerHTML.replace(/<div class="rp-modesel">.*?<\/div>/s,'')}</body></html>`;
+  const doc=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(tr.name)} · fiche rando</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap"><style>body{margin:0;background:#eef1ee}${REPORT_CSS}</style></head><body>${$('reportBody').innerHTML.replace(/<div class="rp-modesel[^"]*">.*?<\/div>/gs,'')}</body></html>`;
   return doc}
 
 async function openReport(tr,places){
+  reportPrep=null;
   if(!tr){toast("Charge une trace ou crée un itinéraire d'abord.");return}
   const D=reportData(tr,places);
   let wx='';
@@ -4627,7 +4630,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V69", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : la partie « Pour les débutants » (difficulté, durée estimée, matériel) n'apparaît que pour une rando à préparer. Pour une rando déjà enregistrée avec ses heures, le rapport garde les vrais temps.", "Rapport rando : tu choisis le type de sortie (à la journée, trekking avec sac de 12 kg, trekking très chargé). La durée, la vitesse moyenne (1,5 à 1,8 km/h avec sac et dénivelé), la difficulté et la liste de matériel s'adaptent.", "Rapport rando : sous le km-effort, une phrase explique « 19,1 km de rando = 30,8 km à plat ».", "Film : avant de créer le film, la liste des noms qui seront écrits s'affiche. Chaque nom est vérifié avec une 2e source (✓), tu peux décocher un nom faux ou le corriger. Les noms de départ/arrivée se corrigent là aussi."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V70", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : deux boutons en haut, « Une rando à préparer » / « Une rando déjà faite ». Tu peux donc sortir le rapport pour débutants (durée, difficulté, matériel) même avec ta trace GPS enregistrée, pour le donner à quelqu'un.", "Rapport rando : la partie « Pour les débutants » (difficulté, durée estimée, matériel) n'apparaît que pour une rando à préparer. Pour une rando déjà enregistrée avec ses heures, le rapport garde les vrais temps.", "Rapport rando : tu choisis le type de sortie (à la journée, trekking avec sac de 12 kg, trekking très chargé). La durée, la vitesse moyenne (1,5 à 1,8 km/h avec sac et dénivelé), la difficulté et la liste de matériel s'adaptent.", "Rapport rando : sous le km-effort, une phrase explique « 19,1 km de rando = 30,8 km à plat »."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;

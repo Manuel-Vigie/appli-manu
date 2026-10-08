@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V69",
+  "version": "V70",
   "date": "08/10/2026",
   "nouveautes": [
+    "Rapport rando : deux boutons en haut, « Une rando à préparer » / « Une rando déjà faite ». Tu peux donc sortir le rapport pour débutants (durée, difficulté, matériel) même avec ta trace GPS enregistrée, pour le donner à quelqu'un.",
     "Rapport rando : la partie « Pour les débutants » (difficulté, durée estimée, matériel) n'apparaît que pour une rando à préparer. Pour une rando déjà enregistrée avec ses heures, le rapport garde les vrais temps.",
     "Rapport rando : tu choisis le type de sortie (à la journée, trekking avec sac de 12 kg, trekking très chargé). La durée, la vitesse moyenne (1,5 à 1,8 km/h avec sac et dénivelé), la difficulté et la liste de matériel s'adaptent.",
-    "Rapport rando : sous le km-effort, une phrase explique « 19,1 km de rando = 30,8 km à plat ».",
-    "Film : avant de créer le film, la liste des noms qui seront écrits s'affiche. Chaque nom est vérifié avec une 2e source (✓), tu peux décocher un nom faux ou le corriger. Les noms de départ/arrivée se corrigent là aussi."
+    "Rapport rando : sous le km-effort, une phrase explique « 19,1 km de rando = 30,8 km à plat »."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v69"
+    "cache": "rr3d-v70"
   },
   "fichiers": [
     "rando-3d.html",
