@@ -258,6 +258,8 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 .lib-info{display:flex;flex-direction:column}.lib-info small{color:var(--muted);font-size:12.5px}
 .lib-btns{display:flex;gap:6px;flex-wrap:wrap}.lib-btns .btn{box-shadow:none;padding:6px 11px;font-size:13px}.lib-del{margin-left:auto}.lib-del.sure{background:#c0392b;color:#fff}
 .lib-gr-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.lib-gr-head .btn{box-shadow:none;padding:6px 11px;font-size:13px}.lib-gr-head[hidden]{display:none}
+.pg-card.col{flex-direction:column;align-items:stretch}.pg-card .pg-acts{flex:none;display:flex;gap:6px;flex-wrap:wrap}.pg-card .pg-acts button{border:0;border-radius:10px;padding:9px 12px;font:inherit;font-size:14px;cursor:pointer;background:#e9e4dc;color:#222}.pg-card .pg-acts button.pri{background:var(--trail);color:#fff}.pg-card .pg-acts .pg-del{margin-left:auto}.pg-card small{color:var(--pg-muted)}
+@media(max-width:420px){.nav button{font-size:10.5px}}
 .lib-h{font-family:var(--display);font-size:18px;margin:6px 0 0}
 .gr-card{text-align:left;border:1.5px solid var(--path);background:var(--path-soft);color:var(--ink);border-radius:12px;padding:12px 14px;cursor:pointer;display:flex;flex-direction:column;gap:4px;font:inherit}
 .gr-card b{font-size:16px}.gr-card small{color:var(--muted);font-size:13px;line-height:1.4}
@@ -633,6 +635,16 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
     <div id="ignMap"></div>
     <p class="ign-hint">Touche le tracé pour voir la pente et aller à cet endroit en 3D.</p>
   </div>
+  <div class="modal-back" id="renBack" hidden><div class="modal" role="dialog" aria-labelledby="renH">
+    <h2 id="renH">Renommer</h2>
+    <input type="text" id="renIn" class="film-in" maxlength="60" autocomplete="off">
+    <div class="modal-actions"><button type="button" class="btn" id="renNo">Annuler</button><button type="button" class="btn primary" id="renOk">Renommer</button></div>
+  </div></div>
+  <div class="modal-back" id="vidBack" hidden><div class="modal" role="dialog" aria-labelledby="vidH">
+    <h2 id="vidH"></h2>
+    <video id="vidEl" controls playsinline style="width:100%;max-height:60vh;background:#000;border-radius:8px"></video>
+    <div class="modal-actions"><button type="button" class="btn" id="vidClose">Fermer</button><button type="button" class="btn primary" id="vidSave">Enregistrer dans Téléchargements</button></div>
+  </div></div>
   <div class="modal-back" id="libPanel" hidden>
     <div class="modal lib" role="dialog" aria-labelledby="libTitle">
       <div class="tag-head"><h2 id="libTitle">Mes randos</h2><button type="button" class="icon-btn" id="libClose" aria-label="Fermer">✕</button></div>
@@ -726,6 +738,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
     <button type="button" data-tab="rando"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Ma rando</span></button>
     <button type="button" data-tab="photos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg><span>Photos</span></button>
     <button type="button" data-tab="randos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4.5L6 21z"/></svg><span>Mes randos</span></button>
+    <button type="button" data-tab="films"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14M3 9.5h4M3 14.5h4M17 9.5h4M17 14.5h4"/></svg><span>Mes films</span></button>
   </nav>
   <div class="tab-page" id="tabPage" hidden>
     <section data-p="rando">
@@ -776,6 +789,14 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <button type="button" class="pg-save" id="pgSave">＋ Ajouter la rando affichée à mes randos</button>
       <h3 class="pg-h">Enregistrées sur ce téléphone</h3>
       <div id="pgLib"></div>
+    </section>
+    <section data-p="films">
+      <div class="pg-hero">
+        <small class="pg-kick">Vidéothèque</small>
+        <h2>Mes films</h2>
+        <p>Les films de la carte que tu as créés, gardés sur ce téléphone.</p>
+      </div>
+      <div id="pgFilms"></div>
     </section>
   </div>
   <div class="toast" id="toast" role="status" hidden></div>
@@ -3249,7 +3270,8 @@ function renderLib(){
       if(!del.classList.contains('sure')){del.classList.add('sure');del.textContent='Supprimer ?';dt=setTimeout(()=>{del.classList.remove('sure');del.textContent='✕'},4000);return}
       clearTimeout(dt);libStore(libLoad().filter(x=>x.id!==rec.id));renderLib();if(!$('tabPage').hidden)navPageFill('randos');toast('« '+rec.name+' » supprimée.');
     });
-    const row=document.createElement('div');row.className='lib-btns';row.append(open,file,del);
+    const ren=document.createElement('button');ren.type='button';ren.className='btn';ren.textContent='✏️ Renommer';ren.addEventListener('click',()=>renameHike(rec));
+    const row=document.createElement('div');row.className='lib-btns';row.append(open,ren,file,del);
     li.append(info,row);ul.appendChild(li);
   }
 }
@@ -4098,6 +4120,7 @@ async function filmRun(){
     $('filmDoneTxt').textContent=`Ton film est prêt (${(blob.size/1048576).toFixed(0)} Mo). Il est enregistré dans tes Téléchargements.`;
     filmShow('filmDone');
     try{filmSave()}catch(e){}
+    filmStoreAdd(blob,title||'Ma randonnée').then(ok=>{if(ok)$('filmDoneTxt').textContent+=' Il est aussi dans l’onglet « Mes films ».'});
   }catch(e){
     console.error(e);fail(e&&e.message?e.message:"Le film n'a pas pu être créé.");
   }finally{
@@ -4129,6 +4152,7 @@ function pgProfile(){
 }
 function navPageFill(tab){
   document.querySelectorAll('#tabPage section').forEach(x=>x.classList.toggle('on',x.dataset.p===tab));
+  if(tab==='films')filmsRender();
   if(tab==='rando'&&T){
     const N=T.N;
     $('pgTitle').textContent=$('hikeName').textContent||'Ma rando';
@@ -4156,13 +4180,61 @@ function navPageFill(tab){
       sm.textContent=`${isFinite(rec.dist)?fmtKm(rec.dist)+' km':''}${isFinite(rec.up)?' · '+nf0.format(rec.up)+' m D+':''}${rec.gr?' · '+rec.gr.stages.length+' étapes':''}`;
       d.append(b,sm);const o=document.createElement('button');o.type='button';o.textContent='Ouvrir';
       o.addEventListener('click',()=>{navGo('replay');setTimeout(()=>openLibItem(rec),60)});
+      const rn=document.createElement('button');rn.type='button';rn.textContent='✏️';rn.setAttribute('aria-label','Renommer '+rec.name);rn.addEventListener('click',()=>renameHike(rec));
       const x=document.createElement('button');x.type='button';x.className='pg-del';x.textContent='🗑';x.setAttribute('aria-label','Supprimer '+rec.name);
       let tm=0;x.addEventListener('click',()=>{
         if(!x.classList.contains('sure')){x.classList.add('sure');x.textContent='Supprimer ?';tm=setTimeout(()=>{x.classList.remove('sure');x.textContent='🗑'},4000);return}
         clearTimeout(tm);libStore(libLoad().filter(y=>y.id!==rec.id));renderLib();navPageFill('randos');toast('« '+rec.name+' » supprimée.');
       });
-      c.append(d,o,x);box.appendChild(c)});
+      c.append(d,o,rn,x);box.appendChild(c)});
   }
+}
+/* ---------- Mes films (gardés dans le navigateur, IndexedDB) + renommer ---------- */
+function filmDB(){return new Promise((res,rej)=>{try{const r=indexedDB.open('rr3d-films',1);r.onupgradeneeded=()=>r.result.createObjectStore('films',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}})}
+function filmTx(mode,fn){return filmDB().then(db=>new Promise((res,rej)=>{const t=db.transaction('films',mode),st=t.objectStore('films');let out;const rq=fn(st);if(rq)rq.onsuccess=()=>{out=rq.result};t.oncomplete=()=>{db.close();res(out)};t.onerror=t.onabort=()=>{db.close();rej(t.error)}}))}
+async function filmStoreAdd(blob,name){
+  try{await filmTx('readwrite',st=>st.put({id:Date.now().toString(36),name,file:FILM.name,saved:Date.now(),size:blob.size,blob}));return true}catch(e){return false}
+}
+function askName(title,cur,cb){
+  $('renH').textContent=title;$('renIn').value=cur;$('renBack').hidden=false;
+  setTimeout(()=>{$('renIn').focus({preventScroll:true});$('renIn').select()},60);
+  const done=ok=>{$('renBack').hidden=true;$('renOk').onclick=$('renNo').onclick=null;if(ok){const v=$('renIn').value.trim();if(v)cb(v)}};
+  $('renOk').onclick=()=>done(true);$('renNo').onclick=()=>done(false);
+  $('renIn').onkeydown=e=>{if(e.key==='Enter')done(true)};
+}
+function renameHike(rec){
+  askName('Renommer la rando',rec.name,v=>{
+    const l=libLoad(),r=l.find(x=>x.id===rec.id);if(!r)return;
+    r.name=v;if(r.track)r.track.name=v;if(r.gr)r.gr={...r.gr,name:v};
+    libStore(l);renderLib();if(!$('tabPage').hidden)navPageFill('randos');toast('Rando renommée.');
+  });
+}
+let vidUrl=null,vidRec=null;
+function vidClose(){const v=$('vidEl');v.pause();v.removeAttribute('src');v.load();if(vidUrl){URL.revokeObjectURL(vidUrl);vidUrl=null}$('vidBack').hidden=true}
+$('vidClose').addEventListener('click',vidClose);
+function vidDownload(rec){const u=URL.createObjectURL(rec.blob),a=document.createElement('a');a.href=u;a.download=rec.file||'film.mp4';document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(u)},4000)}
+$('vidSave').addEventListener('click',()=>{if(vidRec)vidDownload(vidRec)});
+async function filmsRender(){
+  const box=$('pgFilms');box.innerHTML='';
+  let list=[];try{list=await filmTx('readonly',st=>st.getAll())||[]}catch(e){box.innerHTML='<div class="pg-empty">Ce navigateur ne peut pas garder les films ici.</div>';return}
+  list.sort((a,b)=>b.saved-a.saved);
+  if(!list.length){box.innerHTML='<div class="pg-empty">Aucun film pour l’instant.<br>Dans l’onglet Replay, touche « Film de la carte » : le film sera gardé ici.</div>';return}
+  list.forEach(rec=>{
+    const c=document.createElement('div');c.className='pg-card col';
+    const d=document.createElement('div'),b=document.createElement('b'),sm=document.createElement('small');
+    b.textContent=rec.name;sm.textContent=new Date(rec.saved).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+' · '+(rec.size/1048576).toFixed(0)+' Mo';
+    d.append(b,sm);
+    const acts=document.createElement('div');acts.className='pg-acts';
+    const mk=(t,cls,fn,al)=>{const x=document.createElement('button');x.type='button';x.textContent=t;if(cls)x.className=cls;if(al)x.setAttribute('aria-label',al);x.addEventListener('click',()=>fn(x));acts.appendChild(x);return x};
+    mk('▶ Lire','pri',()=>{vidRec=rec;vidUrl=URL.createObjectURL(rec.blob);$('vidH').textContent=rec.name;$('vidEl').src=vidUrl;$('vidBack').hidden=false;$('vidEl').play().catch(()=>{})});
+    mk('⬇ Enregistrer','',()=>vidDownload(rec));
+    mk('✏️ Renommer','',()=>askName('Renommer le film',rec.name,v=>{rec.name=v;filmTx('readwrite',st=>st.put(rec)).then(filmsRender)}));
+    let tm=0;mk('🗑','pg-del',x=>{
+      if(!x.classList.contains('sure')){x.classList.add('sure');x.textContent='Supprimer ?';tm=setTimeout(()=>{x.classList.remove('sure');x.textContent='🗑'},4000);return}
+      clearTimeout(tm);filmTx('readwrite',st=>st.delete(rec.id)).then(()=>{filmsRender();toast('Film supprimé.')});
+    },'Supprimer '+rec.name);
+    c.append(d,acts);box.appendChild(c);
+  });
 }
 function navGo(tab){
   if(tab==='carte'){
@@ -4328,7 +4400,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V51", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Le bandeau « Ajouter à mes randos » à l'ouverture d'une trace est supprimé : on ajoute une rando depuis l'onglet Mes randos.", "Mes randos : bouton « ✕ Retirer » sur les Grands itinéraires (GR5) pour les enlever de la liste ; un bouton permet de les réafficher.", "Mes randos : dès que tu importes une trace, un bandeau « ＋ Ajouter à mes randos » apparaît en haut. Le bouton s'appelle maintenant « Ajouter à mes randos » partout, et la suppression (🗑 ou ✕) demande une confirmation en deux appuis.", "Film : deux étiquettes au même endroit (ex. « Grotte » au bout d'une boucle, déjà occupé par « La Gare ») ne se cachent plus : l'une est décalée automatiquement au-dessus ou en dessous. Les étiquettes restent affichées tant que leur lieu est à l'écran."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V52", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Nouvel onglet « Mes films » (barre du bas) : chaque film créé y est gardé ; tu peux le lire, l'enregistrer, le renommer ou le supprimer. Les randos de « Mes randos » peuvent aussi être renommées (✏️).", "Le bandeau « Ajouter à mes randos » à l'ouverture d'une trace est supprimé : on ajoute une rando depuis l'onglet Mes randos.", "Mes randos : bouton « ✕ Retirer » sur les Grands itinéraires (GR5) pour les enlever de la liste ; un bouton permet de les réafficher.", "Mes randos : dès que tu importes une trace, un bandeau « ＋ Ajouter à mes randos » apparaît en haut. Le bouton s'appelle maintenant « Ajouter à mes randos » partout, et la suppression (🗑 ou ✕) demande une confirmation en deux appuis."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
