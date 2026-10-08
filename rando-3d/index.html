@@ -2901,6 +2901,8 @@ function reportData(tr,places){
   return {tr,segs,byCls,timed,t0,startName:near(0),endName:near(N-1),steepUp:climbs[0],steepDown:descs[0],longClimb:best,places:(places||[]).sort((a,b)=>a.i-b.i)};
 }
 const REPORT_MODES={day:{n:'Randonnée à la journée',s:'sac léger',r:3.4,short:'À la journée'},trek:{n:'Trekking',s:'sac d’environ 12 kg',r:2.65,short:'Trekking · 12 kg'},heavy:{n:'Trekking très chargé',s:'sac de 15 kg ou plus',r:2.3,short:'Très chargé · 15 kg+'}};
+let reportStart='08:00',reportEnd='17:30',reportNights=null;try{const a=localStorage.getItem('rr3d-hstart'),b=localStorage.getItem('rr3d-hend');if(/^\d\d:\d\d$/.test(a))reportStart=a;if(/^\d\d:\d\d$/.test(b))reportEnd=b}catch(_){}
+const hmMin=t=>{const m=/^(\d\d):(\d\d)$/.exec(t||'');return m?(+m[1])*60+(+m[2]):0},minHM=m=>{m=Math.round(((m%1440)+1440)%1440);return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};
 let reportPauseMin=null,reportSpeed=null,reportPause=.2;try{const v=parseFloat(localStorage.getItem('rr3d-reportspeed'));if(v>=.5&&v<=8)reportSpeed=v;const q=parseFloat(localStorage.getItem('rr3d-reportpause'));if(q>=.05&&q<=.4)reportPause=q}catch(_){}
 let reportMode='trek';try{const m=localStorage.getItem('rr3d-reportmode');if(REPORT_MODES[m])reportMode=m}catch(_){}
 function beginnerData(D){
@@ -2918,6 +2920,15 @@ function beginnerData(D){
   let tot,walk;const pm=reportPauseMin!==null?reportPauseMin/60:null;
   if(reportSpeed){tot=km/reportSpeed;walk=pm!==null?Math.max(.1,tot-pm):tot*(1-reportPause);tot=Math.max(tot,walk)}
   else{walk=kmE/MD.r*.8;tot=pm!==null?walk+pm:walk/(1-reportPause)}
+  // jour par jour (trekking) : départ le matin, arrivée au camp le soir ; temps réparti de façon égale entre les jours
+  const trek=reportMode!=='day',sm=hmMin(reportStart),em=hmMin(reportEnd),win=Math.max(1,(em-sm)/60);
+  const nightsAuto=trek?Math.max(0,Math.ceil(tot/win-1e-9)-1):0,nights=trek&&reportNights!==null?reportNights:nightsAuto,days=nights+1,per=tot/days;
+  const dayRows=[];{let i0=0;const tT=tr.time[tr.N-1];
+    for(let k=1;k<=days;k++){let i1=tr.N-1;if(k<days){const tg=tT*k/days;let lo=i0,hi=tr.N-1;while(lo<hi){const m=(lo+hi)>>1;if(tr.time[m]<tg)lo=m+1;else hi=m}i1=Math.max(i0+1,lo)}
+      let u=0,dn=0;for(let i=i0+1;i<=i1;i++){const d=tr.se[i]-tr.se[i-1];if(d>0)u+=d;else dn-=d}
+      let pn='',bd=800;for(const p of D.places){const d=Math.abs(tr.rd[p.i]-tr.rd[i1]);if(d<bd){bd=d;pn=p.name}}
+      dayRows.push({k,i0,i1,km:(tr.rd[i1]-tr.rd[i0])/1000,from:tr.rd[i0]/1000,to:tr.rd[i1]/1000,up:u,down:dn,alt:tr.se[i1],place:pn,t0:minHM(sm),t1:minHM(sm+per*60)});i0=i1}}
+  const plan={days,nights,nightsAuto,per,sm,em,win,over:trek&&per>win+.01,rows:dayRows,trek};
   const avg=km/tot,pauseH=tot-walk;   // réglé sur l'expérience de Manuel : 1,5 à 1,8 km/h de moyenne, pauses comprises, sur une rando à fort dénivelé (≈ 2,65 km-effort par heure)
   const hm=x=>{const m=Math.round(x*60/5)*5;return Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')};
   const lines=[];
@@ -2931,7 +2942,7 @@ function beginnerData(D){
   if(reportMode!=='day')gear.push('Couchage et repas pour les nuits (tente ou refuge, duvet, réchaud)','Nourriture pour tous les jours + de quoi purifier l’eau','Sac bien réglé : le poids sur les hanches, pas sur les épaules');
   if(tr.eMax>1800)gear.push('Une couche chaude : il fait plus froid en altitude');
   const tips=[...(reportMode!=='day'?['Avec un sac lourd, on avance plus lentement, surtout en montée : prévois large et choisis des étapes courtes.']:[]),'Pars tôt pour finir avant la nuit et avoir de la marge.','Regarde la météo la veille ; en cas d’orage ou de brouillard épais, on renonce.','Garde un rythme où tu peux encore parler : si tu es essoufflé, ralentis.','On peut faire demi-tour à tout moment : il n’y a aucune honte.','Préviens quelqu’un de ton itinéraire et de ton heure de retour.'];
-  return {lv,L,MD,km,up,down,kmE,steep,tot:hm(tot),walk:hm(walk),avg,totH:tot,walkSpeed:km/walk,walkH:walk,pause:hm(pauseH),lines,gear,tips};
+  return {lv,L,MD,km,up,down,kmE,steep,tot:hm(tot),walk:hm(walk),plan,avg,totH:tot,walkSpeed:km/walk,walkH:walk,pause:hm(pauseH),lines,gear,tips};
 }
 let reportPrep=null;   // null = automatique ; true = rando à préparer ; false = rando déjà faite
 const isRecorded=tr=>reportPrep!==null?!reportPrep:(!!tr.hasTime&&!tr.planned);   // rando déjà faite (heures réelles) : pas d'estimation débutant
@@ -2942,17 +2953,22 @@ function beginnerHTML(D){
    <div class="rp-modesel"><span>Type de sortie :</span>${Object.keys(REPORT_MODES).map(k=>`<button type="button" data-mode="${k}" aria-pressed="${k===reportMode}">${REPORT_MODES[k].short}</button>`).join('')}</div>
    <div class="rp-modesel"><span>Ma vitesse moyenne :</span><input type="number" data-speed inputmode="decimal" min="0.5" max="8" step="0.1" value="${reportSpeed||''}" placeholder="auto" aria-label="Vitesse moyenne en km/h"><span>km/h, pauses comprises</span></div>
    <div class="rp-modesel"><span>Temps de pause (total) :</span><input type="number" data-pausemin inputmode="numeric" min="0" max="600" step="5" value="${reportPauseMin!==null?reportPauseMin:''}" placeholder="${Math.round(B.totH*60*(1-B.walkH/B.totH)/5)*5}" aria-label="Temps de pause total en minutes"><span>min (laisser vide = automatique)</span></div>
+   <div class="rp-modesel"><span>Départ le matin :</span><input type="time" data-hstart value="${reportStart}" aria-label="Heure de départ le matin">${B.plan.trek?`<span>arrivée au camp au plus tard :</span><input type="time" data-hend value="${reportEnd}" aria-label="Heure d'arrivée au camp le soir"><span>nuits :</span><input type="number" data-nights min="0" max="30" step="1" inputmode="numeric" value="${reportNights!==null?reportNights:''}" placeholder="${B.plan.nightsAuto}" aria-label="Nombre de nuits">`:''}</div>
    <p class="rp-modetxt">Calculé pour : <b>${B.MD.n}</b> (${B.MD.s}).</p>
    <div class="rp-diff" style="--c:${B.L.col}"><div class="rp-dl">Difficulté</div><b>${B.L.n}</b><div class="rp-dm"><i style="width:${(B.lv+1)*20}%"></i></div><p>${B.L.t}</p></div>
    <div class="rp-est"><div><span>Durée totale</span><b>${B.tot}</b><small>moyenne ${nf1.format(B.avg)} km/h</small></div><div><span>Marche</span><b>${B.walk}</b><small>${nf1.format(B.walkSpeed)} km/h</small></div><div><span>Pauses</span><b>${B.pause}</b><small>repas, photos, souffle</small></div></div>
    <p class="rp-note" style="margin-top:8px">${reportSpeed?`Estimation avec ta vitesse moyenne de ${nf1.format(reportSpeed)} km/h (pauses comprises) : ${fmtKm(D.tr.total)} km ÷ ${nf1.format(reportSpeed)} km/h.`:`Estimation avec le km-effort : environ ${nf1.format(B.MD.r)} km-effort par heure, pauses comprises (${B.MD.n.toLowerCase()}, ${B.MD.s}). Avec un sac d’environ 12 kg et beaucoup de dénivelé, la moyenne tombe vers 1,5 à 1,8 km/h.`} Les pauses (repas, photos, souffle) sont comptées dans le total. Les heures de passage ci-dessous suivent la même estimation.</p>
+   ${(()=>{const P=B.plan,tr=D.tr,fk=v=>fmtKm(v*1000);
+     const head=P.trek?`<h3>Jour par jour</h3><p class="rp-note">${P.nights===0?'Une seule journée : pas de nuit dehors.':`${P.days} jours et ${P.nights} nuit${P.nights>1?'s':''}.`} Départ ${reportStart} chaque matin, temps réparti de façon égale entre les jours (pauses comprises).${P.over?` <b>Attention : chaque journée dure ${fmtDur(P.per*3600000)}, plus que ta fenêtre de ${fmtDur(P.win*3600000)} (${reportStart} → ${reportEnd}). Ajoute une nuit ou raccourcis les pauses.</b>`:''}</p>`:`<h3>Horaires</h3><p class="rp-note">Départ ${reportStart} · arrivée vers ${P.rows[0].t1}.</p>`;
+     const rows=P.trek?P.rows.map(r=>`<div class="rp-day"><b>Jour ${r.k}</b><span>${r.t0} → ${r.t1}</span><span>km ${fk(r.from)} → ${fk(r.to)} · ${fmtKm(r.km*1000)} km</span><span>↗ +${nf0.format(Math.round(r.up))} m · ↘ −${nf0.format(Math.round(r.down))} m</span><span>${r.k<P.days?'Camp':'Arrivée'} vers ${nf0.format(Math.round(r.alt))} m${r.place?` · près de ${escH(r.place)}`:''}</span></div>`).join(''):'';
+     return head+(rows?`<div class="rp-days">${rows}</div>`:'')})()}
    <h3>Ce qui t’attend</h3><ul class="rp-ul">${B.lines.map(l=>`<li>${l}</li>`).join('')}</ul>
    <h3>À emporter</h3><ul class="rp-ul rp-chk">${B.gear.map(l=>`<li>${l}</li>`).join('')}</ul>
    <h3>Conseils</h3><ul class="rp-ul">${B.tips.map(l=>`<li>${l}</li>`).join('')}</ul></section>`;
 }
 function reportShareText(D){
   const B=beginnerData(D),tr=D.tr,pl=D.places.slice(0,6).map(p=>p.name).join(', ');
-  return `🥾 ${tr.name}\nDistance : ${fmtKm(tr.total)} km\nDénivelé : +${nf0.format(B.up)} m / −${nf0.format(B.down)} m\nAltitude : ${nf0.format(tr.eMin)} à ${nf0.format(tr.eMax)} m\nDifficulté : ${B.L.n}\n${isRecorded(tr)?`Durée : ${fmtDur(tr.time[tr.N-1])}`:`Sortie : ${B.MD.n} (${B.MD.s})\nDurée estimée : ${B.tot} (marche ${B.walk} + pauses ${B.pause}, moyenne ${nf1.format(B.avg)} km/h)`}\n`+(pl?`On passe par : ${pl}\n`:'')+(D.steepUp?`Montée la plus raide : km ${fmtKm(tr.rd[D.steepUp.i0])} → ${fmtKm(tr.rd[D.steepUp.i1])} (${Math.round(D.steepUp.avg)} %)\n`:'')+`À prévoir : bonnes chaussures, eau, collation, veste de pluie.`;
+  return `🥾 ${tr.name}\nDistance : ${fmtKm(tr.total)} km\nDénivelé : +${nf0.format(B.up)} m / −${nf0.format(B.down)} m\nAltitude : ${nf0.format(tr.eMin)} à ${nf0.format(tr.eMax)} m\nDifficulté : ${B.L.n}\n${isRecorded(tr)?`Durée : ${fmtDur(tr.time[tr.N-1])}`:`Sortie : ${B.MD.n} (${B.MD.s})\nDurée estimée : ${B.tot} (marche ${B.walk} + pauses ${B.pause}, moyenne ${nf1.format(B.avg)} km/h)`}\n`+(isRecorded(tr)||!B.plan.trek||B.plan.days<2?(isRecorded(tr)?'':`Départ ${reportStart}, arrivée vers ${B.plan.rows[B.plan.rows.length-1].t1}\n`):B.plan.rows.map(r=>`Jour ${r.k} : ${r.t0} → ${r.t1}, ${fmtKm(r.km*1000)} km, +${nf0.format(Math.round(r.up))} m${r.k<B.plan.days?', camp vers '+nf0.format(Math.round(r.alt))+' m':''}\n`).join(''))+(pl?`On passe par : ${pl}\n`:'')+(D.steepUp?`Montée la plus raide : km ${fmtKm(tr.rd[D.steepUp.i0])} → ${fmtKm(tr.rd[D.steepUp.i1])} (${Math.round(D.steepUp.avg)} %)\n`:'')+`À prévoir : bonnes chaussures, eau, collation, veste de pluie.`;
 }
 function reportProfileSVG(D){
   const tr=D.tr,narrow=innerWidth<640,W=narrow?560:1000,H=narrow?230:250,pl=narrow?62:66,pr=12,pt=14,pb=30,iw=W-pl-pr,ih=H-pt-pb;
@@ -2977,7 +2993,7 @@ function reportProfileSVG(D){
   return `<svg viewBox="0 0 ${W} ${H}" class="rp-prof" role="img" aria-label="Profil altimétrique coloré selon la pente">${g}</svg>`;
 }
 function reportHTML(D,wx){
-  const tr=D.tr,B0=isRecorded(tr)?null:beginnerData(D),ts=B0?B0.totH*3600000/Math.max(1,tr.time[tr.N-1]):1,tot=tr.time[tr.N-1],clock=ms=>D.timed?fmtClock(D.t0+ms*ts):'';   // ts : les durées suivent la vitesse choisie
+  const tr=D.tr,B0=isRecorded(tr)?null:beginnerData(D),ts=B0?B0.totH*3600000/Math.max(1,tr.time[tr.N-1]):1,tot=tr.time[tr.N-1],clock=ms=>{if(!D.timed)return '';if(!B0)return fmtClock(D.t0+ms*ts);const P=B0.plan,e=ms*ts/3600000,d=Math.min(P.days-1,Math.floor(e/P.per+1e-9));return (P.days>1?`J${d+1} `:'')+minHM(P.sm+(e-d*P.per)*60)};   // ts : les durées suivent la vitesse choisie
   const kmE=tr.total/1000+tr.up[tr.N-1]/100;
   const date=D.timed?new Date(D.t0).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'';
   const pc=v=>{const r=Math.round(v);return `${r>0?'↗ +':r<0?'↘ −':'→ '}${Math.abs(r)} %`};
@@ -3110,6 +3126,7 @@ const REPORT_CSS=`.rp{--ink:#1d2b2d;--mut:#5b6b6c;--line:#dfe5e2;font-family:"Ba
 .rp-beg h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:17px;margin:14px 0 6px}
 .rp-diff{border:1px solid var(--line);border-left:8px solid var(--c);border-radius:12px;padding:12px 14px}.rp-dl{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
 .rp-diff>b{font-family:"Barlow Condensed",sans-serif;font-size:30px;color:var(--c)}.rp-dm{height:8px;background:#eef1ef;border-radius:4px;overflow:hidden;margin:4px 0 8px}.rp-dm i{display:block;height:100%;background:var(--c)}.rp-diff p{margin:0;font-size:14.5px}
+.rp-days{display:flex;flex-direction:column;gap:8px}.rp-day{border:1px solid var(--line);border-left:6px solid #1d2b2d;border-radius:10px;padding:9px 12px;display:flex;flex-direction:column;gap:2px;font-size:14px;break-inside:avoid}.rp-day b{font-size:16px}.rp-day span{color:var(--mut)}.rp-modesel input[type=time]{width:112px}
 .rp-names input[type=text]{width:150px}.rp-cands button small{font-weight:400;color:var(--mut);margin-left:3px}.rp-modesel input{width:84px;border:1px solid #cfd8d4;border-radius:10px;padding:7px 8px;font:inherit;font-weight:600}
 .rp-est b{font-size:24px!important}.rp-est{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.rp-est>div{border:1px solid var(--line);border-radius:12px;padding:9px 10px}.rp-est span{display:block;font-size:12.5px;color:var(--mut)}.rp-est b{font-family:"Barlow Condensed",sans-serif;font-size:28px}.rp-est small{display:block;font-size:12px;color:var(--mut)}
 .rp-ul{margin:0;padding-left:20px;font-size:14.5px;display:flex;flex-direction:column;gap:5px}.rp-chk{list-style:"☐  "}
@@ -3118,7 +3135,11 @@ const REPORT_CSS=`.rp{--ink:#1d2b2d;--mut:#5b6b6c;--line:#dfe5e2;font-family:"Ba
 .rp-foot{margin-top:24px;font-size:11.5px;color:var(--mut)}
 @media (max-width:520px){.rp{padding:16px 14px 22px}.rp h1{font-size:28px}.rp-kpi b{font-size:23px}.rp-chip{margin-left:0}}`;
 let lastReport=null;
-$('reportBody').addEventListener('change',e=>{const i=e.target.closest('[data-speed],[data-pausemin],[data-nms],[data-nme]');if(!i||!lastReport)return;
+$('reportBody').addEventListener('change',e=>{const i=e.target.closest('[data-speed],[data-pausemin],[data-nms],[data-nme],[data-hstart],[data-hend],[data-nights]');if(!i||!lastReport)return;
+  if(i.hasAttribute('data-hstart')||i.hasAttribute('data-hend')||i.hasAttribute('data-nights')){
+    if(i.hasAttribute('data-nights')){const n=parseInt(i.value,10);reportNights=i.value!==''&&n>=0&&n<=30?n:null}
+    else if(/^\d\d:\d\d$/.test(i.value)){if(i.hasAttribute('data-hstart')){reportStart=i.value;try{localStorage.setItem('rr3d-hstart',i.value)}catch(_){}}else{reportEnd=i.value;try{localStorage.setItem('rr3d-hend',i.value)}catch(_){}}}
+    setTimeout(()=>{const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(lastReport.D,lastReport.wx);$('reportPanel').scrollTop=y},0);return}
   if(i.hasAttribute('data-nms')||i.hasAttribute('data-nme')){nmSet(lastReport.D.tr.sig,i.hasAttribute('data-nms')?{s:i.value.trim()}:{e:i.value.trim()});setTimeout(()=>{const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(lastReport.D,lastReport.wx);$('reportPanel').scrollTop=y},0);return}
   const v=parseFloat(String(i.value).replace(',','.'));
   if(i.hasAttribute('data-pausemin'))reportPauseMin=i.value!==''&&v>=0&&v<=600?Math.round(v):null;
@@ -3130,7 +3151,7 @@ function reportFileHTML(tr){
   return doc}
 
 async function openReport(tr,places){
-  reportPrep=null;reportPauseMin=null;
+  reportPrep=null;reportPauseMin=null;reportNights=null;
   if(!tr){toast("Charge une trace ou crée un itinéraire d'abord.");return}
   const D=reportData(tr,places);
   let wx='';
@@ -4682,7 +4703,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V77", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : durée « Auto » (par défaut, 40 à 100 s) qui s'adapte à la longueur de la rando, caméra reculée si la marche reste trop rapide à l'écran, et étiquettes plus petites avec un texte plus gros.", "Rapport rando : la partie « Pour les débutants » devient « Estimation de la sortie », puisqu'elle s'adapte à tous les niveaux (vitesse, pauses, sac).", "Rapport rando : l'appli compare plusieurs cartes (OpenStreetMap, Nominatim, IGN) pour le nom du départ et de l'arrivée et te propose les noms trouvés, avec la carte d'origine. Un appui pour choisir.", "Rapport rando : tu peux corriger le nom du départ et de l'arrivée (ex. « Le Pra »), avec un bouton « Utiliser … » tiré du titre de la rando. Le nom est gardé pour cette rando et repris dans le film."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V78", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando (trekking) : heure de départ le matin, heure d'arrivée au camp le soir et nombre de nuits. L'appli découpe la rando jour par jour (horaires, km, dénivelé, altitude et lieu du camp) et les heures de passage suivent.", "Film : durée « Auto » (par défaut, 40 à 100 s) qui s'adapte à la longueur de la rando, caméra reculée si la marche reste trop rapide à l'écran, et étiquettes plus petites avec un texte plus gros.", "Rapport rando : la partie « Pour les débutants » devient « Estimation de la sortie », puisqu'elle s'adapte à tous les niveaux (vitesse, pauses, sac).", "Rapport rando : l'appli compare plusieurs cartes (OpenStreetMap, Nominatim, IGN) pour le nom du départ et de l'arrivée et te propose les noms trouvés, avec la carte d'origine. Un appui pour choisir."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
