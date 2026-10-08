@@ -12,8 +12,8 @@ android {
         applicationId = "fr.mesphotos"
         minSdk = 26
         targetSdk = 35
-        versionCode = 25
-        versionName = "1.20.0"
+        versionCode = 26
+        versionName = "1.21.0"
         // Le moteur de reconnaissance n'est embarqué que pour les téléphones courants (pas les PC / émulateurs).
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")

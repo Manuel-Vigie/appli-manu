@@ -381,10 +381,10 @@ private fun HomeScreen(
                     onClick = if (state.suggestions > 0) onReview else onScan,
                 )
                 tools += Tool(Icons.Default.Lock, "À l'écart", if (state.asideCount > 0) "${spaced(state.asideCount)} fichier(s)" else "Vide", onClick = onOpenAside)
-                tools += Tool(Icons.Default.Check, "Vérifier les photos", "Repère les fichiers abîmés ou brouillés", onClick = onHealth)
                 tools += Tool(AppIcons.Shield, "Coffre-fort", "Photos cachées, avec le verrouillage du téléphone", onClick = onOpenVault)
                 tools += Tool(Icons.Default.Delete, "Corbeille", if (state.trashCount > 0) "${spaced(state.trashCount)} fichier(s)" else "Vide", onClick = onOpenTrash)
                 if (state.hasUndo) tools += Tool(Icons.Default.Refresh, "Annuler le rangement", "Tout remettre comme avant", onClick = onUndo)
+                tools += Tool(Icons.Default.Check, "Vérifier les photos", "Repère les fichiers abîmés ou brouillés", onClick = onHealth)
                 tools.chunked(2).forEach { pair ->
                     item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
