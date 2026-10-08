@@ -4062,7 +4062,7 @@ async function filmRun(){
     muxer.finalize();
     const blob=new Blob([muxer.target.buffer],{type:'video/mp4'});
     FILM.url=URL.createObjectURL(blob);
-    FILM.name='film-carte-'+((title||'rando').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'rando')+'.mp4';
+    FILM.name='film-carte-'+((title||'rando').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'rando')+'-'+(()=>{const d=new Date(),z=n=>String(n).padStart(2,'0');return z(d.getDate())+z(d.getMonth()+1)+'-'+z(d.getHours())+z(d.getMinutes())+z(d.getSeconds())})()+'.mp4';
     $('filmErr').textContent='';$('filmOk').hidden=false;
     $('filmDoneTxt').textContent=`Ton film est prêt (${(blob.size/1048576).toFixed(0)} Mo). Il est enregistré dans tes Téléchargements.`;
     filmShow('filmDone');
@@ -4297,7 +4297,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V45", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : durée de 45 s par défaut. Fini le message du bas « Pour quitter le plein écran » : le plein écran ne se lance plus tout seul (bouton ⛶ si besoin), et « Créer le film » répond du premier coup.", "Film : étiquettes stables (plus de clignotement, elles apparaissent et disparaissent en douceur et gardent leur côté), plus grosses, plus lisibles, avec un trait plus long. Nouveau : « ＋ Ajouter un lieu » dans la fenêtre du film (nom + position sur le parcours) : il apparaît quand le point passe devant.", "Film : un trait bien visible (blanc avec liseré sombre) relie chaque bulle à l'emplacement exact du lieu, marqué par un point bleu.", "Film : les étiquettes restent affichées une fois apparues, un peu décollées du lieu (petit trait) pour bien voir le tracé, et légèrement plus grosses."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V46", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : plus de panneau « Télécharger de nouveau le fichier ? » — chaque film a maintenant un nom unique (avec la date et l'heure).", "Film : durée de 45 s par défaut. Fini le message du bas « Pour quitter le plein écran » : le plein écran ne se lance plus tout seul (bouton ⛶ si besoin), et « Créer le film » répond du premier coup.", "Film : étiquettes stables (plus de clignotement, elles apparaissent et disparaissent en douceur et gardent leur côté), plus grosses, plus lisibles, avec un trait plus long. Nouveau : « ＋ Ajouter un lieu » dans la fenêtre du film (nom + position sur le parcours) : il apparaît quand le point passe devant.", "Film : un trait bien visible (blanc avec liseré sombre) relie chaque bulle à l'emplacement exact du lieu, marqué par un point bleu."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
