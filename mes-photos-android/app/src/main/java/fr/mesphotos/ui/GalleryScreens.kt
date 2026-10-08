@@ -978,6 +978,7 @@ fun TrashScreen(
     onBack: () -> Unit,
     onRestore: (List<TrashEntry>) -> Unit,
     onDeleteForever: (List<TrashEntry>) -> Unit,
+    onToVault: (List<TrashEntry>) -> Unit = {},
 ) {
     BackHandler { onBack() }
     val aside = state.kind == MoveKind.ASIDE
@@ -1070,6 +1071,7 @@ fun TrashScreen(
                         onClick = { onRestore(chosen) },
                         enabled = chosen.isNotEmpty(),
                     )
+                    SoftButton("Mettre au coffre-fort", onClick = { onToVault(chosen) }, enabled = chosen.isNotEmpty())
                     if (!aside) DangerOutlineButton("Supprimer pour de bon…", onClick = { confirm = true }, enabled = chosen.isNotEmpty())
                 }
             }

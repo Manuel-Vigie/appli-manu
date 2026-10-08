@@ -86,4 +86,15 @@ class VaultTest {
         vault().add(listOf(photo("sd/1", "a.jpg", "un"), photo("sd/2", "a.jpg", "deux")))
         assertEquals(setOf("un", "deux"), vault().entries().map { it.file.readText() }.toSet())
     }
+
+    @Test
+    fun restoreGoesToTheGivenOriginalPlaceNotTheSourceFolder() {
+        val real = photo("sd/Vacances", "keep.jpg", "x") // juste pour créer le dossier d'origine
+        val inStash = photo("sd/.Corbeille/lot", "a.jpg", "contenu A")
+        val originalPath = File(real.parentFile, "a.jpg").absolutePath
+        vault().add(listOf(inStash), originalOf = { originalPath })
+        vault().restore(vault().entries(), File(tmp.root, "secours"))
+        assertEquals("contenu A", File(originalPath).readText())
+        assertFalse(inStash.exists())
+    }
 }

@@ -50,7 +50,7 @@ class Vault(private val dir: File) {
     fun count(): Int = entries().size
 
     /** Met [files] au coffre : copie vérifiée, puis l'original est effacé. [onProgress] : (faits, total). */
-    fun add(files: List<File>, onProgress: (Int, Int) -> Unit = { _, _ -> }): Result {
+    fun add(files: List<File>, onProgress: (Int, Int) -> Unit = { _, _ -> }, originalOf: (File) -> String = { it.absolutePath }): Result {
         if (!dir.isDirectory && !dir.mkdirs()) return Result(0, files.size, listOf("Impossible de préparer le coffre-fort."))
         val needed = files.filter { it.isFile }.sumOf { it.length() }
         if (dir.usableSpace < needed + needed / 10 + 50L * 1024 * 1024) {
@@ -61,7 +61,7 @@ class Vault(private val dir: File) {
         val failures = ArrayList<String>()
         val removed = ArrayList<String>()
         for ((i, source) in files.withIndex()) {
-            val problem = addOne(source)
+            val problem = addOne(source, originalOf(source))
             if (problem == null) {
                 done++
                 removed += source.absolutePath
@@ -74,7 +74,7 @@ class Vault(private val dir: File) {
         return Result(done, failed, failures, removedPaths = removed)
     }
 
-    private fun addOne(source: File): String? {
+    private fun addOne(source: File, originalPath: String): String? {
         if (!source.isFile) return "fichier introuvable"
         val id = UUID.randomUUID().toString()
         val folder = File(dir, id)
@@ -88,7 +88,7 @@ class Vault(private val dir: File) {
             }
             target.setLastModified(source.lastModified())
             // On note la photo dans l'index AVANT d'effacer l'original : en cas de coupure, rien n'est perdu.
-            synchronized(this) { index.appendText(id + "\t" + source.absolutePath + "\n") }
+            synchronized(this) { index.appendText(id + "\t" + originalPath + "\n") }
             if (!source.delete() && source.exists()) {
                 forget(id)
                 folder.deleteRecursively()

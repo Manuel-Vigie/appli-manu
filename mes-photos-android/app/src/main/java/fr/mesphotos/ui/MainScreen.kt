@@ -265,6 +265,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onBack = viewModel::backToStart,
                     onRestore = { items -> viewModel.restoreFromTrash(s.kind, items) },
                     onDeleteForever = viewModel::deleteFromTrash,
+                    onToVault = { items -> viewModel.moveStashToVault(s.kind, items) },
                 )
                 is UiState.NudityScan -> NudityScanScreen(s, onStop = viewModel::stopNudityScan)
                 is UiState.Review -> ReviewScreen(

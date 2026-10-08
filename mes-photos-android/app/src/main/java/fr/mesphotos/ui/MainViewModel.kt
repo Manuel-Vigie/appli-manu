@@ -1064,6 +1064,39 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Met au coffre-fort des fichiers qui sont à la corbeille ou « À l'écart ». Le coffre garde leur vraie place d'origine :
+     * quand on les sort du coffre, ils retournent là, pas dans le dossier de la corbeille.
+     */
+    fun moveStashToVault(kind: MoveKind, items: List<TrashEntry>) {
+        if (items.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                val label = "Mise au coffre-fort…"
+                _state.value = UiState.Working(label, 0, items.size)
+                val byFile = items.associateBy { it.trashed.absolutePath }
+                val result = withContext(Dispatchers.IO) {
+                    val r = vault.add(items.map { it.trashed }, { done, total ->
+                        if (done % 5 == 0 || done == total) _state.value = UiState.Working(label, done, total)
+                    }, originalOf = { f -> byFile[f.absolutePath]?.original?.absolutePath ?: f.absolutePath })
+                    if (r.removedPaths.isNotEmpty()) MediaScannerConnection.scanFile(getApplication(), r.removedPaths.toTypedArray(), null, null)
+                    r
+                }
+                searchIndex = null
+                lastMoved = emptyList()
+                val where = if (kind == MoveKind.ASIDE) "« À l'écart »" else "la corbeille"
+                val lines = ArrayList<String>()
+                lines += if (result.done == 0) "Rien n'a été mis au coffre-fort."
+                else "${countText(result.done)} sorti(s) de $where et mis au coffre-fort. Pour les revoir : Outils, « Coffre-fort »."
+                if (result.failed > 0) lines += "${result.failed} fichier(s) n'ont pas pu être mis au coffre et sont restés en place."
+                result.failures.take(2).forEach { lines += it }
+                openTrash(kind, lines.joinToString("\n"))
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
     /** À appeler une fois le verrouillage du téléphone vérifié. */
     fun unlockVault() {
         vaultOpen = true

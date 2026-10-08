@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V30",
+  "version": "V31",
   "date": "08/10/2026",
   "nouveautes": [
+    "Coffre-fort aussi depuis « À l'écart » et « Corbeille » : choisissez des photos puis « Mettre au coffre-fort ». Sorties du coffre, elles retournent à leur vraie place.",
     "Raccourci « Vidéos » fourni d'office : un bouton qui montre toutes les vidéos, avec leur nombre, là où elles sont (rien n'est déplacé ni copié). Taper « videos » dans la loupe fait pareil.",
     "Outils refait : des boutons à plat (un par ligne) rangés dans quatre menus déroulants fermés au départ : Prendre une photo, Recherche, Mises de côté (coffre-fort, à l'écart, corbeille) et Réparation.",
-    "Nettoyage des photos abîmées : bouton en bas de « Vérifier les photos » qui les met à la CORBEILLE (rien n'est effacé, tout peut être remis ; suppression définitive seulement depuis la corbeille).",
-    "Vérifier les photos : analyse poussée des fichiers inconnus (début, milieu, fin brouillés ou non, trace de photo encore présente) pour savoir si un morceau est récupérable."
+    "Nettoyage des photos abîmées : bouton en bas de « Vérifier les photos » qui les met à la CORBEILLE (rien n'est effacé, tout peut être remis ; suppression définitive seulement depuis la corbeille)."
   ],
   "pastille": false,
   "fichiers": []
