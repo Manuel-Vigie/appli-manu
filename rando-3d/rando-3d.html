@@ -705,8 +705,8 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <p class="modal-note">L'app rejoue ta randonnée et l'enregistre en même temps : titre, carte 3D, stats, profil et photos.</p>
       <div class="field"><span class="field-lbl">Format</span>
         <div class="fmt-cards" id="vfmtSeg">
-          <button type="button" data-v="v" aria-pressed="true"><i class="frame v"></i><b>Vertical 9:16</b><small>Stories, Reels, TikTok</small></button>
-          <button type="button" data-v="h" aria-pressed="false"><i class="frame h"></i><b>Horizontal 16:9</b><small>YouTube, montage</small></button>
+          <button type="button" data-v="v" aria-pressed="false"><i class="frame v"></i><b>Vertical 9:16</b><small>Stories, Reels, TikTok</small></button>
+          <button type="button" data-v="h" aria-pressed="true"><i class="frame h"></i><b>Horizontal 16:9</b><small>YouTube, télé, montage</small></button>
         </div></div>
       <div class="field"><span class="field-lbl">Durée</span>
         <div class="seg" id="vdurSeg"><button type="button" data-v="30" aria-pressed="false">30 s</button><button type="button" data-v="45" aria-pressed="true">45 s</button><button type="button" data-v="60" aria-pressed="false">60 s</button></div></div>
@@ -2232,13 +2232,15 @@ addEventListener('keydown',e=>{
 });
 
 /* ---------- Video export (records the replay with stats overlay) ---------- */
-let REC=null,vidOpts={fmt:'v',dur:45,q:1080,overlay:true},lastVideo=null;
+let REC=null,vidOpts={fmt:'h',dur:45,q:1080,overlay:true},lastVideo=null;
 function pickMime(){
   if(!window.MediaRecorder)return '';
   return ['video/mp4;codecs=avc1.640028','video/mp4;codecs=avc1.4d0028','video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(m=>{try{return MediaRecorder.isTypeSupported(m)}catch(e){return false}})||'';
 }
 function segBind(id,key,conv){$(id).addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;vidOpts[key]=conv(b.dataset.v);[...$(id).querySelectorAll('button')].forEach(x=>x.setAttribute('aria-pressed',x===b))})}
-segBind('vfmtSeg','fmt',v=>v);segBind('vdurSeg','dur',Number);segBind('vqSeg','q',Number);
+segBind('vfmtSeg','fmt',v=>{try{localStorage.setItem('rr3d-vfmt',v)}catch(e){}return v});
+try{const sv=localStorage.getItem('rr3d-vfmt');if(sv==='v'||sv==='h'){vidOpts.fmt=sv;[...$('vfmtSeg').children].forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===sv))}}catch(e){}
+segBind('vdurSeg','dur',Number);segBind('vqSeg','q',Number);
 $('videoBtn').addEventListener('click',()=>{if(!T)return;setPlaying(false);$('vNote').textContent=(window.VideoEncoder&&window.VideoFrame)?"La vidéo est fabriquée image par image : elle est fluide même si ton téléphone est lent. Garde l'écran allumé et reste sur cette page jusqu'à la fin ; elle sera aussi dans « Mes films ».":"L'enregistrement se fait en temps réel : garde l'écran allumé et reste sur cette page jusqu'à la fin.";if(!$('vTitleIn').value||$('vTitleIn').dataset.for!==T.sig){$('vTitleIn').value=T.name;$('vTitleIn').dataset.for=T.sig;$('vSubIn').value=''}$('videoPanel').hidden=false;$('vTitleIn').focus()});
 $('vCancel').addEventListener('click',()=>$('videoPanel').hidden=true);
 $('vOverlay').addEventListener('change',e=>vidOpts.overlay=e.target.checked);
@@ -4446,7 +4448,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V54", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Replay : un bouton 🎬 (vidéo) dans la barre ronde du bas lance un film du personnage qui marche sur la carte 3D, fabriqué image par image comme « Film de la carte » (fluide même si le téléphone est lent) et rangé dans « Mes films ». Le bouton 💾 y est remplacé (on ajoute depuis Mes randos).", "Film : les étiquettes bougent beaucoup moins. Elles suivent la carte d'un bloc avec leur point (plus de glissement ni de trait qui s'étire), et ne changent de côté que si le parcours passe vraiment dessus.", "Nouvel onglet « Mes films » (barre du bas) : chaque film créé y est gardé ; tu peux le lire, l'enregistrer, le renommer ou le supprimer. Les randos de « Mes randos » peuvent aussi être renommées (✏️).", "Le bandeau « Ajouter à mes randos » à l'ouverture d'une trace est supprimé : on ajoute une rando depuis l'onglet Mes randos."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V55", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Vidéo du replay : le format Horizontal 16:9 (YouTube, télé) est maintenant choisi par défaut, bien visible en premier, et l'app retient ton dernier choix (horizontal ou vertical).", "Replay : un bouton 🎬 (vidéo) dans la barre ronde du bas lance un film du personnage qui marche sur la carte 3D, fabriqué image par image comme « Film de la carte » (fluide même si le téléphone est lent) et rangé dans « Mes films ». Le bouton 💾 y est remplacé (on ajoute depuis Mes randos).", "Film : les étiquettes bougent beaucoup moins. Elles suivent la carte d'un bloc avec leur point (plus de glissement ni de trait qui s'étire), et ne changent de côté que si le parcours passe vraiment dessus.", "Nouvel onglet « Mes films » (barre du bas) : chaque film créé y est gardé ; tu peux le lire, l'enregistrer, le renommer ou le supprimer. Les randos de « Mes randos » peuvent aussi être renommées (✏️)."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;

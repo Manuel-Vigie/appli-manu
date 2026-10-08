@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V54",
+  "version": "V55",
   "date": "08/10/2026",
   "nouveautes": [
+    "Vidéo du replay : le format Horizontal 16:9 (YouTube, télé) est maintenant choisi par défaut, bien visible en premier, et l'app retient ton dernier choix (horizontal ou vertical).",
     "Replay : un bouton 🎬 (vidéo) dans la barre ronde du bas lance un film du personnage qui marche sur la carte 3D, fabriqué image par image comme « Film de la carte » (fluide même si le téléphone est lent) et rangé dans « Mes films ». Le bouton 💾 y est remplacé (on ajoute depuis Mes randos).",
     "Film : les étiquettes bougent beaucoup moins. Elles suivent la carte d'un bloc avec leur point (plus de glissement ni de trait qui s'étire), et ne changent de côté que si le parcours passe vraiment dessus.",
-    "Nouvel onglet « Mes films » (barre du bas) : chaque film créé y est gardé ; tu peux le lire, l'enregistrer, le renommer ou le supprimer. Les randos de « Mes randos » peuvent aussi être renommées (✏️).",
-    "Le bandeau « Ajouter à mes randos » à l'ouverture d'une trace est supprimé : on ajoute une rando depuis l'onglet Mes randos."
+    "Nouvel onglet « Mes films » (barre du bas) : chaque film créé y est gardé ; tu peux le lire, l'enregistrer, le renommer ou le supprimer. Les randos de « Mes randos » peuvent aussi être renommées (✏️)."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v54"
+    "cache": "rr3d-v55"
   },
   "fichiers": [
     "rando-3d.html",
