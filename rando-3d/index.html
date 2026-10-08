@@ -514,7 +514,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
           <button class="btn tag-btn" id="tagBtn" type="button">＋ Étiquette</button>
           <label class="btn tag-btn" for="addTrackInput" id="addTrackBtn" title="Ajoute une 2ᵉ trace (le retour, une autre étape…) à la suite de celle-ci">＋ Trace à la suite</label><input type="file" id="addTrackInput" multiple hidden>
           <button class="btn tag-btn" id="gpxOutBtn" type="button">Exporter GPX</button>
-          <button class="btn tag-btn" id="reportBtn" type="button">Fiche rando</button>
+          <button class="btn tag-btn" id="reportBtn" type="button">Rapport rando</button>
         </div>
         <div class="group"><span class="seg-label">Relief</span>
           <div class="seg" id="reliefSeg" role="group" aria-label="Accentuer le relief">
@@ -598,7 +598,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
     </div>
   </div>
   <div class="report-panel" id="reportPanel" hidden>
-    <div class="report-bar"><button type="button" class="btn" id="reportClose">← Retour</button><span class="grow"></span><button type="button" class="btn" id="reportPrint">Imprimer / PDF</button><button type="button" class="btn primary" id="reportSave">Enregistrer</button></div>
+    <div class="report-bar"><button type="button" class="btn" id="reportClose">← Retour</button><span class="grow"></span><button type="button" class="btn" id="reportPrint">Imprimer / PDF</button><button type="button" class="btn" id="reportMail">✉ Mail</button><button type="button" class="btn" id="reportSms">💬 SMS</button><button type="button" class="btn" id="reportShare">Partager</button><button type="button" class="btn primary" id="reportSave">Enregistrer</button></div>
     <div id="reportBody"></div>
   </div>
   <div class="sv-panel" id="svPanel" hidden>
@@ -756,7 +756,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <div class="pg-stats" id="pgStats"></div>
       <h3 class="pg-h">Que veux-tu faire ?</h3>
       <div class="pg-grid">
-        <button type="button" class="pg-tile" data-fwd="reportBtn"><i>📄</i><b>Fiche rando</b><small>À imprimer ou en PDF</small></button>
+        <button type="button" class="pg-tile" data-fwd="reportBtn"><i>📄</i><b>Rapport rando</b><small>Débutants · imprimer, mail, SMS</small></button>
         <button type="button" class="pg-tile" data-fwd="svFilm"><i>🎞️</i><b>Film de la carte</b><small>MP4 stable pour YouTube</small></button>
         <button type="button" class="pg-tile" data-fwd="ignBtn"><i>🗺️</i><b>Carte IGN</b><small>Toucher le tracé : la pente</small></button>
         <button type="button" class="pg-tile" data-fwd="gpxOutBtn"><i>⬇️</i><b>Exporter en GPX</b><small>Montre ou autre appli</small></button>
@@ -2878,6 +2878,44 @@ function reportData(tr,places){
   const near=(i)=>{let best=null,bd=400;for(const p of (places||[])){const d=Math.abs(p.i-i)*tr.total/(N-1);if(d<bd){bd=d;best=p}}return best?best.name:''};
   return {tr,segs,byCls,timed,t0,startName:near(0),endName:near(N-1),steepUp:climbs[0],steepDown:descs[0],longClimb:best,places:(places||[]).sort((a,b)=>a.i-b.i)};
 }
+function beginnerData(D){
+  const tr=D.tr,km=tr.total/1000,up=tr.up[tr.N-1],down=tr.down[tr.N-1],kmE=km+up/100;
+  const steep=(D.byCls[3]+D.byCls[4])/tr.total*100;
+  let lv=kmE<8?0:kmE<15?1:kmE<25?2:kmE<35?3:4;
+  if(steep>12&&lv<4&&lv>0)lv++;
+  const L=[{n:'Très facile',col:'#2e9e5b',t:'Une balade tranquille, accessible à tout le monde, même sans entraînement.'},
+    {n:'Facile',col:'#7cb342',t:'Accessible à un débutant en bonne santé : on marche à son rythme, avec quelques pauses.'},
+    {n:'Moyenne',col:'#f0a21a',t:'Demande un peu d’habitude : mieux vaut avoir déjà fait quelques sorties de 2 à 3 heures.'},
+    {n:'Soutenue',col:'#e8731a',t:'Pour des marcheurs qui ont déjà un peu de condition : on sent les jambes et le souffle.'},
+    {n:'Difficile',col:'#d7392a',t:'Longue ou très pentue : réservée aux marcheurs entraînés, à préparer sérieusement.'}][lv];
+  const h=km/3.5,v=up/250+down/450,walk=Math.max(h,v)+Math.min(h,v)/2,tot=walk*1.2;
+  const hm=x=>{const m=Math.round(x*60/5)*5;return Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')};
+  const lines=[];
+  lines.push(`Tu marches <b>${fmtKm(tr.total)} km</b> en montant au total <b>${nf0.format(up)} m</b> et en redescendant <b>${nf0.format(down)} m</b>. ${up<150?'C’est presque plat.':up<400?'Le relief reste modéré.':up<800?'Il y a de vraies montées : prévois de souffler.':'Le dénivelé est important : l’effort se répartit sur toute la journée.'}`);
+  lines.push(`Le point le plus haut est à <b>${nf0.format(tr.eMax)} m</b>, le plus bas à <b>${nf0.format(tr.eMin)} m</b>${tr.eMax-tr.eMin>=1000?' : l’air est plus frais en altitude.':'.'}`);
+  if(D.steepUp)lines.push(`Le passage le plus dur en montée : <b>km ${fmtKm(tr.rd[D.steepUp.i0])} → ${fmtKm(tr.rd[D.steepUp.i1])}</b> (pente moyenne ${Math.round(D.steepUp.avg)} %). Prends ton temps, de petits pas.`);
+  if(D.steepDown&&D.steepDown.avg<=-12)lines.push(`En descente, attention au <b>km ${fmtKm(tr.rd[D.steepDown.i0])} → ${fmtKm(tr.rd[D.steepDown.i1])}</b> (pente −${Math.abs(Math.round(D.steepDown.avg))} %) : ça glisse et ça fatigue les genoux, les bâtons aident.`);
+  lines.push(steep<3?'Presque aucun passage raide.':`Environ <b>${Math.round(steep)} %</b> du chemin est raide (pente de plus de 15 %).`);
+  const gear=['Chaussures de marche qui tiennent la cheville','Eau : '+(tot>5?'2 litres':tot>3?'1,5 litre':'1 litre')+' par personne','Collations (fruits secs, barres)','Veste coupe-vent / pluie','Casquette et crème solaire','Téléphone chargé + batterie externe'];
+  if(up>500)gear.push('Bâtons de marche (très utiles en descente)');
+  if(tr.eMax>1800)gear.push('Une couche chaude : il fait plus froid en altitude');
+  const tips=['Pars tôt pour finir avant la nuit et avoir de la marge.','Regarde la météo la veille ; en cas d’orage ou de brouillard épais, on renonce.','Garde un rythme où tu peux encore parler : si tu es essoufflé, ralentis.','On peut faire demi-tour à tout moment : il n’y a aucune honte.','Préviens quelqu’un de ton itinéraire et de ton heure de retour.'];
+  return {lv,L,km,up,down,kmE,steep,tot:hm(tot),walk:hm(walk),lines,gear,tips};
+}
+function beginnerHTML(D){
+  const B=beginnerData(D);
+  return `<section class="rp-beg"><h2>Pour les débutants</h2>
+   <div class="rp-diff" style="--c:${B.L.col}"><div class="rp-dl">Difficulté</div><b>${B.L.n}</b><div class="rp-dm"><i style="width:${(B.lv+1)*20}%"></i></div><p>${B.L.t}</p></div>
+   <div class="rp-est"><div><span>Durée pour un débutant</span><b>${B.tot}</b><small>avec les pauses</small></div><div><span>Temps de marche seul</span><b>${B.walk}</b><small>allure tranquille</small></div></div>
+   <p class="rp-note" style="margin-top:8px">Estimation avec une allure de débutant (3,5 km/h sur le plat, 250 m de montée et 450 m de descente par heure) plus 20 % de pauses. Un marcheur habitué ira plus vite.</p>
+   <h3>Ce qui t’attend</h3><ul class="rp-ul">${B.lines.map(l=>`<li>${l}</li>`).join('')}</ul>
+   <h3>À emporter</h3><ul class="rp-ul rp-chk">${B.gear.map(l=>`<li>${l}</li>`).join('')}</ul>
+   <h3>Conseils</h3><ul class="rp-ul">${B.tips.map(l=>`<li>${l}</li>`).join('')}</ul></section>`;
+}
+function reportShareText(D){
+  const B=beginnerData(D),tr=D.tr,pl=D.places.slice(0,6).map(p=>p.name).join(', ');
+  return `🥾 ${tr.name}\nDistance : ${fmtKm(tr.total)} km\nDénivelé : +${nf0.format(B.up)} m / −${nf0.format(B.down)} m\nAltitude : ${nf0.format(tr.eMin)} à ${nf0.format(tr.eMax)} m\nDifficulté : ${B.L.n}\nDurée estimée (débutant, pauses comprises) : ${B.tot}\n`+(pl?`On passe par : ${pl}\n`:'')+(D.steepUp?`Montée la plus raide : km ${fmtKm(tr.rd[D.steepUp.i0])} → ${fmtKm(tr.rd[D.steepUp.i1])} (${Math.round(D.steepUp.avg)} %)\n`:'')+`À prévoir : bonnes chaussures, eau, collation, veste de pluie.`;
+}
 function reportProfileSVG(D){
   const tr=D.tr,narrow=innerWidth<640,W=narrow?560:1000,H=narrow?230:250,pl=narrow?62:66,pr=12,pt=14,pb=30,iw=W-pl-pr,ih=H-pt-pb;
   const span=Math.max(tr.eMax-tr.eMin,30),st=[10,20,50,100,200,250,500].find(s=>span/s<=5)||500;
@@ -2927,12 +2965,13 @@ function reportHTML(D,wx){
   const ends=endCard(loopEnd?'Départ et arrivée':'Départ',D.startName,tr.se[0],sLat,sLon,D.timed?clock(0):'','#1c9a4e')+(loopEnd?'':endCard('Arrivée',D.endName,tr.se[tr.N-1],eLat,eLon,D.timed?clock(tot):'','repeating-conic-gradient(#111 0 25%,#fff 0 50%) 0 0/8px 8px'));
   const pts=D.places.map(p=>`<li><span class="rp-km">km ${fmtKm(tr.rd[p.i])}</span><b>${escH(p.name)}</b>${isFinite(p.ele)?` · ${nf0.format(p.ele)} m`:''}${D.timed?`<span class="rp-t">${clock(tr.time[p.i])}</span>`:''}</li>`).join('');
   return `<div class="rp">
-  <header class="rp-head"><div class="rp-eye"><span class="rp-gr"></span>Fiche rando</div><h1>${escH(tr.name)}</h1>
+  <header class="rp-head"><div class="rp-eye"><span class="rp-gr"></span>Rapport de rando</div><h1>${escH(tr.name)}</h1>
    <p>${[date,D.timed?`départ ${clock(0)}`:'',tr.planned?`allure : ${nf1.format(pace.flat)} km/h · ${pace.up} m/h en montée · ${pace.down} m/h en descente`:''].filter(Boolean).join(' · ')}</p>
    ${wx?`<p class="rp-wx">${escH(wx)}</p>`:''}</header>
   <section class="rp-ends">${ends}</section>
   <p class="rp-note" style="margin-top:10px">Toutes les explications des chiffres sont détaillées en bas de la fiche, dans <a href="#rpGuide" class="rp-link">« Comment lire cette fiche »</a>.</p>
   <section class="rp-kpis">${kpi('Distance',fmtKm(tr.total),'km')}${kpi('Dénivelé +',nf0.format(tr.up[tr.N-1]),'m')}${kpi('Dénivelé −',nf0.format(tr.down[tr.N-1]),'m')}${kpi(tr.planned||!tr.hasTime?'Durée estimée':'Durée',fmtDur(tot),'')}${D.timed?kpi('Arrivée',clock(tot),''):''}${kpi('Altitude max',nf0.format(tr.eMax),'m')}${kpi('km-effort',nf1.format(kmE),'')}</section>
+  ${beginnerHTML(D)}
   <section><h2>Profil et pentes</h2><p class="rp-note">Le dessin montre l'altitude (à gauche) selon la distance parcourue (en bas). Chaque bande de couleur est un tronçon ; le chiffre blanc est sa pente moyenne. Les ronds blancs marquent les lieux nommés sur ton chemin.</p>${reportProfileSVG(D)}
    <p class="rp-note" style="margin-top:10px">La barre ci-dessous additionne les kilomètres de chaque couleur : elle dit quelle part de la rando est plate, douce, soutenue ou raide.</p><div class="rp-dist">${dist}</div><div class="rp-legend">${legend}</div></section>
   <section><h2>À retenir</h2><p class="rp-note">Les trois passages qui demandent le plus d'effort ou d'attention. Seuls les passages d'au moins 200 m sont pris en compte.</p><div class="rp-hls">${hi('Montée la plus raide',D.steepUp)}${hi('Plus longue montée',D.longClimb,'long')}${hi('Descente la plus raide',D.steepDown)}</div></section>
@@ -3023,10 +3062,20 @@ const REPORT_CSS=`.rp{--ink:#1d2b2d;--mut:#5b6b6c;--line:#dfe5e2;font-family:"Ba
 .rp-guide dt{font-weight:600}.rp-guide dd{margin:0;color:#3c4b4d}
 .rp-cls{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px;font-size:14px}
 .rp-cls li{display:flex;gap:8px;align-items:baseline}.rp-cls i{width:16px;height:9px;border-radius:4px;flex:none;display:inline-block}
+.rp-beg h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:17px;margin:14px 0 6px}
+.rp-diff{border:1px solid var(--line);border-left:8px solid var(--c);border-radius:12px;padding:12px 14px}.rp-dl{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
+.rp-diff>b{font-family:"Barlow Condensed",sans-serif;font-size:30px;color:var(--c)}.rp-dm{height:8px;background:#eef1ef;border-radius:4px;overflow:hidden;margin:4px 0 8px}.rp-dm i{display:block;height:100%;background:var(--c)}.rp-diff p{margin:0;font-size:14.5px}
+.rp-est{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.rp-est>div{border:1px solid var(--line);border-radius:12px;padding:10px 12px}.rp-est span{display:block;font-size:12.5px;color:var(--mut)}.rp-est b{font-family:"Barlow Condensed",sans-serif;font-size:28px}.rp-est small{display:block;font-size:12px;color:var(--mut)}
+.rp-ul{margin:0;padding-left:20px;font-size:14.5px;display:flex;flex-direction:column;gap:5px}.rp-chk{list-style:"☐  "}
+.rp-beg,.rp-row,.rp-hl,.rp-end{break-inside:avoid}
 @media (max-width:520px){.rp-guide dl{grid-template-columns:1fr;gap:2px}.rp-guide dd{margin-bottom:6px}}
 .rp-foot{margin-top:24px;font-size:11.5px;color:var(--mut)}
 @media (max-width:520px){.rp{padding:16px 14px 22px}.rp h1{font-size:28px}.rp-kpi b{font-size:23px}.rp-chip{margin-left:0}}`;
 let lastReport=null;
+function reportFileHTML(tr){
+  const doc=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(tr.name)} · fiche rando</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap"><style>body{margin:0;background:#eef1ee}${REPORT_CSS}</style></head><body>${$('reportBody').innerHTML}</body></html>`;
+  return doc}
+
 async function openReport(tr,places){
   if(!tr){toast("Charge une trace ou crée un itinéraire d'abord.");return}
   const D=reportData(tr,places);
@@ -3051,16 +3100,26 @@ $('planReport').addEventListener('click',()=>{
   const tmp=processTrack({name:T.name.replace(/^Itinéraire · /,'Itinéraire '),pts:planBuildTrack(),planned:true});
   openReport(tmp,placesOnRoute(tmp,PLAN.base));
 });
+$('reportMail').addEventListener('click',()=>{if(!lastReport)return;location.href='mailto:?subject='+encodeURIComponent('Rando : '+lastReport.D.tr.name)+'&body='+encodeURIComponent(reportShareText(lastReport.D))});
+$('reportSms').addEventListener('click',()=>{if(!lastReport)return;location.href='sms:?&body='+encodeURIComponent(reportShareText(lastReport.D))});
+$('reportShare').addEventListener('click',async()=>{
+  if(!lastReport)return;const D=lastReport.D,tr=D.tr,text=reportShareText(D);
+  try{const f=new File([reportFileHTML(tr)],safeName(tr.name)+'-rapport-rando.html',{type:'text/html'});
+    if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({title:'Rando : '+tr.name,text,files:[f]});return}
+    if(navigator.share){await navigator.share({title:'Rando : '+tr.name,text});return}
+  }catch(e){if(e&&e.name==='AbortError')return}
+  try{await navigator.clipboard.writeText(text);toast('Résumé copié : colle-le dans un message.')}catch(_){toast('Partage indisponible ici : utilise Mail, SMS ou Enregistrer.')}
+});
 $('reportClose').addEventListener('click',()=>$('reportPanel').hidden=true);
 $('reportPrint').addEventListener('click',()=>{try{window.print()}catch(e){toast("L'impression n'est pas disponible ici : utilise « Enregistrer ».")}});
 $('reportSave').addEventListener('click',()=>{
   if(!lastReport)return;const tr=lastReport.D.tr;
-  const doc=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(tr.name)} · fiche rando</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap"><style>body{margin:0;background:#eef1ee}${REPORT_CSS}</style></head><body>${$('reportBody').innerHTML}</body></html>`;
+  const doc=reportFileHTML(tr);
   downloadText(doc,safeName(tr.name)+'-fiche-rando.html','text/html').then(ok=>ok&&toast('Fiche enregistrée dans tes téléchargements : ouvre-la avec Chrome, même sans l’app.',6000));
 });
 {const st=document.createElement('style');st.textContent=REPORT_CSS+`
 .report-panel{position:absolute;inset:0;z-index:30;background:#e9eeeb;overflow:auto;-webkit-overflow-scrolling:touch}
-.report-bar{position:sticky;top:0;z-index:2;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding:10px 16px;padding-top:calc(10px + env(safe-area-inset-top, 0px));background:rgba(233,238,235,.94);backdrop-filter:blur(6px)}
+.report-bar{position:sticky;top:0;z-index:2;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding:10px 16px;padding-top:calc(46px + env(safe-area-inset-top, 0px));background:rgba(233,238,235,.94);backdrop-filter:blur(6px)}
 .report-bar .btn{box-shadow:none;background:#fff;color:#1d2b2d;border-color:#d3dad6}.report-bar .btn.primary{background:#d7392a;color:#fff;border-color:transparent}
 .report-bar .grow{flex:1}
 #reportBody{padding:0 12px 24px}#reportBody .rp{border-radius:14px;box-shadow:0 8px 30px rgba(20,40,40,.12)}
@@ -4504,7 +4563,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V63", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : étiquettes testées sur toutes sortes de parcours (ligne droite, boucle, aller-retour, huit, très long, très court, hémisphère sud, arrêts) ; les noms trop longs sont raccourcis (…) et le tracé est mieux surveillé sur les longs parcours.", "Film : chaque étiquette garde son côté (gauche ou droite du sens de marche, en alternance) et se place de travers par rapport au chemin : elle ne passe plus sur le tracé et ne change plus de côté.", "Étiquettes du film plus calmes : elles restent au moins 5 s à l'écran, apparaissent et s'effacent plus lentement, ne passent plus sur les compteurs et leur trait ne traverse plus l'écran. Le bouton « deux vidéos » refait Replay (Topo) + Film (Photos IGN).", "Un seul bouton « Créer les deux films » : un film avec la carte Photos IGN, puis le même avec le Satellite, rangés dans « Mes films » (le nom de la carte est dans le titre)."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V64", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Nouveau « Rapport rando » pour débutants : difficulté expliquée simplement, durée estimée avec pauses, ce qui t'attend, quoi emporter, conseils, profil et plan tronçon par tronçon. Boutons Imprimer/PDF, Mail, SMS et Partager.", "Film : étiquettes testées sur toutes sortes de parcours (ligne droite, boucle, aller-retour, huit, très long, très court, hémisphère sud, arrêts) ; les noms trop longs sont raccourcis (…) et le tracé est mieux surveillé sur les longs parcours.", "Film : chaque étiquette garde son côté (gauche ou droite du sens de marche, en alternance) et se place de travers par rapport au chemin : elle ne passe plus sur le tracé et ne change plus de côté.", "Étiquettes du film plus calmes : elles restent au moins 5 s à l'écran, apparaissent et s'effacent plus lentement, ne passent plus sur les compteurs et leur trait ne traverse plus l'écran. Le bouton « deux vidéos » refait Replay (Topo) + Film (Photos IGN)."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
