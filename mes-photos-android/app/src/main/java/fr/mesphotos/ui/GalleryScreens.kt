@@ -821,6 +821,13 @@ fun ViewerScreen(
                         Button(onClick = { playVideo(context, file) }, modifier = Modifier.height(56.dp), shape = RoundedCornerShape(18.dp)) {
                             Text("Ouvrir avec une autre appli", fontSize = 16.sp)
                         }
+                        var diag by remember(file) { mutableStateOf<String?>(null) }
+                        LaunchedEffect(file) { diag = Thumbs.diagnose(file) }
+                        diag?.let {
+                            Spacer(Modifier.height(20.dp))
+                            Text("Ce que l'appli a constaté :", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text(it, color = Color.White.copy(alpha = 0.85f), fontSize = 12.sp, lineHeight = 17.sp)
+                        }
                     }
                 }
             }

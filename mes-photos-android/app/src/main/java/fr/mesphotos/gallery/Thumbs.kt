@@ -16,6 +16,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.RandomAccessFile
 
 /** Petites images pour la bibliothèque : lues directement dans les fichiers, gardées en mémoire un moment. */
 object Thumbs {
@@ -120,6 +121,83 @@ object Thumbs {
     private fun videoThumbnail(file: File, maxSize: Int): Bitmap? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
         return ThumbnailUtils.createVideoThumbnail(file, Size(maxSize, maxSize), null)
+    }
+
+    /**
+     * Explique en français pourquoi un fichier ne s'affiche pas : taille, début du fichier (sa « signature »),
+     * fin du fichier pour un JPEG, erreur de lecture éventuelle et réponse de chaque lecteur.
+     */
+    suspend fun diagnose(file: File): String = withContext(Dispatchers.IO) {
+        val lines = ArrayList<String>()
+        lines += "Taille : ${file.length()} octets"
+        try {
+            RandomAccessFile(file, "r").use { raf ->
+                val head = ByteArray(16)
+                val n = raf.read(head).coerceAtLeast(0)
+                val headBytes = head.copyOf(n)
+                lines += "Début : " + headBytes.joinToString(" ") { "%02X".format(it) }
+                lines += "Type réel : " + kindOf(headBytes)
+                if (raf.length() > 2) {
+                    raf.seek(raf.length() - 2)
+                    val tail = ByteArray(2)
+                    raf.read(tail)
+                    val ends = tail[0] == 0xFF.toByte() && tail[1] == 0xD9.toByte()
+                    if (headBytes.size >= 3 && headBytes[0] == 0xFF.toByte() && headBytes[1] == 0xD8.toByte()) {
+                        lines += if (ends) "Fin du JPEG : normale" else "Fin du JPEG : absente (fichier coupé ou copie interrompue)"
+                    }
+                }
+                // Lecture de tout le fichier, pour voir si la carte renvoie une erreur quelque part.
+                raf.seek(0)
+                val buffer = ByteArray(256 * 1024)
+                var total = 0L
+                while (true) {
+                    val r = raf.read(buffer)
+                    if (r < 0) break
+                    total += r
+                }
+                lines += "Lecture complète : ${if (total == raf.length()) "réussie" else "incomplète ($total octets lus)"}"
+            }
+        } catch (e: Exception) {
+            lines += "Lecture du fichier : ERREUR (${e.message ?: e.javaClass.simpleName})"
+        }
+        try {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(file.absolutePath, bounds)
+            lines += "Lecteur 1 : dimensions ${bounds.outWidth}×${bounds.outHeight}"
+        } catch (e: Exception) {
+            lines += "Lecteur 1 : erreur ${e.message}"
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            try {
+                ImageDecoder.decodeBitmap(ImageDecoder.createSource(file)) { d, i, _ ->
+                    d.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                    d.setTargetSize((i.size.width / 8).coerceAtLeast(1), (i.size.height / 8).coerceAtLeast(1))
+                }
+                lines += "Lecteur 2 : réussi"
+            } catch (e: Exception) {
+                lines += "Lecteur 2 : ${e.message ?: e.javaClass.simpleName}"
+            } catch (e: OutOfMemoryError) {
+                lines += "Lecteur 2 : mémoire insuffisante"
+            }
+        }
+        lines.joinToString("\n")
+    }
+
+    private fun kindOf(h: ByteArray): String {
+        fun at(i: Int) = h.getOrNull(i)?.toInt()?.and(0xFF) ?: -1
+        val text = String(h, Charsets.ISO_8859_1)
+        return when {
+            h.isEmpty() -> "vide"
+            h.all { it == 0.toByte() } -> "que des zéros (fichier vide ou abîmé)"
+            at(0) == 0xFF && at(1) == 0xD8 -> "JPEG"
+            at(0) == 0x89 && text.substring(1).startsWith("PNG") -> "PNG"
+            text.startsWith("GIF8") -> "GIF"
+            text.startsWith("RIFF") && text.length >= 12 && text.substring(8, 12) == "WEBP" -> "WebP"
+            text.length >= 12 && text.substring(4, 8) == "ftyp" -> "famille MP4/HEIC (« ${text.substring(8, 12)} »)"
+            text.startsWith("II*") || text.startsWith("MM") -> "TIFF/RAW"
+            text.startsWith("BM") -> "BMP"
+            else -> "inconnu"
+        }
     }
 
     private fun rotationOf(file: File): Int =
