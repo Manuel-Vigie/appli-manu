@@ -379,7 +379,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--panel-solid);border-color:transparent}
 .chip.cyc b{color:var(--trail);font-weight:700}
 .film-sec{display:flex;flex-direction:column;gap:10px}.film-sec[hidden]{display:none}
-.film-pl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}.film-pl li{display:flex;align-items:center;gap:8px;font-size:14px;border:1px solid var(--line);border-radius:8px;padding:6px 10px}.film-pl li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.film-pl li small{color:var(--muted)}.film-pl button{border:0;background:transparent;font-size:16px;cursor:pointer;color:var(--muted)}.film-pl-form{display:flex;flex-direction:column;gap:8px}.film-pl-form input[type=range]{width:100%}
+.film-pl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}.film-pl li{display:flex;align-items:center;gap:8px;font-size:14px;border:1px solid var(--line);border-radius:8px;padding:6px 10px}.film-pl li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.film-pl li small{color:var(--muted)}.film-pl button{border:0;background:transparent;font-size:16px;cursor:pointer;color:var(--muted)}.film-pl-row{display:flex;align-items:center;gap:8px}.film-pl-row input[type=range]{flex:1;min-width:0;height:36px}.film-pl-row .btn{padding:8px 12px}
 .film-in{border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:15px;background:transparent;color:var(--ink);width:100%;box-sizing:border-box}
 .film-prev{width:100%;height:auto;border-radius:8px;background:#000;max-height:34vh;object-fit:contain}
 .film-barbox{height:10px;border-radius:5px;background:var(--line);overflow:hidden}.film-bar{height:100%;width:0;background:#1f7ae0;transition:width .3s}
@@ -541,6 +541,14 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
     </button>
   </div>
+  <div class="tag-sheet" id="filmPlForm" hidden>
+    <div class="tag-head"><b>Placer un lieu pour le film</b><button type="button" class="icon-btn" id="filmPlCancel" aria-label="Annuler">✕</button></div>
+    <p class="modal-note">Glisse le curseur : le point orange « Ici » se déplace sur la carte, le long du parcours.</p>
+    <div class="film-pl-row"><button type="button" class="btn" id="filmPlMinus" aria-label="Reculer un peu">◀</button><input type="range" id="filmPlPos" min="0" max="4000" value="2000" aria-label="Position sur le parcours"><button type="button" class="btn" id="filmPlPlus" aria-label="Avancer un peu">▶</button></div>
+    <p class="tag-where" id="filmPlWhere"></p>
+    <input type="text" id="filmPlName" class="film-in" maxlength="40" autocomplete="off" placeholder="Nom du lieu (ex. Lac Bleu)">
+    <button type="button" class="btn primary" id="filmPlOk">Ajouter ce lieu</button>
+  </div>
   <div class="tag-sheet" id="tagSheet" hidden>
     <div class="tag-head"><b>Ajouter une étiquette</b><button type="button" class="icon-btn" id="tagClose" aria-label="Fermer">✕</button></div>
     <p class="modal-note">Touche la carte à l'endroit voulu, ou :</p>
@@ -652,12 +660,6 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <span class="field-lbl">Lieux sur le parcours <span id="filmPlN"></span></span>
       <ul id="filmPlList" class="film-pl"></ul>
       <button type="button" class="btn" id="filmPlAdd">＋ Ajouter un lieu</button>
-      <div id="filmPlForm" class="film-pl-form" hidden>
-        <input type="text" id="filmPlName" class="film-in" maxlength="40" autocomplete="off" placeholder="Nom du lieu (ex. Lac Bleu)">
-        <input type="range" id="filmPlPos" min="0" max="1000" value="500" aria-label="Position sur le parcours">
-        <p class="modal-note" id="filmPlWhere"></p>
-        <div class="modal-actions"><button type="button" class="btn" id="filmPlCancel">Annuler</button><button type="button" class="btn primary" id="filmPlOk">Ajouter</button></div>
-      </div>
       <p class="modal-note">Ces lieux (et les étiquettes que tu as déjà posées sur la rando) apparaissent dans le film quand le point passe devant.</p>
       <p class="modal-note">Garde cette page ouverte et l'écran allumé pendant que le film se prépare. Utilise la carte choisie dans « Carte » (photos aériennes ou autre).</p>
       <div class="modal-actions"><button type="button" class="btn" id="filmNo">Annuler</button><button type="button" class="btn primary" id="filmGo">Créer le film</button></div>
@@ -3935,23 +3937,33 @@ function filmPlRender(){
     li.append(sp,b);ul.appendChild(li);
   });
 }
+let filmPlWasMap=false,filmPlCam='chase';
+function filmPlIdx(){return Math.round(+$('filmPlPos').value/4000*(T.N-1))}
 function filmPlWhere(){
-  const i=Math.round(+$('filmPlPos').value/1000*(T.N-1)),A=areaFor(T);
+  const i=filmPlIdx(),A=areaFor(T);
   let near=null,bd=600;for(const p of T.places||[]){if(!p.name||p.name==='Sommet')continue;const d=Math.hypot(p.x-T.rx[i],p.z-T.rz[i]);if(d<bd){bd=d;near=p}}
   $('filmPlWhere').textContent=`Km ${fmtKm(T.rd[i])} · altitude ${nf0.format(T.se[i])} m`+(near?` · près de « ${near.name} »`:'');
+  f=i/(T.N-1);holdUntil=0;heading=null;
+  const X=(T.rx[i]-G.cx)*G.k,Z=(T.rz[i]-G.cz)*G.k;setTagPin(X,terrainY(X,Z),Z);
+}
+function filmPlClose(){
+  setTagPin(null);$('filmPlForm').hidden=true;setMapOnly(filmPlWasMap);setCam(filmPlCam);$('filmBack').hidden=false;
 }
 $('filmPlAdd').addEventListener('click',()=>{
-  $('filmPlForm').hidden=false;$('filmPlAdd').hidden=true;$('filmPlName').value='';
-  const fr=isFinite(f)?Math.max(0,Math.min(1,f)):.5;$('filmPlPos').value=Math.round(fr*1000);filmPlWhere();$('filmPlName').focus({preventScroll:true});
+  setPlaying(false);filmPlWasMap=mapOnly;filmPlCam=camMode;
+  $('filmBack').hidden=true;setMapOnly(true);$('fab').hidden=true;setCam('chase');
+  $('filmPlName').value='';$('filmPlPos').value=Math.round((isFinite(f)?Math.max(0,Math.min(1,f)):.5)*4000);
+  $('filmPlForm').hidden=false;filmPlWhere();
 });
 $('filmPlPos').addEventListener('input',filmPlWhere);
-$('filmPlCancel').addEventListener('click',()=>{$('filmPlForm').hidden=true;$('filmPlAdd').hidden=false});
+$('filmPlMinus').addEventListener('click',()=>{$('filmPlPos').value=Math.max(0,+$('filmPlPos').value-3);filmPlWhere()});
+$('filmPlPlus').addEventListener('click',()=>{$('filmPlPos').value=Math.min(4000,+$('filmPlPos').value+3);filmPlWhere()});
+$('filmPlCancel').addEventListener('click',filmPlClose);
 $('filmPlOk').addEventListener('click',()=>{
   const name=$('filmPlName').value.trim();if(!name){$('filmPlName').focus();return}
-  const i=Math.round(+$('filmPlPos').value/1000*(T.N-1)),[lat,lon]=areaFor(T).ll(T.rx[i],T.rz[i]);
+  const i=filmPlIdx(),[lat,lon]=areaFor(T).ll(T.rx[i],T.rz[i]);
   if(!T.tags)T.tags=[];T.tags.push({name,kind:'other',lat,lon,ele:T.se[i]});
-  saveTags(T);addTagLabels(T);filmPlRender();
-  $('filmPlForm').hidden=true;$('filmPlAdd').hidden=false;
+  saveTags(T);addTagLabels(T);filmPlRender();filmPlClose();
 });
 function openFilm(){
   if(!T||T.planBase){toast("Charge d'abord une trace.");return}
@@ -3961,7 +3973,7 @@ function openFilm(){
   if(!FILM.style)FILM.style=SV.style||((T.lat0>41&&T.lat0<51.5&&T.lon0>-5.5&&T.lon0<10)?'ortho':'sat');
   if(FILM.style!=='ortho'&&FILM.style!=='sat')FILM.style='ortho';
   [...$('filmStyle').children].forEach(c=>c.setAttribute('aria-pressed',c.dataset.v===FILM.style));
-  if(!T.tags)loadTags(T);filmPlRender();$('filmPlForm').hidden=true;$('filmPlAdd').hidden=false;
+  if(!T.tags)loadTags(T);filmPlRender();
   filmShow('filmOpts');$('filmBack').hidden=false;
 }
 async function filmRun(){
@@ -4297,7 +4309,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V46", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : plus de panneau « Télécharger de nouveau le fichier ? » — chaque film a maintenant un nom unique (avec la date et l'heure).", "Film : durée de 45 s par défaut. Fini le message du bas « Pour quitter le plein écran » : le plein écran ne se lance plus tout seul (bouton ⛶ si besoin), et « Créer le film » répond du premier coup.", "Film : étiquettes stables (plus de clignotement, elles apparaissent et disparaissent en douceur et gardent leur côté), plus grosses, plus lisibles, avec un trait plus long. Nouveau : « ＋ Ajouter un lieu » dans la fenêtre du film (nom + position sur le parcours) : il apparaît quand le point passe devant.", "Film : un trait bien visible (blanc avec liseré sombre) relie chaque bulle à l'emplacement exact du lieu, marqué par un point bleu."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V47", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : « Ajouter un lieu » se fait maintenant sur la carte. Un point orange « Ici » suit le curseur le long du parcours (avec boutons ◀ ▶ pour ajuster au plus près), puis tu donnes le nom.", "Film : plus de panneau « Télécharger de nouveau le fichier ? » — chaque film a maintenant un nom unique (avec la date et l'heure).", "Film : durée de 45 s par défaut. Fini le message du bas « Pour quitter le plein écran » : le plein écran ne se lance plus tout seul (bouton ⛶ si besoin), et « Créer le film » répond du premier coup.", "Film : étiquettes stables (plus de clignotement, elles apparaissent et disparaissent en douceur et gardent leur côté), plus grosses, plus lisibles, avec un trait plus long. Nouveau : « ＋ Ajouter un lieu » dans la fenêtre du film (nom + position sur le parcours) : il apparaît quand le point passe devant."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
