@@ -84,6 +84,8 @@ class HealthReport(
     val repairable: List<Pair<File, Health>>,
     /** Pour les fichiers « contenu inconnu » : les débuts de fichier les plus fréquents (4 premiers octets) et l'état de la fin. */
     val unknownKinds: List<Pair<String, Int>> = emptyList(),
+    /** Analyse poussée des « contenu inconnu » : début / milieu / fin brouillés ou non, trace de JPEG ailleurs dans le fichier. */
+    val deepKinds: List<Pair<String, Int>> = emptyList(),
     val message: String? = null,
 )
 
@@ -822,11 +824,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     val samples = ArrayList<String>()
                     val repairable = ArrayList<Pair<File, Health>>()
                     val unknown = HashMap<String, Int>()
+                    val deep = HashMap<String, Int>()
                     val dateFormat = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.FRANCE)
                     for ((i, file) in all.withIndex()) {
                         val checked = healthOf(file)
                         val health = checked.first
-                        if (health.verdict == Verdict.UNKNOWN) unknown[checked.second] = (unknown[checked.second] ?: 0) + 1
+                        if (health.verdict == Verdict.UNKNOWN) {
+                            unknown[checked.second] = (unknown[checked.second] ?: 0) + 1
+                            val d = deepKind(file)
+                            deep[d] = (deep[d] ?: 0) + 1
+                        }
                         counts[health.verdict] = (counts[health.verdict] ?: 0) + 1
                         if (health.verdict != Verdict.OK) {
                             val day = dateFormat.format(java.util.Date(file.lastModified()))
@@ -844,6 +851,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         folders.entries.sortedByDescending { it.value }.take(8).map { it.key to it.value },
                         samples, repairable,
                         unknownKinds = unknown.entries.sortedByDescending { it.value }.take(8).map { it.key to it.value },
+                        deepKinds = deep.entries.sortedByDescending { it.value }.map { it.key to it.value },
                     )
                 }
                 _state.value = UiState.HealthView(report)
@@ -874,6 +882,27 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     } catch (e: Exception) {
         Health(Verdict.UNKNOWN) to "illisible (erreur de la carte)"
+    }
+
+    /** Décrit en une ligne l'état d'un fichier au contenu inconnu : quelles zones ressemblent à du hasard, et reste-t-il une trace de JPEG ? */
+    private fun deepKind(file: File): String = try {
+        java.io.RandomAccessFile(file, "r").use { raf ->
+            val length = raf.length()
+            val head = ByteArray(minOf(length, FileHealth.HEAD.toLong()).toInt())
+            raf.readFully(head)
+            val tail = ByteArray(minOf(length, 4096L).toInt())
+            raf.seek(length - tail.size)
+            raf.readFully(tail)
+            fun zone(random: Boolean?) = when (random) { true -> "hasard"; false -> "structuré"; null -> "trop court" }
+            val start = if (head.size >= 2000) FileHealth.blockLooksRandom(head, 0, 4096) else null
+            val middle = if (head.size >= 4096 + 2000) FileHealth.blockLooksRandom(head, 4096, FileHealth.HEAD) else null
+            val end = if (tail.size >= 2000) FileHealth.blockLooksRandom(tail, 0, tail.size) else null
+            val trace = java.io.FileInputStream(file).use { FileHealth.firstJpegTrace(it) }
+            "début ${zone(start)} · milieu ${zone(middle)} · fin ${zone(end)} · trace JPEG : " +
+                (if (trace == null) "aucune" else "oui, à l'octet $trace")
+        }
+    } catch (e: Exception) {
+        "illisible (erreur de la carte)"
     }
 
     private fun verdictText(v: Verdict) = when (v) {
@@ -939,7 +968,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 _state.value = UiState.HealthView(
                     HealthReport(
                         state.report.total, state.report.counts, state.report.byDate, state.report.byFolder,
-                        state.report.samples, emptyList(), unknownKinds = state.report.unknownKinds, message = text + if (made < todo.size) "\n${todo.size - made} n'ont pas pu l'être." else "",
+                        state.report.samples, emptyList(), unknownKinds = state.report.unknownKinds, deepKinds = state.report.deepKinds, message = text + if (made < todo.size) "\n${todo.size - made} n'ont pas pu l'être." else "",
                     ),
                 )
             } catch (e: Exception) {

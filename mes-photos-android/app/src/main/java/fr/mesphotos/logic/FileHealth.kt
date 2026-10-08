@@ -91,6 +91,61 @@ object FileHealth {
         }
     }
 
+    /** Khi-deux des octets [from, to) de [b] : autour de 255 pour des octets au hasard (chiffré), bien plus pour du contenu qui a une structure. */
+    fun chiSquare(b: ByteArray, from: Int, to: Int): Double {
+        val end = minOf(to, b.size)
+        val n = end - from
+        if (n <= 0) return 0.0
+        val counts = IntArray(256)
+        for (i in from until end) counts[b[i].toInt() and 0xFF]++
+        val expected = n / 256.0
+        var chi = 0.0
+        for (c in counts) chi += (c - expected) * (c - expected) / expected
+        return chi
+    }
+
+    /** Vrai si un bloc d'au moins 2 000 octets a l'allure d'octets tirés au hasard. */
+    fun blockLooksRandom(b: ByteArray, from: Int, to: Int): Boolean =
+        minOf(to, b.size) - from >= 2000 && chiSquare(b, from, to) < 400.0
+
+    private val MARKERS = listOf(
+        intArrayOf(0xFF, 0xDB, 0x00, 0x43, 0x00),
+        intArrayOf(0xFF, 0xC4, 0x00, 0x1F, 0x00),
+        intArrayOf(0xFF, 0xC4, 0x00, 0xB5, 0x10),
+        intArrayOf(0xFF, 0xC0, 0x00, 0x11, 0x08),
+        intArrayOf(0xFF, 0xC2, 0x00, 0x11, 0x08),
+        intArrayOf(0xFF, 0xDA, 0x00, 0x0C, 0x03),
+        intArrayOf(0x4A, 0x46, 0x49, 0x46, 0x00),
+        intArrayOf(0x45, 0x78, 0x69, 0x66, 0x00, 0x00),
+    )
+
+    /**
+     * Cherche dans tout le fichier un morceau reconnaissable d'un JPEG (tables, en-tête, « JFIF », « Exif »).
+     * Retourne la position du premier trouvé, ou null : alors le fichier n'a plus aucune trace de JPEG.
+     */
+    fun firstJpegTrace(input: java.io.InputStream): Long? {
+        val buffer = ByteArray(256 * 1024)
+        val keep = 8
+        var carry = 0
+        var base = 0L
+        while (true) {
+            val r = input.read(buffer, carry, buffer.size - carry)
+            if (r < 0) return null
+            val n = carry + r
+            for (i in 0 until n) {
+                for (p in MARKERS) {
+                    if (i + p.size > n) continue
+                    var ok = true
+                    for (k in p.indices) if ((buffer[i + k].toInt() and 0xFF) != p[k]) { ok = false; break }
+                    if (ok) return base + i
+                }
+            }
+            carry = minOf(keep, n)
+            System.arraycopy(buffer, n - carry, buffer, 0, carry)
+            base += n - carry
+        }
+    }
+
     private fun at(b: ByteArray, i: Int): Int = if (i in b.indices) b[i].toInt() and 0xFF else -1
 
     private fun hasKnownSignature(h: ByteArray): Boolean {

@@ -80,4 +80,18 @@ class FileHealthTest {
         val data = ints(0xFF, 0xD8, 0xFF, 0xE1, 0, 6, 0xFF, 0xD9, 1, 2, 0xFF, 0xDA, 0, 2, 5, 6)
         assertFalse(FileHealth.jpegReachesEnd(data.inputStream()))
     }
+
+    @Test
+    fun jpegTraceIsFoundAnywhereAndNotInNoise() {
+        val inside = ByteArray(300000) { (it * 7).toByte() } // sans le motif cherché
+        val withTrace = inside.copyOf().also { val m = ints(0xFF, 0xDB, 0x00, 0x43, 0x00); m.copyInto(it, 270000) }
+        assertEquals(270000L, FileHealth.firstJpegTrace(withTrace.inputStream()))
+        assertEquals(null, FileHealth.firstJpegTrace(inside.inputStream()))
+    }
+
+    @Test
+    fun blockRandomnessSeparatesNoiseFromText() {
+        assertTrue(FileHealth.blockLooksRandom(random(8192), 0, 8192))
+        assertFalse(FileHealth.blockLooksRandom(ByteArray(8192) { (it % 3).toByte() }, 0, 8192))
+    }
 }

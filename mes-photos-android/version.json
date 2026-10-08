@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V26",
+  "version": "V27",
   "date": "08/10/2026",
   "nouveautes": [
+    "Vérifier les photos : analyse poussée des fichiers inconnus (début, milieu, fin brouillés ou non, trace de photo encore présente) pour savoir si un morceau est récupérable.",
     "Dans Outils, « Vérifier les photos » est maintenant tout en bas de la liste.",
     "Vérification plus juste : un JPEG n'est dit « coupé » que si on ne trouve vraiment pas sa fin (beaucoup de photos ont des données en plus après). Pour les fichiers au contenu inconnu, on affiche leurs premiers octets pour comprendre ce qu'ils sont.",
-    "Outils, « Vérifier les photos » : parcourt la carte et dit combien de photos sont saines, brouillées (chiffrées), coupées, vides ou réparables, avec leurs dates et dossiers. Réparation en copie quand c'est possible.",
-    "Photo qui ne s'affiche pas : l'écran en grand explique maintenant pourquoi (taille, type réel du fichier, fichier coupé ou erreur de lecture de la carte)."
+    "Outils, « Vérifier les photos » : parcourt la carte et dit combien de photos sont saines, brouillées (chiffrées), coupées, vides ou réparables, avec leurs dates et dossiers. Réparation en copie quand c'est possible."
   ],
   "pastille": false,
   "fichiers": []

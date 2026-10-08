@@ -91,6 +91,15 @@ fun HealthScreen(state: UiState.HealthView, onBack: () -> Unit, onRepair: () -> 
                         }
                     }
                 }
+                if (r.deepKinds.isNotEmpty()) {
+                    item {
+                        Section {
+                            Title("Analyse poussée des fichiers inconnus")
+                            r.deepKinds.forEach { Line(it.first, it.second) }
+                            Body("« Hasard » = octets sans aucune logique (chiffré). « Structuré » = il reste de l'ordre dans le fichier. « Trace JPEG : oui » = un morceau de la photo est encore reconnaissable, donc peut-être récupérable.")
+                        }
+                    }
+                }
                 item {
                     Section {
                         Title("Exemples")
