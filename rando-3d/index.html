@@ -678,7 +678,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <p class="modal-note">Ces lieux (et les étiquettes que tu as déjà posées sur la rando) apparaissent dans le film quand le point passe devant.</p>
       <p class="modal-note">Garde cette page ouverte et l'écran allumé pendant que le film se prépare. Utilise la carte choisie dans « Carte » (photos aériennes ou autre).</p>
       <div class="modal-actions"><button type="button" class="btn" id="filmNo">Annuler</button><button type="button" class="btn primary" id="filmGo">Créer le film</button></div>
-      <button type="button" class="btn" id="filmBoth">🎬 Créer les deux vidéos (carte + replay)</button>
+      <button type="button" class="btn" id="filmBoth">🎬 Créer les deux films (Photos IGN + Satellite)</button>
     </div>
     <div id="filmRun" class="film-sec" hidden>
       <canvas id="filmPrev" class="film-prev" width="320" height="180"></canvas>
@@ -719,7 +719,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <label class="check"><input type="checkbox" id="vOverlay" checked> Afficher le titre, les stats et le profil</label>
       <p class="modal-note" id="vNote">La vidéo est fabriquée image par image : elle est fluide même si ton téléphone est lent. Garde l'écran allumé et reste sur cette page jusqu'à la fin ; elle sera aussi dans « Mes films ».</p>
       <div class="modal-actions"><button type="button" class="btn" id="vCancel">Annuler</button><button type="button" class="btn primary" id="vStart">Enregistrer la vidéo</button></div>
-      <button type="button" class="btn" id="vBoth">🎬 Créer les deux vidéos (carte + replay)</button>
+      <button type="button" class="btn" id="vBoth">🎬 Créer les deux films (Photos IGN + Satellite)</button>
     </div>
   </div>
   <div class="rec-layer" id="recLayer" hidden>
@@ -800,7 +800,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
         <h2>Mes films</h2>
         <p>Les films de la carte que tu as créés, gardés sur ce téléphone.</p>
       </div>
-      <button type="button" class="pg-save" id="pgBoth">🎬 Créer les deux vidéos (carte + replay)</button>
+      <button type="button" class="pg-save" id="pgBoth">🎬 Créer les deux films (Photos IGN + Satellite)</button>
       <div id="pgFilms"></div>
     </section>
   </div>
@@ -4193,7 +4193,7 @@ async function filmRunOne(fmtKey,both){
     $('filmDoneTxt').textContent=`Ton film est prêt (${(blob.size/1048576).toFixed(0)} Mo). Il est enregistré dans tes Téléchargements.`;
     filmShow('filmDone');
     if(!both)try{filmSave()}catch(e){}
-    filmStoreAdd(blob,(title||'Ma randonnée')+(fmtKey==='v'?' · vertical':' · 16:9')).then(ok=>{if(ok&&!both)$('filmDoneTxt').textContent+=' Il est aussi dans l’onglet « Mes films ».'});
+    filmStoreAdd(blob,(title||'Ma randonnée')+(fmtKey==='v'?' · vertical':' · 16:9')+' · '+(FILM.style==='sat'?'Satellite':'Photos IGN')).then(ok=>{if(ok&&!both)$('filmDoneTxt').textContent+=' Il est aussi dans l’onglet « Mes films ».'});
   }catch(e){
     console.error(e);fail(e&&e.message?e.message:"Le film n'a pas pu être créé.");
   }finally{
@@ -4309,19 +4309,23 @@ async function filmsRender(){
     c.append(d,acts);box.appendChild(c);
   });
 }
-// un seul bouton : fabrique le Film de la carte, puis la vidéo du replay, l'un après l'autre (réglages actuels, 16:9 par défaut)
+// un seul bouton : fabrique deux films de la carte, l'un après l'autre : un avec les Photos IGN, un avec le Satellite (mêmes réglages : format, durée, titre, lieux)
 async function bothVideos(){
   if(!T||T.planBase||T.sample){toast("Charge d'abord une trace.");return}
   if(!(window.VideoEncoder&&window.VideoFrame)){toast("Ce film demande un Chrome récent sur ton téléphone. Mets Chrome à jour puis réessaie.",8000);return}
   if(FILM.on||REC)return;
   navGo('replay');$('videoPanel').hidden=true;
   openFilm();
-  await filmRunOne(FILM.fmt==='both'?'h1080':FILM.fmt,true);
-  $('filmBack').hidden=true;
-  if(!FILM.url||FILM.cancel)return;
-  toast('Film de la carte prêt. Je fabrique maintenant la vidéo du replay…',6000);
-  $('vTitleIn').value=T.name;$('vSubIn').value='';recQueue=[];recFmt=vidOpts.fmt==='v'?'v':'h';
-  startRecording();
+  const fk=FILM.fmt==='both'?'h1080':FILM.fmt,keep=FILM.style;
+  try{
+    for(const st of ['ortho','sat']){
+      FILM.style=st;
+      await filmRunOne(fk,true);
+      if(!FILM.url||FILM.cancel)return;
+      if(st==='ortho')toast('Film Photos IGN prêt. Je fabrique maintenant le film Satellite…',6000);
+    }
+    $('filmDoneTxt').textContent='Tes deux films sont prêts : Photos IGN et Satellite. Ils sont dans l’onglet « Mes films » (touche « Enregistrer » sur chacun pour le mettre dans Téléchargements).';
+  }finally{FILM.style=keep;[...$('filmStyle').children].forEach(c=>c.setAttribute('aria-pressed',c.dataset.v===keep))}
 }
 ['filmBoth','vBoth','pgBoth'].forEach(id=>$(id).addEventListener('click',bothVideos));
 function navGo(tab){
@@ -4488,7 +4492,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V59", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : les étiquettes proches ne sont plus collées l'une à l'autre. Elles se répartissent des deux côtés du parcours et, si besoin, s'empilent avec un vrai espace entre elles.", "Bouton « 🎬 Créer les deux vidéos (carte + replay) » (onglet Mes films et dans les deux fenêtres vidéo) : fabrique le Film de la carte puis la vidéo du replay, l'un après l'autre, et les range dans Mes films. Film : au retour, seuls les 3 lieux les plus proches du marcheur restent affichés (moins brouillon).", "Nouveau choix « Les deux » dans le Film de la carte et dans la vidéo du replay : l'app fabrique la version 16:9 puis la version verticale, l'une après l'autre, et range les deux dans « Mes films » (nom avec « 16:9 » ou « vertical »).", "Les deux vidéos (Film de la carte et vidéo du replay) sont en 16:9 Full HD par défaut, à chaque ouverture. Vertical reste un choix possible."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V60", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Un seul bouton « Créer les deux films » : un film avec la carte Photos IGN, puis le même avec le Satellite, rangés dans « Mes films » (le nom de la carte est dans le titre).", "Film : les étiquettes proches ne sont plus collées l'une à l'autre. Elles se répartissent des deux côtés du parcours et, si besoin, s'empilent avec un vrai espace entre elles.", "Bouton « 🎬 Créer les deux vidéos (carte + replay) » (onglet Mes films et dans les deux fenêtres vidéo) : fabrique le Film de la carte puis la vidéo du replay, l'un après l'autre, et les range dans Mes films. Film : au retour, seuls les 3 lieux les plus proches du marcheur restent affichés (moins brouillon).", "Nouveau choix « Les deux » dans le Film de la carte et dans la vidéo du replay : l'app fabrique la version 16:9 puis la version verticale, l'une après l'autre, et range les deux dans « Mes films » (nom avec « 16:9 » ou « vertical »)."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;

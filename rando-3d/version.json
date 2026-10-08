@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V59",
+  "version": "V60",
   "date": "08/10/2026",
   "nouveautes": [
+    "Un seul bouton « Créer les deux films » : un film avec la carte Photos IGN, puis le même avec le Satellite, rangés dans « Mes films » (le nom de la carte est dans le titre).",
     "Film : les étiquettes proches ne sont plus collées l'une à l'autre. Elles se répartissent des deux côtés du parcours et, si besoin, s'empilent avec un vrai espace entre elles.",
     "Bouton « 🎬 Créer les deux vidéos (carte + replay) » (onglet Mes films et dans les deux fenêtres vidéo) : fabrique le Film de la carte puis la vidéo du replay, l'un après l'autre, et les range dans Mes films. Film : au retour, seuls les 3 lieux les plus proches du marcheur restent affichés (moins brouillon).",
-    "Nouveau choix « Les deux » dans le Film de la carte et dans la vidéo du replay : l'app fabrique la version 16:9 puis la version verticale, l'une après l'autre, et range les deux dans « Mes films » (nom avec « 16:9 » ou « vertical »).",
-    "Les deux vidéos (Film de la carte et vidéo du replay) sont en 16:9 Full HD par défaut, à chaque ouverture. Vertical reste un choix possible."
+    "Nouveau choix « Les deux » dans le Film de la carte et dans la vidéo du replay : l'app fabrique la version 16:9 puis la version verticale, l'une après l'autre, et range les deux dans « Mes films » (nom avec « 16:9 » ou « vertical »)."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v59"
+    "cache": "rr3d-v60"
   },
   "fichiers": [
     "rando-3d.html",
