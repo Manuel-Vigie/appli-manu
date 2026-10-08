@@ -2870,6 +2870,9 @@ function reportSegments(tr){
     return {i0:g.i0,i1,len,avg,cls:slopeClass(avg),up,down,max:mx,dt:time[i1]-time[g.i0]};
   });
 }
+// noms de départ / arrivée corrigés par Manuel, gardés pour chaque rando (rapport + film)
+function nmGet(sig){try{return JSON.parse(localStorage.getItem('rr3d-nm:'+sig)||'{}')||{}}catch(_){return {}}}
+function nmSet(sig,o){try{const v={...nmGet(sig),...o};if(!v.s&&!v.e)localStorage.removeItem('rr3d-nm:'+sig);else localStorage.setItem('rr3d-nm:'+sig,JSON.stringify(v))}catch(_){}}
 function reportData(tr,places){
   const segs=reportSegments(tr),N=tr.N;
   const timed=tr.hasTime||tr.planned,t0=tr.startClock;
@@ -2981,13 +2984,15 @@ function reportHTML(D,wx){
   const coord=(la,lo)=>`${Math.abs(la).toFixed(5)}° ${la>=0?'N':'S'}, ${Math.abs(lo).toFixed(5)}° ${lo>=0?'E':'O'}`;
   const loopEnd=Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200;
   const endCard=(lbl,nm,alt,la,lo,t,col)=>`<div class="rp-end"><span class="rp-flag" style="background:${col}"></span><div><span class="rp-endl">${lbl}</span><b>${escH(nm||'')}${nm?' · ':''}${nf0.format(alt)} m</b><span class="rp-endc">${coord(la,lo)}${t?` · ${t}`:''}</span></div></div>`;
-  const ends=endCard(loopEnd?'Départ et arrivée':'Départ',D.startName,tr.se[0],sLat,sLon,D.timed?clock(0):'','#1c9a4e')+(loopEnd?'':endCard('Arrivée',D.endName,tr.se[tr.N-1],eLat,eLon,D.timed?clock(tot):'','repeating-conic-gradient(#111 0 25%,#fff 0 50%) 0 0/8px 8px'));
+  const NM=nmGet(tr.sig),sN=NM.s||D.startName,eN=NM.e||D.endName;
+  const ends=endCard(loopEnd?'Départ et arrivée':'Départ',sN,tr.se[0],sLat,sLon,D.timed?clock(0):'','#1c9a4e')+(loopEnd?'':endCard('Arrivée',eN,tr.se[tr.N-1],eLat,eLon,D.timed?clock(tot):'','repeating-conic-gradient(#111 0 25%,#fff 0 50%) 0 0/8px 8px'));
   const pts=D.places.map(p=>`<li><span class="rp-km">km ${fmtKm(tr.rd[p.i])}</span><b>${escH(p.name)}</b>${(()=>{const e=p.ele>0&&isFinite(p.ele)?p.ele:tr.se[p.i];return isFinite(e)?` · ${nf0.format(Math.round(e))} m`:''})()}${D.timed?`<span class="rp-t">${clock(tr.time[p.i])}</span>`:''}</li>`).join('');
   return `<div class="rp">
   <header class="rp-head"><div class="rp-eye"><span class="rp-gr"></span>Rapport de rando</div><h1>${escH(tr.name)}</h1>
    <p>${[date,D.timed?`départ ${clock(0)}`:'',tr.planned?`allure : ${nf1.format(pace.flat)} km/h · ${pace.up} m/h en montée · ${pace.down} m/h en descente`:''].filter(Boolean).join(' · ')}</p>
    ${wx?`<p class="rp-wx">${escH(wx)}</p>`:''}</header>
   <div class="rp-modesel rp-prep"><span>Ce rapport est pour :</span><button type="button" data-prep="1" aria-pressed="${!isRecorded(tr)}">Une rando à préparer</button><button type="button" data-prep="0" aria-pressed="${isRecorded(tr)}">Une rando déjà faite</button></div>
+  <div class="rp-modesel rp-names"><span>Nom du départ :</span><input type="text" data-nms maxlength="40" value="${escH(NM.s||'')}" placeholder="${escH(D.startName||'auto')}" aria-label="Nom du départ">${loopEnd?'':`<span>arrivée :</span><input type="text" data-nme maxlength="40" value="${escH(NM.e||'')}" placeholder="${escH(D.endName||'auto')}" aria-label="Nom de l\'arrivée">`}${(()=>{const g=(tr.name||'').split(/\s*[,·\-–—]\s*|\s+et\s+/i)[0].trim();return g&&g.length>2&&g.length<30&&g!==(NM.s||D.startName)&&(tr.name||'').length>g.length?`<button type="button" data-nmsug="${escH(g)}">Utiliser « ${escH(g)} »</button>`:''})()}</div>
   <section class="rp-ends">${ends}</section>
   <p class="rp-note" style="margin-top:10px">Toutes les explications des chiffres sont détaillées en bas de la fiche, dans <a href="#rpGuide" class="rp-link">« Comment lire cette fiche »</a>.</p>
   <section class="rp-kpis">${kpi('Distance',fmtKm(tr.total),'km')}${kpi('Dénivelé +',nf0.format(tr.up[tr.N-1]),'m')}${kpi('Dénivelé −',nf0.format(tr.down[tr.N-1]),'m')}${kpi(tr.planned||!tr.hasTime?'Durée estimée':'Durée',fmtDur(tot*ts),'')}${D.timed?kpi('Arrivée',clock(tot),''):''}${kpi('Altitude max',nf0.format(tr.eMax),'m')}<div class="rp-kpi"><span>km-effort</span><b>${nf1.format(kmE)}<small>km</small></b><em>${fmtKm(tr.total)} km de rando = ${nf1.format(kmE)} km à plat</em></div></section>
@@ -3088,7 +3093,7 @@ const REPORT_CSS=`.rp{--ink:#1d2b2d;--mut:#5b6b6c;--line:#dfe5e2;font-family:"Ba
 .rp-beg h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:17px;margin:14px 0 6px}
 .rp-diff{border:1px solid var(--line);border-left:8px solid var(--c);border-radius:12px;padding:12px 14px}.rp-dl{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
 .rp-diff>b{font-family:"Barlow Condensed",sans-serif;font-size:30px;color:var(--c)}.rp-dm{height:8px;background:#eef1ef;border-radius:4px;overflow:hidden;margin:4px 0 8px}.rp-dm i{display:block;height:100%;background:var(--c)}.rp-diff p{margin:0;font-size:14.5px}
-.rp-modesel input{width:84px;border:1px solid #cfd8d4;border-radius:10px;padding:7px 8px;font:inherit;font-weight:600}
+.rp-names input[type=text]{width:150px}.rp-modesel input{width:84px;border:1px solid #cfd8d4;border-radius:10px;padding:7px 8px;font:inherit;font-weight:600}
 .rp-est b{font-size:24px!important}.rp-est{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.rp-est>div{border:1px solid var(--line);border-radius:12px;padding:9px 10px}.rp-est span{display:block;font-size:12.5px;color:var(--mut)}.rp-est b{font-family:"Barlow Condensed",sans-serif;font-size:28px}.rp-est small{display:block;font-size:12px;color:var(--mut)}
 .rp-ul{margin:0;padding-left:20px;font-size:14.5px;display:flex;flex-direction:column;gap:5px}.rp-chk{list-style:"☐  "}
 .rp-beg,.rp-row,.rp-hl,.rp-end{break-inside:avoid}
@@ -3096,12 +3101,13 @@ const REPORT_CSS=`.rp{--ink:#1d2b2d;--mut:#5b6b6c;--line:#dfe5e2;font-family:"Ba
 .rp-foot{margin-top:24px;font-size:11.5px;color:var(--mut)}
 @media (max-width:520px){.rp{padding:16px 14px 22px}.rp h1{font-size:28px}.rp-kpi b{font-size:23px}.rp-chip{margin-left:0}}`;
 let lastReport=null;
-$('reportBody').addEventListener('change',e=>{const i=e.target.closest('[data-speed],[data-pausemin]');if(!i||!lastReport)return;
+$('reportBody').addEventListener('change',e=>{const i=e.target.closest('[data-speed],[data-pausemin],[data-nms],[data-nme]');if(!i||!lastReport)return;
+  if(i.hasAttribute('data-nms')||i.hasAttribute('data-nme')){nmSet(lastReport.D.tr.sig,i.hasAttribute('data-nms')?{s:i.value.trim()}:{e:i.value.trim()});setTimeout(()=>{const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(lastReport.D,lastReport.wx);$('reportPanel').scrollTop=y},0);return}
   const v=parseFloat(String(i.value).replace(',','.'));
   if(i.hasAttribute('data-pausemin'))reportPauseMin=i.value!==''&&v>=0&&v<=600?Math.round(v):null;
   else{reportSpeed=v>=.5&&v<=8?v:null;try{if(reportSpeed)localStorage.setItem('rr3d-reportspeed',reportSpeed);else localStorage.removeItem('rr3d-reportspeed')}catch(_){}}
   setTimeout(()=>{const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(lastReport.D,lastReport.wx);$('reportPanel').scrollTop=y},0)});
-$('reportBody').addEventListener('click',e=>{const b=e.target.closest('[data-mode],[data-prep]');if(!b||!lastReport)return;if(b.dataset.prep!==undefined)reportPrep=b.dataset.prep==='1';else{reportMode=b.dataset.mode;try{localStorage.setItem('rr3d-reportmode',reportMode)}catch(_){}}const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(lastReport.D,lastReport.wx);$('reportPanel').scrollTop=y});
+$('reportBody').addEventListener('click',e=>{const b=e.target.closest('[data-mode],[data-prep],[data-nmsug]');if(!b||!lastReport)return;if(b.dataset.nmsug!==undefined){nmSet(lastReport.D.tr.sig,{s:b.dataset.nmsug})}else if(b.dataset.prep!==undefined)reportPrep=b.dataset.prep==='1';else{reportMode=b.dataset.mode;try{localStorage.setItem('rr3d-reportmode',reportMode)}catch(_){}}const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(lastReport.D,lastReport.wx);$('reportPanel').scrollTop=y});
 function reportFileHTML(tr){
   const doc=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(tr.name)} · fiche rando</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap"><style>body{margin:0;background:#eef1ee}${REPORT_CSS}</style></head><body>${$('reportBody').innerHTML.replace(/<div class="rp-modesel[^"]*">.*?<\/div>/gs,'')}</body></html>`;
   return doc}
@@ -4010,7 +4016,7 @@ async function filmLabels(review){
   const used=new Set(),add=l=>{l.nb=nbr(l.f);L.push(l);used.add(l.title)};
   const e0=N-1,e=N-1,loop=Math.hypot(T.rx[0]-T.rx[e],T.rz[0]-T.rz[e])<400;
   const sp=near(0,['village'],1500);
-  const sn=sp?sp.name:await filmTown(0);
+  const NMf=nmGet(T.sig),sn=NMf.s||(sp?sp.name:await filmTown(0));
   add({kind:'start',pri:100,f:0,ll:ll(0),title:sn||'Départ',sub:sn?(loop?'Départ et arrivée':'Départ'):(loop?'Départ et arrivée':null)});
   let im=0;for(let i=1;i<N;i++)if(T.se[i]>T.se[im])im=i;
   if(im>N*.03&&im<N*.97){
@@ -4019,7 +4025,7 @@ async function filmLabels(review){
   }
   if(!loop){
     const ep=near(e,['village'],1500);
-    const en=ep?ep.name:await filmTown(e);
+    const en=NMf.e||(ep?ep.name:await filmTown(e));
     if(!sn||en!==sn)add({kind:'end',pri:95,f:1,ll:ll(e),title:en||'Arrivée',sub:en?'Arrivée':null});
   }
   // lieux ajoutés par Manuel : ils apparaissent quand le marcheur passe devant
@@ -4046,6 +4052,7 @@ async function filmLabels(review){
     const [tx,tz]=T.toXZ(l.ll[1],l.ll[0]);
     const wOk=wk.some(w=>(w.kind==='village'||l.kind!=='start'&&l.kind!=='end')&&Math.hypot(w.x-tx,w.z-tz)<900&&(nm(w.name)===nm(l.title)||nm(w.name).includes(nm(l.title))||nm(l.title).includes(nm(w.name)))&&nm(l.title).length>2);
     l.conf=l.kind==='tag'||wOk||(l.kind!=='village'&&l.kind!=='start'&&l.kind!=='end');
+    if((l.kind==='start'&&NMf.s)||(l.kind==='end'&&NMf.e))l.conf=true;
     l.defOff=(l.kind==='village'&&!l.conf);
     const e=ed[l.key];
     if(e){if(e.title!==undefined&&e.title!==''){l.title=e.title;l.conf=true}l.off=e.off!==undefined?e.off:l.defOff}else l.off=l.defOff;
@@ -4219,7 +4226,7 @@ async function filmReview(){
     tx.type='text';tx.value=l.title;tx.maxLength=40;tx.className='film-in';tx.style.cssText='flex:1;min-width:0;margin:0;padding:6px 8px';
     sm.textContent=(FILM_KINDTXT[l.kind]||(l.kind==='start'?'Départ':l.kind==='end'?'Arrivée':l.kind==='top'?'Point haut':'Sommet'))+(l.conf?' ✓':' · à vérifier');
     if(!l.conf)sm.style.color='#b4682c';
-    const set=()=>{FILM.ed[l.key]={title:tx.value.trim(),off:!cb.checked}};
+    const set=()=>{FILM.ed[l.key]={title:tx.value.trim(),off:!cb.checked};if(l.kind==='start')nmSet(T.sig,{s:tx.value.trim()});if(l.kind==='end')nmSet(T.sig,{e:tx.value.trim()})};
     cb.addEventListener('change',set);tx.addEventListener('input',()=>{set();sm.textContent=sm.textContent.replace(' · à vérifier',' ✓')});
     li.append(cb,tx,sm);ul.appendChild(li);
   });
@@ -4643,7 +4650,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V73", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : les points de passage n'affichent plus « 0 m » quand l'altitude du lieu est inconnue ; on prend alors l'altitude du chemin à cet endroit. Corrigé aussi sur la carte (lieux gardés en mémoire).", "Rapport rando : les pauses se règlent en minutes (temps de pause total) au lieu de pourcentages ; vide = automatique.", "Rapport rando : tu peux mettre ta vitesse moyenne (km/h, pauses comprises) et choisir des pauses courtes, normales ou longues. Durée totale, temps de marche, temps de pause et heures de passage sont recalculés.", "Rapport rando : deux boutons en haut, « Une rando à préparer » / « Une rando déjà faite ». Tu peux donc sortir le rapport pour débutants (durée, difficulté, matériel) même avec ta trace GPS enregistrée, pour le donner à quelqu'un."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V74", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : tu peux corriger le nom du départ et de l'arrivée (ex. « Le Pra »), avec un bouton « Utiliser … » tiré du titre de la rando. Le nom est gardé pour cette rando et repris dans le film.", "Rapport rando : les points de passage n'affichent plus « 0 m » quand l'altitude du lieu est inconnue ; on prend alors l'altitude du chemin à cet endroit. Corrigé aussi sur la carte (lieux gardés en mémoire).", "Rapport rando : les pauses se règlent en minutes (temps de pause total) au lieu de pourcentages ; vide = automatique.", "Rapport rando : tu peux mettre ta vitesse moyenne (km/h, pauses comprises) et choisir des pauses courtes, normales ou longues. Durée totale, temps de marche, temps de pause et heures de passage sont recalculés."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
