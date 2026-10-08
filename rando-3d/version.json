@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V76",
+  "version": "V77",
   "date": "08/10/2026",
   "nouveautes": [
+    "Film : durée « Auto » (par défaut, 40 à 100 s) qui s'adapte à la longueur de la rando, caméra reculée si la marche reste trop rapide à l'écran, et étiquettes plus petites avec un texte plus gros.",
     "Rapport rando : la partie « Pour les débutants » devient « Estimation de la sortie », puisqu'elle s'adapte à tous les niveaux (vitesse, pauses, sac).",
     "Rapport rando : l'appli compare plusieurs cartes (OpenStreetMap, Nominatim, IGN) pour le nom du départ et de l'arrivée et te propose les noms trouvés, avec la carte d'origine. Un appui pour choisir.",
-    "Rapport rando : tu peux corriger le nom du départ et de l'arrivée (ex. « Le Pra »), avec un bouton « Utiliser … » tiré du titre de la rando. Le nom est gardé pour cette rando et repris dans le film.",
-    "Rapport rando : les points de passage n'affichent plus « 0 m » quand l'altitude du lieu est inconnue ; on prend alors l'altitude du chemin à cet endroit. Corrigé aussi sur la carte (lieux gardés en mémoire)."
+    "Rapport rando : tu peux corriger le nom du départ et de l'arrivée (ex. « Le Pra »), avec un bouton « Utiliser … » tiré du titre de la rando. Le nom est gardé pour cette rando et repris dans le film."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v76"
+    "cache": "rr3d-v77"
   },
   "fichiers": [
     "rando-3d.html",

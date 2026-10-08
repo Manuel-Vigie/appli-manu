@@ -666,7 +666,8 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <span class="field-lbl">Format</span>
       <div class="seg" id="filmFmt"><button type="button" data-v="h720" aria-pressed="false">HD 16:9</button><button type="button" data-v="h1080" aria-pressed="true">Full HD 16:9</button><button type="button" data-v="v" aria-pressed="false">Vertical</button><button type="button" data-v="both" aria-pressed="false">Les deux</button></div>
       <span class="field-lbl">Durée</span>
-      <div class="seg" id="filmDur"><button type="button" data-v="20" aria-pressed="false">20 s</button><button type="button" data-v="30" aria-pressed="false">30 s</button><button type="button" data-v="45" aria-pressed="true">45 s</button><button type="button" data-v="60" aria-pressed="false">60 s</button></div>
+      <div class="seg" id="filmDur"><button type="button" data-v="auto" aria-pressed="true">Auto</button><button type="button" data-v="30" aria-pressed="false">30 s</button><button type="button" data-v="45" aria-pressed="false">45 s</button><button type="button" data-v="60" aria-pressed="false">60 s</button></div>
+      <p class="modal-note" id="filmDurNote" style="margin-top:4px"></p>
       <span class="field-lbl">Fond de carte</span>
       <div class="seg" id="filmStyle"><button type="button" data-v="ortho" aria-pressed="true">Photos IGN</button><button type="button" data-v="sat" aria-pressed="false">Satellite</button></div>
       <p class="modal-note">« Satellite » : couleurs les plus régulières sur toute la vidéo.</p>
@@ -3937,7 +3938,7 @@ function svFrame(dt,now){
   }
 }
 /* ---------- Film de la carte : vraie vidéo MP4 stable, calculée image par image ---------- */
-const FILM={on:false,cancel:false,fmt:'h1080',dur:45,url:null,name:'film-carte.mp4',style:null};
+const FILM={on:false,cancel:false,fmt:'h1080',dur:'auto',url:null,name:'film-carte.mp4',style:null};
 const FILM_FMT={h720:{w:1280,h:720,br:8e6},h1080:{w:1920,h:1080,br:14e6},v:{w:1080,h:1920,br:12e6}};
 let mmP=null;
 function loadMuxer(){
@@ -4111,16 +4112,16 @@ function filmLabelDraw(x,W,H,k,m,labs,o){
   act.sort((p,q)=>((q.vis>.05)-(p.vis>.05))||(q.pri-p.pri));
   x.save();x.textBaseline='alphabetic';
   for(const l of act){
-    const pt=m.project(l.ll);let ok=!!pt&&l.want===1,px=0,py=0,bx=0,by=0,w=0,h=0,ex=0,ey=0,u=k*(l.kind==='top'?1.5:1.32);
+    const pt=m.project(l.ll);let ok=!!pt&&l.want===1,px=0,py=0,bx=0,by=0,w=0,h=0,ex=0,ey=0,u=k*(l.kind==='top'?1.35:1.2);
     if(pt){
       px=pt.x;py=pt.y;
       const maxT=W*.5-16*u;
-      x.font=`700 ${9*u}px ${sans}`;let tit=l.title;
+      x.font=`700 ${10.6*u}px ${sans}`;let tit=l.title;
       while(tit.length>4&&x.measureText(tit).width>maxT)tit=tit.slice(0,-2).trimEnd()+'…';
       const tw=x.measureText(tit).width;
-      let sub=l.sub||'';if(sub){x.font=`600 ${6.4*u}px ${sans}`;while(sub.length>4&&x.measureText(sub).width>maxT)sub=sub.slice(0,-2).trimEnd()+'…'}
+      let sub=l.sub||'';if(sub){x.font=`600 ${7.6*u}px ${sans}`;while(sub.length>4&&x.measureText(sub).width>maxT)sub=sub.slice(0,-2).trimEnd()+'…'}
       const sw=sub?x.measureText(sub).width:0;l.tt=tit;l.ss=sub;
-      h=(sub?26:19)*u;w=Math.min(W*.5,Math.max(tw,sw)+16*u);
+      h=(sub?25:17)*u;w=Math.min(W*.5,Math.max(tw,sw)+11*u);
       // direction du parcours à l'écran à cet endroit ; l'étiquette se place PERPENDICULAIREMENT, toujours du même côté du parcours (gauche ou droite du sens de marche) : elle ne passe jamais sur le tracé
       const q1=m.project(l.nb[1]),q2=m.project(l.nb[2]);
       let tx=q1&&q2?q2.x-q1.x:0,ty=q1&&q2?q2.y-q1.y:0,tl=Math.hypot(tx,ty);
@@ -4166,13 +4167,29 @@ function filmLabelDraw(x,W,H,k,m,labs,o){
     filmRR(x,bx,by,w,h,h/2.3);x.fillStyle='rgba(150,208,248,.62)';x.fill();
     x.shadowColor='transparent';x.shadowBlur=0;
     x.strokeStyle='rgba(255,255,255,.75)';x.lineWidth=1*k;x.stroke();
-    x.textAlign='center';x.fillStyle='#0b2f4d';x.font=`700 ${9*u}px ${sans}`;
-    x.fillText(l.tt,bx+w/2,l.ss?by+h/2-.4*u:by+h/2+3.2*u);
-    if(l.ss){x.globalAlpha=al*.85;x.font=`600 ${6.4*u}px ${sans}`;x.fillText(l.ss,bx+w/2,by+h/2+8.4*u)}
+    x.textAlign='center';x.fillStyle='#08263f';x.font=`700 ${10.6*u}px ${sans}`;
+    x.fillText(l.tt,bx+w/2,l.ss?by+h/2-1.5*u:by+h/2+3.8*u);
+    if(l.ss){x.globalAlpha=al*.9;x.font=`600 ${7.6*u}px ${sans}`;x.fillText(l.ss,bx+w/2,by+h/2+8.6*u)}
     x.restore();
   }
   x.restore();
 }
+// zoom de la caméra qui suit le marcheur
+function filmFzOf(W,D,k){
+  let fz=15.6-0.6*Math.log2(Math.max(T.total,1500)/1500)-Math.min(1.1,Math.max(0,(T.eMax-T.eMin-300)/1200));
+  fz=Math.max(11.2,Math.min(15.4,fz))-(SV.terrain?1:0)+Math.log2(W/360)+.1;
+  fz=Math.min(fz,17);
+  // si la marche est trop rapide à l'écran (> ≈110 px/s en 1080p), on recule un peu la caméra : plus de calme, noms lisibles
+  if(D){const Dw=D-Math.min(3.2,.12*D)-Math.min(3.5,.14*D)-Math.min(4,.16*D)-Math.min(3.5,.13*D),mpp=78271.5*Math.cos(T.lat0*Math.PI/180)/Math.pow(2,fz),v=T.total/Math.max(4,Dw)/mpp,vmax=110*k/3;
+    if(v>vmax)fz=Math.max(10,fz-Math.log2(v/vmax))}
+  return fz;
+}
+// durée automatique : la caméra avance à vitesse d'écran limitée (≈30 px/s en 1080p) pour que les étiquettes restent lisibles ; 40 à 100 s
+function filmAutoDur(W,k){
+  const mpp=78271.5*Math.cos(T.lat0*Math.PI/180)/Math.pow(2,filmFzOf(W)),pxs=20*k;
+  return Math.round(Math.max(40,Math.min(100,14.2+T.total/(pxs*mpp))));
+}
+function filmDurNote(){const n=$('filmDurNote');if(!n||!T)return;n.textContent=FILM.dur==='auto'?`Auto : environ ${filmAutoDur(1920,3)} s pour cette rando. Plus la rando est longue, plus le film dure, pour que la caméra reste calme et que les noms restent lisibles.`:'';[...$('filmDur').children].forEach(c=>c.setAttribute('aria-pressed',c.dataset.v===String(FILM.dur)))}
 function filmIdle(m,ms){
   return new Promise(res=>{
     let done=false;const fin=()=>{if(done)return;done=true;clearTimeout(tm);m.off('idle',fin);res()};
@@ -4257,7 +4274,7 @@ function openFilm(){
   if(FILM.style!=='ortho'&&FILM.style!=='sat')FILM.style='ortho';
   [...$('filmStyle').children].forEach(c=>c.setAttribute('aria-pressed',c.dataset.v===FILM.style));
   if(!T.tags)loadTags(T);filmPlRender();filmReview();
-  filmShow('filmOpts');$('filmBack').hidden=false;
+  filmDurNote();filmShow('filmOpts');$('filmBack').hidden=false;
 }
 async function filmRun(){
   if(FILM.on)return;
@@ -4270,7 +4287,7 @@ async function filmRun(){
 }
 async function filmRunOne(fmtKey,both){
   if(FILM.on)return;
-  const fm=FILM_FMT[fmtKey],W=fm.w,H=fm.h,D=FILM.dur,FPS=30,nF=Math.round(D*FPS),k=Math.min(W,H)/360;
+  const fm=FILM_FMT[fmtKey],W=fm.w,H=fm.h,FPS=30,k=Math.min(W,H)/360,D=FILM.dur==='auto'?filmAutoDur(W,k):FILM.dur,nF=Math.round(D*FPS);
   const title=$('filmTitle').value.trim(),Tk=T;
   FILM.on=true;FILM.cancel=false;if(FILM.url){URL.revokeObjectURL(FILM.url);FILM.url=null}
   filmShow('filmRun');$('filmBar').style.width='0%';$('filmTxt').textContent='Préparation…';
@@ -4298,9 +4315,7 @@ async function filmRunOne(fmtKey,both){
     const ovC=[ov.center.lng,ov.center.lat],ovZ=ov.zoom;
     const ovCam=(b,za)=>({center:ovC,zoom:ovZ+za,pitch:SV.terrain?35:0,bearing:b});
     // vue qui suit le marcheur
-    let fz=15.6-0.6*Math.log2(Math.max(T.total,1500)/1500)-Math.min(1.1,Math.max(0,(T.eMax-T.eMin-300)/1200));
-    fz=Math.max(11.2,Math.min(15.4,fz))-(SV.terrain?1:0)+Math.log2(W/360)+.1;
-    fz=Math.min(fz,17);
+    const fz=filmFzOf(W,D,k);
     const fp=SV.terrain?35:50,mpp=78271.5*Math.cos(T.lat0*Math.PI/180)/Math.pow(2,fz);
     const follow=fr=>{
       const c=camAt(T,fr*(N-1)),h=c.b*Math.PI/180,off=.1*H*mpp,[la,lo]=A.ll(c.x+Math.sin(h)*off,c.z-Math.cos(h)*off);
@@ -4385,7 +4400,7 @@ async function filmRunOne(fmtKey,both){
 }
 $('svFilm').addEventListener('click',openFilm);
 $('filmFmt').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;FILM.fmt=b.dataset.v;[...$('filmFmt').children].forEach(c=>c.setAttribute('aria-pressed',c===b))});
-$('filmDur').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;FILM.dur=+b.dataset.v;[...$('filmDur').children].forEach(c=>c.setAttribute('aria-pressed',c===b))});
+$('filmDur').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;FILM.dur=b.dataset.v==='auto'?'auto':+b.dataset.v;[...$('filmDur').children].forEach(c=>c.setAttribute('aria-pressed',c===b));filmDurNote()});
 $('filmStyle').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;FILM.style=b.dataset.v;[...$('filmStyle').children].forEach(c=>c.setAttribute('aria-pressed',c===b))});
 $('filmGo').addEventListener('click',filmRun);
 $('filmNo').addEventListener('click',()=>{$('filmBack').hidden=true});
@@ -4667,7 +4682,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V76", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : la partie « Pour les débutants » devient « Estimation de la sortie », puisqu'elle s'adapte à tous les niveaux (vitesse, pauses, sac).", "Rapport rando : l'appli compare plusieurs cartes (OpenStreetMap, Nominatim, IGN) pour le nom du départ et de l'arrivée et te propose les noms trouvés, avec la carte d'origine. Un appui pour choisir.", "Rapport rando : tu peux corriger le nom du départ et de l'arrivée (ex. « Le Pra »), avec un bouton « Utiliser … » tiré du titre de la rando. Le nom est gardé pour cette rando et repris dans le film.", "Rapport rando : les points de passage n'affichent plus « 0 m » quand l'altitude du lieu est inconnue ; on prend alors l'altitude du chemin à cet endroit. Corrigé aussi sur la carte (lieux gardés en mémoire)."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V77", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : durée « Auto » (par défaut, 40 à 100 s) qui s'adapte à la longueur de la rando, caméra reculée si la marche reste trop rapide à l'écran, et étiquettes plus petites avec un texte plus gros.", "Rapport rando : la partie « Pour les débutants » devient « Estimation de la sortie », puisqu'elle s'adapte à tous les niveaux (vitesse, pauses, sac).", "Rapport rando : l'appli compare plusieurs cartes (OpenStreetMap, Nominatim, IGN) pour le nom du départ et de l'arrivée et te propose les noms trouvés, avec la carte d'origine. Un appui pour choisir.", "Rapport rando : tu peux corriger le nom du départ et de l'arrivée (ex. « Le Pra »), avec un bouton « Utiliser … » tiré du titre de la rando. Le nom est gardé pour cette rando et repris dans le film."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
