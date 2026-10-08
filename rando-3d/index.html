@@ -643,7 +643,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <span class="field-lbl">Format</span>
       <div class="seg" id="filmFmt"><button type="button" data-v="h720" aria-pressed="true">HD 16:9</button><button type="button" data-v="h1080" aria-pressed="false">Full HD</button><button type="button" data-v="v" aria-pressed="false">Vertical</button></div>
       <span class="field-lbl">Durée</span>
-      <div class="seg" id="filmDur"><button type="button" data-v="20" aria-pressed="false">20 s</button><button type="button" data-v="30" aria-pressed="true">30 s</button><button type="button" data-v="45" aria-pressed="false">45 s</button><button type="button" data-v="60" aria-pressed="false">60 s</button></div>
+      <div class="seg" id="filmDur"><button type="button" data-v="20" aria-pressed="false">20 s</button><button type="button" data-v="30" aria-pressed="false">30 s</button><button type="button" data-v="45" aria-pressed="true">45 s</button><button type="button" data-v="60" aria-pressed="false">60 s</button></div>
       <span class="field-lbl">Fond de carte</span>
       <div class="seg" id="filmStyle"><button type="button" data-v="ortho" aria-pressed="true">Photos IGN</button><button type="button" data-v="sat" aria-pressed="false">Satellite</button></div>
       <p class="modal-note">« Satellite » : couleurs les plus régulières sur toute la vidéo.</p>
@@ -2177,7 +2177,7 @@ addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('drop').hidden=true
 $('playBtn').addEventListener('click',()=>{if(!T)return;if(f>=1)f=0;setPlaying(!playing)});
 let mapOnly=false;
 // once a hike is chosen: follow the hiker, map only, full screen when the browser allows it
-function replayView(){setCam('chase');heading=null;setMapOnly(true);try{if(fsAuto)enterFs()}catch(e){}}
+function replayView(){setCam('chase');heading=null;setMapOnly(true)}
 function setMapOnly(on){
   mapOnly=on;$('app').classList.toggle('map-only',on);$('fab').hidden=!on;
   if(on){$('photoCard').hidden=true;$('showBtn').focus({preventScroll:true})}else{drawProfile();$('hideBtn').focus({preventScroll:true})}
@@ -3731,7 +3731,7 @@ function svFrame(dt,now){
   }
 }
 /* ---------- Film de la carte : vraie vidéo MP4 stable, calculée image par image ---------- */
-const FILM={on:false,cancel:false,fmt:'h720',dur:30,url:null,name:'film-carte.mp4',style:null};
+const FILM={on:false,cancel:false,fmt:'h720',dur:45,url:null,name:'film-carte.mp4',style:null};
 const FILM_FMT={h720:{w:1280,h:720,br:8e6},h1080:{w:1920,h:1080,br:14e6},v:{w:1080,h:1920,br:12e6}};
 let mmP=null;
 function loadMuxer(){
@@ -3965,6 +3965,7 @@ function openFilm(){
   filmShow('filmOpts');$('filmBack').hidden=false;
 }
 async function filmRun(){
+  if(FILM.on)return;
   const fm=FILM_FMT[FILM.fmt],W=fm.w,H=fm.h,D=FILM.dur,FPS=30,nF=Math.round(D*FPS),k=Math.min(W,H)/360;
   const title=$('filmTitle').value.trim(),Tk=T;
   FILM.on=true;FILM.cancel=false;if(FILM.url){URL.revokeObjectURL(FILM.url);FILM.url=null}
@@ -4216,23 +4217,15 @@ async function keepAwake(){
 }
 addEventListener('pointerdown',()=>{if(!awakeStarted){awakeStarted=true;keepAwake()}else if(!wakeSentinel&&awakeVideo&&awakeVideo.paused)awakeVideo.play().catch(()=>{})},true);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&awakeStarted)keepAwake()});
-/* ---------- Full screen: starts automatically at the first touch (browsers require a tap) ---------- */
+/* ---------- Full screen: only on demand (buttons). No automatic entry: Chrome's bottom toast and the resize made taps miss. ---------- */
 const fsOK=!!(document.fullscreenEnabled&&document.documentElement.requestFullscreen);
-let fsAuto=true;try{fsAuto=localStorage.getItem('rr3d-fs')!=='off'}catch(e){}
 function enterFs(){if(fsOK&&!document.fullscreenElement)document.documentElement.requestFullscreen({navigationUI:'hide'}).catch(()=>{})}
 function toggleFs(){
-  if(document.fullscreenElement){document.exitFullscreen().catch(()=>{});fsAuto=false}
-  else{enterFs();fsAuto=true}
-  try{localStorage.setItem('rr3d-fs',fsAuto?'on':'off')}catch(e){}
+  if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});else enterFs();
 }
 if(fsOK){
   $('fsBtn').hidden=$('fsBtn2').hidden=false;
   $('fsBtn').addEventListener('click',toggleFs);$('fsBtn2').addEventListener('click',toggleFs);
-  addEventListener('pointerdown',e=>{
-    if(!fsAuto||document.fullscreenElement)return;
-    if(e.target.closest('label[for],input,#wImport,#fsBtn,#fsBtn2,a'))return; // file pickers & downloads leave full screen anyway
-    enterFs();
-  },true);
   document.addEventListener('fullscreenchange',()=>{const on=!!document.fullscreenElement;
     ['fsBtn','fsBtn2'].forEach(id=>{$(id).setAttribute('aria-label',on?'Quitter le plein écran':'Plein écran');$(id).title=on?'Quitter le plein écran':'Plein écran'});
     setTimeout(resize,150)});
@@ -4304,7 +4297,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V44", "date": "07/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : étiquettes stables (plus de clignotement, elles apparaissent et disparaissent en douceur et gardent leur côté), plus grosses, plus lisibles, avec un trait plus long. Nouveau : « ＋ Ajouter un lieu » dans la fenêtre du film (nom + position sur le parcours) : il apparaît quand le point passe devant.", "Film : un trait bien visible (blanc avec liseré sombre) relie chaque bulle à l'emplacement exact du lieu, marqué par un point bleu.", "Film : les étiquettes restent affichées une fois apparues, un peu décollées du lieu (petit trait) pour bien voir le tracé, et légèrement plus grosses.", "Film : étiquettes plus petites, bleu ciel transparent, posées sur le côté du parcours (jamais dessus) pour ne pas gêner la lecture du tracé."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V45", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : durée de 45 s par défaut. Fini le message du bas « Pour quitter le plein écran » : le plein écran ne se lance plus tout seul (bouton ⛶ si besoin), et « Créer le film » répond du premier coup.", "Film : étiquettes stables (plus de clignotement, elles apparaissent et disparaissent en douceur et gardent leur côté), plus grosses, plus lisibles, avec un trait plus long. Nouveau : « ＋ Ajouter un lieu » dans la fenêtre du film (nom + position sur le parcours) : il apparaît quand le point passe devant.", "Film : un trait bien visible (blanc avec liseré sombre) relie chaque bulle à l'emplacement exact du lieu, marqué par un point bleu.", "Film : les étiquettes restent affichées une fois apparues, un peu décollées du lieu (petit trait) pour bien voir le tracé, et légèrement plus grosses."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
