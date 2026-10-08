@@ -2873,6 +2873,21 @@ function reportSegments(tr){
 // noms de départ / arrivée corrigés par Manuel, gardés pour chaque rando (rapport + film)
 function nmGet(sig){try{return JSON.parse(localStorage.getItem('rr3d-nm:'+sig)||'{}')||{}}catch(_){return {}}}
 function nmSet(sig,o){try{const v={...nmGet(sig),...o};if(!v.s&&!v.e)localStorage.removeItem('rr3d-nm:'+sig);else localStorage.setItem('rr3d-nm:'+sig,JSON.stringify(v))}catch(_){}}
+// noms possibles du départ / de l'arrivée, d'après plusieurs cartes (OpenStreetMap, Nominatim, IGN) : Manuel choisit
+async function nameCands(tr,i){
+  const out=[],seen=new Set(),nm=t=>(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');
+  const add=(name,src)=>{if(name&&nm(name).length>1&&!seen.has(nm(name))&&out.length<6){seen.add(nm(name));out.push({name,src})}};
+  const A=areaFor(tr),[la,lo]=A.ll(tr.rx[i],tr.rz[i]);
+  const near=(tr.places||[]).filter(p=>p.name&&p.name!=='Sommet'&&(p.kind==='village'||p.kind==='hut'||p.kind==='lake'||p.kind==='pass')).map(p=>({p,d:Math.hypot(p.x-tr.rx[i],p.z-tr.rz[i])})).filter(o=>o.d<1500).sort((a,b)=>a.d-b.d).slice(0,3);
+  near.forEach(o=>add(o.p.name,'OpenStreetMap'));
+  const get=async(url)=>{try{const c=new AbortController(),t=setTimeout(()=>c.abort(),6000);const r=await fetch(url,{signal:c.signal});clearTimeout(t);return r.ok?await r.json():null}catch(e){return null}};
+  const [nom,ign]=await Promise.all([
+    get(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&accept-language=fr&lat=${la.toFixed(5)}&lon=${lo.toFixed(5)}`),
+    get(`https://data.geopf.fr/geocodage/reverse?lon=${lo.toFixed(5)}&lat=${la.toFixed(5)}&index=poi&limit=6`)]);
+  if(nom&&nom.address){const a=nom.address;add(a.village||a.hamlet||a.town||a.city||a.suburb||a.municipality,'Nominatim')}
+  if(ign&&ign.features)for(const f of ign.features){const pr=f.properties||{};if(pr.distance!==undefined&&pr.distance>1500)continue;add(pr.toponym||pr.name,'IGN')}
+  return out;
+}
 function reportData(tr,places){
   const segs=reportSegments(tr),N=tr.N;
   const timed=tr.hasTime||tr.planned,t0=tr.startClock;
@@ -2992,7 +3007,8 @@ function reportHTML(D,wx){
    <p>${[date,D.timed?`départ ${clock(0)}`:'',tr.planned?`allure : ${nf1.format(pace.flat)} km/h · ${pace.up} m/h en montée · ${pace.down} m/h en descente`:''].filter(Boolean).join(' · ')}</p>
    ${wx?`<p class="rp-wx">${escH(wx)}</p>`:''}</header>
   <div class="rp-modesel rp-prep"><span>Ce rapport est pour :</span><button type="button" data-prep="1" aria-pressed="${!isRecorded(tr)}">Une rando à préparer</button><button type="button" data-prep="0" aria-pressed="${isRecorded(tr)}">Une rando déjà faite</button></div>
-  <div class="rp-modesel rp-names"><span>Nom du départ :</span><input type="text" data-nms maxlength="40" value="${escH(NM.s||'')}" placeholder="${escH(D.startName||'auto')}" aria-label="Nom du départ">${loopEnd?'':`<span>arrivée :</span><input type="text" data-nme maxlength="40" value="${escH(NM.e||'')}" placeholder="${escH(D.endName||'auto')}" aria-label="Nom de l\'arrivée">`}${(()=>{const g=(tr.name||'').split(/\s*[,·\-–—]\s*|\s+et\s+/i)[0].trim();return g&&g.length>2&&g.length<30&&g!==(NM.s||D.startName)&&(tr.name||'').length>g.length?`<button type="button" data-nmsug="${escH(g)}">Utiliser « ${escH(g)} »</button>`:''})()}</div>
+  <div class="rp-modesel rp-names"><span>Nom du départ :</span><input type="text" data-nms maxlength="40" value="${escH(NM.s||'')}" placeholder="${escH(D.startName||'auto')}" aria-label="Nom du départ">${loopEnd?'':`<span>arrivée :</span><input type="text" data-nme maxlength="40" value="${escH(NM.e||'')}" placeholder="${escH(D.endName||'auto')}" aria-label="Nom de l\'arrivée">`}${(()=>{const g=(tr.name||'').split(/\s*[,·\-–—]\s*|\s+et\s+/i)[0].trim();return g&&g.length>2&&g.length<30&&g!==(NM.s||D.startName)&&(tr.name||'').length>g.length?`<button type="button" data-nmsug="${escH(g)}">Utiliser « ${escH(g)} » (titre)</button>`:''})()}</div>
+  ${(()=>{const C=lastReport&&lastReport.D===D?lastReport.cands:null;if(!C)return '';const bt=(k,L)=>L.map(c=>`<button type="button" data-nmpick="${k}" data-name="${escH(c.name)}">${escH(c.name)} <small>${c.src}</small></button>`).join('');const hs=bt('s',C.s),he=loopEnd?'':bt('e',C.e);return hs||he?`<div class="rp-modesel rp-cands">${hs?`<span>Départ, selon les cartes :</span>${hs}`:''}${he?`<span>Arrivée :</span>${he}`:''}</div>`:''})()}
   <section class="rp-ends">${ends}</section>
   <p class="rp-note" style="margin-top:10px">Toutes les explications des chiffres sont détaillées en bas de la fiche, dans <a href="#rpGuide" class="rp-link">« Comment lire cette fiche »</a>.</p>
   <section class="rp-kpis">${kpi('Distance',fmtKm(tr.total),'km')}${kpi('Dénivelé +',nf0.format(tr.up[tr.N-1]),'m')}${kpi('Dénivelé −',nf0.format(tr.down[tr.N-1]),'m')}${kpi(tr.planned||!tr.hasTime?'Durée estimée':'Durée',fmtDur(tot*ts),'')}${D.timed?kpi('Arrivée',clock(tot),''):''}${kpi('Altitude max',nf0.format(tr.eMax),'m')}<div class="rp-kpi"><span>km-effort</span><b>${nf1.format(kmE)}<small>km</small></b><em>${fmtKm(tr.total)} km de rando = ${nf1.format(kmE)} km à plat</em></div></section>
@@ -3093,7 +3109,7 @@ const REPORT_CSS=`.rp{--ink:#1d2b2d;--mut:#5b6b6c;--line:#dfe5e2;font-family:"Ba
 .rp-beg h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:17px;margin:14px 0 6px}
 .rp-diff{border:1px solid var(--line);border-left:8px solid var(--c);border-radius:12px;padding:12px 14px}.rp-dl{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
 .rp-diff>b{font-family:"Barlow Condensed",sans-serif;font-size:30px;color:var(--c)}.rp-dm{height:8px;background:#eef1ef;border-radius:4px;overflow:hidden;margin:4px 0 8px}.rp-dm i{display:block;height:100%;background:var(--c)}.rp-diff p{margin:0;font-size:14.5px}
-.rp-names input[type=text]{width:150px}.rp-modesel input{width:84px;border:1px solid #cfd8d4;border-radius:10px;padding:7px 8px;font:inherit;font-weight:600}
+.rp-names input[type=text]{width:150px}.rp-cands button small{font-weight:400;color:var(--mut);margin-left:3px}.rp-modesel input{width:84px;border:1px solid #cfd8d4;border-radius:10px;padding:7px 8px;font:inherit;font-weight:600}
 .rp-est b{font-size:24px!important}.rp-est{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.rp-est>div{border:1px solid var(--line);border-radius:12px;padding:9px 10px}.rp-est span{display:block;font-size:12.5px;color:var(--mut)}.rp-est b{font-family:"Barlow Condensed",sans-serif;font-size:28px}.rp-est small{display:block;font-size:12px;color:var(--mut)}
 .rp-ul{margin:0;padding-left:20px;font-size:14.5px;display:flex;flex-direction:column;gap:5px}.rp-chk{list-style:"☐  "}
 .rp-beg,.rp-row,.rp-hl,.rp-end{break-inside:avoid}
@@ -3107,7 +3123,7 @@ $('reportBody').addEventListener('change',e=>{const i=e.target.closest('[data-sp
   if(i.hasAttribute('data-pausemin'))reportPauseMin=i.value!==''&&v>=0&&v<=600?Math.round(v):null;
   else{reportSpeed=v>=.5&&v<=8?v:null;try{if(reportSpeed)localStorage.setItem('rr3d-reportspeed',reportSpeed);else localStorage.removeItem('rr3d-reportspeed')}catch(_){}}
   setTimeout(()=>{const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(lastReport.D,lastReport.wx);$('reportPanel').scrollTop=y},0)});
-$('reportBody').addEventListener('click',e=>{const b=e.target.closest('[data-mode],[data-prep],[data-nmsug]');if(!b||!lastReport)return;if(b.dataset.nmsug!==undefined){nmSet(lastReport.D.tr.sig,{s:b.dataset.nmsug})}else if(b.dataset.prep!==undefined)reportPrep=b.dataset.prep==='1';else{reportMode=b.dataset.mode;try{localStorage.setItem('rr3d-reportmode',reportMode)}catch(_){}}const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(lastReport.D,lastReport.wx);$('reportPanel').scrollTop=y});
+$('reportBody').addEventListener('click',e=>{const b=e.target.closest('[data-mode],[data-prep],[data-nmsug],[data-nmpick]');if(!b||!lastReport)return;if(b.dataset.nmpick!==undefined){nmSet(lastReport.D.tr.sig,b.dataset.nmpick==='s'?{s:b.dataset.name}:{e:b.dataset.name})}else if(b.dataset.nmsug!==undefined){nmSet(lastReport.D.tr.sig,{s:b.dataset.nmsug})}else if(b.dataset.prep!==undefined)reportPrep=b.dataset.prep==='1';else{reportMode=b.dataset.mode;try{localStorage.setItem('rr3d-reportmode',reportMode)}catch(_){}}const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(lastReport.D,lastReport.wx);$('reportPanel').scrollTop=y});
 function reportFileHTML(tr){
   const doc=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(tr.name)} · fiche rando</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap"><style>body{margin:0;background:#eef1ee}${REPORT_CSS}</style></head><body>${$('reportBody').innerHTML.replace(/<div class="rp-modesel[^"]*">.*?<\/div>/gs,'')}</body></html>`;
   return doc}
@@ -3119,8 +3135,9 @@ async function openReport(tr,places){
   let wx='';
   const wxLine=w=>!w?'':w.sample||!isFinite(w.tmin)?`Météo d'exemple : ${WX[w.kind].label.toLowerCase()}`:`Météo ${tr.planned?'prévue':'du jour'} : ${WX[w.kind].label.toLowerCase()}, ${nf0.format(w.tmin)}${Math.round(w.tmin)!==Math.round(w.tmax)?' à '+nf0.format(w.tmax):''} °C`+(w.rain>=0.5?`, ${nf1.format(w.rain)} mm de pluie`:'');
   if(tr===T&&wxState)wx=wxLine(wxState);
-  const render=()=>{$('reportBody').innerHTML=reportHTML(D,wx);lastReport={D,wx}};
+  const render=()=>{$('reportBody').innerHTML=reportHTML(D,wx);lastReport={D,wx,cands:lastReport&&lastReport.D===D?lastReport.cands:undefined}};
   render();$('reportPanel').hidden=false;$('reportPanel').scrollTop=0;
+  {Promise.all([nameCands(tr,0),nameCands(tr,tr.N-1)]).then(([a,b])=>{if(!lastReport||lastReport.D!==D||$('reportPanel').hidden||(!a.length&&!b.length))return;lastReport.cands={s:a,e:b};const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(D,lastReport.wx);$('reportPanel').scrollTop=y}).catch(()=>{})}
   if(!wx&&(tr.hasTime||tr.planned)&&tr!==T){const w=await fetchWeather(tr).catch(()=>null);if(w&&!$('reportPanel').hidden){wx=wxLine(w);render()}}
 }
 function placesOnRoute(tr,srcTr){
@@ -4650,7 +4667,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V74", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : tu peux corriger le nom du départ et de l'arrivée (ex. « Le Pra »), avec un bouton « Utiliser … » tiré du titre de la rando. Le nom est gardé pour cette rando et repris dans le film.", "Rapport rando : les points de passage n'affichent plus « 0 m » quand l'altitude du lieu est inconnue ; on prend alors l'altitude du chemin à cet endroit. Corrigé aussi sur la carte (lieux gardés en mémoire).", "Rapport rando : les pauses se règlent en minutes (temps de pause total) au lieu de pourcentages ; vide = automatique.", "Rapport rando : tu peux mettre ta vitesse moyenne (km/h, pauses comprises) et choisir des pauses courtes, normales ou longues. Durée totale, temps de marche, temps de pause et heures de passage sont recalculés."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V75", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : l'appli compare plusieurs cartes (OpenStreetMap, Nominatim, IGN) pour le nom du départ et de l'arrivée et te propose les noms trouvés, avec la carte d'origine. Un appui pour choisir.", "Rapport rando : tu peux corriger le nom du départ et de l'arrivée (ex. « Le Pra »), avec un bouton « Utiliser … » tiré du titre de la rando. Le nom est gardé pour cette rando et repris dans le film.", "Rapport rando : les points de passage n'affichent plus « 0 m » quand l'altitude du lieu est inconnue ; on prend alors l'altitude du chemin à cet endroit. Corrigé aussi sur la carte (lieux gardés en mémoire).", "Rapport rando : les pauses se règlent en minutes (temps de pause total) au lieu de pourcentages ; vide = automatique."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
