@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V65",
+  "version": "V66",
   "date": "08/10/2026",
   "nouveautes": [
+    "Film : avant de créer le film, la liste des noms qui seront écrits s'affiche. Chaque nom est vérifié avec une 2e source (✓), tu peux décocher un nom faux ou le corriger. Les noms de départ/arrivée se corrigent là aussi.",
     "Film : caméra plus proche, étiquettes collées à leur lieu (elles ne bougent plus toutes seules), faux « villages » (noms de montagnes) supprimés, et deux cases pour taper le nom du départ et de l'arrivée (ex. Le Pra).",
     "Nouveau « Rapport rando » pour débutants : difficulté expliquée simplement, durée estimée avec pauses, ce qui t'attend, quoi emporter, conseils, profil et plan tronçon par tronçon. Boutons Imprimer/PDF, Mail, SMS et Partager.",
-    "Film : étiquettes testées sur toutes sortes de parcours (ligne droite, boucle, aller-retour, huit, très long, très court, hémisphère sud, arrêts) ; les noms trop longs sont raccourcis (…) et le tracé est mieux surveillé sur les longs parcours.",
-    "Film : chaque étiquette garde son côté (gauche ou droite du sens de marche, en alternance) et se place de travers par rapport au chemin : elle ne passe plus sur le tracé et ne change plus de côté."
+    "Film : étiquettes testées sur toutes sortes de parcours (ligne droite, boucle, aller-retour, huit, très long, très court, hémisphère sud, arrêts) ; les noms trop longs sont raccourcis (…) et le tracé est mieux surveillé sur les longs parcours."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v65"
+    "cache": "rr3d-v66"
   },
   "fichiers": [
     "rando-3d.html",

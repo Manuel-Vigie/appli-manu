@@ -672,11 +672,11 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <p class="modal-note">« Satellite » : couleurs les plus régulières sur toute la vidéo.</p>
       <span class="field-lbl">Titre affiché</span>
       <input type="text" id="filmTitle" class="film-in" maxlength="60" autocomplete="off">
-      <span class="field-lbl">Lieux sur le parcours <span id="filmPlN"></span></span>
+      <span class="field-lbl">Noms qui seront écrits dans le film</span>
+      <p class="modal-note" style="margin-top:0">Vérifie-les : décoche un nom faux ou corrige-le. « ✓ » = confirmé par une 2e source, « à vérifier » = pas confirmé.</p>
+      <ul id="filmRevList" class="film-pl film-rev"></ul>
+      <span class="field-lbl">Lieux ajoutés par toi <span id="filmPlN"></span></span>
       <ul id="filmPlList" class="film-pl"></ul>
-      <span class="field-lbl">Nom du départ et de l'arrivée (facultatif)</span>
-      <input type="text" id="filmStartName" class="film-in" maxlength="40" autocomplete="off" placeholder="Nom du départ (ex. Le Pra) — sinon automatique" style="margin-bottom:6px">
-      <input type="text" id="filmEndName" class="film-in" maxlength="40" autocomplete="off" placeholder="Nom de l'arrivée (si différente du départ)" style="margin-bottom:6px">
       <button type="button" class="btn" id="filmPlAdd">＋ Ajouter un lieu</button>
       <p class="modal-note">Ces lieux (et les étiquettes que tu as déjà posées sur la rando) apparaissent dans le film quand le point passe devant.</p>
       <p class="modal-note">Garde cette page ouverte et l'écran allumé pendant que le film se prépare. Utilise la carte choisie dans « Carte » (photos aériennes ou autre).</p>
@@ -3962,23 +3962,27 @@ function filmHud(x,W,H,o){
   x.restore();
 }
 // ---- Étiquettes du film : départ (ville ou lieu), point culminant, arrivée et quelques lieux sur le parcours ----
+const filmTownC={};
 async function filmTown(i){
+  if(filmTownC[T.sig+':'+i]!==undefined)return filmTownC[T.sig+':'+i];
+  const r0=await filmTown0(i);if(r0!==null)filmTownC[T.sig+':'+i]=r0;return r0;
+}
+async function filmTown0(i){
   try{const A=areaFor(T),[la,lo]=A.ll(T.rx[i],T.rz[i]),c=new AbortController(),t=setTimeout(()=>c.abort(),6000);
     const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&accept-language=fr&lat=${la.toFixed(5)}&lon=${lo.toFixed(5)}`,{signal:c.signal});clearTimeout(t);
     if(!r.ok)return null;const a=(await r.json()).address||{};return a.village||a.town||a.city||a.hamlet||a.suburb||a.municipality||null}catch(e){return null}
 }
 const FILM_LAB={start:'#2fa84f',end:'#d7392a',top:'#f2b134',peak:'#ffffff',pass:'#cfe3b0',hut:'#ffd9b0',lake:'#8fd0ff',glacier:'#e6f4ff',village:'#c9c9ff'};
 const FILM_KINDTXT={peak:'Sommet',pass:'Col',hut:'Refuge',lake:'Lac',glacier:'Glacier',village:'Village'};
-async function filmLabels(){
+async function filmLabels(review){
   const A=areaFor(T),N=T.N,L=[],ll=i=>{const [la,lo]=A.ll(T.rx[i],T.rz[i]);return [lo,la]};
   const nbr=f=>{const o=[];for(const d of [-.03,-.015,.015,.03]){const j=Math.max(0,Math.min(N-1,Math.round((f+d)*(N-1))));o.push(ll(j))}return o};
   const pl=(T.places||[]).filter(p=>p.name&&p.name!=='Sommet'&&(p.kind!=='village'||/^(village|town|city)$/.test(p.pl||'')));
   const near=(i,kinds,maxd)=>{let b=null,bd=maxd;for(const p of pl){if(!kinds.includes(p.kind))continue;const d=Math.hypot(p.x-T.rx[i],p.z-T.rz[i]);if(d<bd){bd=d;b=p}}return b};
   const used=new Set(),add=l=>{l.nb=nbr(l.f);L.push(l);used.add(l.title)};
-  const e=N-1,loop=Math.hypot(T.rx[0]-T.rx[e],T.rz[0]-T.rz[e])<400;
-  const ovS=($('filmStartName')?$('filmStartName').value:'').trim(),ovE=($('filmEndName')?$('filmEndName').value:'').trim();
-  const sp=ovS?null:near(0,['village'],1500);
-  const sn=ovS||(sp?sp.name:await filmTown(0));
+  const e0=N-1,e=N-1,loop=Math.hypot(T.rx[0]-T.rx[e],T.rz[0]-T.rz[e])<400;
+  const sp=near(0,['village'],1500);
+  const sn=sp?sp.name:await filmTown(0);
   add({kind:'start',pri:100,f:0,ll:ll(0),title:sn||'Départ',sub:sn?(loop?'Départ et arrivée':'Départ'):(loop?'Départ et arrivée':null)});
   let im=0;for(let i=1;i<N;i++)if(T.se[i]>T.se[im])im=i;
   if(im>N*.03&&im<N*.97){
@@ -3986,8 +3990,8 @@ async function filmLabels(){
     add({kind:'top',pri:90,f:im/e,ll:ll(im),title:tp?tp.name:'Point culminant',sub:(tp?'Point culminant · ':'')+nf0.format(T.se[im])+' m'});
   }
   if(!loop){
-    const ep=ovE?null:near(e,['village'],1500);
-    const en=ovE||(ep?ep.name:await filmTown(e));
+    const ep=near(e,['village'],1500);
+    const en=ep?ep.name:await filmTown(e);
     if(!sn||en!==sn)add({kind:'end',pri:95,f:1,ll:ll(e),title:en||'Arrivée',sub:en?'Arrivée':null});
   }
   // lieux ajoutés par Manuel : ils apparaissent quand le marcheur passe devant
@@ -4006,6 +4010,20 @@ async function filmLabels(){
     picked.push(p);
   }
   for(const p of picked)add({kind:p.kind,pri:PR[p.kind],f:p.iNear/e,ll:ll(p.iNear),title:p.name,sub:FILM_KINDTXT[p.kind]+(isFinite(p.ele)&&p.kind!=='hut'&&p.kind!=='village'?' · '+nf0.format(p.ele)+' m':'')});
+  // vérification : 2e source (Wikidata) pour les noms de villages / départ / arrivée ; corrections de Manuel
+  const wk=FILM.wiki||[],nm=t=>(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');
+  const ed=(FILM.edSig===T.sig&&FILM.ed)||{};
+  for(const l of L){
+    l.key=l.kind+':'+Math.round(l.f*1000);
+    const [tx,tz]=T.toXZ(l.ll[1],l.ll[0]);
+    const wOk=wk.some(w=>(w.kind==='village'||l.kind!=='start'&&l.kind!=='end')&&Math.hypot(w.x-tx,w.z-tz)<900&&(nm(w.name)===nm(l.title)||nm(w.name).includes(nm(l.title))||nm(l.title).includes(nm(w.name)))&&nm(l.title).length>2);
+    l.conf=l.kind==='tag'||wOk||(l.kind!=='village'&&l.kind!=='start'&&l.kind!=='end');
+    l.defOff=(l.kind==='village'&&!l.conf);
+    const e=ed[l.key];
+    if(e){if(e.title!==undefined&&e.title!==''){l.title=e.title;l.conf=true}l.off=e.off!==undefined?e.off:l.defOff}else l.off=l.defOff;
+  }
+  if(review)return L.filter(l=>l.kind!=='tag');
+  for(let i=L.length-1;i>=0;i--)if(L[i].off)L.splice(i,1);
   [...L].sort((a,b)=>a.f-b.f).forEach((l,i)=>{l.sgn=i%2?-1:1});   // côté fixe de chaque étiquette par rapport au sens de marche : 1 = gauche, -1 = droite (en alternance)
   return L;
 }
@@ -4123,7 +4141,7 @@ function filmPlRender(){
     const li=document.createElement('li'),sp=document.createElement('span'),b=document.createElement('button');
     sp.textContent=t.name+' ';const sm=document.createElement('small');sm.textContent=d<1500?`· km ${fmtKm(T.rd[bi])}`:'';sp.appendChild(sm);
     b.type='button';b.textContent='✕';b.setAttribute('aria-label','Supprimer '+t.name);
-    b.addEventListener('click',()=>{T.tags.splice(i,1);saveTags(T);addTagLabels(T);filmPlRender()});
+    b.addEventListener('click',()=>{T.tags.splice(i,1);saveTags(T);addTagLabels(T);filmPlRender();filmReview()});
     li.append(sp,b);ul.appendChild(li);
   });
 }
@@ -4153,18 +4171,40 @@ $('filmPlOk').addEventListener('click',()=>{
   const name=$('filmPlName').value.trim();if(!name){$('filmPlName').focus();return}
   const i=filmPlIdx(),[lat,lon]=areaFor(T).ll(T.rx[i],T.rz[i]);
   if(!T.tags)T.tags=[];T.tags.push({name,kind:'other',lat,lon,ele:T.se[i]});
-  saveTags(T);addTagLabels(T);filmPlRender();filmPlClose();
+  saveTags(T);addTagLabels(T);filmPlRender();filmPlClose();filmReview();
 });
+async function filmWikiLoad(){
+  if(FILM.wikiSig===T.sig)return;FILM.wikiSig=T.sig;FILM.wiki=[];
+  try{FILM.wiki=await wikidataPlaces(T)}catch(e){FILM.wiki=[]}
+}
+async function filmReview(){
+  const ul=$('filmRevList'),sig=T.sig;ul.innerHTML='<li><span>Recherche des noms…</span></li>';
+  await filmWikiLoad();
+  if(FILM.edSig!==sig){FILM.edSig=sig;FILM.ed={}}
+  let L=[];try{L=await filmLabels(true)}catch(e){}
+  if(T.sig!==sig)return;
+  ul.innerHTML='';
+  if(!L.length){ul.innerHTML='<li><span>Aucun nom trouvé : ajoute tes propres lieux ci-dessous.</span></li>';return}
+  L.sort((a,b)=>a.f-b.f).forEach(l=>{
+    const li=document.createElement('li'),cb=document.createElement('input'),tx=document.createElement('input'),sm=document.createElement('small');
+    cb.type='checkbox';cb.checked=!l.off;cb.setAttribute('aria-label','Afficher '+l.title);
+    tx.type='text';tx.value=l.title;tx.maxLength=40;tx.className='film-in';tx.style.cssText='flex:1;min-width:0;margin:0;padding:6px 8px';
+    sm.textContent=(FILM_KINDTXT[l.kind]||(l.kind==='start'?'Départ':l.kind==='end'?'Arrivée':l.kind==='top'?'Point haut':'Sommet'))+(l.conf?' ✓':' · à vérifier');
+    if(!l.conf)sm.style.color='#b4682c';
+    const set=()=>{FILM.ed[l.key]={title:tx.value.trim(),off:!cb.checked}};
+    cb.addEventListener('change',set);tx.addEventListener('input',()=>{set();sm.textContent=sm.textContent.replace(' · à vérifier',' ✓')});
+    li.append(cb,tx,sm);ul.appendChild(li);
+  });
+}
 function openFilm(){
   if(!T||T.planBase){toast("Charge d'abord une trace.");return}
   if(!window.VideoEncoder||!window.VideoFrame){toast("Ce film demande un Chrome récent sur ton téléphone. Mets Chrome à jour puis réessaie.",8000);return}
   if(FILM.on){$('filmBack').hidden=false;return}
-  if(FILM.sig!==T.sig){FILM.sig=T.sig;$('filmStartName').value='';$('filmEndName').value=''}
   $('filmTitle').value=($('hikeName').textContent||'Ma randonnée').trim().slice(0,60);
   if(!FILM.style)FILM.style=SV.style||((T.lat0>41&&T.lat0<51.5&&T.lon0>-5.5&&T.lon0<10)?'ortho':'sat');
   if(FILM.style!=='ortho'&&FILM.style!=='sat')FILM.style='ortho';
   [...$('filmStyle').children].forEach(c=>c.setAttribute('aria-pressed',c.dataset.v===FILM.style));
-  if(!T.tags)loadTags(T);filmPlRender();
+  if(!T.tags)loadTags(T);filmPlRender();filmReview();
   filmShow('filmOpts');$('filmBack').hidden=false;
 }
 async function filmRun(){
@@ -4575,7 +4615,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V65", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : caméra plus proche, étiquettes collées à leur lieu (elles ne bougent plus toutes seules), faux « villages » (noms de montagnes) supprimés, et deux cases pour taper le nom du départ et de l'arrivée (ex. Le Pra).", "Nouveau « Rapport rando » pour débutants : difficulté expliquée simplement, durée estimée avec pauses, ce qui t'attend, quoi emporter, conseils, profil et plan tronçon par tronçon. Boutons Imprimer/PDF, Mail, SMS et Partager.", "Film : étiquettes testées sur toutes sortes de parcours (ligne droite, boucle, aller-retour, huit, très long, très court, hémisphère sud, arrêts) ; les noms trop longs sont raccourcis (…) et le tracé est mieux surveillé sur les longs parcours.", "Film : chaque étiquette garde son côté (gauche ou droite du sens de marche, en alternance) et se place de travers par rapport au chemin : elle ne passe plus sur le tracé et ne change plus de côté."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V66", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : avant de créer le film, la liste des noms qui seront écrits s'affiche. Chaque nom est vérifié avec une 2e source (✓), tu peux décocher un nom faux ou le corriger. Les noms de départ/arrivée se corrigent là aussi.", "Film : caméra plus proche, étiquettes collées à leur lieu (elles ne bougent plus toutes seules), faux « villages » (noms de montagnes) supprimés, et deux cases pour taper le nom du départ et de l'arrivée (ex. Le Pra).", "Nouveau « Rapport rando » pour débutants : difficulté expliquée simplement, durée estimée avec pauses, ce qui t'attend, quoi emporter, conseils, profil et plan tronçon par tronçon. Boutons Imprimer/PDF, Mail, SMS et Partager.", "Film : étiquettes testées sur toutes sortes de parcours (ligne droite, boucle, aller-retour, huit, très long, très court, hémisphère sud, arrêts) ; les noms trop longs sont raccourcis (…) et le tracé est mieux surveillé sur les longs parcours."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
