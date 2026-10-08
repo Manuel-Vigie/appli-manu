@@ -664,7 +664,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
     <div id="filmOpts" class="film-sec">
       <p class="modal-note">Crée une vraie vidéo (MP4) de ta rando vue du ciel, avec une caméra bien stable : idéale pour le début d'un film YouTube. Le téléphone la prépare image par image, ça prend quelques minutes.</p>
       <span class="field-lbl">Format</span>
-      <div class="seg" id="filmFmt"><button type="button" data-v="h720" aria-pressed="false">HD 16:9</button><button type="button" data-v="h1080" aria-pressed="true">Full HD 16:9</button><button type="button" data-v="v" aria-pressed="false">Vertical</button></div>
+      <div class="seg" id="filmFmt"><button type="button" data-v="h720" aria-pressed="false">HD 16:9</button><button type="button" data-v="h1080" aria-pressed="true">Full HD 16:9</button><button type="button" data-v="v" aria-pressed="false">Vertical</button><button type="button" data-v="both" aria-pressed="false">Les deux</button></div>
       <span class="field-lbl">Durée</span>
       <div class="seg" id="filmDur"><button type="button" data-v="20" aria-pressed="false">20 s</button><button type="button" data-v="30" aria-pressed="false">30 s</button><button type="button" data-v="45" aria-pressed="true">45 s</button><button type="button" data-v="60" aria-pressed="false">60 s</button></div>
       <span class="field-lbl">Fond de carte</span>
@@ -707,6 +707,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
         <div class="fmt-cards" id="vfmtSeg">
           <button type="button" data-v="v" aria-pressed="false"><i class="frame v"></i><b>Vertical 9:16</b><small>Stories, Reels, TikTok</small></button>
           <button type="button" data-v="h" aria-pressed="true"><i class="frame h"></i><b>Horizontal 16:9</b><small>YouTube, télé, montage</small></button>
+          <button type="button" data-v="both" aria-pressed="false" style="grid-column:1/-1"><b>Les deux</b><small>16:9 puis vertical, rangés dans Mes films</small></button>
         </div></div>
       <div class="field"><span class="field-lbl">Durée</span>
         <div class="seg" id="vdurSeg"><button type="button" data-v="30" aria-pressed="false">30 s</button><button type="button" data-v="45" aria-pressed="true">45 s</button><button type="button" data-v="60" aria-pressed="false">60 s</button></div></div>
@@ -2232,6 +2233,7 @@ addEventListener('keydown',e=>{
 });
 
 /* ---------- Video export (records the replay with stats overlay) ---------- */
+let recQueue=[],recFmt=null;
 let REC=null,vidOpts={fmt:'h',dur:45,q:1080,overlay:true},lastVideo=null;
 function pickMime(){
   if(!window.MediaRecorder)return '';
@@ -2248,9 +2250,11 @@ $('recStop').addEventListener('click',()=>{if(REC&&REC.stable)REC.cancel=true;el
 $('vrClose').addEventListener('click',()=>{$('videoResult').hidden=true;$('vrVideo').pause()});
 
 async function startRecording(){
+  if(!REC&&!recFmt&&vidOpts.fmt==='both'){recQueue=['v'];recFmt='h'}
+  const fmt=recFmt||(vidOpts.fmt==='both'?'h':vidOpts.fmt);
   const mime=pickMime();
   const long=vidOpts.q,short=Math.round(long*9/16/2)*2;
-  const W=vidOpts.fmt==='h'?Math.round(long*16/9/2)*2:long===1080?1080:720,H=vidOpts.fmt==='h'?long:Math.round((long===1080?1080:720)*16/9/2)*2;
+  const W=fmt==='h'?Math.round(long*16/9/2)*2:long===1080?1080:720,H=fmt==='h'?long:Math.round((long===1080?1080:720)*16/9/2)*2;
   // film stable (image par image, comme « Film de la carte ») si le téléphone sait le faire, sinon enregistrement en direct
   let stable=!!(window.VideoEncoder&&window.VideoFrame),pick=null;
   if(stable){
@@ -2262,7 +2266,8 @@ async function startRecording(){
       if(!pick)stable=false;
     }
   }
-  if(!stable&&(!mime||!HTMLCanvasElement.prototype.captureStream)){toast("Ce navigateur ne sait pas enregistrer de vidéo. Utilise Chrome à jour.",7000);return}
+  if(!stable)recQueue=[];
+  if(!stable&&(!mime||!HTMLCanvasElement.prototype.captureStream)){recFmt=null;toast("Ce navigateur ne sait pas enregistrer de vidéo. Utilise Chrome à jour.",7000);return}
   $('videoPanel').hidden=true;
   const rc=document.createElement('canvas');rc.width=W;rc.height=H;rc.id='recCanvas';
   const box=$('recPreview');box.innerHTML='';box.appendChild(rc);
@@ -2281,7 +2286,7 @@ async function startRecording(){
     mr.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
   }
   let wake=null;
-  REC={title:($('vTitleIn').value.trim()||T.name),sub:$('vSubIn').value.trim(),W,H,rc,ctx:rc.getContext('2d'),mr,chunks,mime,t:0,intro:3,outro:4,main:Math.max(12,vidOpts.dur-7),phase:'intro',overlay:vidOpts.overlay,saved,wake,photo:null,fmt:vidOpts.fmt};
+  REC={title:($('vTitleIn').value.trim()||T.name),sub:$('vSubIn').value.trim(),W,H,rc,ctx:rc.getContext('2d'),mr,chunks,mime,t:0,intro:3,outro:4,main:Math.max(12,vidOpts.dur-7),phase:'intro',overlay:vidOpts.overlay,saved,wake,photo:null,fmt};
   $('recLayer').hidden=false;
   if(stable){REC.stable=true;REC.mime='video/mp4';recordStable(REC,pick)}else mr.start(1000);
 }
@@ -2396,7 +2401,7 @@ function drawOverlay(x,W,H,now){
   x.restore();
 }
 async function finishRecording(cancel){
-  const R=REC;if(!R)return;REC=null;
+  const R=REC;if(!R)return;REC=null;if(cancel){recQueue=[];recFmt=null}
   await new Promise(res=>{R.mr.onstop=res;try{R.mr.stop()}catch(e){res()}});
   try{R.wake&&R.wake.release()}catch(e){}
   $('recLayer').hidden=true;$('recPreview').innerHTML='';
@@ -2410,7 +2415,9 @@ async function finishRecording(cancel){
   if(lastVideo)URL.revokeObjectURL(lastVideo.url);
   const url=URL.createObjectURL(blob),fname=`${safeName(R.title||T.name)}-${R.fmt==='h'?'horizontal':'vertical'}.${ext}`;
   lastVideo={url,blob,fname};
-  if(R.stable)filmStoreAdd(blob,(R.title||T.name)+' · replay',fname);
+  if(R.stable)filmStoreAdd(blob,(R.title||T.name)+' · replay'+(R.fmt==='h'?' 16:9':' vertical'),fname);
+  if(R.stable&&recQueue.length){recFmt=recQueue.shift();toast('Version 16:9 prête. Je fabrique maintenant la version verticale…',5000);setTimeout(startRecording,500);return}
+  recFmt=null;
   $('vrVideo').src=url;$('vrDownload').href=url;$('vrDownload').download=fname;
   $('vrInfo').textContent=`${R.W}×${R.H} · ${(blob.size/1048576).toFixed(1).replace('.',',')} Mo · format ${ext.toUpperCase()}`+(ext==='webm'?" — si ton appli de montage ne l'accepte pas, convertis-la en MP4 (par ex. avec CapCut ou une appli de conversion).":'');
   let canShare=false;try{canShare=!!(navigator.canShare&&navigator.canShare({files:[new File([blob],fname,{type})]}))}catch(e){}
@@ -4066,7 +4073,16 @@ function openFilm(){
 }
 async function filmRun(){
   if(FILM.on)return;
-  const fm=FILM_FMT[FILM.fmt],W=fm.w,H=fm.h,D=FILM.dur,FPS=30,nF=Math.round(D*FPS),k=Math.min(W,H)/360;
+  if(FILM.fmt!=='both')return filmRunOne(FILM.fmt,false);
+  // « Les deux » : 16:9 Full HD puis vertical, l'un après l'autre (rangés tous les deux dans Mes films)
+  await filmRunOne('h1080',true);
+  if(!FILM.url||FILM.cancel)return;
+  await filmRunOne('v',true);
+  if(FILM.url&&!FILM.cancel)$('filmDoneTxt').textContent='Tes deux films sont prêts : 16:9 et vertical. Ils sont dans l’onglet « Mes films » (touche « Enregistrer » sur chacun pour les mettre dans Téléchargements).';
+}
+async function filmRunOne(fmtKey,both){
+  if(FILM.on)return;
+  const fm=FILM_FMT[fmtKey],W=fm.w,H=fm.h,D=FILM.dur,FPS=30,nF=Math.round(D*FPS),k=Math.min(W,H)/360;
   const title=$('filmTitle').value.trim(),Tk=T;
   FILM.on=true;FILM.cancel=false;if(FILM.url){URL.revokeObjectURL(FILM.url);FILM.url=null}
   filmShow('filmRun');$('filmBar').style.width='0%';$('filmTxt').textContent='Préparation…';
@@ -4166,8 +4182,8 @@ async function filmRun(){
     $('filmErr').textContent='';$('filmOk').hidden=false;
     $('filmDoneTxt').textContent=`Ton film est prêt (${(blob.size/1048576).toFixed(0)} Mo). Il est enregistré dans tes Téléchargements.`;
     filmShow('filmDone');
-    try{filmSave()}catch(e){}
-    filmStoreAdd(blob,title||'Ma randonnée').then(ok=>{if(ok)$('filmDoneTxt').textContent+=' Il est aussi dans l’onglet « Mes films ».'});
+    if(!both)try{filmSave()}catch(e){}
+    filmStoreAdd(blob,(title||'Ma randonnée')+(fmtKey==='v'?' · vertical':' · 16:9')).then(ok=>{if(ok&&!both)$('filmDoneTxt').textContent+=' Il est aussi dans l’onglet « Mes films ».'});
   }catch(e){
     console.error(e);fail(e&&e.message?e.message:"Le film n'a pas pu être créé.");
   }finally{
@@ -4447,7 +4463,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V56", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Les deux vidéos (Film de la carte et vidéo du replay) sont en 16:9 Full HD par défaut, à chaque ouverture. Vertical reste un choix possible.", "Vidéo du replay : le format Horizontal 16:9 (YouTube, télé) est maintenant choisi par défaut, bien visible en premier, et l'app retient ton dernier choix (horizontal ou vertical).", "Replay : un bouton 🎬 (vidéo) dans la barre ronde du bas lance un film du personnage qui marche sur la carte 3D, fabriqué image par image comme « Film de la carte » (fluide même si le téléphone est lent) et rangé dans « Mes films ». Le bouton 💾 y est remplacé (on ajoute depuis Mes randos).", "Film : les étiquettes bougent beaucoup moins. Elles suivent la carte d'un bloc avec leur point (plus de glissement ni de trait qui s'étire), et ne changent de côté que si le parcours passe vraiment dessus."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V57", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Nouveau choix « Les deux » dans le Film de la carte et dans la vidéo du replay : l'app fabrique la version 16:9 puis la version verticale, l'une après l'autre, et range les deux dans « Mes films » (nom avec « 16:9 » ou « vertical »).", "Les deux vidéos (Film de la carte et vidéo du replay) sont en 16:9 Full HD par défaut, à chaque ouverture. Vertical reste un choix possible.", "Vidéo du replay : le format Horizontal 16:9 (YouTube, télé) est maintenant choisi par défaut, bien visible en premier, et l'app retient ton dernier choix (horizontal ou vertical).", "Replay : un bouton 🎬 (vidéo) dans la barre ronde du bas lance un film du personnage qui marche sur la carte 3D, fabriqué image par image comme « Film de la carte » (fluide même si le téléphone est lent) et rangé dans « Mes films ». Le bouton 💾 y est remplacé (on ajoute depuis Mes randos)."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
