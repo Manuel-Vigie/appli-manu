@@ -357,16 +357,11 @@ fun BrowseScreen(
                         onCreate = { creating = true },
                     )
                 }
-                if (state.folders.isNotEmpty() || state.videos != null) {
-                    item(key = "albums", span = { GridItemSpan(maxLineSpan) }) {
-                        Text("Albums  ·  ${state.folders.size + if (state.videos != null) 1 else 0}", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 6.dp, top = 12.dp, bottom = 2.dp))
-                    }
-                }
             }
             // L'album « Vidéos » : à côté des autres albums, rien n'est déplacé (une recherche, classée par date comme les albums).
             if (!selecting && state.path.isEmpty()) state.videos?.let { videos ->
                 item(key = "videos", span = { GridItemSpan(3) }) {
-                    AlbumCard(videos, selecting = false, selected = false, onClick = onOpenVideos, onLongClick = {}, title = "Album vidéos", unit = "vidéo")
+                    AlbumCard(videos, selecting = false, selected = false, onClick = onOpenVideos, onLongClick = {}, title = "Album vidéos", unit = "vidéo", captionBelow = true)
                 }
             }
             items(state.folders, key = { "d:" + it.name }, span = { GridItemSpan(3) }) { folder ->
@@ -378,6 +373,7 @@ fun BrowseScreen(
                     onLongClick = { toggleFolder(folder.name) },
                     // À la racine, le gros dossier par date s'appelle « Album photos » à l'écran (son vrai nom sur la carte ne change pas).
                     title = if (state.path.isEmpty() && folder.name == "Journées") "Album photos" else folder.name,
+                    captionBelow = state.path.isEmpty(),
                 )
             }
             itemsIndexed(state.files, key = { _, f -> "f:" + f.absolutePath }, span = { _, _ -> GridItemSpan(2) }) { index, file ->
@@ -555,28 +551,36 @@ private fun AlbumCard(
     onLongClick: () -> Unit,
     title: String = folder.name,
     unit: String = "photo",
+    captionBelow: Boolean = false,
 ) {
-    val shape = RoundedCornerShape(18.dp)
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .aspectRatio(1.1f)
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .then(if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, shape) else Modifier)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-    ) {
-        folder.cover?.let { Thumb(it, 400, Modifier.fillMaxSize()) }
-        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000)))))
-        Column(Modifier.align(Alignment.BottomStart).padding(horizontal = 12.dp, vertical = 10.dp)) {
-            Text(title, color = Color.White, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, maxLines = 2)
-            Text(
-                if (folder.count > 1) "${spaced(folder.count)} ${unit}s" else "1 $unit",
-                color = Color.White.copy(alpha = 0.85f),
-                fontSize = 13.sp,
-            )
+    val countText = if (folder.count > 1) "${spaced(folder.count)} ${unit}s" else "1 $unit"
+    Column {
+        val shape = RoundedCornerShape(18.dp)
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(1.1f)
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .then(if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, shape) else Modifier)
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        ) {
+            folder.cover?.let { Thumb(it, 400, Modifier.fillMaxSize()) }
+            if (!captionBelow) Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000)))))
+            if (!captionBelow) Column(Modifier.align(Alignment.BottomStart).padding(horizontal = 12.dp, vertical = 10.dp)) {
+                Text(title, color = Color.White, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                Text(
+                    if (folder.count > 1) "${spaced(folder.count)} ${unit}s" else "1 $unit",
+                    color = Color.White.copy(alpha = 0.85f),
+                    fontSize = 13.sp,
+                )
+            }
+            if (selecting) SelectMark(selected, onPhoto = true, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp))
         }
-        if (selecting) SelectMark(selected, onPhoto = true, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp))
+        if (captionBelow) Column(Modifier.padding(start = 6.dp, top = 6.dp, bottom = 4.dp)) {
+            Text(title, fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Text(countText, fontSize = 12.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
