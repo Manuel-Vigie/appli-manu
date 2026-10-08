@@ -49,6 +49,7 @@ import fr.mesphotos.storage.PhotoFiles
 import fr.mesphotos.storage.Place
 import fr.mesphotos.storage.Places
 import fr.mesphotos.update.UpdateChecker
+import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -1447,7 +1448,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                             if (stopClassify) break
                             // Les vignettes d'un paquet sont lues en même temps ; la reconnaissance se fait ensuite.
                             val bitmaps = kotlinx.coroutines.coroutineScope {
-                                chunk.map { f -> kotlinx.coroutines.async { if (labelCache.get(f) != null) null else Thumbs.loadUncached(f, 256) } }
+                                chunk.map { f -> async { if (labelCache.get(f) != null) null else Thumbs.loadUncached(f, 256) } }
                                     .map { it.await() }
                             }
                             for ((j, file) in chunk.withIndex()) {
@@ -1496,7 +1497,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     for (chunk in candidates.chunked(8)) {
                         if (stopClassify) break
                         val bitmaps = kotlinx.coroutines.coroutineScope {
-                            chunk.map { f -> kotlinx.coroutines.async { if (portraitCache.get(f) != null) null else Thumbs.loadUncached(f, 640) } }
+                            chunk.map { f -> async { if (portraitCache.get(f) != null) null else Thumbs.loadUncached(f, 640) } }
                                 .map { it.await() }
                         }
                         for ((j, file) in chunk.withIndex()) {
