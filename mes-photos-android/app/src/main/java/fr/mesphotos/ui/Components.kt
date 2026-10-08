@@ -253,9 +253,27 @@ fun SelectMark(selected: Boolean, onPhoto: Boolean, modifier: Modifier = Modifie
 @Composable
 fun Thumb(file: File, size: Int, modifier: Modifier = Modifier, scale: ContentScale = ContentScale.Crop) {
     var bitmap by remember(file) { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(file) { bitmap = Thumbs.load(file, size) }
+    var unreadable by remember(file) { mutableStateOf(false) }
+    LaunchedEffect(file) {
+        bitmap = Thumbs.load(file, size)
+        // Une deuxième tentative règle les échecs passagers (mémoire pleine, carte lente).
+        if (bitmap == null) {
+            kotlinx.coroutines.delay(600)
+            bitmap = Thumbs.load(file, size)
+        }
+        unreadable = bitmap == null
+    }
     Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
         bitmap?.let { Image(it.asImageBitmap(), contentDescription = null, contentScale = scale, modifier = Modifier.fillMaxSize()) }
+        if (unreadable && size < 1000) {
+            // Le fichier est bien là, mais l'appli ne sait pas en faire une vignette : on le dit au lieu de laisser une case vide.
+            Text(
+                file.extension.uppercase().take(5).ifEmpty { "?" } + "\nvignette\nillisible",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
         if (PhotoFiles.isVideo(file)) {
             Box(Modifier.size(34.dp).clip(CircleShape).background(Color(0x99000000)), contentAlignment = Alignment.Center) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))

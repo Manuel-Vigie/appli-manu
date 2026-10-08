@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V20",
+  "version": "V21",
   "date": "08/10/2026",
   "nouveautes": [
+    "Photos et vidéos qui n'apparaissaient pas : l'appli essaie maintenant plusieurs lecteurs (HEIC, WebP, vidéos difficiles…). Sinon la case indique le format, et en grand un bouton « Ouvrir avec une autre appli ».",
     "Coffre-fort : des photos cachées que personne ne voit, même en cherchant ailleurs. Ouverture avec le verrouillage du téléphone. Bouton « Coffre-fort » en mode Choisir, dans la visionneuse et dans Outils.",
     "Raccourcis dans des tons de vert assortis à l'appli (une teinte par classement), en clair comme en sombre.",
-    "Raccourcis en menu déroulant : de grands boutons colorés avec le nombre de photos. Un raccourci est une recherche enregistrée (ex. Immatriculation) ; « + Nouveau raccourci » en crée sans photo, appui long pour modifier ou retirer.",
-    "Correctif : les photos prises avec l'appli étaient introuvables. Elles sont maintenant dans « Photos rangées / Photos à trier », visibles tout de suite, et la photo s'ouvre dès qu'elle est prise. Les anciennes photos prises sont ramenées au même endroit."
+    "Raccourcis en menu déroulant : de grands boutons colorés avec le nombre de photos. Un raccourci est une recherche enregistrée (ex. Immatriculation) ; « + Nouveau raccourci » en crée sans photo, appui long pour modifier ou retirer."
   ],
   "pastille": false,
   "fichiers": []

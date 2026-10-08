@@ -793,13 +793,33 @@ fun ViewerScreen(
         HorizontalPager(state = pager, modifier = Modifier.fillMaxSize(), beyondViewportPageCount = 1, userScrollEnabled = !zoomed) { page ->
             val file = state.files[page]
             var bitmap by remember(file) { mutableStateOf<Bitmap?>(null) }
-            LaunchedEffect(file) { bitmap = Thumbs.load(file, 1600) }
+            var finished by remember(file) { mutableStateOf(false) }
+            LaunchedEffect(file) {
+                bitmap = Thumbs.load(file, 1600)
+                if (bitmap == null) {
+                    delay(600)
+                    bitmap = Thumbs.load(file, 1600)
+                }
+                finished = true
+            }
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 bitmap?.let { ZoomableImage(it, file.name) { isZoomed -> if (pager.currentPage == page) zoomed = isZoomed } }
-                if (bitmap == null) Text("Chargement…", color = Color.White)
+                if (bitmap == null && !finished) Text("Chargement…", color = Color.White)
                 if (PhotoFiles.isVideo(file)) {
                     Button(onClick = { playVideo(context, file) }, modifier = Modifier.height(60.dp), shape = RoundedCornerShape(18.dp)) {
                         Text("▶  Lire la vidéo", fontSize = 18.sp)
+                    }
+                } else if (bitmap == null && finished) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+                        Text(
+                            "L'appli n'arrive pas à afficher ce fichier (${file.extension.uppercase()}). Il est bien là, rien n'est perdu.",
+                            color = Color.White,
+                            textAlign = TextAlign.Center,
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = { playVideo(context, file) }, modifier = Modifier.height(56.dp), shape = RoundedCornerShape(18.dp)) {
+                            Text("Ouvrir avec une autre appli", fontSize = 16.sp)
+                        }
                     }
                 }
             }
@@ -934,11 +954,11 @@ private fun playVideo(context: Context, file: File) {
     try {
         val uri = FileProvider.getUriForFile(context, context.packageName + ".files", file)
         val intent = Intent(Intent.ACTION_VIEW)
-            .setDataAndType(uri, PhotoFiles.mimeOf(file) ?: "video/*")
+            .setDataAndType(uri, PhotoFiles.mimeOf(file) ?: "*/*")
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
     } catch (e: Exception) {
-        android.widget.Toast.makeText(context, "Impossible d'ouvrir la vidéo.", android.widget.Toast.LENGTH_LONG).show()
+        android.widget.Toast.makeText(context, "Aucune appli du téléphone ne peut ouvrir ce fichier.", android.widget.Toast.LENGTH_LONG).show()
     }
 }
 
