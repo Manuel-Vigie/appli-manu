@@ -60,8 +60,8 @@ import kotlin.math.roundToInt
 /** Où vont les photos choisies : la corbeille (on peut effacer pour de bon) ou « À l'écart » (rangées à part, jamais effacées). */
 enum class MoveKind { TRASH, ASIDE }
 
-/** Un raccourci et sa photo (null si elle est introuvable : à la corbeille, à l'écart ou effacée). */
-class ShortcutItem(val shortcut: Shortcut, val file: File?)
+/** Un raccourci et le nombre de photos qu'il montre en ce moment. */
+class ShortcutItem(val shortcut: Shortcut, val count: Int)
 
 /** Une photo prête pour la recherche : le fichier et son chemin sans accents ni majuscules. */
 class SearchEntry(val file: File, val text: String)
@@ -676,7 +676,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         browsePath = path
         val empty = listing.folders.isEmpty() && listing.files.isEmpty()
-        val items = if (path.isEmpty()) withContext(Dispatchers.IO) { shortcutItems(shortcuts.all(), current) } else emptyList()
+        val items = if (path.isEmpty()) withContext(Dispatchers.IO) { shortcutItems(shortcuts.all(), searchIndex ?: buildSearchIndex(current)) } else emptyList()
         _state.value = UiState.Browse(
             path, listing.folders, listing.files,
             message = message ?: if (empty && path.isEmpty() && items.isEmpty()) "Rien à voir pour l'instant : rangez d'abord vos photos." else null,
@@ -865,17 +865,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         searchQuery = query
         val index = searchIndex ?: run {
             _state.value = UiState.Working("Préparation de la recherche…", 0, 0)
-            withContext(Dispatchers.IO) {
-                Gallery.allMedia(current.outputDir)
-                    .map { SearchEntry(it, Gallery.normalize(it.toRelativeString(current.outputDir).replace('/', ' '))) }
-                    .sortedByDescending { it.text } // les plus récentes d'abord
-            }.also { searchIndex = it }
+            withContext(Dispatchers.IO) { buildSearchIndex(current) }
         }
         val terms = Gallery.terms(query)
         val results = if (terms.isEmpty()) emptyList() else withContext(Dispatchers.Default) {
             index.filter { Gallery.matches(it.text, terms) }.map { it.file }
         }
-        val matchingShortcuts = withContext(Dispatchers.IO) { shortcutItems(if (terms.isEmpty()) shortcuts.all() else shortcuts.matching(terms), current) }
+        val matchingShortcuts = withContext(Dispatchers.Default) { shortcutItems(if (terms.isEmpty()) shortcuts.all() else shortcuts.matching(terms), index) }
         _state.value = UiState.Search(query, results, message, undoCount, matchingShortcuts)
     }
 
@@ -883,32 +879,54 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // Un raccourci = un nom + un classement (« Immatriculation » dans « Véhicule ») qui mène droit à une photo.
     // Rien n'est copié ni déplacé : la photo reste là où elle est.
 
-    fun shortcutFor(file: File): Shortcut? = shortcuts.forFile(file)
-
     /** Les classements déjà utilisés, puis quelques idées. */
     fun shortcutCategories(): List<String> =
         (shortcuts.categories() + Shortcuts.SUGGESTIONS).distinctBy { Gallery.normalize(it) }
 
-    fun saveShortcut(file: File, name: String, category: String) {
-        val made = shortcuts.put(file, name, category)
-        val viewer = _state.value as? UiState.Viewer ?: return
-        val message = if (made == null) "Le nom est vide : rien n'a changé."
-        else "Raccourci « ${made.name} » enregistré dans « ${made.category} ». Retrouvez-le avec la loupe de l'onglet Photos."
-        _state.value = viewer.copy(message = message)
+    /** Crée un raccourci (ou, avec [replacing], modifie celui-là). [words] vide : il cherche son nom. */
+    fun saveShortcut(name: String, category: String, words: String, replacing: Shortcut? = null) {
+        replacing?.let { shortcuts.remove(it) }
+        val made = shortcuts.put(name, category, words)
+        if (made == null) {
+            // Nom vide : on remet l'ancien raccourci tel qu'il était.
+            replacing?.let { shortcuts.put(it.name, it.category, it.words) }
+            announce("Le nom est vide : rien n'a changé.")
+        } else {
+            announce("Raccourci « ${made.name} » enregistré : il montre les photos qui contiennent « ${made.words} ».")
+        }
     }
 
     fun removeShortcut(shortcut: Shortcut) {
         shortcuts.remove(shortcut)
-        val viewer = _state.value as? UiState.Viewer ?: return
-        _state.value = viewer.copy(message = "Raccourci « ${shortcut.name} » retiré. La photo n'a pas bougé.")
+        announce("Raccourci « ${shortcut.name} » retiré. Aucune photo n'a bougé.")
     }
 
-    /** Les raccourcis avec leur photo ; si elle a changé de place ou de nom, on la retrouve (même nom, même taille). */
-    private fun shortcutItems(list: List<Shortcut>, current: Place): List<ShortcutItem> {
-        if (list.isEmpty()) return emptyList()
-        val candidates by lazy { Gallery.allMedia(current.outputDir) }
-        return list.map { ShortcutItem(it, shortcuts.resolve(it) { candidates }) }
+    /** Un appui sur un raccourci : la recherche s'ouvre avec ses mots. */
+    fun openShortcut(words: String) = search(words)
+
+    /** Dit ce qui vient de se passer, sur l'écran où l'on est (et le remet à jour : les compteurs changent). */
+    private fun announce(message: String) {
+        when (val st = _state.value) {
+            is UiState.Viewer -> _state.value = st.copy(message = message)
+            is UiState.Browse -> viewModelScope.launch { showBrowse(st.path, message) }
+            is UiState.Search -> viewModelScope.launch { showSearch(st.query, message) }
+            else -> Unit
+        }
     }
+
+    /** Le chemin de chaque photo (sans accents ni majuscules), gardé en mémoire : sert à la loupe et au compteur des raccourcis. */
+    private fun buildSearchIndex(current: Place): List<SearchEntry> =
+        Gallery.allMedia(current.outputDir)
+            .map { SearchEntry(it, Gallery.normalize(it.toRelativeString(current.outputDir).replace('/', ' '))) }
+            .sortedByDescending { it.text } // les plus récentes d'abord
+            .also { searchIndex = it }
+
+    /** Les raccourcis avec le nombre de photos qu'ils montrent. */
+    private fun shortcutItems(list: List<Shortcut>, index: List<SearchEntry>): List<ShortcutItem> =
+        list.map { shortcut ->
+            val terms = Gallery.terms(shortcut.words)
+            ShortcutItem(shortcut, if (terms.isEmpty()) 0 else index.count { Gallery.matches(it.text, terms) })
+        }
 
     // ---- Renommer une photo --------------------------------------------------------------------
 
@@ -934,7 +952,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (!file.renameTo(target) || !target.isFile || file.exists()) return null to "Impossible de renommer cette photo."
         MediaScannerConnection.scanFile(getApplication(), arrayOf(file.absolutePath, target.absolutePath), null, null)
         updateJournalPath(file, target)
-        shortcuts.renamed(file, target)
         val note = if (keepDate && target.name.contains(file.nameWithoutExtension, ignoreCase = true)) {
             "\nL'ancien nom (avec la date) est gardé à la suite, pour que la photo reste classée au bon jour."
         } else ""

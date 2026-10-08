@@ -95,11 +95,10 @@ fun SearchScreen(
         selected = emptySet()
     }
 
-    // Un raccourci ouvre sa photo ; on peut ensuite passer d'un raccourci à l'autre en glissant.
+    // Un raccourci remplit la recherche avec ses mots.
     fun openShortcut(item: ShortcutItem) {
-        val files = state.shortcuts.mapNotNull { it.file }
-        val index = files.indexOf(item.file)
-        if (index >= 0) onOpen(files, index)
+        text = item.shortcut.words
+        onSearch(item.shortcut.words)
     }
 
     BackHandler { if (selecting) stopSelecting() else onBack() }
@@ -188,7 +187,7 @@ fun SearchScreen(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 24.dp),
             ) {
-                item { ShortcutList(state.shortcuts, onOpen = { openShortcut(it) }) }
+                item { ShortcutRows(state.shortcuts, onOpen = { openShortcut(it) }) }
                 item {
                     Text(
                         "Ou tapez un mot : une ville, un mois, une année, un bout de nom de fichier.",
@@ -215,7 +214,7 @@ fun SearchScreen(
                     verticalArrangement = Arrangement.spacedBy(5.dp),
                 ) {
                     if (hasShortcuts) {
-                        item(key = "raccourcis", span = { GridItemSpan(maxLineSpan) }) { ShortcutList(state.shortcuts, onOpen = { openShortcut(it) }) }
+                        item(key = "raccourcis", span = { GridItemSpan(maxLineSpan) }) { ShortcutRows(state.shortcuts, onOpen = { openShortcut(it) }) }
                     }
                     if (state.results.isNotEmpty()) {
                         item(key = "compte", span = { GridItemSpan(maxLineSpan) }) {
@@ -260,59 +259,5 @@ fun SearchScreen(
             },
             onDismiss = { confirm = null },
         )
-    }
-}
-
-/** Les raccourcis, groupés par classement (« Véhicule », « Papiers »…) : chaque raccourci montre sa photo en vignette, un appui l'ouvre. */
-@Composable
-internal fun ShortcutList(items: List<ShortcutItem>, onOpen: (ShortcutItem) -> Unit, heading: String? = null) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (heading != null) {
-            Text(heading, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 6.dp, top = 4.dp))
-        }
-        items.groupBy { it.shortcut.category }.forEach { (category, list) ->
-            Text(
-                category,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 6.dp, top = 4.dp),
-            )
-            list.chunked(2).forEach { pair ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    pair.forEach { ShortcutTile(it, Modifier.weight(1f)) { onOpen(it) } }
-                    if (pair.size == 1) Spacer(Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
-
-/** Un bouton raccourci : la photo en entier (pour lire une plaque, un numéro…) et son nom en bas. */
-@Composable
-private fun ShortcutTile(item: ShortcutItem, modifier: Modifier, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(18.dp)
-    val file = item.file
-    Box(
-        modifier
-            .aspectRatio(1.3f)
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(enabled = file != null, onClick = onClick),
-    ) {
-        if (file != null) Thumb(file, 900, Modifier.fillMaxSize(), scale = ContentScale.Fit)
-        else Text(
-            "Photo introuvable\n(corbeille, à l'écart ou effacée)",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.align(Alignment.Center).padding(12.dp),
-        )
-        Box(Modifier.matchParentSize().background(Brush.verticalGradient(0.62f to Color.Transparent, 1f to Color(0xCC000000))))
-        Row(Modifier.align(Alignment.BottomStart).padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFD54F), modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(item.shortcut.name, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 2)
-        }
     }
 }

@@ -204,8 +204,14 @@ fun BrowseScreen(
     onUndoMove: () -> Unit,
     onSearch: () -> Unit,
     onTakePhoto: () -> Unit,
+    onOpenShortcut: (String) -> Unit,
+    onSaveShortcut: (name: String, category: String, words: String, replacing: Shortcut?) -> Unit,
+    onRemoveShortcut: (Shortcut) -> Unit,
+    categories: () -> List<String>,
     tabs: @Composable () -> Unit,
 ) {
+    var editing by remember { mutableStateOf<ShortcutItem?>(null) }
+    var creating by remember { mutableStateOf(false) }
     var drawerOpen by rememberSaveable { mutableStateOf(true) }
     var selecting by remember(state) { mutableStateOf(false) }
     var selectedFolders by remember(state) { mutableStateOf(emptySet<String>()) }
@@ -292,11 +298,9 @@ fun BrowseScreen(
                         state.shortcuts,
                         open = drawerOpen,
                         onToggle = { drawerOpen = !drawerOpen },
-                        onOpen = { item ->
-                            val files = state.shortcuts.mapNotNull { it.file }
-                            val index = files.indexOf(item.file)
-                            if (index >= 0) onOpen(files, index)
-                        },
+                        onOpen = { onOpenShortcut(it.shortcut.words) },
+                        onEdit = { editing = it },
+                        onCreate = { creating = true },
                     )
                 }
                 if (state.folders.isNotEmpty()) {
@@ -342,6 +346,33 @@ fun BrowseScreen(
             onDismiss = { confirm = null },
         )
     }
+
+    if (creating) {
+        ShortcutDialog(
+            initial = null,
+            categories = categories(),
+            onSave = { name, category, words ->
+                creating = false
+                onSaveShortcut(name, category, words, null)
+            },
+            onDismiss = { creating = false },
+        )
+    }
+    editing?.let { item ->
+        ShortcutDialog(
+            initial = item.shortcut,
+            categories = categories(),
+            onSave = { name, category, words ->
+                editing = null
+                onSaveShortcut(name, category, words, item.shortcut)
+            },
+            onRemove = {
+                editing = null
+                onRemoveShortcut(item.shortcut)
+            },
+            onDismiss = { editing = null },
+        )
+    }
 }
 
 /** Le grand bouton « Prendre une photo », tout en haut de la page d'accueil des photos. */
@@ -376,39 +407,56 @@ private fun CameraCard(onClick: () -> Unit) {
     }
 }
 
-/** Le tiroir des raccourcis : un appui l'ouvre ou le ferme ; dedans, une vignette par raccourci, classée par catégorie. */
+/**
+ * Le menu déroulant des raccourcis : un appui sur l'en-tête l'ouvre ou le ferme. Dedans, un grand bouton coloré par raccourci
+ * avec le nombre de photos à droite ; appui = voir les photos, appui long = modifier ou retirer. En bas : « Nouveau raccourci ».
+ */
 @Composable
-private fun ShortcutDrawer(items: List<ShortcutItem>, open: Boolean, onToggle: () -> Unit, onOpen: (ShortcutItem) -> Unit) {
+private fun ShortcutDrawer(
+    items: List<ShortcutItem>,
+    open: Boolean,
+    onToggle: () -> Unit,
+    onOpen: (ShortcutItem) -> Unit,
+    onEdit: (ShortcutItem) -> Unit,
+    onCreate: () -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
     ) {
         Column {
             Row(
-                Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(horizontal = 16.dp, vertical = 14.dp),
+                Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(horizontal = 18.dp, vertical = 18.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFE0A800), modifier = Modifier.size(22.dp))
-                Spacer(Modifier.width(10.dp))
-                Text("Raccourcis", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                if (items.isNotEmpty()) Text(items.size.toString(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.width(10.dp))
-                Text(if (open) "▴" else "▾", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Raccourcis", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                if (items.isNotEmpty()) {
+                    Text(items.size.toString(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(12.dp))
+                }
+                Text(if (open) "▴" else "▾", fontSize = 18.sp, color = MaterialTheme.colorScheme.primary)
             }
             if (open) {
-                Box(Modifier.padding(start = 10.dp, end = 10.dp, bottom = 12.dp)) {
+                Column(Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (items.isEmpty()) {
                         Text(
-                            "Aucun raccourci pour l'instant. Ouvrez une photo et touchez l'étoile : donnez-lui un nom (par exemple « Immatriculation ») et un classement (« Véhicule »).",
+                            "Aucun raccourci pour l'instant. Un raccourci est une recherche enregistrée : par exemple « Immatriculation » montre toutes les photos qui portent ce mot, avec leur nombre.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 6.dp),
                         )
                     } else {
-                        ShortcutList(items, onOpen)
+                        ShortcutRows(items, onOpen = onOpen, onLongClick = onEdit)
+                        Text(
+                            "Appui long sur un raccourci : le modifier ou le retirer.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        )
                     }
+                    TextButton(onClick = onCreate) { Text("+ Nouveau raccourci", fontWeight = FontWeight.Bold) }
                 }
             }
         }
@@ -712,10 +760,8 @@ fun ViewerScreen(
     onClose: () -> Unit,
     onMove: (MoveKind, File) -> Unit,
     onRename: (File, String) -> Unit,
-    shortcutOf: (File) -> Shortcut?,
     categories: () -> List<String>,
-    onSaveShortcut: (File, String, String) -> Unit,
-    onRemoveShortcut: (Shortcut) -> Unit,
+    onSaveShortcut: (name: String, category: String, words: String) -> Unit,
 ) {
     BackHandler { onClose() }
     val context = LocalContext.current
@@ -761,13 +807,9 @@ fun ViewerScreen(
                     IconButton(onClick = { renaming = true }) {
                         Icon(Icons.Default.Edit, contentDescription = "Renommer", tint = Color.White)
                     }
-                    // Étoile jaune : cette photo a déjà un raccourci.
+                    // Étoile : créer un raccourci (une recherche enregistrée) d'après cette photo.
                     IconButton(onClick = { shortcutDialog = true }) {
-                        Icon(
-                            Icons.Default.Star,
-                            contentDescription = "Raccourci",
-                            tint = if (shortcutOf(current) != null) Color(0xFFFFD54F) else Color.White,
-                        )
+                        Icon(Icons.Default.Star, contentDescription = "Créer un raccourci", tint = Color.White)
                     }
                     IconButton(onClick = { confirm = MoveKind.ASIDE }) {
                         Icon(Icons.Default.Lock, contentDescription = "Mettre à l'écart", tint = Color.White)
@@ -833,61 +875,16 @@ fun ViewerScreen(
     if (shortcutDialog) {
         val target = state.files.getOrNull(pager.currentPage)
         if (target != null) {
-            val existing = shortcutOf(target)
-            var name by remember(target) { mutableStateOf(existing?.name ?: Shortcuts.suggestName(target.name)) }
-            var category by remember(target) { mutableStateOf(existing?.category ?: Shortcuts.suggestCategory(target.name)) }
-            AlertDialog(
-                onDismissRequest = { shortcutDialog = false },
-                title = { Text(if (existing != null) "Raccourci de cette photo" else "Créer un raccourci") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedTextField(
-                            value = name,
-                            onValueChange = { name = it },
-                            singleLine = true,
-                            label = { Text("Nom du raccourci") },
-                            placeholder = { Text("Immatriculation") },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        OutlinedTextField(
-                            value = category,
-                            onValueChange = { category = it },
-                            singleLine = true,
-                            label = { Text("Classer dans") },
-                            placeholder = { Text("Véhicule") },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            categories().forEach { c ->
-                                FilterChip(
-                                    selected = Gallery.normalize(category.trim()) == Gallery.normalize(c),
-                                    onClick = { category = c },
-                                    label = { Text(c) },
-                                )
-                            }
-                        }
-                        Text(
-                            "La photo reste où elle est : le raccourci se retrouve avec la loupe de l'onglet Photos, sous le nom de son classement.",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                        if (existing != null) {
-                            TextButton(onClick = {
-                                shortcutDialog = false
-                                onRemoveShortcut(existing)
-                            }) { Text("Retirer ce raccourci") }
-                        }
-                    }
+            ShortcutDialog(
+                initial = null,
+                suggestedName = Shortcuts.suggestName(target.name),
+                suggestedCategory = Shortcuts.suggestCategory(target.name),
+                categories = categories(),
+                onSave = { name, category, words ->
+                    shortcutDialog = false
+                    onSaveShortcut(name, category, words)
                 },
-                confirmButton = {
-                    TextButton(
-                        enabled = name.isNotBlank(),
-                        onClick = {
-                            shortcutDialog = false
-                            onSaveShortcut(target, name, category)
-                        },
-                    ) { Text("Enregistrer", fontWeight = FontWeight.Bold) }
-                },
-                dismissButton = { TextButton(onClick = { shortcutDialog = false }) { Text("Annuler") } },
+                onDismiss = { shortcutDialog = false },
             )
         }
     }
