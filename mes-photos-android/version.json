@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V12",
+  "version": "V13",
   "date": "08/10/2026",
   "nouveautes": [
+    "Raccourcis : ouvrez une photo, touchez l'étoile, donnez un nom (ex. Immatriculation) et un classement (ex. Véhicule). Ils apparaissent dès que vous touchez la loupe.",
     "Renommer une photo : ouvrez-la, touchez le crayon. La recherche par nom est de retour : loupe en haut de l'onglet Photos.",
     "Zoom des photos corrigé (V10-V11).",
-    "Nouvelle présentation façon appli photo (V9).",
-    "Doublons : sélection automatique et dossier unique (V7-V8)."
+    "Nouvelle présentation façon appli photo (V9)."
   ],
   "pastille": false,
   "fichiers": []

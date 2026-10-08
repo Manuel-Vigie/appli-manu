@@ -24,6 +24,8 @@ import fr.mesphotos.logic.PlaceNamer
 import fr.mesphotos.logic.RenameNames
 import fr.mesphotos.logic.PlannedMove
 import fr.mesphotos.logic.Planner
+import fr.mesphotos.logic.Shortcut
+import fr.mesphotos.logic.Shortcuts
 import fr.mesphotos.model.PhotoInfo
 import fr.mesphotos.organize.FolderCleanup
 import fr.mesphotos.organize.Organizer
@@ -126,6 +128,8 @@ sealed interface UiState {
         val results: List<File>,
         val message: String? = null,
         val undoTrash: Int = 0,
+        /** Les raccourcis : tous quand rien n'est tapé, sinon ceux dont le nom ou le classement correspond. */
+        val shortcuts: List<Shortcut> = emptyList(),
     ) : UiState
 
     /** Accueil de la recherche par visage : combien de photos ont déjà été regardées. */
@@ -211,6 +215,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var suggestionCount = 0
     private var scanJob: Job? = null
     private val nudityCache by lazy { NudityCache(File(getApplication<Application>().filesDir, "nudite.tsv")) }
+    private val shortcuts by lazy { Shortcuts(File(getApplication<Application>().filesDir, "raccourcis.tsv")).also { it.load() } }
 
     // Mise à jour
     var updateMessage: String? = null
@@ -784,7 +789,46 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val results = if (terms.isEmpty()) emptyList() else withContext(Dispatchers.Default) {
             index.filter { Gallery.matches(it.text, terms) }.map { it.file }
         }
-        _state.value = UiState.Search(query, results, message, undoCount)
+        val matchingShortcuts = if (terms.isEmpty()) shortcuts.all() else shortcuts.matching(terms)
+        _state.value = UiState.Search(query, results, message, undoCount, matchingShortcuts)
+    }
+
+    // ---- Raccourcis ----------------------------------------------------------------------------
+    // Un raccourci = un nom + un classement (« Immatriculation » dans « Véhicule ») qui mène droit à une photo.
+    // Rien n'est copié ni déplacé : la photo reste là où elle est.
+
+    fun shortcutFor(file: File): Shortcut? = shortcuts.forFile(file)
+
+    /** Les classements déjà utilisés, puis quelques idées. */
+    fun shortcutCategories(): List<String> =
+        (shortcuts.categories() + Shortcuts.SUGGESTIONS).distinctBy { Gallery.normalize(it) }
+
+    fun saveShortcut(file: File, name: String, category: String) {
+        val made = shortcuts.put(file, name, category)
+        val viewer = _state.value as? UiState.Viewer ?: return
+        val message = if (made == null) "Le nom est vide : rien n'a changé."
+        else "Raccourci « ${made.name} » enregistré dans « ${made.category} ». Retrouvez-le avec la loupe de l'onglet Photos."
+        _state.value = viewer.copy(message = message)
+    }
+
+    fun removeShortcut(shortcut: Shortcut) {
+        shortcuts.remove(shortcut)
+        val viewer = _state.value as? UiState.Viewer ?: return
+        _state.value = viewer.copy(message = "Raccourci « ${shortcut.name} » retiré. La photo n'a pas bougé.")
+    }
+
+    /** Ouvre la photo d'un raccourci ; si elle a changé de place ou de nom, on la retrouve. */
+    fun openShortcut(shortcut: Shortcut) {
+        val current = place ?: return
+        val query = searchQuery
+        viewModelScope.launch {
+            val file = withContext(Dispatchers.IO) { shortcuts.resolve(shortcut) { Gallery.allMedia(current.outputDir) } }
+            if (file == null) {
+                showSearch(query, "La photo du raccourci « ${shortcut.name} » est introuvable (peut-être à la corbeille ou à l'écart). Vous pouvez la remettre, ou refaire le raccourci avec une autre photo.")
+            } else {
+                openViewer(listOf(file), 0)
+            }
+        }
     }
 
     // ---- Renommer une photo --------------------------------------------------------------------
@@ -811,6 +855,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (!file.renameTo(target) || !target.isFile || file.exists()) return null to "Impossible de renommer cette photo."
         MediaScannerConnection.scanFile(getApplication(), arrayOf(file.absolutePath, target.absolutePath), null, null)
         updateJournalPath(file, target)
+        shortcuts.renamed(file, target)
         val note = if (keepDate && target.name.contains(file.nameWithoutExtension, ignoreCase = true)) {
             "\nL'ancien nom (avec la date) est gardé à la suite, pour que la photo reste classée au bon jour."
         } else ""

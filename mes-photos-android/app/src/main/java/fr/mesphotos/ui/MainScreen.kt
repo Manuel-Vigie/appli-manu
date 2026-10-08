@@ -141,11 +141,16 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onClose = viewModel::closeViewer,
                     onMove = { kind, file -> viewModel.moveSelection(kind, emptySet(), listOf(file)) },
                     onRename = viewModel::renameFile,
+                    shortcutOf = viewModel::shortcutFor,
+                    categories = viewModel::shortcutCategories,
+                    onSaveShortcut = viewModel::saveShortcut,
+                    onRemoveShortcut = viewModel::removeShortcut,
                 )
                 is UiState.Search -> SearchScreen(
                     s,
                     onSearch = viewModel::search,
                     onBack = viewModel::openGallery,
+                    onOpenShortcut = viewModel::openShortcut,
                     onOpen = viewModel::openViewer,
                     onMove = viewModel::moveSelection,
                     onUndoMove = viewModel::undoMove,

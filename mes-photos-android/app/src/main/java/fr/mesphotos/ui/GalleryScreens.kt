@@ -10,6 +10,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +44,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -83,6 +86,7 @@ import androidx.core.content.FileProvider
 import fr.mesphotos.gallery.FolderItem
 import fr.mesphotos.gallery.Gallery
 import fr.mesphotos.gallery.Thumbs
+import fr.mesphotos.logic.Shortcut
 import fr.mesphotos.organize.TrashEntry
 import fr.mesphotos.storage.PhotoFiles
 import kotlinx.coroutines.delay
@@ -606,11 +610,21 @@ fun FaceResultsScreen(
 // ---- Visionneuse plein écran ---------------------------------------------------------------------
 
 @Composable
-fun ViewerScreen(state: UiState.Viewer, onClose: () -> Unit, onMove: (MoveKind, File) -> Unit, onRename: (File, String) -> Unit) {
+fun ViewerScreen(
+    state: UiState.Viewer,
+    onClose: () -> Unit,
+    onMove: (MoveKind, File) -> Unit,
+    onRename: (File, String) -> Unit,
+    shortcutOf: (File) -> Shortcut?,
+    categories: () -> List<String>,
+    onSaveShortcut: (File, String, String) -> Unit,
+    onRemoveShortcut: (Shortcut) -> Unit,
+) {
     BackHandler { onClose() }
     val context = LocalContext.current
     var confirm by remember { mutableStateOf<MoveKind?>(null) }
     var renaming by remember { mutableStateOf(false) }
+    var shortcutDialog by remember { mutableStateOf(false) }
     val pager = rememberPagerState(initialPage = state.index.coerceIn(0, (state.files.size - 1).coerceAtLeast(0))) { state.files.size }
     // Photo agrandie : le doigt fait glisser la photo au lieu de passer à la suivante.
     var zoomed by remember { mutableStateOf(false) }
@@ -649,6 +663,14 @@ fun ViewerScreen(state: UiState.Viewer, onClose: () -> Unit, onMove: (MoveKind, 
                 if (current != null) {
                     IconButton(onClick = { renaming = true }) {
                         Icon(Icons.Default.Edit, contentDescription = "Renommer", tint = Color.White)
+                    }
+                    // Étoile jaune : cette photo a déjà un raccourci.
+                    IconButton(onClick = { shortcutDialog = true }) {
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = "Raccourci",
+                            tint = if (shortcutOf(current) != null) Color(0xFFFFD54F) else Color.White,
+                        )
                     }
                     IconButton(onClick = { confirm = MoveKind.ASIDE }) {
                         Icon(Icons.Default.Lock, contentDescription = "Mettre à l'écart", tint = Color.White)
@@ -708,6 +730,67 @@ fun ViewerScreen(state: UiState.Viewer, onClose: () -> Unit, onMove: (MoveKind, 
                     }) { Text("Renommer", fontWeight = FontWeight.Bold) }
                 },
                 dismissButton = { TextButton(onClick = { renaming = false }) { Text("Annuler") } },
+            )
+        }
+    }
+    if (shortcutDialog) {
+        val target = state.files.getOrNull(pager.currentPage)
+        if (target != null) {
+            val existing = shortcutOf(target)
+            var name by remember(target) { mutableStateOf(existing?.name ?: "") }
+            var category by remember(target) { mutableStateOf(existing?.category ?: "") }
+            AlertDialog(
+                onDismissRequest = { shortcutDialog = false },
+                title = { Text(if (existing != null) "Raccourci de cette photo" else "Créer un raccourci") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            singleLine = true,
+                            label = { Text("Nom du raccourci") },
+                            placeholder = { Text("Immatriculation") },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedTextField(
+                            value = category,
+                            onValueChange = { category = it },
+                            singleLine = true,
+                            label = { Text("Classer dans") },
+                            placeholder = { Text("Véhicule") },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            categories().forEach { c ->
+                                FilterChip(
+                                    selected = Gallery.normalize(category.trim()) == Gallery.normalize(c),
+                                    onClick = { category = c },
+                                    label = { Text(c) },
+                                )
+                            }
+                        }
+                        Text(
+                            "La photo reste où elle est : le raccourci se retrouve avec la loupe de l'onglet Photos, sous le nom de son classement.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        if (existing != null) {
+                            TextButton(onClick = {
+                                shortcutDialog = false
+                                onRemoveShortcut(existing)
+                            }) { Text("Retirer ce raccourci") }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = name.isNotBlank(),
+                        onClick = {
+                            shortcutDialog = false
+                            onSaveShortcut(target, name, category)
+                        },
+                    ) { Text("Enregistrer", fontWeight = FontWeight.Bold) }
+                },
+                dismissButton = { TextButton(onClick = { shortcutDialog = false }) { Text("Annuler") } },
             )
         }
     }

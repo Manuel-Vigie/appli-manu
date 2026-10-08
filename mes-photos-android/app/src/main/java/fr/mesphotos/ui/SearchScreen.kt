@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -21,6 +24,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,21 +46,24 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.mesphotos.gallery.Gallery
+import fr.mesphotos.logic.Shortcut
 import kotlinx.coroutines.delay
 import java.io.File
 
-// ---- Recherche par mots (nom du fichier, album, ville, mois, année) ---------------------------------
+// ---- Recherche par mots (nom du fichier, album, ville, mois, année) et raccourcis -------------------
 
 @Composable
 fun SearchScreen(
     state: UiState.Search,
     onSearch: (String) -> Unit,
     onBack: () -> Unit,
+    onOpenShortcut: (Shortcut) -> Unit,
     onOpen: (List<File>, Int) -> Unit,
     onMove: (MoveKind, Set<String>, List<File>) -> Unit,
     onUndoMove: () -> Unit,
@@ -155,16 +164,31 @@ fun SearchScreen(
             }
         }
 
+        val hasShortcuts = state.shortcuts.isNotEmpty()
         when {
-            !hasTerms -> Box(Modifier.weight(1f).fillMaxWidth().padding(28.dp), contentAlignment = Alignment.Center) {
+            !hasTerms && !hasShortcuts -> Box(Modifier.weight(1f).fillMaxWidth().padding(28.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    "Tapez un mot : une ville, un mois, une année ou un bout de nom de fichier.\n\nExemples : « août 2024 », « Nice », « 14 mars », « IMG ».\nPlusieurs mots : on garde les photos qui les contiennent tous.",
+                    "Tapez un mot : une ville, un mois, une année ou un bout de nom de fichier.\n\nExemples : « août 2024 », « Nice », « 14 mars », « IMG ».\nPlusieurs mots : on garde les photos qui les contiennent tous.\n\nAstuce : ouvrez une photo et touchez l'étoile pour en faire un raccourci (par exemple « Immatriculation », classé dans « Véhicule »).",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
             }
-            state.results.isEmpty() -> Box(Modifier.weight(1f).fillMaxWidth().padding(28.dp), contentAlignment = Alignment.Center) {
+            !hasTerms -> LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 24.dp),
+            ) {
+                item { ShortcutList(state.shortcuts, onOpenShortcut) }
+                item {
+                    Text(
+                        "Ou tapez un mot : une ville, un mois, une année, un bout de nom de fichier.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 6.dp, top = 18.dp),
+                    )
+                }
+            }
+            state.results.isEmpty() && !hasShortcuts -> Box(Modifier.weight(1f).fillMaxWidth().padding(28.dp), contentAlignment = Alignment.Center) {
                 Text(
                     "Aucune photo ne correspond à « ${state.query.trim()} ».",
                     style = MaterialTheme.typography.bodyLarge,
@@ -173,12 +197,6 @@ fun SearchScreen(
                 )
             }
             else -> {
-                Text(
-                    if (state.results.size > 1) "${spaced(state.results.size)} photos et vidéos trouvées" else "1 photo ou vidéo trouvée",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 18.dp, top = 12.dp),
-                )
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(104.dp),
                     modifier = Modifier.weight(1f),
@@ -186,6 +204,19 @@ fun SearchScreen(
                     horizontalArrangement = Arrangement.spacedBy(5.dp),
                     verticalArrangement = Arrangement.spacedBy(5.dp),
                 ) {
+                    if (hasShortcuts) {
+                        item(key = "raccourcis", span = { GridItemSpan(maxLineSpan) }) { ShortcutList(state.shortcuts, onOpenShortcut) }
+                    }
+                    if (state.results.isNotEmpty()) {
+                        item(key = "compte", span = { GridItemSpan(maxLineSpan) }) {
+                            Text(
+                                if (state.results.size > 1) "${spaced(state.results.size)} photos et vidéos trouvées" else "1 photo ou vidéo trouvée",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 6.dp, top = 4.dp),
+                            )
+                        }
+                    }
                     itemsIndexed(state.results, key = { _, f -> "r:" + f.absolutePath }) { index, file ->
                         val path = file.absolutePath
                         PhotoTile(
@@ -219,5 +250,34 @@ fun SearchScreen(
             },
             onDismiss = { confirm = null },
         )
+    }
+}
+
+/** Les raccourcis, groupés par classement (« Véhicule », « Papiers »…) : un appui ouvre la photo. */
+@Composable
+private fun ShortcutList(shortcuts: List<Shortcut>, onOpen: (Shortcut) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        shortcuts.groupBy { it.category }.forEach { (category, list) ->
+            Text(
+                category,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 6.dp, top = 6.dp),
+            )
+            list.forEach { shortcut ->
+                Card(
+                    modifier = Modifier.fillMaxWidth().clickable { onOpen(shortcut) },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFE0A800), modifier = Modifier.size(22.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text(shortcut.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
     }
 }
