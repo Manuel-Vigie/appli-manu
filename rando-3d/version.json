@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V43",
+  "version": "V44",
   "date": "07/10/2026",
   "nouveautes": [
+    "Film : étiquettes stables (plus de clignotement, elles apparaissent et disparaissent en douceur et gardent leur côté), plus grosses, plus lisibles, avec un trait plus long. Nouveau : « ＋ Ajouter un lieu » dans la fenêtre du film (nom + position sur le parcours) : il apparaît quand le point passe devant.",
     "Film : un trait bien visible (blanc avec liseré sombre) relie chaque bulle à l'emplacement exact du lieu, marqué par un point bleu.",
     "Film : les étiquettes restent affichées une fois apparues, un peu décollées du lieu (petit trait) pour bien voir le tracé, et légèrement plus grosses.",
-    "Film : étiquettes plus petites, bleu ciel transparent, posées sur le côté du parcours (jamais dessus) pour ne pas gêner la lecture du tracé.",
-    "Film : étiquettes simplifiées — juste des bulles claires avec le nom (bleu clair pour villes et lacs, vert clair pour le départ, jaune pour le sommet…), sans émoticônes."
+    "Film : étiquettes plus petites, bleu ciel transparent, posées sur le côté du parcours (jamais dessus) pour ne pas gêner la lecture du tracé."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v43"
+    "cache": "rr3d-v44"
   },
   "fichiers": [
     "rando-3d.html",
