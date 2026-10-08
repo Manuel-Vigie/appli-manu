@@ -296,10 +296,10 @@ fun BrowseScreen(
             val counts = ArrayList<String>()
             if (state.folders.isNotEmpty()) counts += if (state.folders.size > 1) "${state.folders.size} albums" else "1 album"
             if (state.files.isNotEmpty()) counts += if (state.files.size > 1) "${spaced(state.files.size)} photos et vidéos" else "1 photo ou vidéo"
-            TopBar(
+            if (state.path.isNotEmpty()) TopBar(
                 title = title,
                 subtitle = counts.joinToString("  ·  ").ifEmpty { null },
-                onBack = if (state.path.isEmpty()) null else onUp,
+                onBack = onUp,
             ) {
                 IconButton(onClick = onSearch) { Icon(Icons.Default.Search, contentDescription = "Rechercher") }
                 if (itemCount > 0) TopAction("Choisir") { selecting = true }
@@ -326,8 +326,25 @@ fun BrowseScreen(
         ) {
             // En tête de la page d'accueil des photos : l'appareil photo, puis le tiroir des raccourcis.
             if (!selecting && state.path.isEmpty()) {
-                item(key = "appareil", span = { GridItemSpan(maxLineSpan) }) { CameraCard(onTakePhoto) }
-                item(key = "toutes", span = { GridItemSpan(maxLineSpan) }) { AllPhotosCard(onOpenAll) }
+                item(key = "hero", span = { GridItemSpan(maxLineSpan) }) {
+                    val covers = (state.folders.mapNotNull { it.cover } + state.files).distinct().take(3)
+                    PhotoHero(
+                        title = "Mes photos",
+                        subtitle = counts.joinToString("  ·  ").ifEmpty { null },
+                        covers = covers,
+                        onSearch = onSearch,
+                        onChoose = if (itemCount > 0) ({ selecting = true }) else null,
+                    )
+                }
+                item(key = "pills", span = { GridItemSpan(maxLineSpan) }) {
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Pill(AppIcons.Photos, "Toutes les photos", onOpenAll)
+                        Pill(AppIcons.Camera, "Photographier", onTakePhoto)
+                    }
+                }
                 item(key = "raccourcis", span = { GridItemSpan(maxLineSpan) }) {
                     ShortcutDrawer(
                         state.shortcuts,
@@ -340,7 +357,7 @@ fun BrowseScreen(
                 }
                 if (state.folders.isNotEmpty()) {
                     item(key = "albums", span = { GridItemSpan(maxLineSpan) }) {
-                        Text("Albums", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 6.dp, top = 10.dp))
+                        Text("Albums  ·  ${state.folders.size}", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 6.dp, top = 12.dp, bottom = 2.dp))
                     }
                 }
             }
@@ -417,53 +434,46 @@ fun BrowseScreen(
 }
 
 /** Le grand bouton « Prendre une photo », tout en haut de la page d'accueil des photos. */
-/** Bouton à plat : voir toutes les photos à la suite (pour les choisir, les classer, les mettre au coffre-fort). */
+/** Grande carte du haut de « Photos » : une mosaïque de vos photos avec le titre, la loupe et « Choisir ». */
 @Composable
-private fun AllPhotosCard(onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
+private fun PhotoHero(title: String, subtitle: String?, covers: List<File>, onSearch: () -> Unit, onChoose: (() -> Unit)?) {
+    val shape = RoundedCornerShape(28.dp)
+    Box(
+        Modifier
+            .statusBarsPadding()
+            .fillMaxWidth()
+            .height(210.dp)
+            .clip(shape)
+            .background(Brush.linearGradient(heroColors())),
     ) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Toutes les photos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Tout voir à la suite, choisir, trier, mettre au coffre-fort", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (covers.isNotEmpty()) {
+            Row(Modifier.matchParentSize(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                covers.forEach { Thumb(it, 500, Modifier.weight(1f).fillMaxSize()) }
             }
-            Icon(AppIcons.Photos, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        }
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color(0x66000000), Color(0x22000000), Color(0xE6000000)))))
+        Row(Modifier.align(Alignment.TopEnd).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onSearch) { Icon(Icons.Default.Search, contentDescription = "Rechercher", tint = Color.White) }
+            if (onChoose != null) TextButton(onClick = onChoose) { Text("Choisir", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+        }
+        Column(Modifier.align(Alignment.BottomStart).padding(horizontal = 20.dp, vertical = 16.dp)) {
+            Text(title, color = Color.White, style = MaterialTheme.typography.headlineMedium)
+            if (subtitle != null) Text(subtitle, color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
 
+/** Petit bouton arrondi (« Toutes les photos », « Photographier »). */
 @Composable
-private fun CameraCard(onClick: () -> Unit) {
+private fun Pill(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, onClick: () -> Unit) {
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(50),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Box(
-                Modifier.size(46.dp).clip(RoundedCornerShape(23.dp)).background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(AppIcons.Camera, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(26.dp))
-            }
-            Column(Modifier.weight(1f)) {
-                Text("Prendre une photo", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Text(
-                    "Choisissez ce que vous photographiez : elle sera facile à retrouver.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
+            Text(text, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
         }
     }
 }

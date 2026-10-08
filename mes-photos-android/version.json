@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V37",
+  "version": "V38",
   "date": "08/10/2026",
   "nouveautes": [
+    "Nouvel habillage de l'onglet Photos : une grande carte avec une mosaïque de vos photos, la loupe et « Choisir » dessus, deux petits boutons arrondis (Toutes les photos, Photographier) à la place des grandes cartes, des couleurs moins blanches. Les vignettes carrées sont gardées.",
     "Outils > Recherche > « Trouver les portraits » : repère les photos avec un visage bien visible (Portrait) ou des personnes plus petites (Personnes), vous cochez, puis il renomme et crée les raccourcis. Essayez d'abord sur 20 photos.",
     "Outils > Recherche > « Classer mes photos » : l'appli reconnaît plage, voiture, repas, document… sur le téléphone, vous propose des mots à cocher, puis renomme d'un coup et crée les raccourcis. Essayez d'abord sur 20 photos.",
-    "« Toutes les photos » cache maintenant celles qui sont déjà renommées : il ne reste que celles à faire. Une puce en haut permet de les revoir.",
-    "Après « Renommer », vous voyez tout de suite les photos renommées (liste des photos qui portent le mot), et une case permet de créer le raccourci en même temps."
+    "« Toutes les photos » cache maintenant celles qui sont déjà renommées : il ne reste que celles à faire. Une puce en haut permet de les revoir."
   ],
   "pastille": false,
   "fichiers": []
