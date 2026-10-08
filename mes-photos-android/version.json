@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V42",
+  "version": "V43",
   "date": "08/10/2026",
   "nouveautes": [
+    "Barre du bas à trois boutons : « Accueil » au milieu (revient à la page de départ), « Toutes » les photos à gauche, « Outils » à droite. Elle est maintenant aussi présente dans la recherche et dans « Toutes les photos ».",
     "Retrouver des personnes sans rien déplacer ni renommer : dans la galerie du téléphone, ouvrez le groupe de Najet (Contacts), choisissez ses photos, Partager vers « Mes Photos », tapez « Najet » : l'appli retient le nom, et la loupe ou un raccourci « Najet » montre ces photos.",
     "Remise à zéro : vos raccourcis et la liste de mots sont effacés, et tout ce qui cherchait mal est retiré (onglet Visages, Détection, portraits, classer par contenu). L'appli est plus légère. Le tri se fera avec la galerie du téléphone, via Partager. Vos photos ne sont pas touchées.",
-    "Partager depuis la galerie du téléphone : dans la galerie, cherchez (portrait, plage…), choisissez des photos, touchez Partager puis « Mes Photos » : l'appli les retrouve sur la carte, vous choisissez un mot, et elle les renomme et crée le raccourci.",
-    "Recherche beaucoup plus rapide sur toutes les photos d'un coup : « Trouver les portraits » et « Classer par contenu » (Outils > Recherche) lisent les photos en parallèle, retiennent ce qu'elles ont déjà vu, et ont un bouton « Arrêter et voir ce qui est trouvé »."
+    "Partager depuis la galerie du téléphone : dans la galerie, cherchez (portrait, plage…), choisissez des photos, touchez Partager puis « Mes Photos » : l'appli les retrouve sur la carte, vous choisissez un mot, et elle les renomme et crée le raccourci."
   ],
   "pastille": false,
   "fichiers": []

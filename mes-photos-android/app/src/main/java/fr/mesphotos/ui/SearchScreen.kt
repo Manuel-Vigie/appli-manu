@@ -71,6 +71,7 @@ fun SearchScreen(
     onMove: (MoveKind, Set<String>, List<File>) -> Unit,
     onUndoMove: () -> Unit,
     onRename: (Set<String>, List<File>) -> Unit,
+    tabs: @Composable () -> Unit,
 ) {
     var text by remember { mutableStateOf(state.query) }
     var selecting by remember(state) { mutableStateOf(false) }
@@ -254,6 +255,7 @@ fun SearchScreen(
             onVault = { confirm = MoveKind.VAULT },
             onRename = { onRename(emptySet(), state.results.filter { it.absolutePath in selected }) },
         )
+        else tabs()
     }
 
     confirm?.let { kind ->

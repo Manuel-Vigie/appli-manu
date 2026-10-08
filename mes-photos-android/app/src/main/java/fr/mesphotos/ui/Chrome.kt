@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -93,15 +93,21 @@ fun TopAction(text: String, onClick: () -> Unit) {
     TextButton(onClick = onClick) { Text(text, fontWeight = FontWeight.Bold, fontSize = 16.sp) }
 }
 
-/** Les deux onglets du bas. [selected] : 0 = Photos, 2 = Outils. */
+/** Les trois boutons du bas. [selected] : 0 = Accueil (au milieu), 1 = Toutes les photos, 2 = Outils. */
 @Composable
-fun AppNavBar(selected: Int, onPhotos: () -> Unit, onTools: () -> Unit) {
+fun AppNavBar(selected: Int, onHome: () -> Unit, onAll: () -> Unit, onTools: () -> Unit) {
     NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 3.dp) {
         NavigationBarItem(
-            selected = selected == 0,
-            onClick = onPhotos,
+            selected = selected == 1,
+            onClick = onAll,
             icon = { Icon(AppIcons.Photos, contentDescription = null) },
-            label = { Text("Photos") },
+            label = { Text("Toutes") },
+        )
+        NavigationBarItem(
+            selected = selected == 0,
+            onClick = onHome,
+            icon = { Icon(Icons.Default.Home, contentDescription = null) },
+            label = { Text("Accueil") },
         )
         NavigationBarItem(
             selected = selected == 2,

@@ -163,12 +163,13 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
         }
     }
 
-    // Les deux onglets du bas : Photos, Outils.
+    // Les trois boutons du bas : Toutes les photos, Accueil (au milieu), Outils.
     val tabs: (Int) -> (@Composable () -> Unit) = { selected ->
         {
             AppNavBar(
                 selected = selected,
-                onPhotos = viewModel::openGallery,
+                onHome = viewModel::openGallery,
+                onAll = viewModel::openAllPhotos,
                 onTools = viewModel::backToStart,
             )
         }
@@ -292,12 +293,14 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onBack = viewModel::openGallery,
                     onOrder = viewModel::setAllOrder,
                     onHideRenamed = viewModel::setHideRenamed,
+                    tabs = tabs(1),
                     onOpen = viewModel::openViewer,
                     onMove = viewModel::moveSelection,
                     onUndoMove = viewModel::undoMove,
                     onRename = { folders, files -> renaming = folders to files },
                 ) else SearchScreen(
                     s,
+                    tabs = tabs(0),
                     onSearch = viewModel::search,
                     onBack = viewModel::openGallery,
                     onOpen = viewModel::openViewer,
