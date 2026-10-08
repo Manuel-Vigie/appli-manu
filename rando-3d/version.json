@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V47",
+  "version": "V48",
   "date": "08/10/2026",
   "nouveautes": [
+    "Film : deux étiquettes au même endroit (ex. « Grotte » au bout d'une boucle, déjà occupé par « La Gare ») ne se cachent plus : l'une est décalée automatiquement au-dessus ou en dessous. Les étiquettes restent affichées tant que leur lieu est à l'écran.",
     "Film : « Ajouter un lieu » se fait maintenant sur la carte. Un point orange « Ici » suit le curseur le long du parcours (avec boutons ◀ ▶ pour ajuster au plus près), puis tu donnes le nom.",
     "Film : plus de panneau « Télécharger de nouveau le fichier ? » — chaque film a maintenant un nom unique (avec la date et l'heure).",
-    "Film : durée de 45 s par défaut. Fini le message du bas « Pour quitter le plein écran » : le plein écran ne se lance plus tout seul (bouton ⛶ si besoin), et « Créer le film » répond du premier coup.",
-    "Film : étiquettes stables (plus de clignotement, elles apparaissent et disparaissent en douceur et gardent leur côté), plus grosses, plus lisibles, avec un trait plus long. Nouveau : « ＋ Ajouter un lieu » dans la fenêtre du film (nom + position sur le parcours) : il apparaît quand le point passe devant."
+    "Film : durée de 45 s par défaut. Fini le message du bas « Pour quitter le plein écran » : le plein écran ne se lance plus tout seul (bouton ⛶ si besoin), et « Créer le film » répond du premier coup."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v47"
+    "cache": "rr3d-v48"
   },
   "fichiers": [
     "rando-3d.html",

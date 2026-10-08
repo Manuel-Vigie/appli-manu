@@ -3886,14 +3886,21 @@ function filmLabelDraw(x,W,H,k,m,labs,o){
       dx=c?dx/c:0;
       if(!l.side)l.side=dx>0?-1:1;else if(dx*l.side>16*k)l.side=-l.side;
       const fit=sd=>{const v=sd>0?px+gap:px-gap-w;return v>=3*k&&v+w<=W-3*k?v:null};
-      let sd=l.side;bx=fit(sd);if(bx===null){sd=-sd;bx=fit(sd)}
-      by=py-h/2-12*u;l.sd=sd;
-      if(bx===null||py<.03*H||py>bot||py<top-.02*H||by<.02*H)ok=false;
-      else if(ok){
-        const bb=[bx-3*k,by-3*k,bx+w+3*k,by+h+3*k];
-        if(boxes.some(q=>bb[0]<q[2]&&bb[2]>q[0]&&bb[1]<q[3]&&bb[3]>q[1]))ok=false;else boxes.push(bb);
-      }
+      // si une autre étiquette gêne (ex. deux lieux au même endroit), on décale celle-ci plus haut ou plus bas au lieu de la cacher
+      const base=py-h/2-12*u,step=h+5*k,lo=top,hi=Math.max(top,bot-h),check=ok;
+      const place=s2=>{const v=fit(s2);if(v===null)return null;
+        for(const n of check?[0,-1,1,-2,2,-3,3,-4,4]:[0]){
+          const y=Math.max(lo,Math.min(hi,base+n*step)),bb=[v-3*k,y-3*k,v+w+3*k,y+h+3*k];
+          if(!check||!boxes.some(q=>bb[0]<q[2]&&bb[2]>q[0]&&bb[1]<q[3]&&bb[3]>q[1]))return{bx:v,by:y,bb}}
+        return null};
+      let sd=l.side,res=place(sd);if(!res){res=place(-sd);if(res)sd=-sd}
+      l.sd=sd;
+      if(!res||py<.03*H||py>.97*H)ok=false;
+      else{bx=res.bx;by=res.by;if(ok)boxes.push(res.bb)}
+      if(res){bx=res.bx;by=res.by}else bx=null;
+      if(bx!==null){if(l.by0===undefined)l.by0=by;else l.by0+=(by-l.by0)*.3;by=l.by0}
     }
+    if(l.vis<=.01&&!ok)l.by0=undefined;
     l.vis=Math.max(0,Math.min(1,l.vis+(ok?1:-1)/9));
     if(!pt||bx===null||l.vis<=.01)continue;
     const vis=l.vis,sc=vis>=1?1:Math.max(.01,fBack(vis)),al=Math.min(1,vis*2),side=l.sd;
@@ -4309,7 +4316,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V47", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : « Ajouter un lieu » se fait maintenant sur la carte. Un point orange « Ici » suit le curseur le long du parcours (avec boutons ◀ ▶ pour ajuster au plus près), puis tu donnes le nom.", "Film : plus de panneau « Télécharger de nouveau le fichier ? » — chaque film a maintenant un nom unique (avec la date et l'heure).", "Film : durée de 45 s par défaut. Fini le message du bas « Pour quitter le plein écran » : le plein écran ne se lance plus tout seul (bouton ⛶ si besoin), et « Créer le film » répond du premier coup.", "Film : étiquettes stables (plus de clignotement, elles apparaissent et disparaissent en douceur et gardent leur côté), plus grosses, plus lisibles, avec un trait plus long. Nouveau : « ＋ Ajouter un lieu » dans la fenêtre du film (nom + position sur le parcours) : il apparaît quand le point passe devant."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V48", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : deux étiquettes au même endroit (ex. « Grotte » au bout d'une boucle, déjà occupé par « La Gare ») ne se cachent plus : l'une est décalée automatiquement au-dessus ou en dessous. Les étiquettes restent affichées tant que leur lieu est à l'écran.", "Film : « Ajouter un lieu » se fait maintenant sur la carte. Un point orange « Ici » suit le curseur le long du parcours (avec boutons ◀ ▶ pour ajuster au plus près), puis tu donnes le nom.", "Film : plus de panneau « Télécharger de nouveau le fichier ? » — chaque film a maintenant un nom unique (avec la date et l'heure).", "Film : durée de 45 s par défaut. Fini le message du bas « Pour quitter le plein écran » : le plein écran ne se lance plus tout seul (bouton ⛶ si besoin), et « Créer le film » répond du premier coup."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
