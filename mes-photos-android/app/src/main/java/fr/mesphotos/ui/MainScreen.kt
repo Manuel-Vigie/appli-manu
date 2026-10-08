@@ -180,7 +180,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                 choices = viewModel.tagChoices(),
                 onAdd = viewModel::addTag,
                 onRemove = viewModel::removeTag,
-                onConfirm = { chosen ->
+                onConfirm = { chosen, _ ->
                     askLabel = false
                     takePhoto(Tags.join(chosen))
                 },
@@ -191,13 +191,14 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
             TagDialog(
                 title = "Quel mot ajouter ?",
                 confirmText = "Renommer",
-                help = "Le mot est ajouté devant le nom de chaque photo choisie (« Immatriculation - IMG_….jpg »). Le reste du nom, donc la date, est gardé. Un raccourci du même mot les retrouvera.",
+                help = "Le mot est ajouté devant le nom de chaque photo choisie (« Immatriculation - IMG_….jpg »). Le reste du nom, donc la date, est gardé. Ensuite, vous verrez les photos renommées.",
+                shortcutOption = true,
                 choices = viewModel.tagChoices(),
                 onAdd = viewModel::addTag,
                 onRemove = viewModel::removeTag,
-                onConfirm = { chosen ->
+                onConfirm = { chosen, withShortcut ->
                     renaming = null
-                    viewModel.renameMany(pending.first, pending.second, Tags.join(chosen))
+                    viewModel.renameMany(pending.first, pending.second, Tags.join(chosen), withShortcut)
                 },
                 onDismiss = { renaming = null },
             )
@@ -933,15 +934,18 @@ private fun TagDialog(
     title: String = "Que photographiez-vous ?",
     confirmText: String = "Prendre la photo",
     help: String? = null,
+    /** Vrai : une case « Créer aussi le raccourci » (cochée) est proposée ; sa valeur est donnée à [onConfirm]. */
+    shortcutOption: Boolean = false,
     choices: List<String>,
     onAdd: (String) -> String?,
     onRemove: (String) -> Unit,
-    onConfirm: (List<String>) -> Unit,
+    onConfirm: (List<String>, Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var words by remember { mutableStateOf(choices) }
     var picked by remember { mutableStateOf(emptyList<String>()) }
     var typed by remember { mutableStateOf("") }
+    var makeShortcut by remember { mutableStateOf(true) }
 
     fun addTyped() {
         val tag = onAdd(typed) ?: return
@@ -982,6 +986,15 @@ private fun TagDialog(
                     )
                     TextButton(onClick = { addTyped() }, enabled = typed.isNotBlank()) { Text("Ajouter") }
                 }
+                if (shortcutOption) {
+                    Row(
+                        Modifier.fillMaxWidth().clickable { makeShortcut = !makeShortcut },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        androidx.compose.material3.Checkbox(checked = makeShortcut, onCheckedChange = { makeShortcut = it })
+                        Text("Créer aussi le raccourci (premier mot = nom, deuxième = classement)", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
                 if (picked.isNotEmpty()) {
                     Text("Nom de la photo : " + Tags.join(picked) + " - IMG_…", style = MaterialTheme.typography.bodySmall)
                 }
@@ -995,7 +1008,7 @@ private fun TagDialog(
             TextButton(onClick = {
                 // Un mot tapé mais pas encore ajouté compte aussi.
                 val extra = onAdd(typed)
-                onConfirm(if (extra != null && extra !in picked) picked + extra else picked)
+                onConfirm(if (extra != null && extra !in picked) picked + extra else picked, makeShortcut && shortcutOption)
             }) { Text(confirmText, fontWeight = FontWeight.Bold) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },

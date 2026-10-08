@@ -1063,14 +1063,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     "${countText(result.done)} au coffre-fort. Ils ont quitté la carte et ne se voient plus nulle part ailleurs. Pour les revoir : Outils, « Coffre-fort »."
                 if (result.failed > 0) lines += "${result.failed} fichier(s) n'ont pas pu être mis au coffre et sont restés en place."
                 result.failures.take(2).forEach { lines += it }
-                val message = lines.joinToString("\n")
-                when {
-                    toFaces -> showFaceResults(message)
-                    toDups -> showDupReview(message)
-                    toSearch != null -> showSearch(toSearch, message, 0)
-                    toReview -> showReview(message)
-                    else -> showBrowse(base, message = message)
+                // Le raccourci : premier mot = nom, deuxième = classement ; il cherche le premier mot.
+                val words = label.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                if (makeShortcut && done > 0 && words.isNotEmpty()) {
+                    shortcuts.put(words[0], words.getOrNull(1) ?: "", words[0])
+                    lines += "Raccourci « ${words[0]} » créé (menu Raccourcis, en haut de l'onglet Photos)."
                 }
+                // On montre tout de suite les photos qui portent le mot : celles qu'on vient de renommer y sont, et on sait où on en est.
+                lines += "Voici les photos qui portent « ${words.joinToString(" ")} »."
+                showSearch(words.joinToString(" "), lines.joinToString("\n"), 0)
             } catch (e: Exception) {
                 refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
             }
@@ -1397,22 +1398,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * Le reste du nom est gardé, donc la date aussi ; les photos qui portent déjà ce mot sont laissées telles quelles.
      * Elles ne changent pas de dossier : un raccourci du même mot les retrouve là où elles sont.
      */
-    fun renameMany(folderNames: Set<String>, files: List<File>, label: String) {
+    fun renameMany(folderNames: Set<String>, files: List<File>, label: String, makeShortcut: Boolean = false) {
         val current = place ?: return
         val base = browsePath
-        val toFaces = returnsToFaces()
-        val toDups = returnsToDups()
-        val toSearch = returnQuery()
-        val toReview = returnsToReview()
         val workingLabel = "Renommage…"
         viewModelScope.launch {
             try {
                 if (label.isBlank()) {
                     val msg = "Aucun mot choisi : rien n'a été renommé."
-                    when {
-                        toSearch != null -> showSearch(toSearch, msg)
-                        else -> showBrowse(base, message = msg)
-                    }
+                    showBrowse(base, message = msg)
                     return@launch
                 }
                 _state.value = UiState.Working(workingLabel, 0, 0)
@@ -1449,14 +1443,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 lines += if (done == 0) "Rien n'a été renommé." else "${countText(done)} renommé(s) : « ${label.trim()} - … ». Un raccourci « ${label.trim()} » les retrouve."
                 if (already > 0) lines += "${countText(already)} portaient déjà ce mot."
                 if (failed > 0) lines += "$failed fichier(s) n'ont pas pu être renommés et sont restés tels quels."
-                val message = lines.joinToString("\n")
-                when {
-                    toFaces -> showFaceResults(message)
-                    toDups -> showDupReview(message)
-                    toSearch != null -> showSearch(toSearch, message, 0)
-                    toReview -> showReview(message)
-                    else -> showBrowse(base, message = message)
+                val words = label.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                if (makeShortcut && done > 0 && words.isNotEmpty()) {
+                    shortcuts.put(words[0], words.getOrNull(1) ?: "", words[0])
+                    lines += "Raccourci « ${words[0]} » créé (menu Raccourcis, en haut de l'onglet Photos)."
                 }
+                lines += "Voici les photos qui portent « ${words.joinToString(" ")} »."
+                showSearch(words.joinToString(" "), lines.joinToString("\n"), 0)
             } catch (e: Exception) {
                 refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
             }
