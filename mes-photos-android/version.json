@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V16",
+  "version": "V17",
   "date": "08/10/2026",
   "nouveautes": [
+    "Correctif : les photos prises avec l'appli étaient introuvables. Elles sont maintenant dans « Photos rangées / Photos à trier », visibles tout de suite, et la photo s'ouvre dès qu'elle est prise. Les anciennes photos prises sont ramenées au même endroit.",
     "Appareil photo en haut de l'onglet Photos. Avant la photo, cochez plusieurs mots (Immatriculation, Véhicule, Montagne…) ou ajoutez les vôtres : la loupe retrouve la photo par chacun.",
     "Tiroir « Raccourcis » : on l'ouvre ou on le ferme, une vignette par raccourci, classés par catégorie.",
-    "Prendre une photo : onglet Outils, « Prendre une photo ». L'appareil photo du téléphone s'ouvre et la photo est enregistrée sur la carte SD, dans « Photos à trier », prête à être rangée par date.",
-    "Raccourcis : ouvrez une photo, touchez l'étoile, donnez un nom (ex. Immatriculation) et un classement (ex. Véhicule). Ils apparaissent dès que vous touchez la loupe."
+    "Prendre une photo : onglet Outils, « Prendre une photo ». L'appareil photo du téléphone s'ouvre et la photo est enregistrée sur la carte SD, dans « Photos à trier », prête à être rangée par date."
   ],
   "pastille": false,
   "fichiers": []

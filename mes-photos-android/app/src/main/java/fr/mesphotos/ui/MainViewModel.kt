@@ -294,6 +294,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val found = withContext(Dispatchers.IO) {
                 trashCount = runCatching { trashOf(current).count() }.getOrDefault(0)
                 asideCount = runCatching { stashOf(current, MoveKind.ASIDE).count() }.getOrDefault(0)
+                runCatching { moveOldShots(current) }
                 if (scanJob?.isActive != true) suggestionCount = runCatching { currentSuggestions(current).size }.getOrDefault(0)
                 runCatching { scanner.counts(current) }.getOrDefault(0 to 0)
             }
@@ -352,20 +353,53 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun removeTag(tag: String) = tags.remove(tag)
 
-    /** Retour de l'appareil photo : [ok] vrai si la photo a été prise. */
+    /** Ramène dans « Photos rangées / Photos à trier » les photos prises avant la V17 (elles étaient à la racine de la carte, hors de la galerie). */
+    private fun moveOldShots(current: Place) {
+        val old = current.legacyCaptureDir
+        val files = old.listFiles { f -> f.isFile && PhotoFiles.mimeOf(f) != null && f.length() > 0 } ?: return
+        if (files.isEmpty()) return
+        val dir = current.captureDir
+        if (!dir.isDirectory && !dir.mkdirs()) return
+        val touched = ArrayList<String>()
+        for (f in files) {
+            val target = RenameNames.unique(dir, f.name)
+            if (f.renameTo(target) && target.isFile && !f.exists()) {
+                touched += f.absolutePath
+                touched += target.absolutePath
+            }
+        }
+        if (touched.isNotEmpty()) MediaScannerConnection.scanFile(getApplication(), touched.toTypedArray(), null, null)
+        old.delete() // ne réussit que si le dossier est vide
+    }
+
+    /** Retour de l'appareil photo : [ok] vrai si la photo a été prise. On montre tout de suite la photo enregistrée. */
     fun photoTaken(file: File, ok: Boolean) {
         if (ok && file.isFile && file.length() > 0) {
             MediaScannerConnection.scanFile(getApplication(), arrayOf(file.absolutePath), null, null)
-            refresh("Photo enregistrée sur la carte, dans « ${Place.CAPTURE_DIR} » (${file.name}). Touchez « Ranger » pour la classer par date.")
+            val current = place
+            viewModelScope.launch {
+                searchIndex = null
+                val folder = file.parentFile
+                val siblings = withContext(Dispatchers.IO) { if (folder != null) Gallery.media(folder) else listOf(file) }
+                val files = if (siblings.any { it.absolutePath == file.absolutePath }) siblings else siblings + file
+                val path = if (current != null && folder != null) folder.toRelativeString(current.outputDir).split('/').filter { it.isNotEmpty() } else emptyList()
+                browsePath = path
+                _state.value = UiState.Viewer(
+                    path, files, files.indexOfFirst { it.absolutePath == file.absolutePath }.coerceAtLeast(0),
+                    message = "Photo enregistrée dans « Photos rangées / ${Place.CAPTURE_DIR} » : ${file.name}.\nTouchez l'étoile pour en faire un raccourci.",
+                )
+            }
             return
         }
         // Photo annulée, ou appareil photo qui n'a pas écrit au bon endroit : on ne laisse pas de fichier vide.
         if (file.isFile && file.length() == 0L) file.delete()
         if (ok) {
             refresh(
-                "L'appareil photo du téléphone n'a pas enregistré la photo à l'endroit prévu (« ${Place.CAPTURE_DIR} » sur la carte). Rien n'a été perdu ni déplacé.",
+                "L'appareil photo du téléphone n'a pas enregistré la photo à l'endroit prévu (« ${Place.CAPTURE_DIR} » sur la carte). Rien n'a été perdu ni déplacé. Si la photo a été prise, regardez dans la galerie du téléphone.",
                 isError = true,
             )
+        } else {
+            refresh("Aucune photo enregistrée : l'appareil photo a été fermé sans prendre de photo. Si elle a été prise quand même, regardez dans la galerie du téléphone.")
         }
     }
 

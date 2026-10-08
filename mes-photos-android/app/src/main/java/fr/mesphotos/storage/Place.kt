@@ -13,8 +13,14 @@ data class Place(
     val scanRoots: List<File> get() = listOf(root)
     val outputDir: File get() = File(root, OUTPUT_DIR)
 
-    /** Là où vont les photos prises avec l'appli : hors de « Photos rangées », donc « à ranger » au prochain rangement par date. */
-    val captureDir: File get() = File(root, CAPTURE_DIR)
+    /**
+     * Là où vont les photos prises avec l'appli : dans « Photos rangées », donc visibles tout de suite dans la galerie et la loupe.
+     * Le prochain « Ranger » les classe par date, comme toutes les autres.
+     */
+    val captureDir: File get() = File(outputDir, CAPTURE_DIR)
+
+    /** Où elles allaient avant la V17 (à la racine de la carte, donc invisibles dans l'appli) : on les ramène dans [captureDir]. */
+    val legacyCaptureDir: File get() = File(root, CAPTURE_DIR)
 
     companion object {
         const val OUTPUT_DIR = "Photos rangées"
