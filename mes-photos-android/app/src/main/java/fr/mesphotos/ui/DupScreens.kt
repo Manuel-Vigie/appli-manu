@@ -107,6 +107,18 @@ fun DupReviewScreen(
                 contentPadding = PaddingValues(14.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                item(key = "auto") {
+                    val automatic = state.groups.map { it.keep.absolutePath }
+                    Section(MaterialTheme.colorScheme.secondaryContainer) {
+                        Title("Sélection automatique")
+                        Body("L'appli garde la meilleure photo de chaque groupe (l'original) et sélectionne toutes les autres : ${spaced(toDelete.size)} copie(s) marquées « Corbeille ».")
+                        SoftButton(
+                            "Sélectionner automatiquement tous les doublons",
+                            { keeps = automatic },
+                            enabled = keeps != automatic,
+                        )
+                    }
+                }
                 itemsIndexed(state.groups, key = { _, g -> "g:" + g.keep.absolutePath }) { index, group ->
                     GroupCard(group, keepPath = keeps.getOrNull(index), onKeep = { path ->
                         keeps = keeps.toMutableList().also { it[index] = path }

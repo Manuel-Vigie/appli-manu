@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V7",
+  "version": "V8",
   "date": "07/10/2026",
   "nouveautes": [
-    "Doublons : tous dans un seul dossier « Doublons », et un écran pour les comparer groupe par groupe. L'appli propose la meilleure photo à garder, vous vérifiez, puis les copies vont à la corbeille.",
+    "Doublons : bouton « Sélectionner automatiquement tous les doublons » (l'original est toujours gardé).",
+    "Doublons dans un seul dossier et écran de comparaison (V7).",
     "Recherche par visage (V6).",
-    "Les copies identiques ne restent plus en vrac (V5).",
-    "Recherche automatique de personnes nues (V4)."
+    "Les copies identiques ne restent plus en vrac (V5)."
   ],
   "pastille": false,
   "fichiers": []
