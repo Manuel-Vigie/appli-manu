@@ -53,6 +53,7 @@ fun AllPhotosScreen(
     onOpen: (List<File>, Int) -> Unit,
     onMove: (MoveKind, Set<String>, List<File>) -> Unit,
     onUndoMove: () -> Unit,
+    onRename: (Set<String>, List<File>) -> Unit,
 ) {
     var selecting by remember(state) { mutableStateOf(false) }
     var selected by remember(state) { mutableStateOf(emptySet<String>()) }
@@ -143,7 +144,13 @@ fun AllPhotosScreen(
             }
         }
 
-        if (selecting) MoveBar(selected.size, onAside = { confirm = MoveKind.ASIDE }, onTrash = { confirm = MoveKind.TRASH }, onVault = { confirm = MoveKind.VAULT })
+        if (selecting) MoveBar(
+            selected.size,
+            onAside = { confirm = MoveKind.ASIDE },
+            onTrash = { confirm = MoveKind.TRASH },
+            onVault = { confirm = MoveKind.VAULT },
+            onRename = { onRename(emptySet(), state.results.filter { it.absolutePath in selected }) },
+        )
     }
 
     confirm?.let { kind ->

@@ -130,7 +130,7 @@ internal fun SelectionHeader(selectedCount: Int, allSelected: Boolean, onCancel:
 
 /** Barre du bas en mode « Choisir » : « À l'écart » (rangées à part) ou « Corbeille ». */
 @Composable
-internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNotThat: (() -> Unit)? = null, onVault: (() -> Unit)? = null) {
+internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNotThat: (() -> Unit)? = null, onVault: (() -> Unit)? = null, onRename: (() -> Unit)? = null) {
     Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp, tonalElevation = 2.dp) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).navigationBarsPadding(),
@@ -159,16 +159,32 @@ internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNot
                     Text("Corbeille", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 }
             }
-            if (onVault != null) {
-                FilledTonalButton(
-                    onClick = onVault,
-                    enabled = count > 0,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(18.dp),
-                ) {
-                    Icon(AppIcons.Shield, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Coffre-fort (photos cachées)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            if (onVault != null || onRename != null) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (onVault != null) {
+                        FilledTonalButton(
+                            onClick = onVault,
+                            enabled = count > 0,
+                            modifier = Modifier.weight(1f).height(52.dp),
+                            shape = RoundedCornerShape(18.dp),
+                        ) {
+                            Icon(AppIcons.Shield, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Coffre-fort", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    if (onRename != null) {
+                        FilledTonalButton(
+                            onClick = onRename,
+                            enabled = count > 0,
+                            modifier = Modifier.weight(1f).height(52.dp),
+                            shape = RoundedCornerShape(18.dp),
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Renommer", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
             if (onNotThat != null) SoftButton("Ce n'est pas ça : retirer de la liste", onNotThat, enabled = count > 0)
@@ -219,6 +235,7 @@ fun BrowseScreen(
     onUndoMove: () -> Unit,
     onSearch: () -> Unit,
     onTakePhoto: () -> Unit,
+    onRename: (Set<String>, List<File>) -> Unit,
     onOpenAll: () -> Unit,
     onOpenShortcut: (String) -> Unit,
     onSaveShortcut: (name: String, category: String, words: String, replacing: Shortcut?) -> Unit,
@@ -347,7 +364,13 @@ fun BrowseScreen(
             }
         }
 
-        if (selecting) MoveBar(selectedCount, onAside = { confirm = MoveKind.ASIDE }, onTrash = { confirm = MoveKind.TRASH }, onVault = { confirm = MoveKind.VAULT })
+        if (selecting) MoveBar(
+            selectedCount,
+            onAside = { confirm = MoveKind.ASIDE },
+            onTrash = { confirm = MoveKind.TRASH },
+            onVault = { confirm = MoveKind.VAULT },
+            onRename = { onRename(selectedFolders, state.files.filter { it.absolutePath in selectedFiles }) },
+        )
         else tabs()
     }
 

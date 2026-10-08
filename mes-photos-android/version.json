@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V32",
+  "version": "V33",
   "date": "08/10/2026",
   "nouveautes": [
+    "Renommer plusieurs photos d'un coup : choisissez-les, touchez « Renommer », choisissez un mot (Immatriculation…) : il est ajouté devant leur nom, la date est gardée, et un raccourci du même mot les retrouve.",
     "« Toutes les photos » (en haut de l'onglet Photos) : toutes les photos et vidéos à la suite, en petites vignettes, avec l'ordre au choix (récentes, anciennes, nom, grosses). Choisir en nombre, puis coffre-fort, à l'écart ou corbeille.",
     "Coffre-fort aussi depuis « À l'écart » et « Corbeille » : choisissez des photos puis « Mettre au coffre-fort ». Sorties du coffre, elles retournent à leur vraie place.",
-    "Raccourci « Vidéos » fourni d'office : un bouton qui montre toutes les vidéos, avec leur nombre, là où elles sont (rien n'est déplacé ni copié). Taper « videos » dans la loupe fait pareil.",
-    "Outils refait : des boutons à plat (un par ligne) rangés dans quatre menus déroulants fermés au départ : Prendre une photo, Recherche, Mises de côté (coffre-fort, à l'écart, corbeille) et Réparation."
+    "Raccourci « Vidéos » fourni d'office : un bouton qui montre toutes les vidéos, avec leur nombre, là où elles sont (rien n'est déplacé ni copié). Taper « videos » dans la loupe fait pareil."
   ],
   "pastille": false,
   "fichiers": []

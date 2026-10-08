@@ -107,6 +107,8 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
         if (path != null) viewModel.photoTaken(File(path), ok)
     }
     var askLabel by remember { mutableStateOf(false) }
+    // Renommer plusieurs photos d'un coup : dossiers et fichiers choisis, en attente du mot à ajouter.
+    var renaming by remember { mutableStateOf<Pair<Set<String>, List<File>>?>(null) }
 
     // Coffre-fort : on demande le verrouillage du téléphone (code, schéma, empreinte…) avant de l'ouvrir.
     val unlock = rememberLauncherForActivityResult(StartActivityForResult()) { result ->
@@ -185,6 +187,21 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                 onDismiss = { askLabel = false },
             )
         }
+        renaming?.let { pending ->
+            TagDialog(
+                title = "Quel mot ajouter ?",
+                confirmText = "Renommer",
+                help = "Le mot est ajouté devant le nom de chaque photo choisie (« Immatriculation - IMG_….jpg »). Le reste du nom, donc la date, est gardé. Un raccourci du même mot les retrouvera.",
+                choices = viewModel.tagChoices(),
+                onAdd = viewModel::addTag,
+                onRemove = viewModel::removeTag,
+                onConfirm = { chosen ->
+                    renaming = null
+                    viewModel.renameMany(pending.first, pending.second, Tags.join(chosen))
+                },
+                onDismiss = { renaming = null },
+            )
+        }
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when (val s = state) {
                 is UiState.Home -> {
@@ -229,6 +246,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onUndoMove = viewModel::undoMove,
                     onSearch = viewModel::openSearch,
                     onTakePhoto = { askLabel = true },
+                    onRename = { folders, files -> renaming = folders to files },
                     onOpenAll = viewModel::openAllPhotos,
                     onOpenShortcut = viewModel::openShortcut,
                     onSaveShortcut = viewModel::saveShortcut,
@@ -260,6 +278,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onOpen = viewModel::openViewer,
                     onMove = viewModel::moveSelection,
                     onUndoMove = viewModel::undoMove,
+                    onRename = { folders, files -> renaming = folders to files },
                 ) else SearchScreen(
                     s,
                     onSearch = viewModel::search,
@@ -267,6 +286,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onOpen = viewModel::openViewer,
                     onMove = viewModel::moveSelection,
                     onUndoMove = viewModel::undoMove,
+                    onRename = { folders, files -> renaming = folders to files },
                 )
                 is UiState.TrashView -> TrashScreen(
                     s,
@@ -910,6 +930,9 @@ private fun CleanConfirmScreen(state: UiState.CleanConfirm, onConfirm: () -> Uni
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 private fun TagDialog(
+    title: String = "Que photographiez-vous ?",
+    confirmText: String = "Prendre la photo",
+    help: String? = null,
     choices: List<String>,
     onAdd: (String) -> String?,
     onRemove: (String) -> Unit,
@@ -929,7 +952,7 @@ private fun TagDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Que photographiez-vous ?") },
+        title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Touchez un ou plusieurs mots.", style = MaterialTheme.typography.bodyMedium)
@@ -963,7 +986,7 @@ private fun TagDialog(
                     Text("Nom de la photo : " + Tags.join(picked) + " - IMG_…", style = MaterialTheme.typography.bodySmall)
                 }
                 Text(
-                    "Les mots sont mis devant le nom de la photo : la loupe la retrouve par n'importe lequel. Le premier mot touché pourra servir de nom de raccourci, le deuxième de classement. Appui long sur un mot : le retirer de la liste. Vous pouvez aussi ne rien choisir.",
+                    help ?: "Les mots sont mis devant le nom de la photo : la loupe la retrouve par n'importe lequel. Le premier mot touché pourra servir de nom de raccourci, le deuxième de classement. Appui long sur un mot : le retirer de la liste. Vous pouvez aussi ne rien choisir.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -973,7 +996,7 @@ private fun TagDialog(
                 // Un mot tapé mais pas encore ajouté compte aussi.
                 val extra = onAdd(typed)
                 onConfirm(if (extra != null && extra !in picked) picked + extra else picked)
-            }) { Text("Prendre la photo", fontWeight = FontWeight.Bold) }
+            }) { Text(confirmText, fontWeight = FontWeight.Bold) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
     )

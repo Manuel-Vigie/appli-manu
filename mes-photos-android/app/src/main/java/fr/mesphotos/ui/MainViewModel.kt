@@ -1392,6 +1392,77 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- Renommer une photo --------------------------------------------------------------------
 
+    /**
+     * Ajoute le mot [label] devant le nom de chaque photo choisie (et de celles des dossiers choisis) : « Mot - IMG_….jpg ».
+     * Le reste du nom est gardé, donc la date aussi ; les photos qui portent déjà ce mot sont laissées telles quelles.
+     * Elles ne changent pas de dossier : un raccourci du même mot les retrouve là où elles sont.
+     */
+    fun renameMany(folderNames: Set<String>, files: List<File>, label: String) {
+        val current = place ?: return
+        val base = browsePath
+        val toFaces = returnsToFaces()
+        val toDups = returnsToDups()
+        val toSearch = returnQuery()
+        val toReview = returnsToReview()
+        val workingLabel = "Renommage…"
+        viewModelScope.launch {
+            try {
+                if (label.isBlank()) {
+                    val msg = "Aucun mot choisi : rien n'a été renommé."
+                    when {
+                        toSearch != null -> showSearch(toSearch, msg)
+                        else -> showBrowse(base, message = msg)
+                    }
+                    return@launch
+                }
+                _state.value = UiState.Working(workingLabel, 0, 0)
+                val stats = withContext(Dispatchers.IO) {
+                    val parent = base.fold(current.outputDir) { acc, name -> File(acc, name) }
+                    val all = LinkedHashSet<File>(files)
+                    folderNames.forEach { name -> all += Gallery.media(File(parent, name)) }
+                    val wanted = Gallery.normalize(label)
+                    val touched = ArrayList<String>()
+                    var done = 0
+                    var already = 0
+                    var failed = 0
+                    for ((i, file) in all.withIndex()) {
+                        if (!file.isFile) { failed++; continue }
+                        if (Gallery.normalize(file.name).contains(wanted)) { already++; continue }
+                        val name = RenameNames.build(label, file.name, keepOriginal = true)
+                        val dir = file.parentFile
+                        if (name == null || dir == null) { failed++; continue }
+                        val target = RenameNames.unique(dir, name)
+                        if (file.renameTo(target) && target.isFile && !file.exists()) {
+                            touched += file.absolutePath
+                            touched += target.absolutePath
+                            updateJournalPath(file, target)
+                            done++
+                        } else failed++
+                        if (i % 10 == 0 || i == all.size - 1) _state.value = UiState.Working(workingLabel, i + 1, all.size)
+                    }
+                    if (touched.isNotEmpty()) MediaScannerConnection.scanFile(getApplication(), touched.toTypedArray(), null, null)
+                    Triple(done, already, failed)
+                }
+                searchIndex = null
+                val (done, already, failed) = stats
+                val lines = ArrayList<String>()
+                lines += if (done == 0) "Rien n'a été renommé." else "${countText(done)} renommé(s) : « ${label.trim()} - … ». Un raccourci « ${label.trim()} » les retrouve."
+                if (already > 0) lines += "${countText(already)} portaient déjà ce mot."
+                if (failed > 0) lines += "$failed fichier(s) n'ont pas pu être renommés et sont restés tels quels."
+                val message = lines.joinToString("\n")
+                when {
+                    toFaces -> showFaceResults(message)
+                    toDups -> showDupReview(message)
+                    toSearch != null -> showSearch(toSearch, message, 0)
+                    toReview -> showReview(message)
+                    else -> showBrowse(base, message = message)
+                }
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
     /** Renomme [file] (dans la visionneuse). Le type du fichier est gardé ; rien d'autre ne change. */
     fun renameFile(file: File, typed: String) {
         viewModelScope.launch {

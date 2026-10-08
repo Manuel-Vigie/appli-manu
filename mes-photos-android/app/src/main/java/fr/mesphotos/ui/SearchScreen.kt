@@ -70,6 +70,7 @@ fun SearchScreen(
     onOpen: (List<File>, Int) -> Unit,
     onMove: (MoveKind, Set<String>, List<File>) -> Unit,
     onUndoMove: () -> Unit,
+    onRename: (Set<String>, List<File>) -> Unit,
 ) {
     var text by remember { mutableStateOf(state.query) }
     var selecting by remember(state) { mutableStateOf(false) }
@@ -246,7 +247,13 @@ fun SearchScreen(
             }
         }
 
-        if (selecting) MoveBar(selected.size, onAside = { confirm = MoveKind.ASIDE }, onTrash = { confirm = MoveKind.TRASH }, onVault = { confirm = MoveKind.VAULT })
+        if (selecting) MoveBar(
+            selected.size,
+            onAside = { confirm = MoveKind.ASIDE },
+            onTrash = { confirm = MoveKind.TRASH },
+            onVault = { confirm = MoveKind.VAULT },
+            onRename = { onRename(emptySet(), state.results.filter { it.absolutePath in selected }) },
+        )
     }
 
     confirm?.let { kind ->
