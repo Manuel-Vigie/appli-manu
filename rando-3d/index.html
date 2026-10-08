@@ -3983,13 +3983,15 @@ function filmLabelDraw(x,W,H,k,m,labs,o){
       if(!l.side)l.side=dx>0?-1:1;else if(dx*l.side>40*k)l.side=-l.side;
       const fit=sd=>{const v=sd>0?px+gap:px-gap-w;return v>=3*k&&v+w<=W-3*k?v:null};
       // si une autre étiquette gêne (ex. deux lieux au même endroit), on décale celle-ci plus haut ou plus bas au lieu de la cacher
-      const base=py-h/2-12*u,step=h+5*k,lo=top,hi=Math.max(top,bot-h),check=ok;
-      const place=s2=>{const v=fit(s2);if(v===null)return null;
-        for(const n of check?[0,-1,1,-2,2,-3,3,-4,4]:[0]){
-          const y=Math.max(lo,Math.min(hi,base+n*step)),bb=[v-3*k,y-3*k,v+w+3*k,y+h+3*k];
-          if(!check||!boxes.some(q=>bb[0]<q[2]&&bb[2]>q[0]&&bb[1]<q[3]&&bb[3]>q[1]))return{bx:v,by:y,bb}}
+      const base=py-h/2-12*u,step=h+16*k,lo=top,hi=Math.max(top,bot-h),check=ok,M=9*k;
+      const place=(s2,ns)=>{const v=fit(s2);if(v===null)return null;
+        for(const n of check?ns:[0]){
+          const y=Math.max(lo,Math.min(hi,base+n*step)),bb=[v-M,y-M,v+w+M,y+h+M];
+          if(!boxes.some(q=>bb[0]<q[2]&&bb[2]>q[0]&&bb[1]<q[3]&&bb[3]>q[1]))return{bx:v,by:y,bb}}
         return null};
-      let sd=l.side,res=place(sd);if(!res){res=place(-sd);if(res)sd=-sd}
+      // d'abord sans empiler (côté préféré, puis de l'autre côté du parcours), ensuite seulement en décalant plus haut/bas
+      let sd=l.side,res=place(sd,[0]);if(!res){res=place(-sd,[0]);if(res)sd=-sd}
+      if(!res){res=place(sd,[-1,1,-2,2,-3,3]);if(!res){res=place(-sd,[-1,1,-2,2,-3,3]);if(res)sd=-sd}}
       l.sd=sd;
       if(!res||py<.03*H||py>.97*H)ok=false;
       else{bx=res.bx;by=res.by;if(ok)boxes.push(res.bb)}
@@ -4486,7 +4488,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V58", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Bouton « 🎬 Créer les deux vidéos (carte + replay) » (onglet Mes films et dans les deux fenêtres vidéo) : fabrique le Film de la carte puis la vidéo du replay, l'un après l'autre, et les range dans Mes films. Film : au retour, seuls les 3 lieux les plus proches du marcheur restent affichés (moins brouillon).", "Nouveau choix « Les deux » dans le Film de la carte et dans la vidéo du replay : l'app fabrique la version 16:9 puis la version verticale, l'une après l'autre, et range les deux dans « Mes films » (nom avec « 16:9 » ou « vertical »).", "Les deux vidéos (Film de la carte et vidéo du replay) sont en 16:9 Full HD par défaut, à chaque ouverture. Vertical reste un choix possible.", "Vidéo du replay : le format Horizontal 16:9 (YouTube, télé) est maintenant choisi par défaut, bien visible en premier, et l'app retient ton dernier choix (horizontal ou vertical)."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V59", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : les étiquettes proches ne sont plus collées l'une à l'autre. Elles se répartissent des deux côtés du parcours et, si besoin, s'empilent avec un vrai espace entre elles.", "Bouton « 🎬 Créer les deux vidéos (carte + replay) » (onglet Mes films et dans les deux fenêtres vidéo) : fabrique le Film de la carte puis la vidéo du replay, l'un après l'autre, et les range dans Mes films. Film : au retour, seuls les 3 lieux les plus proches du marcheur restent affichés (moins brouillon).", "Nouveau choix « Les deux » dans le Film de la carte et dans la vidéo du replay : l'app fabrique la version 16:9 puis la version verticale, l'une après l'autre, et range les deux dans « Mes films » (nom avec « 16:9 » ou « vertical »).", "Les deux vidéos (Film de la carte et vidéo du replay) sont en 16:9 Full HD par défaut, à chaque ouverture. Vertical reste un choix possible."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
