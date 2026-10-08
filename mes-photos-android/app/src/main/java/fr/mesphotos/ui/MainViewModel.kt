@@ -1037,9 +1037,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     val parent = base.fold(current.outputDir) { acc, name -> File(acc, name) }
                     val all = LinkedHashSet<File>(files)
                     folderNames.forEach { name -> all += Gallery.media(File(parent, name)) }
-                    val r = vault.add(all.toList()) { done, total ->
+                    val r = vault.add(all.toList(), onProgress = { done, total ->
                         if (done % 5 == 0 || done == total) _state.value = UiState.Working(label, done, total)
-                    }
+                    })
                     // Prévient la galerie du téléphone : ces photos n'y sont plus.
                     if (r.removedPaths.isNotEmpty()) MediaScannerConnection.scanFile(getApplication(), r.removedPaths.toTypedArray(), null, null)
                     r
