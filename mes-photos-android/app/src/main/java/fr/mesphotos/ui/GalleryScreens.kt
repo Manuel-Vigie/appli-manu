@@ -262,6 +262,7 @@ fun BrowseScreen(
     }
 
     fun toggleFolder(name: String) {
+        if (state.virtual) return // l'album « Vidéos » n'a pas de vrais dossiers : on ne choisit que des vidéos
         selecting = true
         selectedFolders = if (name in selectedFolders) selectedFolders - name else selectedFolders + name
     }
@@ -291,7 +292,7 @@ fun BrowseScreen(
                         selectedFolders = emptySet()
                         selectedFiles = emptySet()
                     } else {
-                        selectedFolders = state.folders.map { it.name }.toSet()
+                        selectedFolders = if (state.virtual) emptySet() else state.folders.map { it.name }.toSet()
                         selectedFiles = state.files.map { it.absolutePath }.toSet()
                     }
                 },

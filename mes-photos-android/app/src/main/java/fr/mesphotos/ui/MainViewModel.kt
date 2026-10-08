@@ -160,6 +160,8 @@ sealed interface UiState {
         val shortcuts: List<ShortcutItem> = emptyList(),
         /** L'album « Vidéos » (à la racine) : combien de vidéos et la plus récente en couverture. */
         val videos: FolderItem? = null,
+        /** Vrai pour l'album « Vidéos » : un classement qui ne correspond pas à de vrais dossiers (on ne choisit que des vidéos, pas des dossiers). */
+        val virtual: Boolean = false,
     ) : UiState
 
     /** Résultat de « Vérifier les photos ». */
@@ -230,6 +232,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var remainingMoves: List<PlannedMove> = emptyList()
     private var run = RunState()
     private var browsePath: List<String> = emptyList()
+    /** Non nul quand on parcourt l'album « Vidéos » (un classement par date virtuel : rien n'est déplacé) ; sinon null. */
+    private var videoPath: List<String>? = null
     private var trashCount = 0
     private var asideCount = 0
     private var lastMoved: List<TrashEntry> = emptyList()
@@ -422,6 +426,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun backToStart() {
+        videoPath = null
         plan = emptyList()
         pendingMoves = emptyList()
         remainingMoves = emptyList()
@@ -674,6 +679,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun browse(path: List<String>) {
         if (place == null) return
+        videoPath = null
         viewModelScope.launch {
             _state.value = UiState.Working("Ouverture…", 0, 0)
             showBrowse(path)
@@ -686,6 +692,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     private suspend fun showBrowse(startPath: List<String>, message: String? = null, undoCount: Int = 0) {
         val current = place ?: return
+        videoPath?.let { return showVideoBrowse(it, message, undoCount) }
         var path = startPath
         var listing = withContext(Dispatchers.IO) { Gallery.list(current.outputDir, path) }
         while (path.isNotEmpty() && listing.folders.isEmpty() && listing.files.isEmpty()) {
@@ -707,11 +714,55 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
-    fun browseInto(name: String) = browse(browsePath + name)
+    fun browseInto(name: String) {
+        val inVideos = videoPath
+        if (inVideos != null) { viewModelScope.launch { showVideoBrowse(inVideos + name) }; return }
+        browse(browsePath + name)
+    }
 
     /** Remonte d'un dossier ; depuis la racine, retourne à l'accueil. */
     fun browseUp() {
+        val inVideos = videoPath
+        if (inVideos != null) {
+            if (inVideos.isEmpty()) openGallery() else viewModelScope.launch { showVideoBrowse(inVideos.dropLast(1)) }
+            return
+        }
         if (browsePath.isEmpty()) backToStart() else browse(browsePath.dropLast(1))
+    }
+
+    /** L'album « Vidéos » : l'ouvre comme un album (année, mois, jour…), avec seulement les vidéos. Rien n'est déplacé. */
+    fun openVideos() {
+        if (place == null) return
+        viewModelScope.launch {
+            _state.value = UiState.Working("Ouverture…", 0, 0)
+            showVideoBrowse(emptyList())
+        }
+    }
+
+    /** Les vidéos classées comme les albums par date : les mêmes dossiers (année, mois, jour…), sans les photos. [path] : dossiers déjà ouverts. */
+    private suspend fun showVideoBrowse(path: List<String>, message: String? = null, undoCount: Int = 0) {
+        val current = place ?: return
+        videoPath = path
+        browsePath = emptyList()
+        val (folders, files) = withContext(Dispatchers.IO) {
+            val root = current.outputDir
+            val under = (searchIndex ?: buildSearchIndex(current)).map { it.file }.filter { PhotoFiles.isVideo(it) }.mapNotNull { f ->
+                val rel = (f.parentFile ?: root).toRelativeString(root).split('/').filter { it.isNotEmpty() }
+                if (rel.size >= path.size && rel.take(path.size) == path) f to rel else null
+            }
+            val direct = under.filter { it.second.size == path.size }.map { it.first }.sortedBy { it.name.lowercase() }
+            val groups = under.filter { it.second.size > path.size }.groupBy { it.second[path.size] }
+            val folders = groups.map { (name, list) -> FolderItem(name, list.size, list.first().first) }
+                .sortedWith(Comparator { a, b -> Gallery.compareFolders(a.name, b.name) })
+            folders to direct
+        }
+        val empty = folders.isEmpty() && files.isEmpty()
+        _state.value = UiState.Browse(
+            listOf("Vidéos") + path, folders, files,
+            message = message ?: if (empty) "Aucune vidéo pour l'instant." else null,
+            undoTrash = undoCount,
+            virtual = true,
+        )
     }
 
     fun openViewer(files: List<File>, index: Int) {
@@ -725,6 +776,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             viewer?.fromVault == true -> if (vaultOpen) openVault() else backToStart()
             viewer?.backToDups == true -> viewModelScope.launch { showDupReview() }
             query != null -> search(query)
+            videoPath != null -> viewModelScope.launch { showVideoBrowse(videoPath ?: emptyList()) }
             else -> browse(browsePath)
         }
     }
@@ -1246,8 +1298,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         search(ALL_QUERY)
     }
 
-    /** L'album « Vidéos » : toutes les vidéos, là où elles sont, de la plus récente à la plus ancienne (ordre au choix). */
-    fun openVideos() = search(VIDEOS_QUERY)
 
     /** « Toutes les photos » : toutes les photos et vidéos de « Photos rangées » à la suite, à choisir et à mettre au coffre-fort. */
     fun openAllPhotos() = search(ALL_QUERY)
@@ -1261,6 +1311,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun showSearch(query: String, message: String? = null, undoCount: Int = 0) {
         val current = place ?: return
         searchQuery = query
+        videoPath = null
         val index = searchIndex ?: run {
             _state.value = UiState.Working("Préparation de la recherche…", 0, 0)
             withContext(Dispatchers.IO) { buildSearchIndex(current) }
