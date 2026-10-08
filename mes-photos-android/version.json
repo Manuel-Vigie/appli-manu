@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V18",
+  "version": "V19",
   "date": "08/10/2026",
   "nouveautes": [
+    "Raccourcis dans des tons de vert assortis à l'appli (une teinte par classement), en clair comme en sombre.",
     "Raccourcis en menu déroulant : de grands boutons colorés avec le nombre de photos. Un raccourci est une recherche enregistrée (ex. Immatriculation) ; « + Nouveau raccourci » en crée sans photo, appui long pour modifier ou retirer.",
     "Correctif : les photos prises avec l'appli étaient introuvables. Elles sont maintenant dans « Photos rangées / Photos à trier », visibles tout de suite, et la photo s'ouvre dès qu'elle est prise. Les anciennes photos prises sont ramenées au même endroit.",
-    "Appareil photo en haut de l'onglet Photos. Avant la photo, cochez plusieurs mots (Immatriculation, Véhicule, Montagne…) ou ajoutez les vôtres : la loupe retrouve la photo par chacun.",
-    "Tiroir « Raccourcis » : on l'ouvre ou on le ferme, une vignette par raccourci, classés par catégorie."
+    "Appareil photo en haut de l'onglet Photos. Avant la photo, cochez plusieurs mots (Immatriculation, Véhicule, Montagne…) ou ajoutez les vôtres : la loupe retrouve la photo par chacun."
   ],
   "pastille": false,
   "fichiers": []

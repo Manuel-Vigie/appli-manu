@@ -3,6 +3,7 @@ package fr.mesphotos.ui
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -41,18 +42,30 @@ import fr.mesphotos.logic.Shortcut
 /** Fond, bord et texte d'un bouton raccourci (tons pastel : lisibles en clair comme en sombre). */
 private class ShortcutColors(val background: Color, val border: Color, val text: Color)
 
-private val PALETTE = listOf(
-    ShortcutColors(Color(0xFFFBE9E9), Color(0xFFD9A0A0), Color(0xFF9B2226)), // rouge
-    ShortcutColors(Color(0xFFFDEBD6), Color(0xFFE3A55B), Color(0xFF8A4B08)), // orange
-    ShortcutColors(Color(0xFFE4F0F6), Color(0xFF8DB4C9), Color(0xFF1E5F7A)), // bleu clair
-    ShortcutColors(Color(0xFFE8EEF7), Color(0xFF9DB1CF), Color(0xFF1F4E79)), // bleu
-    ShortcutColors(Color(0xFFEEE9F7), Color(0xFFB5A5D6), Color(0xFF4B3A8A)), // violet
-    ShortcutColors(Color(0xFFE6F3E8), Color(0xFF93C49B), Color(0xFF1F6B34)), // vert
+// Six verts, assortis au vert de l'appli (émeraude, menthe, sauge, olive, sapin, jade), en clair et en sombre.
+private val LIGHT_PALETTE = listOf(
+    ShortcutColors(Color(0xFFD3EFE3), Color(0xFF7CC5A8), Color(0xFF0E5C49)), // émeraude
+    ShortcutColors(Color(0xFFE2F5EA), Color(0xFF9ED3B3), Color(0xFF1F6B3F)), // menthe
+    ShortcutColors(Color(0xFFE6EFE0), Color(0xFFA9C79A), Color(0xFF3F6B2A)), // sauge
+    ShortcutColors(Color(0xFFEDF2D9), Color(0xFFC0CC8A), Color(0xFF566B16)), // olive
+    ShortcutColors(Color(0xFFD8EAE4), Color(0xFF7DB0A2), Color(0xFF0F5448)), // sapin
+    ShortcutColors(Color(0xFFD6EEDC), Color(0xFF6FBF8B), Color(0xFF14663A)), // jade
 )
 
-/** Une couleur par catégorie : tous les raccourcis d'une même catégorie ont la même. */
-private fun colorsFor(category: String): ShortcutColors =
-    PALETTE[Math.floorMod(Gallery.normalize(category).hashCode(), PALETTE.size)]
+private val DARK_PALETTE = listOf(
+    ShortcutColors(Color(0xFF0F4F40), Color(0xFF2E8F73), Color(0xFFC3F2E0)),
+    ShortcutColors(Color(0xFF14472D), Color(0xFF3A9B63), Color(0xFFCDF3DB)),
+    ShortcutColors(Color(0xFF2A3F20), Color(0xFF6A9A55), Color(0xFFD6EBC9)),
+    ShortcutColors(Color(0xFF3A4112), Color(0xFF8E9B2E), Color(0xFFE6EDB5)),
+    ShortcutColors(Color(0xFF0D3F38), Color(0xFF3F8E7D), Color(0xFFC4EBE2)),
+    ShortcutColors(Color(0xFF0F4A2A), Color(0xFF3FAE6A), Color(0xFFC8F0D6)),
+)
+
+/** Un vert par catégorie : tous les raccourcis d'une même catégorie ont le même. */
+private fun colorsFor(category: String, dark: Boolean): ShortcutColors {
+    val palette = if (dark) DARK_PALETTE else LIGHT_PALETTE
+    return palette[Math.floorMod(Gallery.normalize(category).hashCode(), palette.size)]
+}
 
 /**
  * Les raccourcis, un grand bouton par raccourci : son nom et, à droite, le nombre de photos. Groupés par catégorie.
@@ -61,6 +74,7 @@ private fun colorsFor(category: String): ShortcutColors =
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ShortcutRows(items: List<ShortcutItem>, onOpen: (ShortcutItem) -> Unit, onLongClick: ((ShortcutItem) -> Unit)? = null) {
+    val dark = isSystemInDarkTheme()
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items.groupBy { it.shortcut.category }.forEach { (category, list) ->
             Text(
@@ -71,7 +85,7 @@ internal fun ShortcutRows(items: List<ShortcutItem>, onOpen: (ShortcutItem) -> U
                 modifier = Modifier.padding(start = 6.dp, top = 6.dp),
             )
             list.forEach { item ->
-                val colors = colorsFor(item.shortcut.category)
+                val colors = colorsFor(item.shortcut.category, dark)
                 val shape = RoundedCornerShape(18.dp)
                 Row(
                     Modifier
