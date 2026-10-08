@@ -18,6 +18,9 @@ import fr.mesphotos.gallery.FolderItem
 import fr.mesphotos.gallery.Gallery
 import fr.mesphotos.gallery.Thumbs
 import fr.mesphotos.logic.DupGroup
+import fr.mesphotos.logic.FileHealth
+import fr.mesphotos.logic.Health
+import fr.mesphotos.logic.Verdict
 import fr.mesphotos.logic.DuplicateReview
 import fr.mesphotos.logic.Duplicates
 import fr.mesphotos.logic.PlaceNamer
@@ -67,6 +70,20 @@ class ShortcutItem(val shortcut: Shortcut, val count: Int)
 
 /** Une photo prête pour la recherche : le fichier et son chemin sans accents ni majuscules. */
 class SearchEntry(val file: File, val text: String)
+
+/** Résultat de la vérification des fichiers : combien sont sains, abîmés, brouillés… et où. */
+class HealthReport(
+    val total: Int,
+    val counts: Map<Verdict, Int>,
+    /** Fichiers à problème par date de modification (« 30/01/2026 », nombre), les plus nombreux d'abord. */
+    val byDate: List<Pair<String, Int>>,
+    /** Fichiers à problème par dossier de la carte. */
+    val byFolder: List<Pair<String, Int>>,
+    /** Quelques noms de fichiers à problème, avec leur diagnostic. */
+    val samples: List<String>,
+    val repairable: List<Pair<File, Health>>,
+    val message: String? = null,
+)
 
 sealed interface UiState {
     data class Home(
@@ -127,6 +144,9 @@ sealed interface UiState {
         /** Les raccourcis, montrés en haut de la page d'accueil des photos (à la racine seulement). */
         val shortcuts: List<ShortcutItem> = emptyList(),
     ) : UiState
+
+    /** Résultat de « Vérifier les photos ». */
+    data class HealthView(val report: HealthReport) : UiState
 
     /** Le coffre-fort ouvert : ce qu'il contient (jamais montré ailleurs dans l'appli). */
     data class VaultView(val entries: List<VaultEntry>, val message: String? = null) : UiState
@@ -776,6 +796,137 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     toReview -> showReview(message, result.done)
                     else -> showBrowse(base, message = message, undoCount = result.done)
                 }
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
+    // ---- Vérification des fichiers -----------------------------------------------------------------
+    // Lit le début (et la fin) de chaque photo et vidéo de la carte pour repérer celles qui sont vides, coupées,
+    // brouillées (chiffrées) ou réparables. Rien n'est modifié ; la réparation fait des COPIES à côté des originaux.
+
+    fun startHealthCheck() {
+        val current = place ?: return
+        viewModelScope.launch {
+            try {
+                _state.value = UiState.Working("Recherche des fichiers…", 0, 0)
+                val report = withContext(Dispatchers.IO) {
+                    val all = PhotoFiles.list(current, includeSorted = true).map { it.file }
+                    val total = all.size
+                    val counts = HashMap<Verdict, Int>()
+                    val dates = HashMap<String, Int>()
+                    val folders = HashMap<String, Int>()
+                    val samples = ArrayList<String>()
+                    val repairable = ArrayList<Pair<File, Health>>()
+                    val dateFormat = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.FRANCE)
+                    for ((i, file) in all.withIndex()) {
+                        val health = healthOf(file)
+                        counts[health.verdict] = (counts[health.verdict] ?: 0) + 1
+                        if (health.verdict != Verdict.OK) {
+                            val day = dateFormat.format(java.util.Date(file.lastModified()))
+                            dates[day] = (dates[day] ?: 0) + 1
+                            val folder = (file.parentFile ?: current.root).toRelativeString(current.root).ifEmpty { "(racine de la carte)" }
+                            folders[folder] = (folders[folder] ?: 0) + 1
+                            if (samples.size < 25) samples += "${file.name} : ${verdictText(health.verdict)}"
+                            if (health.verdict == Verdict.REPAIRABLE) repairable += file to health
+                        }
+                        if (i % 40 == 0 || i == total - 1) _state.value = UiState.Working("Vérification des fichiers…", i + 1, total)
+                    }
+                    HealthReport(
+                        total, counts,
+                        dates.entries.sortedByDescending { it.value }.take(6).map { it.key to it.value },
+                        folders.entries.sortedByDescending { it.value }.take(8).map { it.key to it.value },
+                        samples, repairable,
+                    )
+                }
+                _state.value = UiState.HealthView(report)
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
+    private fun healthOf(file: File): Health = try {
+        java.io.RandomAccessFile(file, "r").use { raf ->
+            val length = raf.length()
+            val head = ByteArray(minOf(length, FileHealth.HEAD.toLong()).toInt())
+            raf.readFully(head)
+            val tail = ByteArray(minOf(length, FileHealth.TAIL.toLong()).toInt())
+            raf.seek(length - tail.size)
+            raf.readFully(tail)
+            FileHealth.classify(file.extension, head, tail, length)
+        }
+    } catch (e: Exception) {
+        Health(Verdict.UNKNOWN)
+    }
+
+    private fun verdictText(v: Verdict) = when (v) {
+        Verdict.OK -> "sain"
+        Verdict.EMPTY -> "vide"
+        Verdict.ZEROS -> "rempli de zéros (copie ratée)"
+        Verdict.TRUNCATED -> "coupé à la fin"
+        Verdict.REPAIRABLE -> "début abîmé, réparable"
+        Verdict.SCRAMBLED -> "brouillé (chiffré)"
+        Verdict.UNKNOWN -> "contenu inconnu"
+    }
+
+    /**
+     * Répare les JPEG « début abîmé » : crée à côté de chacun une COPIE « nom (réparée).jpg » (l'original n'est jamais touché),
+     * puis la contrôle en la faisant ouvrir ; si elle ne s'ouvre pas, elle est effacée.
+     */
+    fun repairHealth() {
+        val current = place ?: return
+        val state = _state.value as? UiState.HealthView ?: return
+        val todo = state.report.repairable
+        viewModelScope.launch {
+            try {
+                _state.value = UiState.Working("Réparation (copies)…", 0, todo.size)
+                val made = withContext(Dispatchers.IO) {
+                    val newPaths = ArrayList<String>()
+                    var ok = 0
+                    for ((i, item) in todo.withIndex()) {
+                        val (file, health) = item
+                        val target = RenameNames.unique(file.parentFile ?: current.root, file.nameWithoutExtension + " (réparée)." + file.extension)
+                        try {
+                            java.io.RandomAccessFile(file, "r").use { raf ->
+                                java.io.FileOutputStream(target).use { out ->
+                                    if (health.addSoi) out.write(byteArrayOf(0xFF.toByte(), 0xD8.toByte()))
+                                    raf.seek(health.offset.toLong())
+                                    val buffer = ByteArray(256 * 1024)
+                                    while (true) {
+                                        val r = raf.read(buffer)
+                                        if (r < 0) break
+                                        out.write(buffer, 0, r)
+                                    }
+                                }
+                            }
+                            val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                            android.graphics.BitmapFactory.decodeFile(target.absolutePath, bounds)
+                            if (bounds.outWidth > 0 && bounds.outHeight > 0) {
+                                target.setLastModified(file.lastModified())
+                                newPaths += target.absolutePath
+                                ok++
+                            } else {
+                                target.delete()
+                            }
+                        } catch (e: Exception) {
+                            target.delete()
+                        }
+                        if (i % 5 == 0) _state.value = UiState.Working("Réparation (copies)…", i + 1, todo.size)
+                    }
+                    if (newPaths.isNotEmpty()) MediaScannerConnection.scanFile(getApplication(), newPaths.toTypedArray(), null, null)
+                    ok
+                }
+                searchIndex = null
+                val text = if (made > 0) "$made photo(s) réparée(s) : une copie « (réparée) » a été créée à côté de chaque original, qui n'a pas été touché."
+                else "Aucune photo n'a pu être réparée : leur contenu n'est pas exploitable."
+                _state.value = UiState.HealthView(
+                    HealthReport(
+                        state.report.total, state.report.counts, state.report.byDate, state.report.byFolder,
+                        state.report.samples, emptyList(), message = text + if (made < todo.size) "\n${todo.size - made} n'ont pas pu l'être." else "",
+                    ),
+                )
             } catch (e: Exception) {
                 refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
             }
