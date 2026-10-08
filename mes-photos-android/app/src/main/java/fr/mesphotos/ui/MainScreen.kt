@@ -416,10 +416,8 @@ private fun HomeScreen(
                     ToolGroup(
                         "Recherche",
                         listOf(
-                            Tool(Icons.Default.Face, "Trouver les portraits (essai : 20)", "Repère les visages bien visibles sur 20 photos, vous validez", onClick = { onPortraits(20) }),
-                            Tool(Icons.Default.Face, "Trouver tous les portraits", "Même chose sur toutes les photos pas encore renommées", onClick = { onPortraits(0) }),
-                            Tool(Icons.Default.Search, "Classer mes photos (essai : 20)", "L'appli reconnaît plage, voiture, repas… sur 20 photos, vous validez", onClick = { onClassify(20) }),
-                            Tool(Icons.Default.Search, "Classer toutes mes photos", "Même chose sur toutes les photos pas encore renommées", onClick = { onClassify(0) }),
+                            Tool(Icons.Default.Face, "Trouver les portraits", "Toutes les photos pas encore renommées ; vous validez avant tout changement", onClick = { onPortraits(0) }),
+                            Tool(Icons.Default.Search, "Classer par contenu", "Plage, voiture, repas… sur toutes les photos ; vous validez avant tout changement", onClick = { onClassify(0) }),
                             Tool(AppIcons.Copy, "Doublons", "Comparer et garder une seule photo", onClick = onDuplicates),
                             Tool(
                                 Icons.Default.Search,
@@ -556,6 +554,11 @@ private fun ToolRow(tool: Tool) {
 
 @Composable
 private fun WorkingScreen(state: UiState.Working) {
+    val view = LocalView.current
+    DisposableEffect(state.onStop != null) {
+        if (state.onStop != null) view.keepScreenOn = true
+        onDispose { if (state.onStop != null) view.keepScreenOn = false }
+    }
     Column(modifier = Modifier.fillMaxSize()) {
         Header("Mes Photos")
         Column(
@@ -577,6 +580,10 @@ private fun WorkingScreen(state: UiState.Working) {
             }
             Spacer(Modifier.height(20.dp))
             Text("Gardez l'écran allumé.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (state.onStop != null) {
+                Spacer(Modifier.height(24.dp))
+                TonalBigButton("Arrêter et voir ce qui est trouvé", onClick = state.onStop)
+            }
         }
     }
 }

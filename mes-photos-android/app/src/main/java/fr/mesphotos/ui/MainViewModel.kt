@@ -19,6 +19,7 @@ import fr.mesphotos.gallery.Gallery
 import fr.mesphotos.gallery.Thumbs
 import fr.mesphotos.labels.LabelNames
 import fr.mesphotos.labels.Labeler
+import fr.mesphotos.labels.SimpleCache
 import fr.mesphotos.logic.DupGroup
 import fr.mesphotos.logic.FileHealth
 import fr.mesphotos.logic.Health
@@ -126,7 +127,7 @@ sealed interface UiState {
     ) : UiState
 
     /** [total] = 0 : durée inconnue. */
-    data class Working(val label: String, val done: Int, val total: Int) : UiState
+    data class Working(val label: String, val done: Int, val total: Int, val onStop: (() -> Unit)? = null) : UiState
 
     data class Preview(
         val toMove: Int,
@@ -1413,32 +1414,59 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- Classer par reconnaissance (Google ML Kit, sur le téléphone) -----------------------------
 
+    private val labelCache by lazy { SimpleCache(File(getApplication<Application>().filesDir, "etiquettes.tsv")) }
+    private val portraitCache by lazy { SimpleCache(File(getApplication<Application>().filesDir, "portraits.tsv")) }
+
+    @Volatile private var stopClassify = false
+
+    /** Les photos à regarder : pas encore renommées, pas de vidéos, les plus récentes d'abord ([limit] au plus ; 0 = toutes). */
+    private fun classifyCandidates(current: Place, limit: Int): List<File> =
+        PhotoFiles.list(current, includeSorted = true).map { it.file }
+            .filter { !PhotoFiles.isVideo(it) && !isRenamed(it.name) }
+            .sortedByDescending { it.lastModified() }
+            .let { if (limit > 0) it.take(limit) else it }
+
     /**
-     * Regarde les photos pas encore renommées (les plus récentes d'abord, [limit] au plus ; 0 = toutes) et les range en groupes
-     * par mot (« Plage », « Voiture »…). Rien n'est renommé ici : on propose, on applique ensuite avec [applyLabels].
+     * Regarde les photos et les range en groupes par mot (« Plage », « Voiture »…). Rien n'est renommé ici : on propose, on applique
+     * ensuite avec [applyLabels]. Rapide : lecture des vignettes en parallèle, mémoire des photos déjà vues, bouton « Arrêter ».
      */
     fun startLabeling(limit: Int) {
         val current = place ?: return
         viewModelScope.launch {
             try {
+                stopClassify = false
+                val stop = { stopClassify = true }
                 _state.value = UiState.Working("Recherche des photos…", 0, 0)
                 val view = withContext(Dispatchers.IO) {
-                    val candidates = PhotoFiles.list(current, includeSorted = true).map { it.file }
-                        .filter { !PhotoFiles.isVideo(it) && !isRenamed(it.name) }
-                        .sortedByDescending { it.lastModified() }
-                        .let { if (limit > 0) it.take(limit) else it }
+                    val candidates = classifyCandidates(current, limit)
                     val groups = LinkedHashMap<String, ArrayList<File>>()
                     var unknown = 0
+                    var seen = 0
                     Labeler().use { labeler ->
-                        for ((i, file) in candidates.withIndex()) {
-                            val bitmap = Thumbs.loadUncached(file, 320)
-                            val word = bitmap?.let { LabelNames.pick(labeler.labels(it)) }
-                            if (word == null) unknown++ else groups.getOrPut(word) { ArrayList() } += file
-                            if (i % 5 == 0 || i == candidates.size - 1) _state.value = UiState.Working("Reconnaissance des photos…", i + 1, candidates.size)
+                        for (chunk in candidates.chunked(8)) {
+                            if (stopClassify) break
+                            // Les vignettes d'un paquet sont lues en même temps ; la reconnaissance se fait ensuite.
+                            val bitmaps = kotlinx.coroutines.coroutineScope {
+                                chunk.map { f -> kotlinx.coroutines.async { if (labelCache.get(f) != null) null else Thumbs.loadUncached(f, 256) } }
+                                    .map { it.await() }
+                            }
+                            for ((j, file) in chunk.withIndex()) {
+                                val cached = labelCache.get(file)
+                                val word: String? = if (cached != null) cached.takeIf { it != "-" } else {
+                                    val bmp = bitmaps[j]
+                                    val w = bmp?.let { LabelNames.pick(labeler.labels(it)) }
+                                    bmp?.recycle()
+                                    labelCache.put(file, w ?: "-")
+                                    w
+                                }
+                                if (word == null) unknown++ else groups.getOrPut(word) { ArrayList() } += file
+                            }
+                            seen += chunk.size
+                            _state.value = UiState.Working("Reconnaissance des photos…", seen, candidates.size, stop)
                         }
                     }
                     val sorted = groups.entries.sortedByDescending { it.value.size }.map { LabelGroup(it.key, it.value) }
-                    UiState.LabelView(sorted, candidates.size, unknown)
+                    UiState.LabelView(sorted, seen, unknown)
                 }
                 _state.value = view
             } catch (e: Exception) {
@@ -1448,7 +1476,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * « Trouver les portraits » : cherche les visages (le même moteur que l'onglet Visages, avec sa mémoire) et propose deux groupes :
+     * « Trouver les portraits » : cherche les visages (cadres seulement, sans empreinte : rapide) et propose deux groupes :
      * « Portrait » (un visage gros et bien visible, au plus 3 personnes) et « Personnes » (visages plus petits ou groupes).
      */
     fun startPortraits(limit: Int) {
@@ -1456,41 +1484,50 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             var engine: FaceEngine? = null
             try {
+                stopClassify = false
+                val stop = { stopClassify = true }
                 _state.value = UiState.Working("Recherche des photos…", 0, 0)
                 val view = withContext(Dispatchers.IO) {
-                    faceCache.load()
-                    val candidates = PhotoFiles.list(current, includeSorted = true).map { it.file }
-                        .filter { !PhotoFiles.isVideo(it) && !isRenamed(it.name) }
-                        .sortedByDescending { it.lastModified() }
-                        .let { if (limit > 0) it.take(limit) else it }
+                    val candidates = classifyCandidates(current, limit)
                     val portraits = ArrayList<File>()
                     val people = ArrayList<File>()
                     var none = 0
-                    for ((i, file) in candidates.withIndex()) {
-                        var faces = faceCache.get(file)?.faces?.map { it.box }
-                        if (faces == null) {
-                            val e = engine ?: FaceEngine(getApplication()).also { engine = it }
-                            val bitmap = Thumbs.loadUncached(file, 1280)
-                            val found = if (bitmap == null) emptyList() else try {
-                                runCatching { e.analyze(bitmap) }.getOrDefault(emptyList())
-                            } finally {
-                                bitmap.recycle()
+                    var seen = 0
+                    for (chunk in candidates.chunked(8)) {
+                        if (stopClassify) break
+                        val bitmaps = kotlinx.coroutines.coroutineScope {
+                            chunk.map { f -> kotlinx.coroutines.async { if (portraitCache.get(f) != null) null else Thumbs.loadUncached(f, 640) } }
+                                .map { it.await() }
+                        }
+                        for ((j, file) in chunk.withIndex()) {
+                            var verdict = portraitCache.get(file)
+                            if (verdict == null) {
+                                val bmp = bitmaps[j]
+                                val boxes = if (bmp == null) emptyList() else {
+                                    val e = engine ?: FaceEngine(getApplication()).also { engine = it }
+                                    try { runCatching { e.boxes(bmp) }.getOrDefault(emptyList()) } finally { bmp.recycle() }
+                                }
+                                val biggest = boxes.maxOfOrNull { it[2] * it[3] } ?: 0f
+                                verdict = when {
+                                    boxes.isEmpty() -> "none"
+                                    biggest >= 0.04f && boxes.size <= 3 -> "portrait"
+                                    else -> "people"
+                                }
+                                portraitCache.put(file, verdict)
                             }
-                            faceCache.put(file, found.map { FaceCache.Face(it.box, it.embedding) })
-                            faces = found.map { it.box }
+                            when (verdict) {
+                                "portrait" -> portraits += file
+                                "people" -> people += file
+                                else -> none++
+                            }
                         }
-                        val biggest = faces.maxOfOrNull { it[2] * it[3] } ?: 0f
-                        when {
-                            faces.isEmpty() -> none++
-                            biggest >= 0.04f && faces.size <= 3 -> portraits += file
-                            else -> people += file
-                        }
-                        if (i % 3 == 0 || i == candidates.size - 1) _state.value = UiState.Working("Recherche des visages…", i + 1, candidates.size)
+                        seen += chunk.size
+                        _state.value = UiState.Working("Recherche des visages…", seen, candidates.size, stop)
                     }
                     val groups = ArrayList<LabelGroup>()
                     if (portraits.isNotEmpty()) groups += LabelGroup("Portrait", portraits)
                     if (people.isNotEmpty()) groups += LabelGroup("Personnes", people)
-                    UiState.LabelView(groups, candidates.size, none)
+                    UiState.LabelView(groups, seen, none)
                 }
                 _state.value = view
             } catch (e: Exception) {

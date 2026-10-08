@@ -69,6 +69,27 @@ class FaceEngine(context: Context) : AutoCloseable {
         return found
     }
 
+    /** Seulement les cadres des visages (x, y, largeur, hauteur en fractions de l'image), sans empreinte : bien plus rapide. */
+    fun boxes(bitmap: Bitmap): List<FloatArray> {
+        val size = FaceMath.INPUT
+        val k = size.toFloat() / maxOf(bitmap.width, bitmap.height)
+        val w = Math.round(bitmap.width * k).coerceIn(1, size)
+        val h = Math.round(bitmap.height * k).coerceIn(1, size)
+        val scaled = Bitmap.createScaledBitmap(bitmap, w, h, true)
+        val pixels = IntArray(w * h)
+        scaled.getPixels(pixels, 0, w, 0, 0, w, h)
+        if (scaled !== bitmap) scaled.recycle()
+        return detect(FaceMath.toDetectorInput(pixels, w, h))
+            .filter { it.w >= MIN_FACE && it.h >= MIN_FACE }
+            .take(MAX_FACES)
+            .map {
+                floatArrayOf(
+                    (it.x / k / bitmap.width).coerceIn(0f, 1f), (it.y / k / bitmap.height).coerceIn(0f, 1f),
+                    (it.w / k / bitmap.width).coerceIn(0f, 1f), (it.h / k / bitmap.height).coerceIn(0f, 1f),
+                )
+            }
+    }
+
     private fun detect(input: FloatArray): List<Detection> {
         val tensor = OnnxTensor.createTensor(env, FloatBuffer.wrap(input), longArrayOf(1, 3, FaceMath.INPUT.toLong(), FaceMath.INPUT.toLong()))
         try {
