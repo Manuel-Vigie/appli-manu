@@ -53,6 +53,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -66,7 +68,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.io.File
 
 private fun versionOf(context: Context): String = try {
     context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "?"
@@ -80,6 +84,30 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
     val context = LocalContext.current
     val version = remember { versionOf(context) }
     var updateTick by remember { mutableIntStateOf(0) }
+
+    // Appareil photo du téléphone : la photo est enregistrée sur la carte, dans « Photos à trier ».
+    var pendingShot by rememberSaveable { mutableStateOf<String?>(null) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        val path = pendingShot
+        pendingShot = null
+        if (path != null) viewModel.photoTaken(File(path), ok)
+    }
+    val takePhoto: () -> Unit = {
+        val file = viewModel.newShotFile()
+        if (file == null) {
+            viewModel.showNotice("Impossible de préparer la photo : vérifiez que la carte SD est bien insérée.", isError = true)
+        } else {
+            try {
+                val uri = FileProvider.getUriForFile(context, context.packageName + ".files", file)
+                pendingShot = file.absolutePath
+                camera.launch(uri)
+            } catch (e: Exception) {
+                pendingShot = null
+                file.delete()
+                viewModel.showNotice("Impossible d'ouvrir l'appareil photo du téléphone.", isError = true)
+            }
+        }
+    }
 
     // Les trois onglets du bas : Photos, Visages, Outils.
     val tabs: (Int) -> (@Composable () -> Unit) = { selected ->
@@ -106,6 +134,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onOpenTrash = { viewModel.openTrash(MoveKind.TRASH) },
                         onOpenAside = { viewModel.openTrash(MoveKind.ASIDE) },
                         onDuplicates = viewModel::findDuplicates,
+                        onTakePhoto = takePhoto,
                         onScan = viewModel::startNudityScan,
                         onReview = viewModel::openReview,
                         onCheckUpdate = { viewModel.checkUpdate(version) { updateTick++ } },
@@ -221,6 +250,7 @@ private fun HomeScreen(
     onOpenTrash: () -> Unit,
     onOpenAside: () -> Unit,
     onDuplicates: () -> Unit,
+    onTakePhoto: () -> Unit,
     onScan: () -> Unit,
     onReview: () -> Unit,
     onCheckUpdate: () -> Unit,
@@ -263,6 +293,7 @@ private fun HomeScreen(
                 item { SortCard(state.toSort, onSort) }
 
                 val tools = ArrayList<Tool>()
+                tools += Tool(AppIcons.Camera, "Prendre une photo", "Enregistrée sur la carte, dans « Photos à trier »", onClick = onTakePhoto)
                 tools += Tool(AppIcons.Copy, "Doublons", "Comparer et garder une seule photo", onClick = onDuplicates)
                 tools += Tool(
                     Icons.Default.Search,

@@ -21,6 +21,7 @@ import fr.mesphotos.logic.DupGroup
 import fr.mesphotos.logic.DuplicateReview
 import fr.mesphotos.logic.Duplicates
 import fr.mesphotos.logic.PlaceNamer
+import fr.mesphotos.logic.CaptureNames
 import fr.mesphotos.logic.RenameNames
 import fr.mesphotos.logic.PlannedMove
 import fr.mesphotos.logic.Planner
@@ -317,6 +318,40 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         notice = message
         noticeIsError = isError
         if (_state.value is UiState.Home) publishHome(Access.granted(getApplication()))
+    }
+
+    // ---- Appareil photo ------------------------------------------------------------------------
+    // L'appareil photo du téléphone fait la photo ; l'appli lui indique où l'enregistrer : sur la carte SD,
+    // dans « Photos à trier » (hors de « Photos rangées »), d'où le prochain « Ranger » la classe par date.
+
+    /** Un fichier vide, prêt à recevoir la photo, dans « Photos à trier » ; null s'il n'y a pas de carte ou si on ne peut pas y écrire. */
+    fun newShotFile(): File? {
+        val current = place ?: return null
+        val dir = current.captureDir
+        return try {
+            if (!dir.isDirectory && !dir.mkdirs()) return null
+            val target = RenameNames.unique(dir, CaptureNames.fileName(System.currentTimeMillis()))
+            if (target.createNewFile()) target else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Retour de l'appareil photo : [ok] vrai si la photo a été prise. */
+    fun photoTaken(file: File, ok: Boolean) {
+        if (ok && file.isFile && file.length() > 0) {
+            MediaScannerConnection.scanFile(getApplication(), arrayOf(file.absolutePath), null, null)
+            refresh("Photo enregistrée sur la carte, dans « ${Place.CAPTURE_DIR} » (${file.name}). Touchez « Ranger » pour la classer par date.")
+            return
+        }
+        // Photo annulée, ou appareil photo qui n'a pas écrit au bon endroit : on ne laisse pas de fichier vide.
+        if (file.isFile && file.length() == 0L) file.delete()
+        if (ok) {
+            refresh(
+                "L'appareil photo du téléphone n'a pas enregistré la photo à l'endroit prévu (« ${Place.CAPTURE_DIR} » sur la carte). Rien n'a été perdu ni déplacé.",
+                isError = true,
+            )
+        }
     }
 
     fun backToStart() {

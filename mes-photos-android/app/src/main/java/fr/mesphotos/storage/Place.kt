@@ -13,8 +13,13 @@ data class Place(
     val scanRoots: List<File> get() = listOf(root)
     val outputDir: File get() = File(root, OUTPUT_DIR)
 
+    /** Là où vont les photos prises avec l'appli : hors de « Photos rangées », donc « à ranger » au prochain rangement par date. */
+    val captureDir: File get() = File(root, CAPTURE_DIR)
+
     companion object {
         const val OUTPUT_DIR = "Photos rangées"
+
+        const val CAPTURE_DIR = "Photos à trier"
 
         /** Photos mises à part par la personne : dans « Photos rangées », mais ni dans la galerie, ni dans le rangement. */
         const val ASIDE_DIR = "À l'écart"
