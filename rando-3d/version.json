@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V57",
+  "version": "V58",
   "date": "08/10/2026",
   "nouveautes": [
+    "Bouton « 🎬 Créer les deux vidéos (carte + replay) » (onglet Mes films et dans les deux fenêtres vidéo) : fabrique le Film de la carte puis la vidéo du replay, l'un après l'autre, et les range dans Mes films. Film : au retour, seuls les 3 lieux les plus proches du marcheur restent affichés (moins brouillon).",
     "Nouveau choix « Les deux » dans le Film de la carte et dans la vidéo du replay : l'app fabrique la version 16:9 puis la version verticale, l'une après l'autre, et range les deux dans « Mes films » (nom avec « 16:9 » ou « vertical »).",
     "Les deux vidéos (Film de la carte et vidéo du replay) sont en 16:9 Full HD par défaut, à chaque ouverture. Vertical reste un choix possible.",
-    "Vidéo du replay : le format Horizontal 16:9 (YouTube, télé) est maintenant choisi par défaut, bien visible en premier, et l'app retient ton dernier choix (horizontal ou vertical).",
-    "Replay : un bouton 🎬 (vidéo) dans la barre ronde du bas lance un film du personnage qui marche sur la carte 3D, fabriqué image par image comme « Film de la carte » (fluide même si le téléphone est lent) et rangé dans « Mes films ». Le bouton 💾 y est remplacé (on ajoute depuis Mes randos)."
+    "Vidéo du replay : le format Horizontal 16:9 (YouTube, télé) est maintenant choisi par défaut, bien visible en premier, et l'app retient ton dernier choix (horizontal ou vertical)."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v57"
+    "cache": "rr3d-v58"
   },
   "fichiers": [
     "rando-3d.html",
