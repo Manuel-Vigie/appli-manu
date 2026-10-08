@@ -258,6 +258,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 .lib-list li{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .lib-info{display:flex;flex-direction:column}.lib-info small{color:var(--muted);font-size:12.5px}
 .lib-btns{display:flex;gap:6px;flex-wrap:wrap}.lib-btns .btn{box-shadow:none;padding:6px 11px;font-size:13px}.lib-del{margin-left:auto}.lib-del.sure{background:#c0392b;color:#fff}
+.lib-gr-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.lib-gr-head .btn{box-shadow:none;padding:6px 11px;font-size:13px}.lib-gr-head[hidden]{display:none}
 .lib-h{font-family:var(--display);font-size:18px;margin:6px 0 0}
 .gr-card{text-align:left;border:1.5px solid var(--path);background:var(--path-soft);color:var(--ink);border-radius:12px;padding:12px 14px;cursor:pointer;display:flex;flex-direction:column;gap:4px;font:inherit}
 .gr-card b{font-size:16px}.gr-card small{color:var(--muted);font-size:13px;line-height:1.4}
@@ -640,7 +641,8 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <p class="modal-note">« Fichier autonome » enregistre dans tes téléchargements une copie de l’app qui s’ouvre directement sur cette rando : touche-la, ouvre-la avec Chrome, c’est prêt.</p>
       <p class="modal-note" id="libEmpty">Aucune rando sauvegardée pour l’instant.</p>
       <ul class="lib-list" id="libList"></ul>
-      <h3 class="lib-h">Grands itinéraires</h3>
+      <div class="lib-gr-head"><h3 class="lib-h">Grands itinéraires</h3><button type="button" class="btn" id="libGRHide" aria-label="Retirer les grands itinéraires">✕ Retirer</button></div>
+      <button type="button" class="btn" id="libGRShow" hidden>Réafficher les grands itinéraires</button>
       <button type="button" class="gr-card" id="libGR5"><b>🥾 GR5 · Saint-Gingolph → Menton</b><small>Du lac Léman à la Méditerranée par le GR5, puis le GR52 (vallée des Merveilles) depuis Saint-Dalmas-Valdeblore · ≈ 40 étapes · tracé officiel OpenStreetMap, lieux à voir et nuits indiqués</small></button>
     </div>
   </div>
@@ -3275,6 +3277,13 @@ $('libFileCur').addEventListener('click',()=>{
   if(!T||T.sample||T.planBase){toast("Charge d'abord une rando.");return}
   standaloneFile(T.gr&&GRDATA?{gr:GRDATA,stage:T.gr.stage}:{track:trackPayload(T)},safeName(T.name)+'.html');
 });
+function grVisible(on){
+  try{localStorage.setItem('rr3d-hidegr',on?'':'1')}catch(e){}
+  $('libGR5').hidden=!on;document.querySelector('.lib-gr-head').hidden=!on;$('libGRShow').hidden=on;
+}
+$('libGRHide').addEventListener('click',()=>{grVisible(false);toast('Grands itinéraires retirés de cette liste.')});
+$('libGRShow').addEventListener('click',()=>grVisible(true));
+try{grVisible(localStorage.getItem('rr3d-hidegr')!=='1')}catch(e){}
 $('libGR5').addEventListener('click',()=>{const have=libLoad().find(x=>x.gr&&x.gr.id==='gr5');if(have){$('libPanel').hidden=true;loadGR(have.gr,0)}else buildGR5()});
 $('stagesBtn').addEventListener('click',()=>{
   if(!GRDATA)return;setPlaying(false);
@@ -4329,7 +4338,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V49", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Mes randos : dès que tu importes une trace, un bandeau « ＋ Ajouter à mes randos » apparaît en haut. Le bouton s'appelle maintenant « Ajouter à mes randos » partout, et la suppression (🗑 ou ✕) demande une confirmation en deux appuis.", "Film : deux étiquettes au même endroit (ex. « Grotte » au bout d'une boucle, déjà occupé par « La Gare ») ne se cachent plus : l'une est décalée automatiquement au-dessus ou en dessous. Les étiquettes restent affichées tant que leur lieu est à l'écran.", "Film : « Ajouter un lieu » se fait maintenant sur la carte. Un point orange « Ici » suit le curseur le long du parcours (avec boutons ◀ ▶ pour ajuster au plus près), puis tu donnes le nom.", "Film : plus de panneau « Télécharger de nouveau le fichier ? » — chaque film a maintenant un nom unique (avec la date et l'heure)."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V50", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Mes randos : bouton « ✕ Retirer » sur les Grands itinéraires (GR5) pour les enlever de la liste ; un bouton permet de les réafficher.", "Mes randos : dès que tu importes une trace, un bandeau « ＋ Ajouter à mes randos » apparaît en haut. Le bouton s'appelle maintenant « Ajouter à mes randos » partout, et la suppression (🗑 ou ✕) demande une confirmation en deux appuis.", "Film : deux étiquettes au même endroit (ex. « Grotte » au bout d'une boucle, déjà occupé par « La Gare ») ne se cachent plus : l'une est décalée automatiquement au-dessus ou en dessous. Les étiquettes restent affichées tant que leur lieu est à l'écran.", "Film : « Ajouter un lieu » se fait maintenant sur la carte. Un point orange « Ici » suit le curseur le long du parcours (avec boutons ◀ ▶ pour ajuster au plus près), puis tu donnes le nom."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
