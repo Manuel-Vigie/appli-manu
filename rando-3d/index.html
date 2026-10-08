@@ -539,7 +539,8 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
     </button>
     <button class="icon-btn" id="binoBtn2" aria-label="Jumelles" title="Jumelles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6.5" cy="15.5" r="4"/><circle cx="17.5" cy="15.5" r="4"/><path d="M10.5 15.5h3M4 12l2-7h3l1 6M20 12l-2-7h-3l-1 6"/></svg></button>
     <button class="icon-btn fs-btn" id="fsBtn2" aria-label="Plein écran" title="Plein écran" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V3h5M21 8V3h-5M3 16v5h5M21 16v5h-5"/><path d="M9 9h6v6H9z"/></svg></button>
-    <button class="icon-btn" id="saveBtn2" aria-label="Sauvegarder cette rando" title="Sauvegarder cette rando"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3M8 21v-7h8v7"/></svg></button>
+    <button class="icon-btn" id="vidBtn2" aria-label="Créer une vidéo du replay" title="Créer une vidéo du replay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5z" fill="currentColor"/></svg></button>
+    <button class="icon-btn" id="saveBtn2" aria-label="Sauvegarder cette rando" title="Sauvegarder cette rando" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3M8 21v-7h8v7"/></svg></button>
     <button class="icon-btn" id="showBtn" aria-label="Afficher les réglages" title="Afficher les réglages">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
     </button>
@@ -714,7 +715,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <div class="field"><label class="field-lbl" for="vTitleIn">Titre de la vidéo</label><input id="vTitleIn" class="txt-in" type="text" maxlength="60" autocomplete="off"></div>
       <div class="field"><label class="field-lbl" for="vSubIn">Sous-titre (facultatif)</label><input id="vSubIn" class="txt-in" type="text" maxlength="80" autocomplete="off" placeholder="ex. Avec Julie, par le col des Fourches"></div>
       <label class="check"><input type="checkbox" id="vOverlay" checked> Afficher le titre, les stats et le profil</label>
-      <p class="modal-note">L'enregistrement se fait en temps réel : garde l'écran allumé et reste sur cette page jusqu'à la fin.</p>
+      <p class="modal-note" id="vNote">La vidéo est fabriquée image par image : elle est fluide même si ton téléphone est lent. Garde l'écran allumé et reste sur cette page jusqu'à la fin ; elle sera aussi dans « Mes films ».</p>
       <div class="modal-actions"><button type="button" class="btn" id="vCancel">Annuler</button><button type="button" class="btn primary" id="vStart">Enregistrer la vidéo</button></div>
     </div>
   </div>
@@ -2027,6 +2028,7 @@ pc.addEventListener('pointercancel',()=>scrubbing=false);
 /* ---------- Main loop ---------- */
 let prevT=performance.now(),elapsed=0;
 function frame(now){
+  if(REC&&REC.stable&&!REC.inStep)return; // film stable : c'est recordStable qui fait avancer le temps
   const dt=Math.min(.1,(now-prevT)/1000);prevT=now;elapsed+=dt;
   if(T&&G.P){
     const prevF=f;
@@ -2237,19 +2239,30 @@ function pickMime(){
 }
 function segBind(id,key,conv){$(id).addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;vidOpts[key]=conv(b.dataset.v);[...$(id).querySelectorAll('button')].forEach(x=>x.setAttribute('aria-pressed',x===b))})}
 segBind('vfmtSeg','fmt',v=>v);segBind('vdurSeg','dur',Number);segBind('vqSeg','q',Number);
-$('videoBtn').addEventListener('click',()=>{if(!T)return;setPlaying(false);if(!$('vTitleIn').value||$('vTitleIn').dataset.for!==T.sig){$('vTitleIn').value=T.name;$('vTitleIn').dataset.for=T.sig;$('vSubIn').value=''}$('videoPanel').hidden=false;$('vTitleIn').focus()});
+$('videoBtn').addEventListener('click',()=>{if(!T)return;setPlaying(false);$('vNote').textContent=(window.VideoEncoder&&window.VideoFrame)?"La vidéo est fabriquée image par image : elle est fluide même si ton téléphone est lent. Garde l'écran allumé et reste sur cette page jusqu'à la fin ; elle sera aussi dans « Mes films ».":"L'enregistrement se fait en temps réel : garde l'écran allumé et reste sur cette page jusqu'à la fin.";if(!$('vTitleIn').value||$('vTitleIn').dataset.for!==T.sig){$('vTitleIn').value=T.name;$('vTitleIn').dataset.for=T.sig;$('vSubIn').value=''}$('videoPanel').hidden=false;$('vTitleIn').focus()});
 $('vCancel').addEventListener('click',()=>$('videoPanel').hidden=true);
 $('vOverlay').addEventListener('change',e=>vidOpts.overlay=e.target.checked);
 $('vStart').addEventListener('click',startRecording);
-$('recStop').addEventListener('click',()=>finishRecording(true));
+$('recStop').addEventListener('click',()=>{if(REC&&REC.stable)REC.cancel=true;else finishRecording(true)});
 $('vrClose').addEventListener('click',()=>{$('videoResult').hidden=true;$('vrVideo').pause()});
 
 async function startRecording(){
   const mime=pickMime();
-  if(!mime||!HTMLCanvasElement.prototype.captureStream){toast("Ce navigateur ne sait pas enregistrer de vidéo. Utilise Chrome à jour.",7000);return}
-  $('videoPanel').hidden=true;
   const long=vidOpts.q,short=Math.round(long*9/16/2)*2;
   const W=vidOpts.fmt==='h'?Math.round(long*16/9/2)*2:long===1080?1080:720,H=vidOpts.fmt==='h'?long:Math.round((long===1080?1080:720)*16/9/2)*2;
+  // film stable (image par image, comme « Film de la carte ») si le téléphone sait le faire, sinon enregistrement en direct
+  let stable=!!(window.VideoEncoder&&window.VideoFrame),pick=null;
+  if(stable){
+    try{await loadMuxer()}catch(e){stable=false}
+    if(stable){
+      for(const [mc,codec] of [['avc','avc1.640028'],['avc','avc1.4d0028'],['avc','avc1.42001f'],['vp9','vp09.00.40.08'],['vp9','vp09.00.10.08']]){
+        try{const r=await VideoEncoder.isConfigSupported({codec,width:W,height:H,bitrate:W*H>1.5e6?14e6:8e6,framerate:30});if(r&&r.supported){pick={mc,codec};break}}catch(e){}
+      }
+      if(!pick)stable=false;
+    }
+  }
+  if(!stable&&(!mime||!HTMLCanvasElement.prototype.captureStream)){toast("Ce navigateur ne sait pas enregistrer de vidéo. Utilise Chrome à jour.",7000);return}
+  $('videoPanel').hidden=true;
   const rc=document.createElement('canvas');rc.width=W;rc.height=H;rc.id='recCanvas';
   const box=$('recPreview');box.innerHTML='';box.appendChild(rc);
   const saved={camMode,f,speed,relief:reliefMul};
@@ -2259,13 +2272,45 @@ async function startRecording(){
   camMode='orbit';controls.enabled=false;
   const ang=elapsed*(reduceMotion?0:0.06)+0.8;
   camera.position.set(G.center.x+Math.cos(ang)*720,G.center.y+560,G.center.z+Math.sin(ang)*720);lookAt.copy(G.center);camera.lookAt(lookAt);
-  const stream=rc.captureStream(30);
-  let mr;try{mr=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:W*H>1.5e6?12e6:7e6})}catch(e){mr=new MediaRecorder(stream)}
-  const chunks=[];mr.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  const chunks=[];let mr;
+  if(stable){mr={start(){},stop(){if(mr.onstop)mr.onstop()}}}
+  else{
+    const stream=rc.captureStream(30);
+    try{mr=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:W*H>1.5e6?12e6:7e6})}catch(e){mr=new MediaRecorder(stream)}
+    mr.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  }
   let wake=null;
   REC={title:($('vTitleIn').value.trim()||T.name),sub:$('vSubIn').value.trim(),W,H,rc,ctx:rc.getContext('2d'),mr,chunks,mime,t:0,intro:3,outro:4,main:Math.max(12,vidOpts.dur-7),phase:'intro',overlay:vidOpts.overlay,saved,wake,photo:null,fmt:vidOpts.fmt};
   $('recLayer').hidden=false;
-  mr.start(1000);
+  if(stable){REC.stable=true;REC.mime='video/mp4';recordStable(REC,pick)}else mr.start(1000);
+}
+// fabrique la vidéo image par image (30 i/s) avec un temps virtuel : fluide même si le téléphone est lent
+async function recordStable(R,pick){
+  const FPS=30,W=R.W,H=R.H;
+  let encErr=null,enc=null,muxer=null;
+  try{
+    muxer=new Mp4Muxer.Muxer({target:new Mp4Muxer.ArrayBufferTarget(),video:{codec:pick.mc,width:W,height:H},fastStart:'in-memory'});
+    enc=new VideoEncoder({output:(c,m)=>muxer.addVideoChunk(c,m),error:e=>{encErr=e}});
+    enc.configure({codec:pick.codec,width:W,height:H,bitrate:W*H>1.5e6?14e6:8e6,framerate:FPS});
+    try{if(navigator.wakeLock)R.wake=await navigator.wakeLock.request('screen')}catch(e){}
+    let vNow=performance.now(),i=0;const dtMs=1000/FPS,maxF=FPS*(R.intro+R.main+R.outro+(T.photos?T.photos.length*3:0)+40);
+    while(REC===R&&!R.done&&!R.cancel&&!encErr&&i<maxF){
+      vNow+=dtMs;prevT=vNow-dtMs;R.inStep=true;try{frame(vNow)}finally{R.inStep=false}
+      if(R.done)break;
+      const vf=new VideoFrame(R.rc,{timestamp:Math.round(i*1e6/FPS)});enc.encode(vf,{keyFrame:i%60===0});vf.close();i++;
+      while(enc.encodeQueueSize>8)await new Promise(r=>setTimeout(r,4));
+      if(i%3===0)await new Promise(r=>setTimeout(r,0));
+    }
+    if(REC!==R)return;
+    if(R.cancel||encErr){try{enc.close()}catch(e){}finishRecording(true);if(encErr)toast("L'encodage de la vidéo a échoué sur ce téléphone. Essaie 720p.",8000);return}
+    await enc.flush();muxer.finalize();
+    R.chunks=[new Blob([muxer.target.buffer],{type:'video/mp4'})];
+    finishRecording(false);
+  }catch(e){
+    try{enc&&enc.close()}catch(_){}
+    if(REC===R)finishRecording(true);
+    toast('La vidéo n\'a pas pu être fabriquée : '+(e.message||e),8000);
+  }
 }
 function recStep(dt,now){
   const R=REC;R.t+=dt;
@@ -2276,7 +2321,7 @@ function recStep(dt,now){
       for(const ph of T.photos){if(ph.f>pf&&ph.f<=f&&ph.img){R.photo={ph,start:now,until:now+2600};holdUntil=now+2600;f=ph.f;break}}
     }
     if(f>=1){R.phase='outro';R.t0=R.t;camMode='orbit'}
-  }else if(R.t-R.t0>=R.outro){finishRecording(false);return}
+  }else if(R.t-R.t0>=R.outro){if(R.stable)R.done=true;else finishRecording(false);return}
   const total=R.intro+R.main+R.outro,done=R.phase==='intro'?R.t:R.phase==='main'?R.intro+f*R.main:R.intro+R.main+(R.t-R.t0);
   $('recPct').textContent=Math.min(99,Math.round(done/total*100))+' %';
 }
@@ -2364,6 +2409,7 @@ async function finishRecording(cancel){
   if(lastVideo)URL.revokeObjectURL(lastVideo.url);
   const url=URL.createObjectURL(blob),fname=`${safeName(R.title||T.name)}-${R.fmt==='h'?'horizontal':'vertical'}.${ext}`;
   lastVideo={url,blob,fname};
+  if(R.stable)filmStoreAdd(blob,(R.title||T.name)+' · replay',fname);
   $('vrVideo').src=url;$('vrDownload').href=url;$('vrDownload').download=fname;
   $('vrInfo').textContent=`${R.W}×${R.H} · ${(blob.size/1048576).toFixed(1).replace('.',',')} Mo · format ${ext.toUpperCase()}`+(ext==='webm'?" — si ton appli de montage ne l'accepte pas, convertis-la en MP4 (par ex. avec CapCut ou une appli de conversion).":'');
   let canShare=false;try{canShare=!!(navigator.canShare&&navigator.canShare({files:[new File([blob],fname,{type})]}))}catch(e){}
@@ -3284,7 +3330,7 @@ function saveCurrent(){
   if(!$('tabPage').hidden)navPageFill('randos');
 }
 $('libSaveCur').addEventListener('click',saveCurrent);
-$('saveBtn').addEventListener('click',saveCurrent);$('saveBtn2').addEventListener('click',saveCurrent);
+$('saveBtn').addEventListener('click',saveCurrent);$('saveBtn2').addEventListener('click',saveCurrent);$('vidBtn2').addEventListener('click',()=>$('videoBtn').click());
 $('libFileCur').addEventListener('click',()=>{
   if(!T||T.sample||T.planBase){toast("Charge d'abord une rando.");return}
   standaloneFile(T.gr&&GRDATA?{gr:GRDATA,stage:T.gr.stage}:{track:trackPayload(T)},safeName(T.name)+'.html');
@@ -4192,8 +4238,8 @@ function navPageFill(tab){
 /* ---------- Mes films (gardés dans le navigateur, IndexedDB) + renommer ---------- */
 function filmDB(){return new Promise((res,rej)=>{try{const r=indexedDB.open('rr3d-films',1);r.onupgradeneeded=()=>r.result.createObjectStore('films',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}})}
 function filmTx(mode,fn){return filmDB().then(db=>new Promise((res,rej)=>{const t=db.transaction('films',mode),st=t.objectStore('films');let out;const rq=fn(st);if(rq)rq.onsuccess=()=>{out=rq.result};t.oncomplete=()=>{db.close();res(out)};t.onerror=t.onabort=()=>{db.close();rej(t.error)}}))}
-async function filmStoreAdd(blob,name){
-  try{await filmTx('readwrite',st=>st.put({id:Date.now().toString(36),name,file:FILM.name,saved:Date.now(),size:blob.size,blob}));return true}catch(e){return false}
+async function filmStoreAdd(blob,name,file){
+  try{await filmTx('readwrite',st=>st.put({id:Date.now().toString(36),name,file:file||FILM.name,saved:Date.now(),size:blob.size,blob}));return true}catch(e){return false}
 }
 function askName(title,cur,cb){
   $('renH').textContent=title;$('renIn').value=cur;$('renBack').hidden=false;
@@ -4400,7 +4446,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V53", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : les étiquettes bougent beaucoup moins. Elles suivent la carte d'un bloc avec leur point (plus de glissement ni de trait qui s'étire), et ne changent de côté que si le parcours passe vraiment dessus.", "Nouvel onglet « Mes films » (barre du bas) : chaque film créé y est gardé ; tu peux le lire, l'enregistrer, le renommer ou le supprimer. Les randos de « Mes randos » peuvent aussi être renommées (✏️).", "Le bandeau « Ajouter à mes randos » à l'ouverture d'une trace est supprimé : on ajoute une rando depuis l'onglet Mes randos.", "Mes randos : bouton « ✕ Retirer » sur les Grands itinéraires (GR5) pour les enlever de la liste ; un bouton permet de les réafficher."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V54", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Replay : un bouton 🎬 (vidéo) dans la barre ronde du bas lance un film du personnage qui marche sur la carte 3D, fabriqué image par image comme « Film de la carte » (fluide même si le téléphone est lent) et rangé dans « Mes films ». Le bouton 💾 y est remplacé (on ajoute depuis Mes randos).", "Film : les étiquettes bougent beaucoup moins. Elles suivent la carte d'un bloc avec leur point (plus de glissement ni de trait qui s'étire), et ne changent de côté que si le parcours passe vraiment dessus.", "Nouvel onglet « Mes films » (barre du bas) : chaque film créé y est gardé ; tu peux le lire, l'enregistrer, le renommer ou le supprimer. Les randos de « Mes randos » peuvent aussi être renommées (✏️).", "Le bandeau « Ajouter à mes randos » à l'ouverture d'une trace est supprimé : on ajoute une rando depuis l'onglet Mes randos."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
