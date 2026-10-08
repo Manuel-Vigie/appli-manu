@@ -117,6 +117,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 @keyframes pop{from{opacity:0;transform:translate(-50%,-50%) rotate(2deg) scale(.9)}}
 
 .drop{position:absolute;z-index:41;inset:12px;border:2px dashed var(--trail);border-radius:14px;display:grid;place-items:center;background:rgba(215,57,42,.12);font-family:var(--display);font-weight:700;font-size:26px;color:var(--ink);text-align:center;padding:16px;pointer-events:none}
+.add-bar{position:absolute;left:50%;top:64px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;background:var(--panel-solid);color:var(--ink);border-left:4px solid var(--trail);padding:8px 10px;border-radius:8px;box-shadow:var(--shadow);width:max-content;max-width:calc(100% - 24px);z-index:39;font-size:13.5px}.add-bar[hidden]{display:none}
 .toast{position:absolute;left:50%;top:16px;transform:translateX(-50%);background:var(--panel-solid);color:var(--ink);border-left:4px solid var(--trail);padding:10px 14px;border-radius:6px;box-shadow:var(--shadow);max-width:min(520px,calc(100% - 32px));z-index:40;font-size:13.5px}
 /* Page d'accueil : ciel bleu et nuages, sans 3D */
 .welcome{position:absolute;inset:0;z-index:12;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(64px + env(safe-area-inset-top,0px)) 20px calc(28px + env(safe-area-inset-bottom,0px));color:#14303f;
@@ -256,7 +257,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 .lib-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .lib-list li{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .lib-info{display:flex;flex-direction:column}.lib-info small{color:var(--muted);font-size:12.5px}
-.lib-btns{display:flex;gap:6px;flex-wrap:wrap}.lib-btns .btn{box-shadow:none;padding:6px 11px;font-size:13px}.lib-del{margin-left:auto}
+.lib-btns{display:flex;gap:6px;flex-wrap:wrap}.lib-btns .btn{box-shadow:none;padding:6px 11px;font-size:13px}.lib-del{margin-left:auto}.lib-del.sure{background:#c0392b;color:#fff}
 .lib-h{font-family:var(--display);font-size:18px;margin:6px 0 0}
 .gr-card{text-align:left;border:1.5px solid var(--path);background:var(--path-soft);color:var(--ink);border-radius:12px;padding:12px 14px;cursor:pointer;display:flex;flex-direction:column;gap:4px;font:inherit}
 .gr-card b{font-size:16px}.gr-card small{color:var(--muted);font-size:13px;line-height:1.4}
@@ -635,7 +636,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
   <div class="modal-back" id="libPanel" hidden>
     <div class="modal lib" role="dialog" aria-labelledby="libTitle">
       <div class="tag-head"><h2 id="libTitle">Mes randos</h2><button type="button" class="icon-btn" id="libClose" aria-label="Fermer">✕</button></div>
-      <div class="modal-actions" style="justify-content:flex-start"><button type="button" class="btn primary" id="libSaveCur">Sauvegarder la rando affichée</button><button type="button" class="btn" id="libFileCur">Fichier autonome</button></div>
+      <div class="modal-actions" style="justify-content:flex-start"><button type="button" class="btn primary" id="libSaveCur">＋ Ajouter la rando affichée à mes randos</button><button type="button" class="btn" id="libFileCur">Fichier autonome</button></div>
       <p class="modal-note">« Fichier autonome » enregistre dans tes téléchargements une copie de l’app qui s’ouvre directement sur cette rando : touche-la, ouvre-la avec Chrome, c’est prêt.</p>
       <p class="modal-note" id="libEmpty">Aucune rando sauvegardée pour l’instant.</p>
       <ul class="lib-list" id="libList"></ul>
@@ -771,11 +772,12 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
         <button type="button" class="pg-tile" data-fwd="planBtn"><i>✏️</i><b>Créer un itinéraire</b><small>Tracer sur la carte</small></button>
         <button type="button" class="pg-tile" data-fwd="libBtn"><i>🗂️</i><b>Gérer mes randos</b><small>Sauvegarder, supprimer</small></button>
       </div>
-      <button type="button" class="pg-save" id="pgSave">💾 Sauvegarder la rando affichée</button>
+      <button type="button" class="pg-save" id="pgSave">＋ Ajouter la rando affichée à mes randos</button>
       <h3 class="pg-h">Enregistrées sur ce téléphone</h3>
       <div id="pgLib"></div>
     </section>
   </div>
+  <div class="add-bar" id="addBar" hidden><span id="addBarTxt"></span><button type="button" class="btn primary" id="addBarGo">＋ Ajouter à mes randos</button><button type="button" class="icon-btn" id="addBarX" aria-label="Fermer">✕</button></div>
   <div class="toast" id="toast" role="status" hidden></div>
 </div>
 
@@ -2156,10 +2158,10 @@ async function handleFiles(files){
   const imgs=files.filter(isImg);
   if(gpx){
     try{
-      if(tracks.length>1){const j=joinTracks(await readTracks(tracks));startHike(j);joinedToast(j);if(imgs.length)await addPhotos(imgs);return}
+      if(tracks.length>1){const j=joinTracks(await readTracks(tracks));startHike(j);joinedToast(j);offerSave();if(imgs.length)await addPhotos(imgs);return}
       const {name,pts}=await readTrackFile(gpx);
       setPlaying(false);loadHike({name:trackTitle(name,gpx),pts});
-      replayView();const tr=T;
+      replayView();const tr=T;offerSave();
       // start the replay once the real map and the names are in (or after 25 s at most)
       Promise.race([tr.ready,new Promise(r=>setTimeout(r,25000))]).then(()=>{if(T===tr&&!REC)setTimeout(()=>setPlaying(true),600)});
     }catch(e){toast(e.message||'Import impossible.',8000)}
@@ -3212,7 +3214,7 @@ function libSave(item,silent){
   if(rec.gr){rec.dist=rec.gr.stages.reduce((s,x)=>s+x.dist,0);rec.up=rec.gr.stages.reduce((s,x)=>s+x.up,0)}
   else{rec.dist=item.dist;rec.up=item.up}
   list.unshift(rec);const ok=libStore(list);
-  if(!silent)toast(ok?`« ${item.name} » est dans Mes randos.`:"Ce navigateur ne peut pas garder la rando : utilise plutôt « Fichier autonome ».",6000);
+  if(!silent)toast(ok?`« ${item.name} » est ajoutée à Mes randos.`:"Ce navigateur ne peut pas garder la rando : utilise plutôt « Fichier autonome ».",6000);
   renderLib();return ok;
 }
 function payloadToRaw(p){return {name:p.name,pts:p.pts.map(a=>({lat:a[0],lon:a[1],ele:a[2],time:a[3]!=null?a[3]*1000:NaN})),planned:p.planned}}
@@ -3243,13 +3245,24 @@ function renderLib(){
     const file=document.createElement('button');file.type='button';file.className='btn';file.textContent='Fichier autonome';
     file.addEventListener('click',()=>standaloneFile(rec.gr?{gr:rec.gr}:{track:rec.track},safeName(rec.name)+'.html'));
     const del=document.createElement('button');del.type='button';del.className='btn lib-del';del.textContent='✕';del.setAttribute('aria-label','Supprimer '+rec.name);
-    del.addEventListener('click',()=>{libStore(libLoad().filter(x=>x.id!==rec.id));renderLib()});
+    let dt=0;del.addEventListener('click',()=>{
+      if(!del.classList.contains('sure')){del.classList.add('sure');del.textContent='Supprimer ?';dt=setTimeout(()=>{del.classList.remove('sure');del.textContent='✕'},4000);return}
+      clearTimeout(dt);libStore(libLoad().filter(x=>x.id!==rec.id));renderLib();if(!$('tabPage').hidden)navPageFill('randos');toast('« '+rec.name+' » supprimée.');
+    });
     const row=document.createElement('div');row.className='lib-btns';row.append(open,file,del);
     li.append(info,row);ul.appendChild(li);
   }
 }
 $('libBtn').addEventListener('click',()=>{setPlaying(false);renderLib();$('libSaveCur').disabled=!T||T.sample||T.planBase;$('libPanel').hidden=false});
 $('libClose').addEventListener('click',()=>$('libPanel').hidden=true);
+let addBarT=0;
+function offerSave(){
+  if(!T||T.sample||T.planBase)return;
+  const nm=T.gr&&GRDATA?GRDATA.name:T.name;if(libLoad().some(x=>x.name===nm))return;
+  $('addBarTxt').textContent='« '+nm+' » est chargée.';$('addBar').hidden=false;clearTimeout(addBarT);addBarT=setTimeout(()=>$('addBar').hidden=true,20000);
+}
+$('addBarGo').addEventListener('click',()=>{$('addBar').hidden=true;saveCurrent()});
+$('addBarX').addEventListener('click',()=>{$('addBar').hidden=true});
 function saveCurrent(){
   if(!T||T.sample||T.planBase){toast("Charge d'abord une rando à sauvegarder.");return}
   if(T.gr&&GRDATA)libSave({name:GRDATA.name,gr:GRDATA});
@@ -4138,7 +4151,7 @@ function navPageFill(tab){
     const box=$('pgLib'),list=libLoad();box.innerHTML='';
     if(!list.length){box.innerHTML='<div class="pg-empty">Aucune rando enregistrée pour l\'instant.<br>Importe une trace, puis « Gérer mes randos » pour la sauvegarder.</div>'}
     const sv=$('pgSave'),cur=T&&!T.sample&&!T.planBase?(T.gr&&GRDATA?GRDATA.name:T.name):null,already=cur&&list.some(x=>x.name===cur);
-    sv.disabled=!cur||already;sv.textContent=!cur?'💾 Charge une rando pour la sauvegarder':already?'✓ « '+cur+' » est déjà sauvegardée':'💾 Sauvegarder « '+cur+' »';
+    sv.disabled=!cur||already;sv.textContent=!cur?'＋ Charge d\'abord une rando pour l\'ajouter':already?'✓ « '+cur+' » est déjà dans mes randos':'＋ Ajouter « '+cur+' » à mes randos';
     list.forEach(rec=>{const c=document.createElement('div');c.className='pg-card';
       const d=document.createElement('div');const b=document.createElement('b');b.textContent=rec.name;const sm=document.createElement('small');
       sm.textContent=`${isFinite(rec.dist)?fmtKm(rec.dist)+' km':''}${isFinite(rec.up)?' · '+nf0.format(rec.up)+' m D+':''}${rec.gr?' · '+rec.gr.stages.length+' étapes':''}`;
@@ -4316,7 +4329,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V48", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : deux étiquettes au même endroit (ex. « Grotte » au bout d'une boucle, déjà occupé par « La Gare ») ne se cachent plus : l'une est décalée automatiquement au-dessus ou en dessous. Les étiquettes restent affichées tant que leur lieu est à l'écran.", "Film : « Ajouter un lieu » se fait maintenant sur la carte. Un point orange « Ici » suit le curseur le long du parcours (avec boutons ◀ ▶ pour ajuster au plus près), puis tu donnes le nom.", "Film : plus de panneau « Télécharger de nouveau le fichier ? » — chaque film a maintenant un nom unique (avec la date et l'heure).", "Film : durée de 45 s par défaut. Fini le message du bas « Pour quitter le plein écran » : le plein écran ne se lance plus tout seul (bouton ⛶ si besoin), et « Créer le film » répond du premier coup."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V49", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Mes randos : dès que tu importes une trace, un bandeau « ＋ Ajouter à mes randos » apparaît en haut. Le bouton s'appelle maintenant « Ajouter à mes randos » partout, et la suppression (🗑 ou ✕) demande une confirmation en deux appuis.", "Film : deux étiquettes au même endroit (ex. « Grotte » au bout d'une boucle, déjà occupé par « La Gare ») ne se cachent plus : l'une est décalée automatiquement au-dessus ou en dessous. Les étiquettes restent affichées tant que leur lieu est à l'écran.", "Film : « Ajouter un lieu » se fait maintenant sur la carte. Un point orange « Ici » suit le curseur le long du parcours (avec boutons ◀ ▶ pour ajuster au plus près), puis tu donnes le nom.", "Film : plus de panneau « Télécharger de nouveau le fichier ? » — chaque film a maintenant un nom unique (avec la date et l'heure)."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
