@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V46",
+  "version": "V47",
   "date": "08/10/2026",
   "nouveautes": [
+    "Le raccourci « Vidéos » est retiré (l'album du bas le remplace). Les deux albums s'appellent « Album vidéos » et « Album photos », et l'album vidéos compte des vidéos.",
     "L'album « Vidéos » est classé par date comme vos albums : année, puis mois, puis jour, avec seulement les vidéos et leur nombre. Rien n'est déplacé.",
     "Un album « Vidéos » à côté des autres albums (page d'accueil des photos) : toutes vos vidéos, de la plus récente à la plus ancienne (ordre au choix en haut), là où elles sont. On peut les choisir comme dans « Toutes les photos ».",
-    "Un bouton « Vidéos » à côté de « Toutes les photos » sous la grande carte : il montre toutes les vidéos, là où elles sont (rien n'est déplacé).",
-    "Barre du bas à trois boutons : « Accueil » au milieu (revient à la page de départ), « Toutes » les photos à gauche, « Outils » à droite. Elle est maintenant aussi présente dans la recherche et dans « Toutes les photos »."
+    "Un bouton « Vidéos » à côté de « Toutes les photos » sous la grande carte : il montre toutes les vidéos, là où elles sont (rien n'est déplacé)."
   ],
   "pastille": false,
   "fichiers": []

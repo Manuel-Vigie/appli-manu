@@ -1350,7 +1350,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * Raccourcis fournis d'office : « Vidéos » montre toutes les vidéos là où elles sont (rien n'est déplacé ni copié).
      * Si la personne en crée un du même nom et du même classement, le sien remplace celui d'office.
      */
-    private val builtInShortcuts = listOf(Shortcut("Vidéos", "Types", "videos"))
+    // Plus de raccourci d'office : l'album « Vidéos » de la page d'accueil le remplace.
+    private val builtInShortcuts = emptyList<Shortcut>()
 
     private fun allShortcuts(): List<Shortcut> {
         val own = shortcuts.all()

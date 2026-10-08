@@ -366,7 +366,7 @@ fun BrowseScreen(
             // L'album « Vidéos » : à côté des autres albums, rien n'est déplacé (une recherche, classée par date comme les albums).
             if (!selecting && state.path.isEmpty()) state.videos?.let { videos ->
                 item(key = "videos", span = { GridItemSpan(3) }) {
-                    AlbumCard(videos, selecting = false, selected = false, onClick = onOpenVideos, onLongClick = {})
+                    AlbumCard(videos, selecting = false, selected = false, onClick = onOpenVideos, onLongClick = {}, title = "Album vidéos", unit = "vidéo")
                 }
             }
             items(state.folders, key = { "d:" + it.name }, span = { GridItemSpan(3) }) { folder ->
@@ -376,6 +376,8 @@ fun BrowseScreen(
                     selected = folder.name in selectedFolders,
                     onClick = { if (selecting) toggleFolder(folder.name) else onInto(folder.name) },
                     onLongClick = { toggleFolder(folder.name) },
+                    // À la racine, le gros dossier par date s'appelle « Album photos » à l'écran (son vrai nom sur la carte ne change pas).
+                    title = if (state.path.isEmpty() && folder.name == "Journées") "Album photos" else folder.name,
                 )
             }
             itemsIndexed(state.files, key = { _, f -> "f:" + f.absolutePath }, span = { _, _ -> GridItemSpan(2) }) { index, file ->
@@ -545,7 +547,15 @@ private fun ShortcutDrawer(
 /** Un album (dossier) : sa photo de couverture en grand, le nom et le nombre de photos par-dessus. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AlbumCard(folder: FolderItem, selecting: Boolean, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
+private fun AlbumCard(
+    folder: FolderItem,
+    selecting: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    title: String = folder.name,
+    unit: String = "photo",
+) {
     val shape = RoundedCornerShape(18.dp)
     Box(
         Modifier
@@ -559,9 +569,9 @@ private fun AlbumCard(folder: FolderItem, selecting: Boolean, selected: Boolean,
         folder.cover?.let { Thumb(it, 400, Modifier.fillMaxSize()) }
         Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000)))))
         Column(Modifier.align(Alignment.BottomStart).padding(horizontal = 12.dp, vertical = 10.dp)) {
-            Text(folder.name, color = Color.White, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+            Text(title, color = Color.White, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, maxLines = 2)
             Text(
-                if (folder.count > 1) "${spaced(folder.count)} photos" else "1 photo",
+                if (folder.count > 1) "${spaced(folder.count)} ${unit}s" else "1 $unit",
                 color = Color.White.copy(alpha = 0.85f),
                 fontSize = 13.sp,
             )
