@@ -27,6 +27,29 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT))
         super.onCreate(savedInstanceState)
         setContent { MainScreen(viewModel, onRequestAccess = ::requestAccess) }
+        if (savedInstanceState == null) handleShare(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleShare(intent)
+    }
+
+    /** Des photos partagées depuis la galerie du téléphone : on les retrouve sur la carte et on propose de les renommer. */
+    @Suppress("DEPRECATION")
+    private fun handleShare(intent: Intent?) {
+        if (intent == null) return
+        val uris: List<android.net.Uri> = when (intent.action) {
+            Intent.ACTION_SEND -> listOfNotNull(intent.getParcelableExtra<android.net.Uri>(Intent.EXTRA_STREAM))
+            Intent.ACTION_SEND_MULTIPLE -> intent.getParcelableArrayListExtra<android.net.Uri>(Intent.EXTRA_STREAM).orEmpty()
+            else -> emptyList()
+        }
+        if (uris.isNotEmpty()) {
+            viewModel.receiveShared(uris)
+            // Pour ne pas recommencer si l'écran pivote ou si l'appli revient au premier plan.
+            intent.action = Intent.ACTION_MAIN
+        }
     }
 
     override fun onResume() {

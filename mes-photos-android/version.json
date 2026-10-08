@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V39",
+  "version": "V40",
   "date": "08/10/2026",
   "nouveautes": [
+    "Partager depuis la galerie du téléphone : dans la galerie, cherchez (portrait, plage…), choisissez des photos, touchez Partager puis « Mes Photos » : l'appli les retrouve sur la carte, vous choisissez un mot, et elle les renomme et crée le raccourci.",
     "Recherche beaucoup plus rapide sur toutes les photos d'un coup : « Trouver les portraits » et « Classer par contenu » (Outils > Recherche) lisent les photos en parallèle, retiennent ce qu'elles ont déjà vu, et ont un bouton « Arrêter et voir ce qui est trouvé ».",
     "Nouvel habillage de l'onglet Photos : une grande carte avec une mosaïque de vos photos, la loupe et « Choisir » dessus, deux petits boutons arrondis (Toutes les photos, Photographier) à la place des grandes cartes, des couleurs moins blanches. Les vignettes carrées sont gardées.",
-    "Outils > Recherche > « Trouver les portraits » : repère les photos avec un visage bien visible (Portrait) ou des personnes plus petites (Personnes), vous cochez, puis il renomme et crée les raccourcis. Essayez d'abord sur 20 photos.",
-    "Outils > Recherche > « Classer mes photos » : l'appli reconnaît plage, voiture, repas, document… sur le téléphone, vous propose des mots à cocher, puis renomme d'un coup et crée les raccourcis. Essayez d'abord sur 20 photos."
+    "Outils > Recherche > « Trouver les portraits » : repère les photos avec un visage bien visible (Portrait) ou des personnes plus petites (Personnes), vous cochez, puis il renomme et crée les raccourcis. Essayez d'abord sur 20 photos."
   ],
   "pastille": false,
   "fichiers": []

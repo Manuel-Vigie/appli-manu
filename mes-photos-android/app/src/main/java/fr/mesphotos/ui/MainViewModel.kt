@@ -1413,6 +1413,68 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             ShortcutItem(shortcut, if (terms.isEmpty()) 0 else index.count { Gallery.matches(it.text, terms) })
         }
 
+    // ---- Photos partagées depuis la galerie du téléphone -------------------------------------------
+
+    /** Photos reçues par « Partager » et retrouvées sur la carte, en attente du mot à ajouter. */
+    class SharedBatch(val files: List<File>, val received: Int)
+
+    private val _shared = MutableStateFlow<SharedBatch?>(null)
+    val shared: StateFlow<SharedBatch?> = _shared
+
+    fun clearShared() { _shared.value = null }
+
+    /**
+     * Retrouve, sur la carte, les photos que la galerie du téléphone vient de partager : par leur nom de fichier (et leur taille quand elle
+     * est connue). Rien n'est changé ici : on demande d'abord le mot à ajouter.
+     */
+    fun receiveShared(uris: List<Uri>) {
+        viewModelScope.launch {
+            try {
+                // Au démarrage à froid, la carte n'est pas encore connue : on attend un peu.
+                var waited = 0
+                while (place == null && waited < 40) { kotlinx.coroutines.delay(250); waited++ }
+                val current = place
+                if (current == null) {
+                    refresh("Les photos partagées n'ont pas pu être cherchées : la carte n'est pas accessible.", isError = true)
+                    return@launch
+                }
+                val resolver = getApplication<Application>().contentResolver
+                val batch = withContext(Dispatchers.IO) {
+                    val byName = PhotoFiles.list(current, includeSorted = true).map { it.file }.groupBy { it.name.lowercase() }
+                    val found = LinkedHashSet<File>()
+                    for (uri in uris) {
+                        var name: String? = null
+                        var size = -1L
+                        runCatching {
+                            resolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME, android.provider.OpenableColumns.SIZE), null, null, null)?.use { c ->
+                                if (c.moveToFirst()) {
+                                    name = c.getString(0)
+                                    size = if (c.isNull(1)) -1L else c.getLong(1)
+                                }
+                            }
+                        }
+                        val candidates = name?.let { byName[it.lowercase()] }.orEmpty()
+                        val pick = when {
+                            candidates.isEmpty() -> null
+                            size > 0 -> candidates.firstOrNull { it.length() == size }
+                            candidates.size == 1 -> candidates[0]
+                            else -> null
+                        }
+                        if (pick != null) found += pick
+                    }
+                    SharedBatch(found.toList(), uris.size)
+                }
+                if (batch.files.isEmpty()) {
+                    refresh("Aucune des ${batch.received} photo(s) partagée(s) n'a été retrouvée sur la carte SD (elles sont peut-être dans la mémoire du téléphone).", isError = true)
+                } else {
+                    _shared.value = batch
+                }
+            } catch (e: Exception) {
+                refresh("Les photos partagées n'ont pas pu être cherchées : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
     // ---- Classer par reconnaissance (Google ML Kit, sur le téléphone) -----------------------------
 
     private val labelCache by lazy { SimpleCache(File(getApplication<Application>().filesDir, "etiquettes.tsv")) }

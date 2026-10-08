@@ -188,6 +188,23 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                 onDismiss = { askLabel = false },
             )
         }
+        val sharedBatch by viewModel.shared.collectAsStateWithLifecycle()
+        sharedBatch?.let { batch ->
+            TagDialog(
+                title = "Quel mot ajouter ?",
+                confirmText = "Renommer ${batch.files.size}",
+                help = "${batch.files.size} photo(s) retrouvée(s) sur la carte, sur ${batch.received} partagée(s) depuis la galerie du téléphone. Le mot est ajouté devant leur nom ; la date est gardée.",
+                shortcutOption = true,
+                choices = viewModel.tagChoices(),
+                onAdd = viewModel::addTag,
+                onRemove = viewModel::removeTag,
+                onConfirm = { chosen, withShortcut ->
+                    viewModel.clearShared()
+                    viewModel.renameMany(emptySet(), batch.files, Tags.join(chosen), withShortcut)
+                },
+                onDismiss = { viewModel.clearShared() },
+            )
+        }
         renaming?.let { pending ->
             TagDialog(
                 title = "Quel mot ajouter ?",
