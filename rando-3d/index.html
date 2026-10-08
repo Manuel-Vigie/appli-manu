@@ -2882,7 +2882,7 @@ function reportData(tr,places){
   return {tr,segs,byCls,timed,t0,startName:near(0),endName:near(N-1),steepUp:climbs[0],steepDown:descs[0],longClimb:best,places:(places||[]).sort((a,b)=>a.i-b.i)};
 }
 const REPORT_MODES={day:{n:'Randonnée à la journée',s:'sac léger',r:3.4,short:'À la journée'},trek:{n:'Trekking',s:'sac d’environ 12 kg',r:2.65,short:'Trekking · 12 kg'},heavy:{n:'Trekking très chargé',s:'sac de 15 kg ou plus',r:2.3,short:'Très chargé · 15 kg+'}};
-let reportSpeed=null,reportPause=.2;try{const v=parseFloat(localStorage.getItem('rr3d-reportspeed'));if(v>=.5&&v<=8)reportSpeed=v;const q=parseFloat(localStorage.getItem('rr3d-reportpause'));if(q>=.05&&q<=.4)reportPause=q}catch(_){}
+let reportPauseMin=null,reportSpeed=null,reportPause=.2;try{const v=parseFloat(localStorage.getItem('rr3d-reportspeed'));if(v>=.5&&v<=8)reportSpeed=v;const q=parseFloat(localStorage.getItem('rr3d-reportpause'));if(q>=.05&&q<=.4)reportPause=q}catch(_){}
 let reportMode='trek';try{const m=localStorage.getItem('rr3d-reportmode');if(REPORT_MODES[m])reportMode=m}catch(_){}
 function beginnerData(D){
   const tr=D.tr,km=tr.total/1000,up=tr.up[tr.N-1],down=tr.down[tr.N-1],kmE=km+up/100;
@@ -2896,7 +2896,9 @@ function beginnerData(D){
     {n:'Soutenue',col:'#e8731a',t:'Pour des marcheurs qui ont déjà un peu de condition : on sent les jambes et le souffle.'},
     {n:'Difficile',col:'#d7392a',t:'Longue ou très pentue : réservée aux marcheurs entraînés, à préparer sérieusement.'}][lv];
   // durée : soit la vitesse moyenne (pauses comprises) donnée par Manuel, soit la valeur du type de sortie ; les pauses sont une part du temps total
-  let tot,walk;if(reportSpeed){tot=km/reportSpeed;walk=tot*(1-reportPause)}else{walk=kmE/MD.r*.8;tot=walk/(1-reportPause)}
+  let tot,walk;const pm=reportPauseMin!==null?reportPauseMin/60:null;
+  if(reportSpeed){tot=km/reportSpeed;walk=pm!==null?Math.max(.1,tot-pm):tot*(1-reportPause);tot=Math.max(tot,walk)}
+  else{walk=kmE/MD.r*.8;tot=pm!==null?walk+pm:walk/(1-reportPause)}
   const avg=km/tot,pauseH=tot-walk;   // réglé sur l'expérience de Manuel : 1,5 à 1,8 km/h de moyenne, pauses comprises, sur une rando à fort dénivelé (≈ 2,65 km-effort par heure)
   const hm=x=>{const m=Math.round(x*60/5)*5;return Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')};
   const lines=[];
@@ -2910,7 +2912,7 @@ function beginnerData(D){
   if(reportMode!=='day')gear.push('Couchage et repas pour les nuits (tente ou refuge, duvet, réchaud)','Nourriture pour tous les jours + de quoi purifier l’eau','Sac bien réglé : le poids sur les hanches, pas sur les épaules');
   if(tr.eMax>1800)gear.push('Une couche chaude : il fait plus froid en altitude');
   const tips=[...(reportMode!=='day'?['Avec un sac lourd, on avance plus lentement, surtout en montée : prévois large et choisis des étapes courtes.']:[]),'Pars tôt pour finir avant la nuit et avoir de la marge.','Regarde la météo la veille ; en cas d’orage ou de brouillard épais, on renonce.','Garde un rythme où tu peux encore parler : si tu es essoufflé, ralentis.','On peut faire demi-tour à tout moment : il n’y a aucune honte.','Préviens quelqu’un de ton itinéraire et de ton heure de retour.'];
-  return {lv,L,MD,km,up,down,kmE,steep,tot:hm(tot),walk:hm(walk),avg,totH:tot,walkSpeed:km/walk,pause:hm(pauseH),lines,gear,tips};
+  return {lv,L,MD,km,up,down,kmE,steep,tot:hm(tot),walk:hm(walk),avg,totH:tot,walkSpeed:km/walk,walkH:walk,pause:hm(pauseH),lines,gear,tips};
 }
 let reportPrep=null;   // null = automatique ; true = rando à préparer ; false = rando déjà faite
 const isRecorded=tr=>reportPrep!==null?!reportPrep:(!!tr.hasTime&&!tr.planned);   // rando déjà faite (heures réelles) : pas d'estimation débutant
@@ -2920,10 +2922,10 @@ function beginnerHTML(D){
   return `<section class="rp-beg"><h2>Pour les débutants</h2>
    <div class="rp-modesel"><span>Type de sortie :</span>${Object.keys(REPORT_MODES).map(k=>`<button type="button" data-mode="${k}" aria-pressed="${k===reportMode}">${REPORT_MODES[k].short}</button>`).join('')}</div>
    <div class="rp-modesel"><span>Ma vitesse moyenne :</span><input type="number" data-speed inputmode="decimal" min="0.5" max="8" step="0.1" value="${reportSpeed||''}" placeholder="auto" aria-label="Vitesse moyenne en km/h"><span>km/h, pauses comprises</span></div>
-   <div class="rp-modesel"><span>Pauses :</span>${[[.1,'Courtes · 10 %'],[.2,'Normales · 20 %'],[.3,'Longues · 30 %']].map(([v,t])=>`<button type="button" data-pause="${v}" aria-pressed="${Math.abs(reportPause-v)<.01}">${t}</button>`).join('')}</div>
+   <div class="rp-modesel"><span>Temps de pause (total) :</span><input type="number" data-pausemin inputmode="numeric" min="0" max="600" step="5" value="${reportPauseMin!==null?reportPauseMin:''}" placeholder="${Math.round(B.totH*60*(1-B.walkH/B.totH)/5)*5}" aria-label="Temps de pause total en minutes"><span>min (laisser vide = automatique)</span></div>
    <p class="rp-modetxt">Calculé pour : <b>${B.MD.n}</b> (${B.MD.s}).</p>
    <div class="rp-diff" style="--c:${B.L.col}"><div class="rp-dl">Difficulté</div><b>${B.L.n}</b><div class="rp-dm"><i style="width:${(B.lv+1)*20}%"></i></div><p>${B.L.t}</p></div>
-   <div class="rp-est"><div><span>Durée totale</span><b>${B.tot}</b><small>moyenne ${nf1.format(B.avg)} km/h</small></div><div><span>Marche</span><b>${B.walk}</b><small>${nf1.format(B.walkSpeed)} km/h</small></div><div><span>Pauses</span><b>${B.pause}</b><small>${Math.round(reportPause*100)} % du temps</small></div></div>
+   <div class="rp-est"><div><span>Durée totale</span><b>${B.tot}</b><small>moyenne ${nf1.format(B.avg)} km/h</small></div><div><span>Marche</span><b>${B.walk}</b><small>${nf1.format(B.walkSpeed)} km/h</small></div><div><span>Pauses</span><b>${B.pause}</b><small>repas, photos, souffle</small></div></div>
    <p class="rp-note" style="margin-top:8px">${reportSpeed?`Estimation avec ta vitesse moyenne de ${nf1.format(reportSpeed)} km/h (pauses comprises) : ${fmtKm(D.tr.total)} km ÷ ${nf1.format(reportSpeed)} km/h.`:`Estimation avec le km-effort : environ ${nf1.format(B.MD.r)} km-effort par heure, pauses comprises (${B.MD.n.toLowerCase()}, ${B.MD.s}). Avec un sac d’environ 12 kg et beaucoup de dénivelé, la moyenne tombe vers 1,5 à 1,8 km/h.`} Les pauses (repas, photos, souffle) sont comptées dans le total. Les heures de passage ci-dessous suivent la même estimation.</p>
    <h3>Ce qui t’attend</h3><ul class="rp-ul">${B.lines.map(l=>`<li>${l}</li>`).join('')}</ul>
    <h3>À emporter</h3><ul class="rp-ul rp-chk">${B.gear.map(l=>`<li>${l}</li>`).join('')}</ul>
@@ -3094,16 +3096,18 @@ const REPORT_CSS=`.rp{--ink:#1d2b2d;--mut:#5b6b6c;--line:#dfe5e2;font-family:"Ba
 .rp-foot{margin-top:24px;font-size:11.5px;color:var(--mut)}
 @media (max-width:520px){.rp{padding:16px 14px 22px}.rp h1{font-size:28px}.rp-kpi b{font-size:23px}.rp-chip{margin-left:0}}`;
 let lastReport=null;
-$('reportBody').addEventListener('change',e=>{const i=e.target.closest('[data-speed]');if(!i||!lastReport)return;
-  const v=parseFloat(String(i.value).replace(',','.'));reportSpeed=v>=.5&&v<=8?v:null;try{if(reportSpeed)localStorage.setItem('rr3d-reportspeed',reportSpeed);else localStorage.removeItem('rr3d-reportspeed')}catch(_){}
+$('reportBody').addEventListener('change',e=>{const i=e.target.closest('[data-speed],[data-pausemin]');if(!i||!lastReport)return;
+  const v=parseFloat(String(i.value).replace(',','.'));
+  if(i.hasAttribute('data-pausemin'))reportPauseMin=i.value!==''&&v>=0&&v<=600?Math.round(v):null;
+  else{reportSpeed=v>=.5&&v<=8?v:null;try{if(reportSpeed)localStorage.setItem('rr3d-reportspeed',reportSpeed);else localStorage.removeItem('rr3d-reportspeed')}catch(_){}}
   setTimeout(()=>{const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(lastReport.D,lastReport.wx);$('reportPanel').scrollTop=y},0)});
-$('reportBody').addEventListener('click',e=>{const b=e.target.closest('[data-mode],[data-prep],[data-pause]');if(!b||!lastReport)return;if(b.dataset.pause!==undefined){reportPause=parseFloat(b.dataset.pause);try{localStorage.setItem('rr3d-reportpause',reportPause)}catch(_){}}else if(b.dataset.prep!==undefined)reportPrep=b.dataset.prep==='1';else{reportMode=b.dataset.mode;try{localStorage.setItem('rr3d-reportmode',reportMode)}catch(_){}}const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(lastReport.D,lastReport.wx);$('reportPanel').scrollTop=y});
+$('reportBody').addEventListener('click',e=>{const b=e.target.closest('[data-mode],[data-prep]');if(!b||!lastReport)return;if(b.dataset.prep!==undefined)reportPrep=b.dataset.prep==='1';else{reportMode=b.dataset.mode;try{localStorage.setItem('rr3d-reportmode',reportMode)}catch(_){}}const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(lastReport.D,lastReport.wx);$('reportPanel').scrollTop=y});
 function reportFileHTML(tr){
   const doc=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(tr.name)} · fiche rando</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap"><style>body{margin:0;background:#eef1ee}${REPORT_CSS}</style></head><body>${$('reportBody').innerHTML.replace(/<div class="rp-modesel[^"]*">.*?<\/div>/gs,'')}</body></html>`;
   return doc}
 
 async function openReport(tr,places){
-  reportPrep=null;
+  reportPrep=null;reportPauseMin=null;
   if(!tr){toast("Charge une trace ou crée un itinéraire d'abord.");return}
   const D=reportData(tr,places);
   let wx='';
@@ -4639,7 +4643,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V71", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : tu peux mettre ta vitesse moyenne (km/h, pauses comprises) et choisir des pauses courtes, normales ou longues. Durée totale, temps de marche, temps de pause et heures de passage sont recalculés.", "Rapport rando : deux boutons en haut, « Une rando à préparer » / « Une rando déjà faite ». Tu peux donc sortir le rapport pour débutants (durée, difficulté, matériel) même avec ta trace GPS enregistrée, pour le donner à quelqu'un.", "Rapport rando : la partie « Pour les débutants » (difficulté, durée estimée, matériel) n'apparaît que pour une rando à préparer. Pour une rando déjà enregistrée avec ses heures, le rapport garde les vrais temps.", "Rapport rando : tu choisis le type de sortie (à la journée, trekking avec sac de 12 kg, trekking très chargé). La durée, la vitesse moyenne (1,5 à 1,8 km/h avec sac et dénivelé), la difficulté et la liste de matériel s'adaptent."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V72", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : les pauses se règlent en minutes (temps de pause total) au lieu de pourcentages ; vide = automatique.", "Rapport rando : tu peux mettre ta vitesse moyenne (km/h, pauses comprises) et choisir des pauses courtes, normales ou longues. Durée totale, temps de marche, temps de pause et heures de passage sont recalculés.", "Rapport rando : deux boutons en haut, « Une rando à préparer » / « Une rando déjà faite ». Tu peux donc sortir le rapport pour débutants (durée, difficulté, matériel) même avec ta trace GPS enregistrée, pour le donner à quelqu'un.", "Rapport rando : la partie « Pour les débutants » (difficulté, durée estimée, matériel) n'apparaît que pour une rando à préparer. Pour une rando déjà enregistrée avec ses heures, le rapport garde les vrais temps."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
