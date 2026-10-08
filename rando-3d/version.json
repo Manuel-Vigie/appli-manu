@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V64",
+  "version": "V65",
   "date": "08/10/2026",
   "nouveautes": [
+    "Film : caméra plus proche, étiquettes collées à leur lieu (elles ne bougent plus toutes seules), faux « villages » (noms de montagnes) supprimés, et deux cases pour taper le nom du départ et de l'arrivée (ex. Le Pra).",
     "Nouveau « Rapport rando » pour débutants : difficulté expliquée simplement, durée estimée avec pauses, ce qui t'attend, quoi emporter, conseils, profil et plan tronçon par tronçon. Boutons Imprimer/PDF, Mail, SMS et Partager.",
     "Film : étiquettes testées sur toutes sortes de parcours (ligne droite, boucle, aller-retour, huit, très long, très court, hémisphère sud, arrêts) ; les noms trop longs sont raccourcis (…) et le tracé est mieux surveillé sur les longs parcours.",
-    "Film : chaque étiquette garde son côté (gauche ou droite du sens de marche, en alternance) et se place de travers par rapport au chemin : elle ne passe plus sur le tracé et ne change plus de côté.",
-    "Étiquettes du film plus calmes : elles restent au moins 5 s à l'écran, apparaissent et s'effacent plus lentement, ne passent plus sur les compteurs et leur trait ne traverse plus l'écran. Le bouton « deux vidéos » refait Replay (Topo) + Film (Photos IGN)."
+    "Film : chaque étiquette garde son côté (gauche ou droite du sens de marche, en alternance) et se place de travers par rapport au chemin : elle ne passe plus sur le tracé et ne change plus de côté."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v64"
+    "cache": "rr3d-v65"
   },
   "fichiers": [
     "rando-3d.html",

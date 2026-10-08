@@ -674,6 +674,9 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <input type="text" id="filmTitle" class="film-in" maxlength="60" autocomplete="off">
       <span class="field-lbl">Lieux sur le parcours <span id="filmPlN"></span></span>
       <ul id="filmPlList" class="film-pl"></ul>
+      <span class="field-lbl">Nom du départ et de l'arrivée (facultatif)</span>
+      <input type="text" id="filmStartName" class="film-in" maxlength="40" autocomplete="off" placeholder="Nom du départ (ex. Le Pra) — sinon automatique" style="margin-bottom:6px">
+      <input type="text" id="filmEndName" class="film-in" maxlength="40" autocomplete="off" placeholder="Nom de l'arrivée (si différente du départ)" style="margin-bottom:6px">
       <button type="button" class="btn" id="filmPlAdd">＋ Ajouter un lieu</button>
       <p class="modal-note">Ces lieux (et les étiquettes que tu as déjà posées sur la rando) apparaissent dans le film quand le point passe devant.</p>
       <p class="modal-note">Garde cette page ouverte et l'écran allumé pendant que le film se prépare. Utilise la carte choisie dans « Carte » (photos aériennes ou autre).</p>
@@ -1395,11 +1398,11 @@ async function fetchPlaces(tr){
       const [x,z]=tr.toXZ(lat,lon);
       if(Math.abs(x-A.cx)>A.half*0.96||Math.abs(z-A.cz)>A.half*0.96)continue;
       const kind=(t.natural==='peak'||t.natural==='volcano')?'peak':(t.natural==='saddle'||t.mountain_pass==='yes')?'pass':t.tourism?'hut':t.natural==='water'?'lake':t.natural==='glacier'?'glacier':'village';
-      items.push({name:t.name,ele:parseFloat(t.ele),kind,x,z,lat,lon});
+      items.push({name:t.name,ele:parseFloat(t.ele),kind,x,z,lat,lon,pl:t.place||''});
     }
   }catch(e){}
   if(!osmOk&&!cached){try{items.push(...(await wikidataPlaces(tr)).filter(p=>Math.abs(p.x-A.cx)<A.half*0.96&&Math.abs(p.z-A.cz)<A.half*0.96));tr.placesWiki=items.length>0}catch(e){placesErr+=(placesErr?' · ':'')+'Wikidata : '+(e.name==='AbortError'?'délai dépassé':e.message.includes('wikidata')?e.message.replace('wikidata ','HTTP '):'réseau')}}
-  if(!cached&&items.length){try{localStorage.setItem('rr3d-places:'+tr.sig,JSON.stringify({t:Date.now(),src:osmOk?'osm':'wiki',items:items.map(p=>{const [lat,lon]=A.ll(p.x,p.z);return {name:p.name,ele:p.ele,kind:p.kind,lat,lon}})}))}catch(e){}}
+  if(!cached&&items.length){try{localStorage.setItem('rr3d-places:'+tr.sig,JSON.stringify({t:Date.now(),src:osmOk?'osm':'wiki',items:items.map(p=>{const [lat,lon]=A.ll(p.x,p.z);return {name:p.name,ele:p.ele,kind:p.kind,lat,lon,pl:p.pl||''}})}))}catch(e){}}
   tr.namesCount=items.length;
   // summits from the elevation model that OSM doesn't name
   if(tr.demP){try{await tr.demP}catch(e){}}
@@ -3969,12 +3972,13 @@ const FILM_KINDTXT={peak:'Sommet',pass:'Col',hut:'Refuge',lake:'Lac',glacier:'Gl
 async function filmLabels(){
   const A=areaFor(T),N=T.N,L=[],ll=i=>{const [la,lo]=A.ll(T.rx[i],T.rz[i]);return [lo,la]};
   const nbr=f=>{const o=[];for(const d of [-.03,-.015,.015,.03]){const j=Math.max(0,Math.min(N-1,Math.round((f+d)*(N-1))));o.push(ll(j))}return o};
-  const pl=(T.places||[]).filter(p=>p.name&&p.name!=='Sommet');
+  const pl=(T.places||[]).filter(p=>p.name&&p.name!=='Sommet'&&(p.kind!=='village'||/^(village|town|city)$/.test(p.pl||'')));
   const near=(i,kinds,maxd)=>{let b=null,bd=maxd;for(const p of pl){if(!kinds.includes(p.kind))continue;const d=Math.hypot(p.x-T.rx[i],p.z-T.rz[i]);if(d<bd){bd=d;b=p}}return b};
   const used=new Set(),add=l=>{l.nb=nbr(l.f);L.push(l);used.add(l.title)};
   const e=N-1,loop=Math.hypot(T.rx[0]-T.rx[e],T.rz[0]-T.rz[e])<400;
-  const sp=near(0,['village'],2500)||near(0,['hut','pass','lake','peak'],600);
-  const sn=sp?sp.name:await filmTown(0);
+  const ovS=($('filmStartName')?$('filmStartName').value:'').trim(),ovE=($('filmEndName')?$('filmEndName').value:'').trim();
+  const sp=ovS?null:near(0,['village'],1500);
+  const sn=ovS||(sp?sp.name:await filmTown(0));
   add({kind:'start',pri:100,f:0,ll:ll(0),title:sn||'Départ',sub:sn?(loop?'Départ et arrivée':'Départ'):(loop?'Départ et arrivée':null)});
   let im=0;for(let i=1;i<N;i++)if(T.se[i]>T.se[im])im=i;
   if(im>N*.03&&im<N*.97){
@@ -3982,8 +3986,8 @@ async function filmLabels(){
     add({kind:'top',pri:90,f:im/e,ll:ll(im),title:tp?tp.name:'Point culminant',sub:(tp?'Point culminant · ':'')+nf0.format(T.se[im])+' m'});
   }
   if(!loop){
-    const ep=near(e,['village'],2500)||near(e,['hut','pass','lake','peak'],600);
-    const en=ep?ep.name:await filmTown(e);
+    const ep=ovE?null:near(e,['village'],1500);
+    const en=ovE||(ep?ep.name:await filmTown(e));
     if(!sn||en!==sn)add({kind:'end',pri:95,f:1,ll:ll(e),title:en||'Arrivée',sub:en?'Arrivée':null});
   }
   // lieux ajoutés par Manuel : ils apparaissent quand le marcheur passe devant
@@ -4057,7 +4061,13 @@ function filmLabelDraw(x,W,H,k,m,labs,o){
       l.tx=tx;l.ty=ty;
       const sg=l.sgn||1,nx=sg*ty,ny=-sg*tx,gap=20*u,half=Math.abs(nx)*w/2+Math.abs(ny)*h/2;
       let res=null;
-      for(const n of (o.labA<.5?[0,1,-1]:[0,1,-1,2,-2])){
+      // étiquette déjà posée : elle reste collée à son lieu avec le même décalage (aucun mouvement propre)
+      if(l.lock&&l.vis>.3&&ok){
+        const X=px+l.lock[0],Y=py+l.lock[1],M=9*k,bb=[X-M,Y-M,X+w+M,Y+h+M];
+        const bad=boxes.some(q=>bb[0]<q[2]&&bb[2]>q[0]&&bb[1]<q[3]&&bb[3]>q[1])||X<0||X+w>W||Y<top||Y+h>bot+h*.5;
+        if(!bad&&!(onPath(X,Y,w,h)&&(l.hit=(l.hit||0)+1)>45)){if(!onPath(X,Y,w,h))l.hit=0;res={X,Y,bb}}else l.lock=null;
+      }
+      for(const n of (res?[]:o.labA<.5?[0,1,-1]:[0,1,-1,2,-2])){
         const sh=n*(h+14*k),cx=px+nx*(gap+half)+tx*sh,cy=py+ny*(gap+half)+ty*sh;
         let X=cx-w/2,Y=cy-h/2;
         const X0=X;X=Math.max(3*k,Math.min(W-3*k-w,X));
@@ -4066,10 +4076,11 @@ function filmLabelDraw(x,W,H,k,m,labs,o){
         if(onPath(X,Y,w,h))continue;
         const M=9*k,bb=[X-M,Y-M,X+w+M,Y+h+M];
         if(boxes.some(q=>bb[0]<q[2]&&bb[2]>q[0]&&bb[1]<q[3]&&bb[3]>q[1]))continue;
-        res={X,Y,bb};break;
+        res={X,Y,bb};if(l.vis>.3)l.lock=[X-px,Y-py];break;
       }
       if(!res||py<.03*H||py>.97*H)ok=false;
       else{bx=res.X;by=res.Y;if(ok)boxes.push(res.bb)}
+      if(!ok&&l.vis<=.02)l.lock=null;
       if(!res)bx=null;
       else{ex=Math.max(bx,Math.min(bx+w,px));ey=Math.max(by,Math.min(by+h,py))}
     }
@@ -4148,6 +4159,7 @@ function openFilm(){
   if(!T||T.planBase){toast("Charge d'abord une trace.");return}
   if(!window.VideoEncoder||!window.VideoFrame){toast("Ce film demande un Chrome récent sur ton téléphone. Mets Chrome à jour puis réessaie.",8000);return}
   if(FILM.on){$('filmBack').hidden=false;return}
+  if(FILM.sig!==T.sig){FILM.sig=T.sig;$('filmStartName').value='';$('filmEndName').value=''}
   $('filmTitle').value=($('hikeName').textContent||'Ma randonnée').trim().slice(0,60);
   if(!FILM.style)FILM.style=SV.style||((T.lat0>41&&T.lat0<51.5&&T.lon0>-5.5&&T.lon0<10)?'ortho':'sat');
   if(FILM.style!=='ortho'&&FILM.style!=='sat')FILM.style='ortho';
@@ -4195,11 +4207,11 @@ async function filmRunOne(fmtKey,both){
     const ovCam=(b,za)=>({center:ovC,zoom:ovZ+za,pitch:SV.terrain?35:0,bearing:b});
     // vue qui suit le marcheur
     let fz=15.6-0.6*Math.log2(Math.max(T.total,1500)/1500)-Math.min(1.1,Math.max(0,(T.eMax-T.eMin-300)/1200));
-    fz=Math.max(11.2,Math.min(15.4,fz))-(SV.terrain?1:0)+Math.log2(W/360)-.6;
+    fz=Math.max(11.2,Math.min(15.4,fz))-(SV.terrain?1:0)+Math.log2(W/360)+.1;
     fz=Math.min(fz,17);
     const fp=SV.terrain?35:50,mpp=78271.5*Math.cos(T.lat0*Math.PI/180)/Math.pow(2,fz);
     const follow=fr=>{
-      const c=camAt(T,fr*(N-1)),h=c.b*Math.PI/180,off=.2*H*mpp,[la,lo]=A.ll(c.x+Math.sin(h)*off,c.z-Math.cos(h)*off);
+      const c=camAt(T,fr*(N-1)),h=c.b*Math.PI/180,off=.1*H*mpp,[la,lo]=A.ll(c.x+Math.sin(h)*off,c.z-Math.cos(h)*off);
       return {center:[lo,la],zoom:fz,pitch:fp,bearing:c.b};
     };
     // déroulé du film
@@ -4563,7 +4575,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V64", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Nouveau « Rapport rando » pour débutants : difficulté expliquée simplement, durée estimée avec pauses, ce qui t'attend, quoi emporter, conseils, profil et plan tronçon par tronçon. Boutons Imprimer/PDF, Mail, SMS et Partager.", "Film : étiquettes testées sur toutes sortes de parcours (ligne droite, boucle, aller-retour, huit, très long, très court, hémisphère sud, arrêts) ; les noms trop longs sont raccourcis (…) et le tracé est mieux surveillé sur les longs parcours.", "Film : chaque étiquette garde son côté (gauche ou droite du sens de marche, en alternance) et se place de travers par rapport au chemin : elle ne passe plus sur le tracé et ne change plus de côté.", "Étiquettes du film plus calmes : elles restent au moins 5 s à l'écran, apparaissent et s'effacent plus lentement, ne passent plus sur les compteurs et leur trait ne traverse plus l'écran. Le bouton « deux vidéos » refait Replay (Topo) + Film (Photos IGN)."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V65", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : caméra plus proche, étiquettes collées à leur lieu (elles ne bougent plus toutes seules), faux « villages » (noms de montagnes) supprimés, et deux cases pour taper le nom du départ et de l'arrivée (ex. Le Pra).", "Nouveau « Rapport rando » pour débutants : difficulté expliquée simplement, durée estimée avec pauses, ce qui t'attend, quoi emporter, conseils, profil et plan tronçon par tronçon. Boutons Imprimer/PDF, Mail, SMS et Partager.", "Film : étiquettes testées sur toutes sortes de parcours (ligne droite, boucle, aller-retour, huit, très long, très court, hémisphère sud, arrêts) ; les noms trop longs sont raccourcis (…) et le tracé est mieux surveillé sur les longs parcours.", "Film : chaque étiquette garde son côté (gauche ou droite du sens de marche, en alternance) et se place de travers par rapport au chemin : elle ne passe plus sur le tracé et ne change plus de côté."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
