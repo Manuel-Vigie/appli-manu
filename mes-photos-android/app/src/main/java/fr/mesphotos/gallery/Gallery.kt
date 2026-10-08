@@ -4,6 +4,8 @@ import fr.mesphotos.logic.Planner
 import fr.mesphotos.storage.PhotoFiles
 import fr.mesphotos.storage.Place
 import java.io.File
+import java.text.Normalizer
+import java.util.Locale
 
 /** Un sous-dossier affiché dans la galerie : son nom, le nombre de photos/vidéos qu'il contient, et une photo de couverture. */
 class FolderItem(val name: String, val count: Int, val cover: File?)
@@ -61,6 +63,16 @@ object Gallery {
         walk(root, 0)
         return result
     }
+
+    /** Minuscules et sans accents : « Août » et « aout » se retrouvent. */
+    fun normalize(text: String): String =
+        Normalizer.normalize(text.lowercase(Locale.FRANCE), Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
+
+    /** Les mots cherchés (« août 2024 » → [aout, 2024]). */
+    fun terms(query: String): List<String> = normalize(query).split(Regex("\\s+")).filter { it.isNotEmpty() }
+
+    /** Vrai si tous les mots se trouvent dans le chemin (déjà normalisé) de la photo. */
+    fun matches(haystack: String, terms: List<String>): Boolean = terms.isNotEmpty() && terms.all { haystack.contains(it) }
 
     /** Journées d'abord ; les années, mois et jours du plus récent au plus ancien ; « Date incertaine », puis « Sans date ni lieu » à la fin. */
     fun compareFolders(a: String, b: String): Int {

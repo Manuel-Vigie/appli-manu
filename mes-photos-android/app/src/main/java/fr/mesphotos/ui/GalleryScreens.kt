@@ -39,7 +39,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -193,6 +195,7 @@ fun BrowseScreen(
     onOpen: (List<File>, Int) -> Unit,
     onMove: (MoveKind, Set<String>, List<File>) -> Unit,
     onUndoMove: () -> Unit,
+    onSearch: () -> Unit,
     tabs: @Composable () -> Unit,
 ) {
     var selecting by remember(state) { mutableStateOf(false) }
@@ -249,6 +252,7 @@ fun BrowseScreen(
                 subtitle = counts.joinToString("  ·  ").ifEmpty { null },
                 onBack = if (state.path.isEmpty()) null else onUp,
             ) {
+                IconButton(onClick = onSearch) { Icon(Icons.Default.Search, contentDescription = "Rechercher") }
                 if (itemCount > 0) TopAction("Choisir") { selecting = true }
             }
         }
@@ -602,10 +606,11 @@ fun FaceResultsScreen(
 // ---- Visionneuse plein écran ---------------------------------------------------------------------
 
 @Composable
-fun ViewerScreen(state: UiState.Viewer, onClose: () -> Unit, onMove: (MoveKind, File) -> Unit) {
+fun ViewerScreen(state: UiState.Viewer, onClose: () -> Unit, onMove: (MoveKind, File) -> Unit, onRename: (File, String) -> Unit) {
     BackHandler { onClose() }
     val context = LocalContext.current
     var confirm by remember { mutableStateOf<MoveKind?>(null) }
+    var renaming by remember { mutableStateOf(false) }
     val pager = rememberPagerState(initialPage = state.index.coerceIn(0, (state.files.size - 1).coerceAtLeast(0))) { state.files.size }
     // Photo agrandie : le doigt fait glisser la photo au lieu de passer à la suivante.
     var zoomed by remember { mutableStateOf(false) }
@@ -642,6 +647,9 @@ fun ViewerScreen(state: UiState.Viewer, onClose: () -> Unit, onMove: (MoveKind, 
                 Spacer(Modifier.weight(1f))
                 Text("${pager.currentPage + 1} / ${state.files.size}", color = Color.White)
                 if (current != null) {
+                    IconButton(onClick = { renaming = true }) {
+                        Icon(Icons.Default.Edit, contentDescription = "Renommer", tint = Color.White)
+                    }
                     IconButton(onClick = { confirm = MoveKind.ASIDE }) {
                         Icon(Icons.Default.Lock, contentDescription = "Mettre à l'écart", tint = Color.White)
                     }
@@ -654,6 +662,53 @@ fun ViewerScreen(state: UiState.Viewer, onClose: () -> Unit, onMove: (MoveKind, 
                 Text(current.name, color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 8.dp))
                 Text(dateText(current), color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp, modifier = Modifier.padding(horizontal = 8.dp))
             }
+        }
+    }
+    var messageHidden by remember(state.message) { mutableStateOf(false) }
+    LaunchedEffect(state.message) {
+        delay(5000)
+        messageHidden = true
+    }
+    state.message?.takeIf { !messageHidden }?.let { message ->
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+            Text(
+                message,
+                color = Color.White,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp, vertical = 28.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xCC000000))
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+            )
+        }
+    }
+    if (renaming) {
+        val target = state.files.getOrNull(pager.currentPage)
+        if (target != null) {
+            var text by remember(target) { mutableStateOf(target.nameWithoutExtension) }
+            AlertDialog(
+                onDismissRequest = { renaming = false },
+                title = { Text("Renommer la photo") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(value = text, onValueChange = { text = it }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        Text(
+                            "Le type du fichier (« .${target.extension} ») est gardé. Vous pourrez retrouver la photo avec la loupe de l'onglet Photos.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        renaming = false
+                        onRename(target, text)
+                    }) { Text("Renommer", fontWeight = FontWeight.Bold) }
+                },
+                dismissButton = { TextButton(onClick = { renaming = false }) { Text("Annuler") } },
+            )
         }
     }
     confirm?.let { kind ->

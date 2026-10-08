@@ -21,6 +21,7 @@ import fr.mesphotos.logic.DupGroup
 import fr.mesphotos.logic.DuplicateReview
 import fr.mesphotos.logic.Duplicates
 import fr.mesphotos.logic.PlaceNamer
+import fr.mesphotos.logic.RenameNames
 import fr.mesphotos.logic.PlannedMove
 import fr.mesphotos.logic.Planner
 import fr.mesphotos.model.PhotoInfo
@@ -29,6 +30,7 @@ import fr.mesphotos.organize.Organizer
 import fr.mesphotos.organize.Trash
 import fr.mesphotos.organize.TrashEntry
 import fr.mesphotos.organize.Verifier
+import fr.mesphotos.scan.DateChoice
 import fr.mesphotos.scan.PhotoScanner
 import fr.mesphotos.storage.Access
 import fr.mesphotos.storage.PhotoFiles
@@ -53,6 +55,9 @@ import kotlin.math.roundToInt
 
 /** Où vont les photos choisies : la corbeille (on peut effacer pour de bon) ou « À l'écart » (rangées à part, jamais effacées). */
 enum class MoveKind { TRASH, ASIDE }
+
+/** Une photo prête pour la recherche : le fichier et son chemin sans accents ni majuscules. */
+class SearchEntry(val file: File, val text: String)
 
 sealed interface UiState {
     data class Home(
@@ -115,6 +120,14 @@ sealed interface UiState {
     /** La corbeille (ou « À l'écart ») : ce qui a été mis de côté, à remettre (ou, pour la corbeille, à supprimer pour de bon). */
     data class TrashView(val entries: List<TrashEntry>, val message: String? = null, val kind: MoveKind = MoveKind.TRASH) : UiState
 
+    /** Recherche par mots : les photos dont le chemin (album, nom du fichier…) contient tous les mots de [query]. */
+    data class Search(
+        val query: String,
+        val results: List<File>,
+        val message: String? = null,
+        val undoTrash: Int = 0,
+    ) : UiState
+
     /** Accueil de la recherche par visage : combien de photos ont déjà été regardées. */
     data class Faces(val analysed: Int, val total: Int, val faces: Int, val message: String? = null) : UiState
 
@@ -142,6 +155,9 @@ sealed interface UiState {
         val index: Int,
         val backToFaces: Boolean = false,
         val backToDups: Boolean = false,
+        val backToSearch: String? = null,
+        /** Petit message affiché en bas (ex. « Renommée : … »). */
+        val message: String? = null,
         val backToReview: Boolean = false,
     ) : UiState
 
@@ -184,6 +200,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var asideCount = 0
     private var lastMoved: List<TrashEntry> = emptyList()
     private var lastKind = MoveKind.TRASH
+    private var searchIndex: List<SearchEntry>? = null
+    private var searchQuery = ""
     private var dupGroups: List<DupGroup> = emptyList()
     private var faceJob: Job? = null
     private var faceQuery: FloatArray? = null
@@ -235,6 +253,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         else -> false
     }
 
+    /** Où revenir après un déplacement : à la recherche par mots si on en venait. */
+    private fun returnQuery(): String? = when (val s = _state.value) {
+        is UiState.Search -> s.query
+        is UiState.Viewer -> s.backToSearch
+        else -> null
+    }
+
     private fun returnsToDups(): Boolean = when (val s = _state.value) {
         is UiState.DupReview -> true
         is UiState.Viewer -> s.backToDups
@@ -244,6 +269,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // ---- Accueil -------------------------------------------------------------------------------
 
     fun refresh(newNotice: String? = null, isError: Boolean = false) {
+        searchIndex = null // les photos ont peut-être changé de place
         notice = newNotice
         noticeIsError = isError
         counts = null
@@ -576,14 +602,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun openViewer(files: List<File>, index: Int) {
-        _state.value = UiState.Viewer(browsePath, files, index, backToFaces = returnsToFaces(), backToDups = returnsToDups(), backToReview = returnsToReview())
+        _state.value = UiState.Viewer(browsePath, files, index, backToFaces = returnsToFaces(), backToDups = returnsToDups(), backToSearch = returnQuery(), backToReview = returnsToReview())
     }
 
     fun closeViewer() {
         val viewer = _state.value as? UiState.Viewer
+        val query = viewer?.backToSearch
         when {
             viewer?.backToFaces == true -> viewModelScope.launch { showFaceResults() }
             viewer?.backToDups == true -> viewModelScope.launch { showDupReview() }
+            query != null -> search(query)
             viewer?.backToReview == true -> openReview()
             else -> browse(browsePath)
         }
@@ -607,6 +635,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val base = browsePath
         val toFaces = returnsToFaces()
         val toDups = returnsToDups()
+        val toSearch = returnQuery()
         val toReview = returnsToReview()
         val label = if (kind == MoveKind.TRASH) "Mise à la corbeille…" else "Mise à l'écart…"
         viewModelScope.launch {
@@ -622,6 +651,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 lastMoved = result.entries
                 lastKind = kind
+                searchIndex = null
                 withContext(Dispatchers.IO) { refreshStashCounts(current) }
                 val lines = ArrayList<String>()
                 lines += when {
@@ -635,6 +665,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 when {
                     toFaces -> showFaceResults(message, result.done)
                     toDups -> showDupReview(message, result.done)
+                    toSearch != null -> showSearch(toSearch, message, result.done)
                     toReview -> showReview(message, result.done)
                     else -> showBrowse(base, message = message, undoCount = result.done)
                 }
@@ -652,18 +683,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val base = browsePath
         val toFaces = returnsToFaces()
         val toDups = returnsToDups()
+        val toSearch = returnQuery()
         val toReview = returnsToReview()
         viewModelScope.launch {
             try {
                 _state.value = UiState.Working("Remise en place…", 0, 0)
                 val result = withContext(Dispatchers.IO) { stashOf(current, kind).restore(items) }
                 lastMoved = emptyList()
+                searchIndex = null
                 withContext(Dispatchers.IO) { refreshStashCounts(current) }
                 var text = "${countText(result.done)} remis à leur place."
                 if (result.failed > 0) text += "\n${result.failed} fichier(s) n'ont pas pu être remis (ils sont toujours mis de côté)."
                 when {
                     toFaces -> showFaceResults(text)
                     toDups -> showDupReview(text)
+                    toSearch != null -> showSearch(toSearch, text, 0)
                     toReview -> showReview(text)
                     else -> showBrowse(base, message = text)
                 }
@@ -694,6 +728,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
                 lastMoved = emptyList()
+                searchIndex = null
                 var text = "${countText(result.done)} remis à leur place dans « ${Place.OUTPUT_DIR} »."
                 if (result.failed > 0) text += "\n${result.failed} fichier(s) n'ont pas pu être remis : ${result.failures.take(2).joinToString(" ; ")}"
                 openTrash(kind, text)
@@ -721,6 +756,83 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: Exception) {
                 refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
             }
+        }
+    }
+
+    // ---- Recherche par mots --------------------------------------------------------------------
+
+    fun openSearch() = search(searchQuery)
+
+    fun search(query: String) {
+        if (place == null) return
+        viewModelScope.launch { showSearch(query) }
+    }
+
+    /** Cherche [query] dans le chemin de chaque photo (dossiers année, mois, jour, ville + nom du fichier). */
+    private suspend fun showSearch(query: String, message: String? = null, undoCount: Int = 0) {
+        val current = place ?: return
+        searchQuery = query
+        val index = searchIndex ?: run {
+            _state.value = UiState.Working("Préparation de la recherche…", 0, 0)
+            withContext(Dispatchers.IO) {
+                Gallery.allMedia(current.outputDir)
+                    .map { SearchEntry(it, Gallery.normalize(it.toRelativeString(current.outputDir).replace('/', ' '))) }
+                    .sortedByDescending { it.text } // les plus récentes d'abord
+            }.also { searchIndex = it }
+        }
+        val terms = Gallery.terms(query)
+        val results = if (terms.isEmpty()) emptyList() else withContext(Dispatchers.Default) {
+            index.filter { Gallery.matches(it.text, terms) }.map { it.file }
+        }
+        _state.value = UiState.Search(query, results, message, undoCount)
+    }
+
+    // ---- Renommer une photo --------------------------------------------------------------------
+
+    /** Renomme [file] (dans la visionneuse). Le type du fichier est gardé ; rien d'autre ne change. */
+    fun renameFile(file: File, typed: String) {
+        viewModelScope.launch {
+            val (target, message) = withContext(Dispatchers.IO) { doRename(file, typed) }
+            val viewer = _state.value as? UiState.Viewer ?: return@launch
+            searchIndex = null
+            val files = if (target == null) viewer.files else viewer.files.map { if (it.absolutePath == file.absolutePath) target else it }
+            _state.value = viewer.copy(files = files, message = message)
+        }
+    }
+
+    private fun doRename(file: File, typed: String): Pair<File?, String> {
+        if (!file.isFile) return null to "Cette photo est introuvable."
+        // Si la date de la photo n'est que dans son nom (ex. WhatsApp), on la garde dans le nouveau nom.
+        val keepDate = DateChoice.fromFileName(file.name) != null && !hasExifDate(file)
+        val name = RenameNames.build(typed, file.name, keepDate) ?: return null to "Le nom est vide : rien n'a changé."
+        if (name == file.name) return null to "Le nom n'a pas changé."
+        val dir = file.parentFile ?: return null to "Dossier introuvable."
+        val target = RenameNames.unique(dir, name)
+        if (!file.renameTo(target) || !target.isFile || file.exists()) return null to "Impossible de renommer cette photo."
+        MediaScannerConnection.scanFile(getApplication(), arrayOf(file.absolutePath, target.absolutePath), null, null)
+        updateJournalPath(file, target)
+        val note = if (keepDate && target.name.contains(file.nameWithoutExtension, ignoreCase = true)) {
+            "\nL'ancien nom (avec la date) est gardé à la suite, pour que la photo reste classée au bon jour."
+        } else ""
+        return target to "Renommée : ${target.name}$note"
+    }
+
+    private fun hasExifDate(file: File): Boolean = try {
+        val exif = ExifInterface(file.absolutePath)
+        exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL) != null || exif.getAttribute(ExifInterface.TAG_DATETIME_DIGITIZED) != null
+    } catch (e: Exception) {
+        false
+    }
+
+    /** Si la photo figure dans le journal du dernier rangement, on y met son nouveau chemin (pour que « Annuler » la retrouve). */
+    private fun updateJournalPath(old: File, new: File) {
+        if (!journal.exists()) return
+        runCatching {
+            val lines = journal.readLines().map { line ->
+                val parts = line.split('\t')
+                if (parts.size == 3 && parts[0] == "M" && parts[1] == old.absolutePath) "M\t${new.absolutePath}\t${parts[2]}" else line
+            }
+            journal.writeText(lines.joinToString("\n", postfix = "\n"))
         }
     }
 

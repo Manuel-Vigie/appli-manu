@@ -1,10 +1,10 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V11",
+  "version": "V12",
   "date": "08/10/2026",
   "nouveautes": [
-    "Zoom corrigé : la photo ne disparaît plus quand on lève les doigts.",
-    "Photos : zoom avec deux doigts ou double toucher (V10).",
+    "Renommer une photo : ouvrez-la, touchez le crayon. La recherche par nom est de retour : loupe en haut de l'onglet Photos.",
+    "Zoom des photos corrigé (V10-V11).",
     "Nouvelle présentation façon appli photo (V9).",
     "Doublons : sélection automatique et dossier unique (V7-V8)."
   ],

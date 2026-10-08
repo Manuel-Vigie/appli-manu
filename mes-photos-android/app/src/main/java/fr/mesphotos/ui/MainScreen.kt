@@ -133,12 +133,22 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onOpen = viewModel::openViewer,
                     onMove = viewModel::moveSelection,
                     onUndoMove = viewModel::undoMove,
+                    onSearch = viewModel::openSearch,
                     tabs = tabs(0),
                 )
                 is UiState.Viewer -> ViewerScreen(
                     s,
                     onClose = viewModel::closeViewer,
                     onMove = { kind, file -> viewModel.moveSelection(kind, emptySet(), listOf(file)) },
+                    onRename = viewModel::renameFile,
+                )
+                is UiState.Search -> SearchScreen(
+                    s,
+                    onSearch = viewModel::search,
+                    onBack = viewModel::openGallery,
+                    onOpen = viewModel::openViewer,
+                    onMove = viewModel::moveSelection,
+                    onUndoMove = viewModel::undoMove,
                 )
                 is UiState.TrashView -> TrashScreen(
                     s,
