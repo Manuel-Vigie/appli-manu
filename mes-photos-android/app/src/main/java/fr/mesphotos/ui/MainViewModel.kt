@@ -73,6 +73,9 @@ enum class AllOrder(val label: String) {
 /** Recherche spéciale : « toutes les photos et vidéos », sans mot à taper. */
 const val ALL_QUERY = "\u2605toutes"
 
+/** Recherche spéciale : toutes les vidéos, à la suite (l'album « Vidéos » ; rien n'est déplacé). */
+const val VIDEOS_QUERY = "\u2605videos"
+
 /** Un raccourci et le nombre de photos qu'il montre en ce moment. */
 class ShortcutItem(val shortcut: Shortcut, val count: Int)
 
@@ -155,6 +158,8 @@ sealed interface UiState {
         val undoTrash: Int = 0,
         /** Les raccourcis, montrés en haut de la page d'accueil des photos (à la racine seulement). */
         val shortcuts: List<ShortcutItem> = emptyList(),
+        /** L'album « Vidéos » (à la racine) : combien de vidéos et la plus récente en couverture. */
+        val videos: FolderItem? = null,
     ) : UiState
 
     /** Résultat de « Vérifier les photos ». */
@@ -690,8 +695,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         browsePath = path
         val empty = listing.folders.isEmpty() && listing.files.isEmpty()
         val items = if (path.isEmpty()) withContext(Dispatchers.IO) { shortcutItems(allShortcuts(), searchIndex ?: buildSearchIndex(current)) } else emptyList()
+        val videos = if (path.isEmpty()) withContext(Dispatchers.IO) {
+            val all = (searchIndex ?: buildSearchIndex(current)).map { it.file }.filter { PhotoFiles.isVideo(it) }
+            if (all.isEmpty()) null else FolderItem("Vidéos", all.size, all.first())
+        } else null
         _state.value = UiState.Browse(
-            path, listing.folders, listing.files,
+            path, listing.folders, listing.files, videos = videos,
             message = message ?: if (empty && path.isEmpty() && items.isEmpty()) "Rien à voir pour l'instant : rangez d'abord vos photos." else null,
             undoTrash = undoCount,
             shortcuts = items,
@@ -1237,12 +1246,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         search(ALL_QUERY)
     }
 
+    /** L'album « Vidéos » : toutes les vidéos, là où elles sont, de la plus récente à la plus ancienne (ordre au choix). */
+    fun openVideos() = search(VIDEOS_QUERY)
+
     /** « Toutes les photos » : toutes les photos et vidéos de « Photos rangées » à la suite, à choisir et à mettre au coffre-fort. */
     fun openAllPhotos() = search(ALL_QUERY)
 
     fun setAllOrder(order: AllOrder) {
         allOrder = order
-        search(ALL_QUERY)
+        search(if (searchQuery == VIDEOS_QUERY) VIDEOS_QUERY else ALL_QUERY)
     }
 
     /** Cherche [query] dans le chemin de chaque photo (dossiers année, mois, jour, ville + nom du fichier). */
@@ -1253,12 +1265,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _state.value = UiState.Working("Préparation de la recherche…", 0, 0)
             withContext(Dispatchers.IO) { buildSearchIndex(current) }
         }
-        if (query == ALL_QUERY) {
+        if (query == ALL_QUERY || query == VIDEOS_QUERY) {
+            val videosOnly = query == VIDEOS_QUERY
             val order = allOrder
-            val hide = hideRenamed
-            val renamedCount = index.count { isRenamed(it.file.name) }
+            val hide = hideRenamed && !videosOnly
+            val renamedCount = if (videosOnly) 0 else index.count { isRenamed(it.file.name) }
             val all = withContext(Dispatchers.IO) {
-                val everything = index.map { it.file } // déjà de la plus récente à la plus ancienne
+                val everything = index.map { it.file }.let { all -> if (videosOnly) all.filter { PhotoFiles.isVideo(it) } else all } // déjà de la plus récente à la plus ancienne
                 val files = if (hide) everything.filterNot { isRenamed(it.name) } else everything
                 when (order) {
                     AllOrder.NEWEST -> files

@@ -84,8 +84,8 @@ fun AllPhotosScreen(
             )
         } else {
             Header(
-                title = "Toutes les photos",
-                subtitle = "${spaced(state.results.size)} photos et vidéos",
+                title = if (state.query == VIDEOS_QUERY) "Vidéos" else "Toutes les photos",
+                subtitle = if (state.query == VIDEOS_QUERY) "${spaced(state.results.size)} vidéo(s), classées par date" else "${spaced(state.results.size)} photos et vidéos",
                 top = {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = onBack) {
@@ -105,7 +105,7 @@ fun AllPhotosScreen(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            FilterChip(
+            if (state.query != VIDEOS_QUERY) FilterChip(
                 selected = state.hideRenamed,
                 onClick = { onHideRenamed(!state.hideRenamed) },
                 label = { Text(if (state.hideRenamed) "Renommées cachées (${state.renamedCount})" else "Cacher les renommées (${state.renamedCount})") },
@@ -128,7 +128,7 @@ fun AllPhotosScreen(
 
         if (state.results.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth().padding(28.dp), contentAlignment = Alignment.Center) {
-                Text(if (state.hideRenamed && state.renamedCount > 0) "Bravo : toutes les photos sont renommées. Touchez la puce en haut pour les revoir." else "Aucune photo pour l'instant : rangez d'abord vos photos.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(if (state.hideRenamed && state.renamedCount > 0) "Bravo : toutes les photos sont renommées. Touchez la puce en haut pour les revoir." else if (state.query == VIDEOS_QUERY) "Aucune vidéo pour l'instant." else "Aucune photo pour l'instant : rangez d'abord vos photos.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
             LazyVerticalGrid(

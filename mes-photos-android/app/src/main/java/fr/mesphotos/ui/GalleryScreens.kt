@@ -44,7 +44,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -238,6 +237,7 @@ fun BrowseScreen(
     onTakePhoto: () -> Unit,
     onRename: (Set<String>, List<File>) -> Unit,
     onOpenAll: () -> Unit,
+    onOpenVideos: () -> Unit,
     onOpenShortcut: (String) -> Unit,
     onSaveShortcut: (name: String, category: String, words: String, replacing: Shortcut?) -> Unit,
     onRemoveShortcut: (Shortcut) -> Unit,
@@ -343,7 +343,6 @@ fun BrowseScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Pill(AppIcons.Photos, "Toutes les photos", onOpenAll)
-                        Pill(Icons.Default.PlayArrow, "Vidéos") { onOpenShortcut("videos") }
                         Pill(AppIcons.Camera, "Photographier", onTakePhoto)
                     }
                 }
@@ -357,10 +356,16 @@ fun BrowseScreen(
                         onCreate = { creating = true },
                     )
                 }
-                if (state.folders.isNotEmpty()) {
+                if (state.folders.isNotEmpty() || state.videos != null) {
                     item(key = "albums", span = { GridItemSpan(maxLineSpan) }) {
-                        Text("Albums  ·  ${state.folders.size}", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 6.dp, top = 12.dp, bottom = 2.dp))
+                        Text("Albums  ·  ${state.folders.size + if (state.videos != null) 1 else 0}", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 6.dp, top = 12.dp, bottom = 2.dp))
                     }
+                }
+            }
+            // L'album « Vidéos » : à côté des autres albums, rien n'est déplacé (une recherche, classée par date comme les albums).
+            if (!selecting && state.path.isEmpty()) state.videos?.let { videos ->
+                item(key = "videos", span = { GridItemSpan(3) }) {
+                    AlbumCard(videos, selecting = false, selected = false, onClick = onOpenVideos, onLongClick = {})
                 }
             }
             items(state.folders, key = { "d:" + it.name }, span = { GridItemSpan(3) }) { folder ->

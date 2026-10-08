@@ -265,6 +265,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onTakePhoto = { askLabel = true },
                     onRename = { folders, files -> renaming = folders to files },
                     onOpenAll = viewModel::openAllPhotos,
+                    onOpenVideos = viewModel::openVideos,
                     onOpenShortcut = viewModel::openShortcut,
                     onSaveShortcut = viewModel::saveShortcut,
                     onRemoveShortcut = viewModel::removeShortcut,
@@ -288,12 +289,12 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onRestore = viewModel::restoreFromVault,
                     onDeleteForever = viewModel::deleteFromVault,
                 )
-                is UiState.Search -> if (s.query == ALL_QUERY) AllPhotosScreen(
+                is UiState.Search -> if (s.query == ALL_QUERY || s.query == VIDEOS_QUERY) AllPhotosScreen(
                     s,
                     onBack = viewModel::openGallery,
                     onOrder = viewModel::setAllOrder,
                     onHideRenamed = viewModel::setHideRenamed,
-                    tabs = tabs(1),
+                    tabs = tabs(if (s.query == VIDEOS_QUERY) 0 else 1),
                     onOpen = viewModel::openViewer,
                     onMove = viewModel::moveSelection,
                     onUndoMove = viewModel::undoMove,
