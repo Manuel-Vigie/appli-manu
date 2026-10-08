@@ -38,4 +38,26 @@ class CaptureNamesTest {
         assertEquals("IMG_20261008_120509 (2).jpg", second.name)
         assertEquals(true, first.isFile)
     }
+
+    @Test
+    fun theLabelGoesInFrontOfTheName() {
+        assertEquals("Immatriculation - IMG_20261008_120509.jpg", CaptureNames.fileName(moment, ZoneId.of("UTC"), "Immatriculation"))
+    }
+
+    @Test
+    fun aBlankLabelChangesNothing() {
+        assertEquals("IMG_20261008_120509.jpg", CaptureNames.fileName(moment, ZoneId.of("UTC"), "   "))
+    }
+
+    @Test
+    fun forbiddenCharactersInTheLabelAreRemoved() {
+        val name = CaptureNames.fileName(moment, ZoneId.of("UTC"), "Plaque: A/B ?")
+        assertEquals(false, name.any { it in "/:?*\"<>|\\" })
+        assertEquals(true, name.endsWith(" - IMG_20261008_120509.jpg"))
+    }
+
+    @Test
+    fun theSorterStillReadsTheDateWhenThereIsALabel() {
+        assertNotNull(DateChoice.fromFileName(CaptureNames.fileName(moment, ZoneId.of("UTC"), "Immatriculation")))
+    }
 }

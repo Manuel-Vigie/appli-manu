@@ -330,17 +330,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // dans « Photos à trier » (hors de « Photos rangées »), d'où le prochain « Ranger » la classe par date.
 
     /** Un fichier vide, prêt à recevoir la photo, dans « Photos à trier » ; null s'il n'y a pas de carte ou si on ne peut pas y écrire. */
-    fun newShotFile(): File? {
+    fun newShotFile(label: String = ""): File? {
         val current = place ?: return null
         val dir = current.captureDir
         return try {
             if (!dir.isDirectory && !dir.mkdirs()) return null
-            val target = RenameNames.unique(dir, CaptureNames.fileName(System.currentTimeMillis()))
+            val target = RenameNames.unique(dir, CaptureNames.fileName(System.currentTimeMillis(), label = label))
             if (target.createNewFile()) target else null
         } catch (e: Exception) {
             null
         }
     }
+
+    /** Idées de « ce que je photographie » : les noms des raccourcis déjà faits, puis « Immatriculation ». */
+    fun labelSuggestions(): List<String> =
+        (shortcuts.all().map { it.name } + "Immatriculation").distinctBy { Gallery.normalize(it) }.take(8)
 
     /** Retour de l'appareil photo : [ok] vrai si la photo a été prise. */
     fun photoTaken(file: File, ok: Boolean) {

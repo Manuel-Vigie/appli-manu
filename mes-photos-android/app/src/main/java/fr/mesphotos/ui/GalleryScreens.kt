@@ -87,6 +87,7 @@ import fr.mesphotos.gallery.FolderItem
 import fr.mesphotos.gallery.Gallery
 import fr.mesphotos.gallery.Thumbs
 import fr.mesphotos.logic.Shortcut
+import fr.mesphotos.logic.Shortcuts
 import fr.mesphotos.organize.TrashEntry
 import fr.mesphotos.storage.PhotoFiles
 import kotlinx.coroutines.delay
@@ -756,7 +757,7 @@ fun ViewerScreen(
         val target = state.files.getOrNull(pager.currentPage)
         if (target != null) {
             val existing = shortcutOf(target)
-            var name by remember(target) { mutableStateOf(existing?.name ?: "") }
+            var name by remember(target) { mutableStateOf(existing?.name ?: Shortcuts.suggestName(target.name)) }
             var category by remember(target) { mutableStateOf(existing?.category ?: "") }
             AlertDialog(
                 onDismissRequest = { shortcutDialog = false },

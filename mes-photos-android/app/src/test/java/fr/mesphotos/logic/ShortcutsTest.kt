@@ -139,4 +139,12 @@ class ShortcutsTest {
         assertEquals("Plaque voiture vieille", s.name)
         assertEquals("Véhicule 2", s.category)
     }
+
+    @Test
+    fun suggestedNameIsTheLabelInFrontOfTheFileName() {
+        assertEquals("Immatriculation", Shortcuts.suggestName("Immatriculation - IMG_20261008_120509.jpg"))
+        assertEquals("Immatriculation", Shortcuts.suggestName("Immatriculation (2) - IMG_20261008_120509.jpg"))
+        assertEquals("", Shortcuts.suggestName("IMG_20261008_120509.jpg"))
+        assertEquals("", Shortcuts.suggestName(" - IMG_1.jpg"))
+    }
 }

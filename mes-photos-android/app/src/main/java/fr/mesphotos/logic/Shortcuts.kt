@@ -101,6 +101,16 @@ class Shortcuts(private val store: File) {
     private fun clean(text: String): String = text.replace(Regex("[\\t\\r\\n]+"), " ").trim().take(40)
 
     companion object {
+        /**
+         * Le nom qu'on propose pour le raccourci d'une photo : ce qui précède « - IMG_… » dans son nom de fichier
+         * (« Immatriculation - IMG_2026….jpg » → « Immatriculation »). Vide si le nom du fichier n'en dit rien.
+         */
+        fun suggestName(fileName: String): String {
+            val cut = fileName.indexOf(" - ")
+            if (cut <= 0) return ""
+            return fileName.substring(0, cut).replace(Regex("\\s*\\(\\d+\\)$"), "").trim().take(40)
+        }
+
         /** Classement quand la personne n'en a pas donné. */
         const val OTHER = "Divers"
 

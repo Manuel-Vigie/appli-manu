@@ -8,6 +8,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -40,7 +42,10 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -92,8 +97,9 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
         pendingShot = null
         if (path != null) viewModel.photoTaken(File(path), ok)
     }
-    val takePhoto: () -> Unit = {
-        val file = viewModel.newShotFile()
+    var askLabel by remember { mutableStateOf(false) }
+    val takePhoto: (String) -> Unit = { label ->
+        val file = viewModel.newShotFile(label)
         if (file == null) {
             viewModel.showNotice("Impossible de préparer la photo : vérifiez que la carte SD est bien insérée.", isError = true)
         } else {
@@ -122,6 +128,40 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
     }
 
     MesPhotosTheme {
+        if (askLabel) {
+            var label by remember { mutableStateOf("") }
+            AlertDialog(
+                onDismissRequest = { askLabel = false },
+                title = { Text("Que photographiez-vous ?") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = label,
+                            onValueChange = { label = it },
+                            singleLine = true,
+                            placeholder = { Text("Immatriculation") },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            viewModel.labelSuggestions().forEach { idea ->
+                                FilterChip(selected = label.trim() == idea, onClick = { label = idea }, label = { Text(idea) })
+                            }
+                        }
+                        Text(
+                            "Ce nom est mis devant le nom de la photo : vous la retrouverez tout de suite avec la loupe, et pourrez en faire un raccourci. Vous pouvez aussi laisser vide.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        askLabel = false
+                        takePhoto(label)
+                    }) { Text("Prendre la photo", fontWeight = FontWeight.Bold) }
+                },
+                dismissButton = { TextButton(onClick = { askLabel = false }) { Text("Annuler") } },
+            )
+        }
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when (val s = state) {
                 is UiState.Home -> {
@@ -134,7 +174,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onOpenTrash = { viewModel.openTrash(MoveKind.TRASH) },
                         onOpenAside = { viewModel.openTrash(MoveKind.ASIDE) },
                         onDuplicates = viewModel::findDuplicates,
-                        onTakePhoto = takePhoto,
+                        onTakePhoto = { askLabel = true },
                         onScan = viewModel::startNudityScan,
                         onReview = viewModel::openReview,
                         onCheckUpdate = { viewModel.checkUpdate(version) { updateTick++ } },
