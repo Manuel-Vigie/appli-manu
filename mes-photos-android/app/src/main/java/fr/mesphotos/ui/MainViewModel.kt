@@ -65,6 +65,17 @@ import kotlin.math.roundToInt
 /** Où vont les photos choisies : la corbeille (on peut effacer pour de bon) ou « À l'écart » (rangées à part, jamais effacées). */
 enum class MoveKind { TRASH, ASIDE, VAULT }
 
+/** Ordres possibles pour la liste « Toutes les photos ». */
+enum class AllOrder(val label: String) {
+    NEWEST("Plus récentes"),
+    OLDEST("Plus anciennes"),
+    NAME("Nom"),
+    BIGGEST("Plus grosses"),
+}
+
+/** Recherche spéciale : « toutes les photos et vidéos », sans mot à taper. */
+const val ALL_QUERY = "\u2605toutes"
+
 /** Un raccourci et le nombre de photos qu'il montre en ce moment. */
 class ShortcutItem(val shortcut: Shortcut, val count: Int)
 
@@ -168,6 +179,8 @@ sealed interface UiState {
         val undoTrash: Int = 0,
         /** Les raccourcis : tous quand rien n'est tapé, sinon ceux dont le nom ou le classement correspond. */
         val shortcuts: List<ShortcutItem> = emptyList(),
+        /** Seulement pour « Toutes les photos » : l'ordre choisi. */
+        val order: AllOrder? = null,
     ) : UiState
 
     /** Accueil de la recherche par visage : combien de photos ont déjà été regardées. */
@@ -1264,6 +1277,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { showSearch(query) }
     }
 
+    private var allOrder = AllOrder.NEWEST
+
+    /** « Toutes les photos » : toutes les photos et vidéos de « Photos rangées » à la suite, à choisir et à mettre au coffre-fort. */
+    fun openAllPhotos() = search(ALL_QUERY)
+
+    fun setAllOrder(order: AllOrder) {
+        allOrder = order
+        search(ALL_QUERY)
+    }
+
     /** Cherche [query] dans le chemin de chaque photo (dossiers année, mois, jour, ville + nom du fichier). */
     private suspend fun showSearch(query: String, message: String? = null, undoCount: Int = 0) {
         val current = place ?: return
@@ -1271,6 +1294,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val index = searchIndex ?: run {
             _state.value = UiState.Working("Préparation de la recherche…", 0, 0)
             withContext(Dispatchers.IO) { buildSearchIndex(current) }
+        }
+        if (query == ALL_QUERY) {
+            val order = allOrder
+            val all = withContext(Dispatchers.IO) {
+                val files = index.map { it.file } // déjà de la plus récente à la plus ancienne
+                when (order) {
+                    AllOrder.NEWEST -> files
+                    AllOrder.OLDEST -> files.asReversed()
+                    AllOrder.NAME -> files.sortedBy { Gallery.normalize(it.name) }
+                    AllOrder.BIGGEST -> files.sortedByDescending { it.length() }
+                }
+            }
+            _state.value = UiState.Search(query, all, message, undoCount, emptyList(), order)
+            return
         }
         val terms = Gallery.terms(query)
         val results = if (terms.isEmpty()) emptyList() else withContext(Dispatchers.Default) {

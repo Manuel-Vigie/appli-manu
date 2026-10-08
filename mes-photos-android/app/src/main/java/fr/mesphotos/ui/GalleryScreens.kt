@@ -219,6 +219,7 @@ fun BrowseScreen(
     onUndoMove: () -> Unit,
     onSearch: () -> Unit,
     onTakePhoto: () -> Unit,
+    onOpenAll: () -> Unit,
     onOpenShortcut: (String) -> Unit,
     onSaveShortcut: (name: String, category: String, words: String, replacing: Shortcut?) -> Unit,
     onRemoveShortcut: (Shortcut) -> Unit,
@@ -309,6 +310,7 @@ fun BrowseScreen(
             // En tête de la page d'accueil des photos : l'appareil photo, puis le tiroir des raccourcis.
             if (!selecting && state.path.isEmpty()) {
                 item(key = "appareil", span = { GridItemSpan(maxLineSpan) }) { CameraCard(onTakePhoto) }
+                item(key = "toutes", span = { GridItemSpan(maxLineSpan) }) { AllPhotosCard(onOpenAll) }
                 item(key = "raccourcis", span = { GridItemSpan(maxLineSpan) }) {
                     ShortcutDrawer(
                         state.shortcuts,
@@ -392,6 +394,26 @@ fun BrowseScreen(
 }
 
 /** Le grand bouton « Prendre une photo », tout en haut de la page d'accueil des photos. */
+/** Bouton à plat : voir toutes les photos à la suite (pour les choisir, les classer, les mettre au coffre-fort). */
+@Composable
+private fun AllPhotosCard(onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
+    ) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Toutes les photos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Tout voir à la suite, choisir, trier, mettre au coffre-fort", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(AppIcons.Photos, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
 @Composable
 private fun CameraCard(onClick: () -> Unit) {
     Card(
