@@ -76,6 +76,9 @@ enum class AllOrder(val label: String) {
 }
 
 /** Recherche spéciale : « toutes les photos et vidéos », sans mot à taper. */
+/** Un mot proposé par « Classer mes photos » et les photos qui le portent. */
+class LabelGroup(val name: String, val files: List<File>)
+
 const val ALL_QUERY = "\u2605toutes"
 
 /** Un raccourci et le nombre de photos qu'il montre en ce moment. */
@@ -1409,8 +1412,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
 
     // ---- Classer par reconnaissance (Google ML Kit, sur le téléphone) -----------------------------
-
-    class LabelGroup(val name: String, val files: List<File>)
 
     /**
      * Regarde les photos pas encore renommées (les plus récentes d'abord, [limit] au plus ; 0 = toutes) et les range en groupes
