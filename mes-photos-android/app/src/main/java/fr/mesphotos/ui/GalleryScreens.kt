@@ -9,6 +9,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -65,6 +66,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -201,8 +203,10 @@ fun BrowseScreen(
     onMove: (MoveKind, Set<String>, List<File>) -> Unit,
     onUndoMove: () -> Unit,
     onSearch: () -> Unit,
+    onTakePhoto: () -> Unit,
     tabs: @Composable () -> Unit,
 ) {
+    var drawerOpen by rememberSaveable { mutableStateOf(true) }
     var selecting by remember(state) { mutableStateOf(false) }
     var selectedFolders by remember(state) { mutableStateOf(emptySet<String>()) }
     var selectedFiles by remember(state) { mutableStateOf(emptySet<String>()) }
@@ -280,12 +284,14 @@ fun BrowseScreen(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            // Les raccourcis, en tête de la page d'accueil des photos : la photo en vignette, un appui l'ouvre.
-            if (!selecting && state.shortcuts.isNotEmpty()) {
+            // En tête de la page d'accueil des photos : l'appareil photo, puis le tiroir des raccourcis.
+            if (!selecting && state.path.isEmpty()) {
+                item(key = "appareil", span = { GridItemSpan(maxLineSpan) }) { CameraCard(onTakePhoto) }
                 item(key = "raccourcis", span = { GridItemSpan(maxLineSpan) }) {
-                    ShortcutList(
+                    ShortcutDrawer(
                         state.shortcuts,
-                        heading = "Raccourcis",
+                        open = drawerOpen,
+                        onToggle = { drawerOpen = !drawerOpen },
                         onOpen = { item ->
                             val files = state.shortcuts.mapNotNull { it.file }
                             val index = files.indexOf(item.file)
@@ -335,6 +341,77 @@ fun BrowseScreen(
             },
             onDismiss = { confirm = null },
         )
+    }
+}
+
+/** Le grand bouton « Prendre une photo », tout en haut de la page d'accueil des photos. */
+@Composable
+private fun CameraCard(onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Box(
+                Modifier.size(46.dp).clip(RoundedCornerShape(23.dp)).background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(AppIcons.Camera, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(26.dp))
+            }
+            Column(Modifier.weight(1f)) {
+                Text("Prendre une photo", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Text(
+                    "Choisissez ce que vous photographiez : elle sera facile à retrouver.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+        }
+    }
+}
+
+/** Le tiroir des raccourcis : un appui l'ouvre ou le ferme ; dedans, une vignette par raccourci, classée par catégorie. */
+@Composable
+private fun ShortcutDrawer(items: List<ShortcutItem>, open: Boolean, onToggle: () -> Unit, onOpen: (ShortcutItem) -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column {
+            Row(
+                Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFE0A800), modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(10.dp))
+                Text("Raccourcis", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                if (items.isNotEmpty()) Text(items.size.toString(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(10.dp))
+                Text(if (open) "▴" else "▾", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (open) {
+                Box(Modifier.padding(start = 10.dp, end = 10.dp, bottom = 12.dp)) {
+                    if (items.isEmpty()) {
+                        Text(
+                            "Aucun raccourci pour l'instant. Ouvrez une photo et touchez l'étoile : donnez-lui un nom (par exemple « Immatriculation ») et un classement (« Véhicule »).",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 6.dp),
+                        )
+                    } else {
+                        ShortcutList(items, onOpen)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -758,7 +835,7 @@ fun ViewerScreen(
         if (target != null) {
             val existing = shortcutOf(target)
             var name by remember(target) { mutableStateOf(existing?.name ?: Shortcuts.suggestName(target.name)) }
-            var category by remember(target) { mutableStateOf(existing?.category ?: "") }
+            var category by remember(target) { mutableStateOf(existing?.category ?: Shortcuts.suggestCategory(target.name)) }
             AlertDialog(
                 onDismissRequest = { shortcutDialog = false },
                 title = { Text(if (existing != null) "Raccourci de cette photo" else "Créer un raccourci") },

@@ -147,4 +147,13 @@ class ShortcutsTest {
         assertEquals("", Shortcuts.suggestName("IMG_20261008_120509.jpg"))
         assertEquals("", Shortcuts.suggestName(" - IMG_1.jpg"))
     }
+
+    @Test
+    fun firstWordIsTheNameAndSecondIsTheCategory() {
+        val file = "Immatriculation, Véhicule - IMG_20261008_120509.jpg"
+        assertEquals("Immatriculation", Shortcuts.suggestName(file))
+        assertEquals("Véhicule", Shortcuts.suggestCategory(file))
+        assertEquals("", Shortcuts.suggestCategory("Immatriculation - IMG_20261008_120509.jpg"))
+        assertEquals("", Shortcuts.suggestCategory("IMG_20261008_120509.jpg"))
+    }
 }

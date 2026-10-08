@@ -101,15 +101,20 @@ class Shortcuts(private val store: File) {
     private fun clean(text: String): String = text.replace(Regex("[\\t\\r\\n]+"), " ").trim().take(40)
 
     companion object {
-        /**
-         * Le nom qu'on propose pour le raccourci d'une photo : ce qui précède « - IMG_… » dans son nom de fichier
-         * (« Immatriculation - IMG_2026….jpg » → « Immatriculation »). Vide si le nom du fichier n'en dit rien.
-         */
-        fun suggestName(fileName: String): String {
+        /** Les mots mis devant « - IMG_… » dans le nom d'un fichier (« Immatriculation, Véhicule - IMG_2026….jpg » → [Immatriculation, Véhicule]). */
+        private fun wordsIn(fileName: String): List<String> {
             val cut = fileName.indexOf(" - ")
-            if (cut <= 0) return ""
-            return fileName.substring(0, cut).replace(Regex("\\s*\\(\\d+\\)$"), "").trim().take(40)
+            if (cut <= 0) return emptyList()
+            return fileName.substring(0, cut).split(", ")
+                .map { it.replace(Regex("\\s*\\(\\d+\\)$"), "").trim().take(40) }
+                .filter { it.isNotEmpty() }
         }
+
+        /** Le nom qu'on propose pour le raccourci d'une photo : le premier mot choisi à la prise de vue. Vide si le nom du fichier n'en dit rien. */
+        fun suggestName(fileName: String): String = wordsIn(fileName).firstOrNull() ?: ""
+
+        /** Le classement qu'on propose : le deuxième mot choisi à la prise de vue (« Véhicule »). Vide s'il n'y en a pas. */
+        fun suggestCategory(fileName: String): String = wordsIn(fileName).getOrNull(1) ?: ""
 
         /** Classement quand la personne n'en a pas donné. */
         const val OTHER = "Divers"

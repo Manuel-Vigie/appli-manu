@@ -27,6 +27,7 @@ import fr.mesphotos.logic.PlannedMove
 import fr.mesphotos.logic.Planner
 import fr.mesphotos.logic.Shortcut
 import fr.mesphotos.logic.Shortcuts
+import fr.mesphotos.logic.Tags
 import fr.mesphotos.model.PhotoInfo
 import fr.mesphotos.organize.FolderCleanup
 import fr.mesphotos.organize.Organizer
@@ -221,6 +222,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var suggestionCount = 0
     private var scanJob: Job? = null
     private val nudityCache by lazy { NudityCache(File(getApplication<Application>().filesDir, "nudite.tsv")) }
+    private val tags by lazy { Tags(File(getApplication<Application>().filesDir, "etiquettes.txt")).also { it.load() } }
     private val shortcuts by lazy { Shortcuts(File(getApplication<Application>().filesDir, "raccourcis.tsv")).also { it.load() } }
 
     // Mise à jour
@@ -342,9 +344,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Idées de « ce que je photographie » : les noms des raccourcis déjà faits, puis « Immatriculation ». */
-    fun labelSuggestions(): List<String> =
-        (shortcuts.all().map { it.name } + "Immatriculation").distinctBy { Gallery.normalize(it) }.take(8)
+    /** Les mots proposés avant la photo (« Immatriculation », « Véhicule », « Montagne »…), à compléter. */
+    fun tagChoices(): List<String> = tags.all()
+
+    /** Ajoute un mot à la liste ; retourne le mot gardé (null si vide). */
+    fun addTag(typed: String): String? = tags.add(typed)
+
+    fun removeTag(tag: String) = tags.remove(tag)
 
     /** Retour de l'appareil photo : [ok] vrai si la photo a été prise. */
     fun photoTaken(file: File, ok: Boolean) {

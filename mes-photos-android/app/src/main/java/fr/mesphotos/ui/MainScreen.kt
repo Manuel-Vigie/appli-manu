@@ -6,10 +6,12 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -19,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +48,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import fr.mesphotos.logic.Tags
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Card
@@ -129,37 +133,15 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
 
     MesPhotosTheme {
         if (askLabel) {
-            var label by remember { mutableStateOf("") }
-            AlertDialog(
-                onDismissRequest = { askLabel = false },
-                title = { Text("Que photographiez-vous ?") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedTextField(
-                            value = label,
-                            onValueChange = { label = it },
-                            singleLine = true,
-                            placeholder = { Text("Immatriculation") },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            viewModel.labelSuggestions().forEach { idea ->
-                                FilterChip(selected = label.trim() == idea, onClick = { label = idea }, label = { Text(idea) })
-                            }
-                        }
-                        Text(
-                            "Ce nom est mis devant le nom de la photo : vous la retrouverez tout de suite avec la loupe, et pourrez en faire un raccourci. Vous pouvez aussi laisser vide.",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
+            TagDialog(
+                choices = viewModel.tagChoices(),
+                onAdd = viewModel::addTag,
+                onRemove = viewModel::removeTag,
+                onConfirm = { chosen ->
+                    askLabel = false
+                    takePhoto(Tags.join(chosen))
                 },
-                confirmButton = {
-                    TextButton(onClick = {
-                        askLabel = false
-                        takePhoto(label)
-                    }) { Text("Prendre la photo", fontWeight = FontWeight.Bold) }
-                },
-                dismissButton = { TextButton(onClick = { askLabel = false }) { Text("Annuler") } },
+                onDismiss = { askLabel = false },
             )
         }
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -203,6 +185,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onMove = viewModel::moveSelection,
                     onUndoMove = viewModel::undoMove,
                     onSearch = viewModel::openSearch,
+                    onTakePhoto = { askLabel = true },
                     tabs = tabs(0),
                 )
                 is UiState.Viewer -> ViewerScreen(
@@ -800,5 +783,100 @@ private fun CleanConfirmScreen(state: UiState.CleanConfirm, onConfirm: () -> Uni
             BigButton("Oui, supprimer ces dossiers vides", onConfirm)
             SoftButton("Non, les garder", onCancel)
         }
+    }
+}
+
+// ---- Que photographiez-vous ? --------------------------------------------------------------------------
+
+/**
+ * Avant la photo : on coche un ou plusieurs mots (« Immatriculation », « Véhicule », « Montagne »…) ou on en ajoute.
+ * Tous vont devant le nom du fichier, donc la loupe retrouve la photo par n'importe lequel. Un appui long retire un mot de la liste.
+ */
+@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
+@Composable
+private fun TagDialog(
+    choices: List<String>,
+    onAdd: (String) -> String?,
+    onRemove: (String) -> Unit,
+    onConfirm: (List<String>) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var words by remember { mutableStateOf(choices) }
+    var picked by remember { mutableStateOf(emptyList<String>()) }
+    var typed by remember { mutableStateOf("") }
+
+    fun addTyped() {
+        val tag = onAdd(typed) ?: return
+        if (tag !in words) words = words + tag
+        if (tag !in picked) picked = picked + tag
+        typed = ""
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Que photographiez-vous ?") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Touchez un ou plusieurs mots.", style = MaterialTheme.typography.bodyMedium)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    words.forEach { word ->
+                        val isPicked = picked.contains(word)
+                        WordChip(
+                            word,
+                            isPicked,
+                            onClick = { picked = if (isPicked) picked - word else picked + word },
+                            // Un appui long retire le mot de la liste (les photos déjà prises gardent leur nom).
+                            onLongClick = {
+                                onRemove(word)
+                                words = words - word
+                                picked = picked - word
+                            },
+                        )
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = typed,
+                        onValueChange = { typed = it },
+                        singleLine = true,
+                        placeholder = { Text("Un autre mot…") },
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = { addTyped() }, enabled = typed.isNotBlank()) { Text("Ajouter") }
+                }
+                if (picked.isNotEmpty()) {
+                    Text("Nom de la photo : " + Tags.join(picked) + " - IMG_…", style = MaterialTheme.typography.bodySmall)
+                }
+                Text(
+                    "Les mots sont mis devant le nom de la photo : la loupe la retrouve par n'importe lequel. Le premier mot touché pourra servir de nom de raccourci, le deuxième de classement. Appui long sur un mot : le retirer de la liste. Vous pouvez aussi ne rien choisir.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                // Un mot tapé mais pas encore ajouté compte aussi.
+                val extra = onAdd(typed)
+                onConfirm(if (extra != null && extra !in picked) picked + extra else picked)
+            }) { Text("Prendre la photo", fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
+    )
+}
+
+/** Un mot à cocher (touché : choisi / pas choisi ; appui long : retiré de la liste). */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun WordChip(text: String, picked: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        Modifier
+            .clip(shape)
+            .background(if (picked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+            .border(1.dp, if (picked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, shape)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Text(if (picked) "✓ $text" else text, style = MaterialTheme.typography.bodyMedium, fontWeight = if (picked) FontWeight.Bold else FontWeight.Normal)
     }
 }
