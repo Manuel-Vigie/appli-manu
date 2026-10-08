@@ -93,21 +93,15 @@ fun TopAction(text: String, onClick: () -> Unit) {
     TextButton(onClick = onClick) { Text(text, fontWeight = FontWeight.Bold, fontSize = 16.sp) }
 }
 
-/** Les trois onglets du bas. [selected] : 0 = Photos, 1 = Visages, 2 = Outils. */
+/** Les deux onglets du bas. [selected] : 0 = Photos, 2 = Outils. */
 @Composable
-fun AppNavBar(selected: Int, onPhotos: () -> Unit, onFaces: () -> Unit, onTools: () -> Unit) {
+fun AppNavBar(selected: Int, onPhotos: () -> Unit, onTools: () -> Unit) {
     NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 3.dp) {
         NavigationBarItem(
             selected = selected == 0,
             onClick = onPhotos,
             icon = { Icon(AppIcons.Photos, contentDescription = null) },
             label = { Text("Photos") },
-        )
-        NavigationBarItem(
-            selected = selected == 1,
-            onClick = onFaces,
-            icon = { Icon(Icons.Default.Face, contentDescription = null) },
-            label = { Text("Visages") },
         )
         NavigationBarItem(
             selected = selected == 2,

@@ -163,13 +163,12 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
         }
     }
 
-    // Les trois onglets du bas : Photos, Visages, Outils.
+    // Les deux onglets du bas : Photos, Outils.
     val tabs: (Int) -> (@Composable () -> Unit) = { selected ->
         {
             AppNavBar(
                 selected = selected,
                 onPhotos = viewModel::openGallery,
-                onFaces = viewModel::openFaces,
                 onTools = viewModel::backToStart,
             )
         }
@@ -234,12 +233,8 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onOpenAside = { viewModel.openTrash(MoveKind.ASIDE) },
                         onOpenVault = openVault,
                         onHealth = viewModel::startHealthCheck,
-                        onClassify = viewModel::startLabeling,
-                        onPortraits = viewModel::startPortraits,
                         onDuplicates = viewModel::findDuplicates,
                         onTakePhoto = { askLabel = true },
-                        onScan = viewModel::startNudityScan,
-                        onReview = viewModel::openReview,
                         onCheckUpdate = { viewModel.checkUpdate(version) { updateTick++ } },
                         onDownload = { url ->
                             runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
@@ -284,7 +279,6 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onSaveShortcut = { name, category, words -> viewModel.saveShortcut(name, category, words, null) },
                     onRestoreFromVault = { file -> viewModel.restoreFromVaultFile(file) },
                 )
-                is UiState.LabelView -> LabelScreen(s, onBack = viewModel::backToStart, onApply = viewModel::applyLabels)
                 is UiState.HealthView -> HealthScreen(s, onBack = viewModel::backToStart, onRepair = viewModel::repairHealth, onTrashUnusable = viewModel::trashUnusable)
                 is UiState.VaultView -> VaultScreen(
                     s,
@@ -318,37 +312,11 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onDeleteForever = viewModel::deleteFromTrash,
                     onToVault = { items -> viewModel.moveStashToVault(s.kind, items) },
                 )
-                is UiState.NudityScan -> NudityScanScreen(s, onStop = viewModel::stopNudityScan)
-                is UiState.Review -> ReviewScreen(
-                    s,
-                    onBack = viewModel::backToStart,
-                    onOpen = viewModel::openViewer,
-                    onMove = viewModel::moveSelection,
-                    onUndoMove = viewModel::undoMove,
-                    onDismiss = viewModel::dismissSuggestions,
-                    onRescan = viewModel::startNudityScan,
-                )
                 is UiState.DupReview -> DupReviewScreen(
                     s,
                     onBack = viewModel::backToStart,
                     onOpen = viewModel::openViewer,
                     onTrash = { files -> viewModel.moveSelection(MoveKind.TRASH, emptySet(), files) },
-                    onUndoMove = viewModel::undoMove,
-                )
-                is UiState.Faces -> FacesScreen(
-                    s,
-                    onScan = viewModel::startFaceScan,
-                    onPicked = viewModel::searchFaceFromPhoto,
-                    tabs = tabs(1),
-                )
-                is UiState.FaceScan -> FaceScanScreen(s, onStop = viewModel::stopFaceScan)
-                is UiState.FacePick -> FacePickScreen(s, onChoose = viewModel::chooseFace, onBack = { viewModel.openFaces() })
-                is UiState.FaceResults -> FaceResultsScreen(
-                    s,
-                    onBack = { viewModel.openFaces() },
-                    onLevel = viewModel::setFaceLevel,
-                    onOpen = viewModel::openViewer,
-                    onMove = viewModel::moveSelection,
                     onUndoMove = viewModel::undoMove,
                 )
             }
@@ -379,12 +347,8 @@ private fun HomeScreen(
     onOpenAside: () -> Unit,
     onOpenVault: () -> Unit,
     onHealth: () -> Unit,
-    onClassify: (Int) -> Unit,
-    onPortraits: (Int) -> Unit,
     onDuplicates: () -> Unit,
     onTakePhoto: () -> Unit,
-    onScan: () -> Unit,
-    onReview: () -> Unit,
     onCheckUpdate: () -> Unit,
     onDownload: (String) -> Unit,
     tabs: @Composable () -> Unit,
@@ -431,20 +395,10 @@ private fun HomeScreen(
                         listOf(Tool(AppIcons.Camera, "Prendre une photo", "Enregistrée sur la carte, dans « Photos à trier »", onClick = onTakePhoto)),
                     ),
                     ToolGroup(
-                        "Recherche",
+                        "Doublons",
                         listOf(
-                            Tool(Icons.Default.Face, "Trouver les portraits", "Toutes les photos pas encore renommées ; vous validez avant tout changement", onClick = { onPortraits(0) }),
-                            Tool(Icons.Default.Search, "Classer par contenu", "Plage, voiture, repas… sur toutes les photos ; vous validez avant tout changement", onClick = { onClassify(0) }),
                             Tool(AppIcons.Copy, "Doublons", "Comparer et garder une seule photo", onClick = onDuplicates),
-                            Tool(
-                                Icons.Default.Search,
-                                "Détection",
-                                if (state.suggestions > 0) "${spaced(state.suggestions)} suggestion(s) à voir" else "Recherche automatique",
-                                highlight = state.suggestions > 0,
-                                onClick = if (state.suggestions > 0) onReview else onScan,
-                            ),
                         ),
-                        badge = if (state.suggestions > 0) "${spaced(state.suggestions)} à voir" else null,
                     ),
                     ToolGroup(
                         "Mises de côté",
@@ -604,177 +558,6 @@ private fun WorkingScreen(state: UiState.Working) {
         }
     }
 }
-
-@Composable
-private fun NudityScanScreen(state: UiState.NudityScan, onStop: () -> Unit) {
-    BackHandler { onStop() }
-    // L'écran reste allumé pendant la recherche.
-    val view = LocalView.current
-    DisposableEffect(Unit) {
-        view.keepScreenOn = true
-        onDispose { view.keepScreenOn = false }
-    }
-    Column(modifier = Modifier.fillMaxSize()) {
-        Header("Recherche en cours", "Sur le téléphone seulement. Rien ne bouge.")
-        Column(
-            modifier = Modifier.weight(1f).fillMaxWidth().padding(28.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                if (state.total == 0) "Préparation…" else "${spaced(state.done)} / ${spaced(state.total)} photos regardées",
-                fontSize = 21.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(20.dp))
-            if (state.total > 0) {
-                LinearProgressIndicator(
-                    progress = { state.done.toFloat() / state.total },
-                    modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)),
-                )
-            } else {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)))
-            }
-            Spacer(Modifier.height(20.dp))
-            Text(
-                if (state.found > 1) "${state.found} suggestions pour l'instant" else "${state.found} suggestion pour l'instant",
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Spacer(Modifier.height(20.dp))
-            Text(
-                "Gardez l'écran allumé. Vous pouvez arrêter quand vous voulez : ce qui est déjà vu est retenu, la prochaine fois on reprend là.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-        }
-        BottomActions { SoftButton("Arrêter et voir les suggestions", onStop) }
-    }
-}
-
-// ---- Recherche par visage ------------------------------------------------------------------------
-
-@Composable
-private fun FacesScreen(state: UiState.Faces, onScan: () -> Unit, onPicked: (Uri) -> Unit, tabs: @Composable () -> Unit) {
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> if (uri != null) onPicked(uri) }
-    val missing = state.total - state.analysed
-    Column(modifier = Modifier.fillMaxSize()) {
-        TopBar("Visages", "Retrouver une personne · sur le téléphone seulement")
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            state.message?.let { message -> item { NoticeCard(message, isError = false) } }
-            item {
-                Section {
-                    Title("1. Analyser vos photos")
-                    Body(
-                        when {
-                            state.total == 0 -> "Il n'y a pas encore de photos dans « Photos rangées »."
-                            missing <= 0 -> "Toutes vos photos sont analysées (${spaced(state.total)} photos, ${spaced(state.faces)} visages)."
-                            state.analysed == 0 -> "L'appli regarde d'abord vos ${spaced(state.total)} photos pour repérer les visages. C'est long (écran allumé), mais une seule fois."
-                            else -> "${spaced(state.analysed)} photos analysées sur ${spaced(state.total)}. Il en reste ${spaced(missing)}."
-                        },
-                    )
-                    if (state.total > 0 && missing > 0) BigButton(if (state.analysed == 0) "Analyser mes photos" else "Continuer l'analyse", onScan)
-                    if (state.total > 0 && missing <= 0) SoftButton("Chercher les nouvelles photos", onScan)
-                }
-            }
-            item {
-                Section {
-                    Title("2. Choisir un visage")
-                    Body("Choisissez une photo où la personne est bien visible : l'appli montre toutes les photos où elle apparaît.")
-                    BigButton("Choisir une photo", { picker.launch("image/*") }, enabled = state.analysed > 0)
-                    if (state.analysed == 0) Text("Disponible après l'analyse.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    else if (missing > 0) Text("Les photos pas encore analysées ne seront pas dans les résultats.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-        tabs()
-    }
-}
-
-@Composable
-private fun FaceScanScreen(state: UiState.FaceScan, onStop: () -> Unit) {
-    BackHandler { onStop() }
-    val view = LocalView.current
-    DisposableEffect(Unit) {
-        view.keepScreenOn = true
-        onDispose { view.keepScreenOn = false }
-    }
-    Column(modifier = Modifier.fillMaxSize()) {
-        Header("Analyse des visages", "Sur le téléphone seulement. Rien ne bouge.")
-        Column(
-            modifier = Modifier.weight(1f).fillMaxWidth().padding(28.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                if (state.total == 0) "Préparation…" else "${spaced(state.done)} / ${spaced(state.total)} photos regardées",
-                fontSize = 21.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(20.dp))
-            if (state.total > 0) {
-                LinearProgressIndicator(
-                    progress = { state.done.toFloat() / state.total },
-                    modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)),
-                )
-            } else {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)))
-            }
-            Spacer(Modifier.height(20.dp))
-            Text("${spaced(state.faces)} visages repérés pour l'instant", style = MaterialTheme.typography.bodyLarge)
-            Spacer(Modifier.height(20.dp))
-            Text(
-                "Gardez l'écran allumé. Vous pouvez arrêter quand vous voulez : ce qui est déjà vu est retenu, la prochaine fois on reprend là.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-        }
-        BottomActions { SoftButton("Arrêter", onStop) }
-    }
-}
-
-@Composable
-private fun FacePickScreen(state: UiState.FacePick, onChoose: (Int) -> Unit, onBack: () -> Unit) {
-    BackHandler { onBack() }
-    Column(modifier = Modifier.fillMaxSize()) {
-        Header(
-            title = "Quel visage ?",
-            subtitle = "Plusieurs visages sur cette photo. Touchez celui à chercher.",
-            top = {
-                TextButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Retour", color = Color.White, fontSize = 16.sp)
-                }
-            },
-        )
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(130.dp),
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            itemsIndexed(state.crops) { index, crop ->
-                Image(
-                    bitmap = crop.asImageBitmap(),
-                    contentDescription = "Visage ${index + 1}",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(18.dp)).clickable { onChoose(index) },
-                )
-            }
-        }
-    }
-}
-
-// ---- Ranger : aperçu, lot test, résultat ---------------------------------------------------------
 
 @Composable
 private fun BottomActions(content: @Composable () -> Unit) {

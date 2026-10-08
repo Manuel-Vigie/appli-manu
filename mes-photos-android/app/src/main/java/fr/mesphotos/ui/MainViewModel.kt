@@ -9,17 +9,9 @@ import android.net.Uri
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import fr.mesphotos.detect.NudityCache
-import fr.mesphotos.detect.NudityDetector
-import fr.mesphotos.detect.NudityModel
-import fr.mesphotos.faces.FaceCache
-import fr.mesphotos.faces.FaceEngine
 import fr.mesphotos.gallery.FolderItem
 import fr.mesphotos.gallery.Gallery
 import fr.mesphotos.gallery.Thumbs
-import fr.mesphotos.labels.LabelNames
-import fr.mesphotos.labels.Labeler
-import fr.mesphotos.labels.SimpleCache
 import fr.mesphotos.logic.DupGroup
 import fr.mesphotos.logic.FileHealth
 import fr.mesphotos.logic.Health
@@ -78,9 +70,6 @@ enum class AllOrder(val label: String) {
 }
 
 /** Recherche spéciale : « toutes les photos et vidéos », sans mot à taper. */
-/** Un mot proposé par « Classer mes photos » et les photos qui le portent. */
-class LabelGroup(val name: String, val files: List<File>)
-
 const val ALL_QUERY = "\u2605toutes"
 
 /** Un raccourci et le nombre de photos qu'il montre en ce moment. */
@@ -123,8 +112,6 @@ sealed interface UiState {
         val trashCount: Int = 0,
         /** Nombre de photos et vidéos mises à l'écart. */
         val asideCount: Int = 0,
-        /** Nombre de suggestions de la recherche automatique (photos qui semblent montrer des personnes nues). */
-        val suggestions: Int = 0,
     ) : UiState
 
     /** [total] = 0 : durée inconnue. */
@@ -171,9 +158,6 @@ sealed interface UiState {
 
     /** Résultat de « Vérifier les photos ». */
     data class HealthView(val report: HealthReport) : UiState
-    /** Résultat de « Classer mes photos » : des groupes proposés (mot + photos), à cocher avant d'appliquer. */
-    data class LabelView(val groups: List<LabelGroup>, val scanned: Int, val unknown: Int, val message: String? = null) : UiState
-
     /** Le coffre-fort ouvert : ce qu'il contient (jamais montré ailleurs dans l'appli). */
     data class VaultView(val entries: List<VaultEntry>, val message: String? = null) : UiState
 
@@ -194,23 +178,6 @@ sealed interface UiState {
         val renamedCount: Int = 0,
     ) : UiState
 
-    /** Accueil de la recherche par visage : combien de photos ont déjà été regardées. */
-    data class Faces(val analysed: Int, val total: Int, val faces: Int, val message: String? = null) : UiState
-
-    /** Analyse des visages en cours. */
-    data class FaceScan(val done: Int, val total: Int, val faces: Int) : UiState
-
-    /** Plusieurs visages sur la photo choisie : on touche celui à chercher. [crops] : visages redressés. */
-    data class FacePick(val crops: List<Bitmap>) : UiState
-
-    /** Les photos où l'on voit la même personne. [level] : 0 = sûr, 1 = normal, 2 = large (plus de photos, moins sûr). */
-    data class FaceResults(
-        val results: List<File>,
-        val level: Int,
-        val message: String? = null,
-        val undoTrash: Int = 0,
-    ) : UiState
-
     /** Les doublons exacts, par groupes : la personne vérifie lequel garder avant que les autres aillent à la corbeille. */
     data class DupReview(val groups: List<DupGroup>, val message: String? = null, val undoTrash: Int = 0) : UiState
 
@@ -219,21 +186,14 @@ sealed interface UiState {
         val path: List<String>,
         val files: List<File>,
         val index: Int,
-        val backToFaces: Boolean = false,
         val backToDups: Boolean = false,
         val backToSearch: String? = null,
         /** Petit message affiché en bas (ex. « Renommée : … »). */
         val message: String? = null,
-        val backToReview: Boolean = false,
         /** Vrai quand on regarde une photo du coffre-fort. */
         val fromVault: Boolean = false,
     ) : UiState
 
-    /** Recherche automatique en cours. [total] = 0 : pas encore compté. */
-    data class NudityScan(val done: Int, val total: Int, val found: Int) : UiState
-
-    /** Suggestions de la recherche automatique : à regarder, puis à mettre de côté ou à retirer de la liste. */
-    data class Review(val files: List<File>, val message: String? = null, val undoTrash: Int = 0) : UiState
 }
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -271,14 +231,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var searchIndex: List<SearchEntry>? = null
     private var searchQuery = ""
     private var dupGroups: List<DupGroup> = emptyList()
-    private var faceJob: Job? = null
-    private var faceQuery: FloatArray? = null
-    private var faceLevel = 1
-    private var pickedFaces: List<FaceEngine.Found> = emptyList()
-    private val faceCache by lazy { FaceCache(File(getApplication<Application>().filesDir, "visages.tsv")) }
-    private var suggestionCount = 0
-    private var scanJob: Job? = null
-    private val nudityCache by lazy { NudityCache(File(getApplication<Application>().filesDir, "nudite.tsv")) }
     private val tags by lazy { Tags(File(getApplication<Application>().filesDir, "etiquettes.txt")).also { it.load() } }
     private val shortcuts by lazy { Shortcuts(File(getApplication<Application>().filesDir, "raccourcis.tsv")).also { it.load() } }
 
@@ -295,9 +247,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     init {
+        resetOnce()
         refresh()
         // Comme une appli photo : on arrive directement sur les photos.
         if (place != null) browse(emptyList())
+    }
+
+    /**
+     * Remise à zéro demandée par Manuel (V41), une seule fois : les raccourcis créés, la liste des mots et les mémoires de
+     * recherche (visages, détection, reconnaissance) sont effacés. Les photos, le coffre-fort, la corbeille et « À l'écart » ne sont pas touchés.
+     */
+    private fun resetOnce() {
+        val prefs = getApplication<Application>().getSharedPreferences("mesphotos", android.content.Context.MODE_PRIVATE)
+        if (prefs.getBoolean("reinit_v41", false)) return
+        val dir = getApplication<Application>().filesDir
+        listOf("raccourcis.tsv", "etiquettes.txt", "etiquettes.tsv", "portraits.tsv", "visages.tsv", "nudite.tsv").forEach { runCatching { File(dir, it).delete() } }
+        prefs.edit().putBoolean("reinit_v41", true).apply()
     }
 
     private fun hasUndo() = journal.exists() && journal.length() > 0
@@ -313,19 +278,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun trashOf(p: Place) = stashOf(p, MoveKind.TRASH)
-
-    private fun returnsToReview(): Boolean = when (val s = _state.value) {
-        is UiState.Review -> true
-        is UiState.Viewer -> s.backToReview
-        else -> false
-    }
-
-    /** Où revenir après un déplacement : aux résultats de la recherche par visage si on en venait (liste ou visionneuse), sinon à la galerie. */
-    private fun returnsToFaces(): Boolean = when (val s = _state.value) {
-        is UiState.FaceResults -> true
-        is UiState.Viewer -> s.backToFaces
-        else -> false
-    }
 
     /** Où revenir après un déplacement : à la recherche par mots si on en venait. */
     private fun returnQuery(): String? = when (val s = _state.value) {
@@ -356,7 +308,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 trashCount = runCatching { trashOf(current).count() }.getOrDefault(0)
                 asideCount = runCatching { stashOf(current, MoveKind.ASIDE).count() }.getOrDefault(0)
                 runCatching { moveOldShots(current) }
-                if (scanJob?.isActive != true) suggestionCount = runCatching { currentSuggestions(current).size }.getOrDefault(0)
                 runCatching { scanner.counts(current) }.getOrDefault(0 to 0)
             }
             counts = found
@@ -375,7 +326,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             noticeIsError = noticeIsError,
             trashCount = trashCount,
             asideCount = asideCount,
-            suggestions = suggestionCount,
         )
     }
 
@@ -754,7 +704,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun openViewer(files: List<File>, index: Int) {
-        _state.value = UiState.Viewer(browsePath, files, index, backToFaces = returnsToFaces(), backToDups = returnsToDups(), backToSearch = returnQuery(), backToReview = returnsToReview())
+        _state.value = UiState.Viewer(browsePath, files, index, backToDups = returnsToDups(), backToSearch = returnQuery())
     }
 
     fun closeViewer() {
@@ -762,10 +712,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val query = viewer?.backToSearch
         when {
             viewer?.fromVault == true -> if (vaultOpen) openVault() else backToStart()
-            viewer?.backToFaces == true -> viewModelScope.launch { showFaceResults() }
             viewer?.backToDups == true -> viewModelScope.launch { showDupReview() }
             query != null -> search(query)
-            viewer?.backToReview == true -> openReview()
             else -> browse(browsePath)
         }
     }
@@ -790,10 +738,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         val current = place ?: return
         val base = browsePath
-        val toFaces = returnsToFaces()
         val toDups = returnsToDups()
         val toSearch = returnQuery()
-        val toReview = returnsToReview()
         val label = if (kind == MoveKind.TRASH) "Mise à la corbeille…" else "Mise à l'écart…"
         viewModelScope.launch {
             try {
@@ -820,10 +766,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 result.failures.take(2).forEach { lines += it }
                 val message = lines.joinToString("\n")
                 when {
-                    toFaces -> showFaceResults(message, result.done)
                     toDups -> showDupReview(message, result.done)
                     toSearch != null -> showSearch(toSearch, message, result.done)
-                    toReview -> showReview(message, result.done)
                     else -> showBrowse(base, message = message, undoCount = result.done)
                 }
             } catch (e: Exception) {
@@ -1049,10 +993,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun moveToVault(folderNames: Set<String>, files: List<File>) {
         val current = place ?: return
         val base = browsePath
-        val toFaces = returnsToFaces()
         val toDups = returnsToDups()
         val toSearch = returnQuery()
-        val toReview = returnsToReview()
         val label = "Mise au coffre-fort…"
         viewModelScope.launch {
             try {
@@ -1076,10 +1018,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 result.failures.take(2).forEach { lines += it }
                 val message = lines.joinToString("\n")
                 when {
-                    toFaces -> showFaceResults(message)
                     toDups -> showDupReview(message)
                     toSearch != null -> showSearch(toSearch, message, 0)
-                    toReview -> showReview(message)
                     else -> showBrowse(base, message = message)
                 }
             } catch (e: Exception) {
@@ -1201,10 +1141,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val items = lastMoved
         val kind = lastKind
         val base = browsePath
-        val toFaces = returnsToFaces()
         val toDups = returnsToDups()
         val toSearch = returnQuery()
-        val toReview = returnsToReview()
         viewModelScope.launch {
             try {
                 _state.value = UiState.Working("Remise en place…", 0, 0)
@@ -1215,10 +1153,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 var text = "${countText(result.done)} remis à leur place."
                 if (result.failed > 0) text += "\n${result.failed} fichier(s) n'ont pas pu être remis (ils sont toujours mis de côté)."
                 when {
-                    toFaces -> showFaceResults(text)
                     toDups -> showDupReview(text)
                     toSearch != null -> showSearch(toSearch, text, 0)
-                    toReview -> showReview(text)
                     else -> showBrowse(base, message = text)
                 }
             } catch (e: Exception) {
@@ -1475,179 +1411,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    // ---- Classer par reconnaissance (Google ML Kit, sur le téléphone) -----------------------------
-
-    private val labelCache by lazy { SimpleCache(File(getApplication<Application>().filesDir, "etiquettes.tsv")) }
-    private val portraitCache by lazy { SimpleCache(File(getApplication<Application>().filesDir, "portraits.tsv")) }
-
-    @Volatile private var stopClassify = false
-
-    /** Les photos à regarder : pas encore renommées, pas de vidéos, les plus récentes d'abord ([limit] au plus ; 0 = toutes). */
-    private fun classifyCandidates(current: Place, limit: Int): List<File> =
-        PhotoFiles.list(current, includeSorted = true).map { it.file }
-            .filter { !PhotoFiles.isVideo(it) && !isRenamed(it.name) }
-            .sortedByDescending { it.lastModified() }
-            .let { if (limit > 0) it.take(limit) else it }
-
-    /**
-     * Regarde les photos et les range en groupes par mot (« Plage », « Voiture »…). Rien n'est renommé ici : on propose, on applique
-     * ensuite avec [applyLabels]. Rapide : lecture des vignettes en parallèle, mémoire des photos déjà vues, bouton « Arrêter ».
-     */
-    fun startLabeling(limit: Int) {
-        val current = place ?: return
-        viewModelScope.launch {
-            try {
-                stopClassify = false
-                val stop = { stopClassify = true }
-                _state.value = UiState.Working("Recherche des photos…", 0, 0)
-                val view = withContext(Dispatchers.IO) {
-                    val candidates = classifyCandidates(current, limit)
-                    val groups = LinkedHashMap<String, ArrayList<File>>()
-                    var unknown = 0
-                    var seen = 0
-                    Labeler().use { labeler ->
-                        for (chunk in candidates.chunked(8)) {
-                            if (stopClassify) break
-                            // Les vignettes d'un paquet sont lues en même temps ; la reconnaissance se fait ensuite.
-                            val bitmaps = kotlinx.coroutines.coroutineScope {
-                                chunk.map { f -> async { if (labelCache.get(f) != null) null else Thumbs.loadUncached(f, 256) } }
-                                    .map { it.await() }
-                            }
-                            for ((j, file) in chunk.withIndex()) {
-                                val cached = labelCache.get(file)
-                                val word: String? = if (cached != null) cached.takeIf { it != "-" } else {
-                                    val bmp = bitmaps[j]
-                                    val w = bmp?.let { LabelNames.pick(labeler.labels(it)) }
-                                    bmp?.recycle()
-                                    labelCache.put(file, w ?: "-")
-                                    w
-                                }
-                                if (word == null) unknown++ else groups.getOrPut(word) { ArrayList() } += file
-                            }
-                            seen += chunk.size
-                            _state.value = UiState.Working("Reconnaissance des photos…", seen, candidates.size, stop)
-                        }
-                    }
-                    val sorted = groups.entries.sortedByDescending { it.value.size }.map { LabelGroup(it.key, it.value) }
-                    UiState.LabelView(sorted, seen, unknown)
-                }
-                _state.value = view
-            } catch (e: Exception) {
-                refresh("La reconnaissance n'a pas pu se faire : ${e.message ?: e.javaClass.simpleName}", isError = true)
-            }
-        }
-    }
-
-    /**
-     * « Trouver les portraits » : cherche les visages (cadres seulement, sans empreinte : rapide) et propose deux groupes :
-     * « Portrait » (un visage gros et bien visible, au plus 3 personnes) et « Personnes » (visages plus petits ou groupes).
-     */
-    fun startPortraits(limit: Int) {
-        val current = place ?: return
-        viewModelScope.launch {
-            var engine: FaceEngine? = null
-            try {
-                stopClassify = false
-                val stop = { stopClassify = true }
-                _state.value = UiState.Working("Recherche des photos…", 0, 0)
-                val view = withContext(Dispatchers.IO) {
-                    val candidates = classifyCandidates(current, limit)
-                    val portraits = ArrayList<File>()
-                    val people = ArrayList<File>()
-                    var none = 0
-                    var seen = 0
-                    for (chunk in candidates.chunked(8)) {
-                        if (stopClassify) break
-                        val bitmaps = kotlinx.coroutines.coroutineScope {
-                            chunk.map { f -> async { if (portraitCache.get(f) != null) null else Thumbs.loadUncached(f, 640) } }
-                                .map { it.await() }
-                        }
-                        for ((j, file) in chunk.withIndex()) {
-                            var verdict = portraitCache.get(file)
-                            if (verdict == null) {
-                                val bmp = bitmaps[j]
-                                val boxes = if (bmp == null) emptyList() else {
-                                    val e = engine ?: FaceEngine(getApplication()).also { engine = it }
-                                    try { runCatching { e.boxes(bmp) }.getOrDefault(emptyList()) } finally { bmp.recycle() }
-                                }
-                                val biggest = boxes.maxOfOrNull { it[2] * it[3] } ?: 0f
-                                verdict = when {
-                                    boxes.isEmpty() -> "none"
-                                    biggest >= 0.04f && boxes.size <= 3 -> "portrait"
-                                    else -> "people"
-                                }
-                                portraitCache.put(file, verdict)
-                            }
-                            when (verdict) {
-                                "portrait" -> portraits += file
-                                "people" -> people += file
-                                else -> none++
-                            }
-                        }
-                        seen += chunk.size
-                        _state.value = UiState.Working("Recherche des visages…", seen, candidates.size, stop)
-                    }
-                    val groups = ArrayList<LabelGroup>()
-                    if (portraits.isNotEmpty()) groups += LabelGroup("Portrait", portraits)
-                    if (people.isNotEmpty()) groups += LabelGroup("Personnes", people)
-                    UiState.LabelView(groups, seen, none)
-                }
-                _state.value = view
-            } catch (e: Exception) {
-                refresh("La recherche des portraits n'a pas pu se faire : ${e.message ?: e.javaClass.simpleName}", isError = true)
-            } finally {
-                engine?.close()
-            }
-        }
-    }
-
-    /** Ajoute le mot de chaque groupe coché devant le nom de ses photos, et crée un raccourci du même nom. */
-    fun applyLabels(chosen: Set<String>) {
-        val view = _state.value as? UiState.LabelView ?: return
-        val groups = view.groups.filter { it.name in chosen }
-        if (groups.isEmpty()) return
-        viewModelScope.launch {
-            try {
-                val total = groups.sumOf { it.files.size }
-                _state.value = UiState.Working("Renommage…", 0, total)
-                val stats = withContext(Dispatchers.IO) {
-                    val touched = ArrayList<String>()
-                    var done = 0
-                    var failed = 0
-                    var seen = 0
-                    for (group in groups) {
-                        var groupDone = 0
-                        for (file in group.files) {
-                            seen++
-                            val name = RenameNames.build(group.name, file.name, keepOriginal = true)
-                            val dir = file.parentFile
-                            if (!file.isFile || name == null || dir == null) { failed++; continue }
-                            val target = RenameNames.unique(dir, name)
-                            if (file.renameTo(target) && target.isFile && !file.exists()) {
-                                touched += file.absolutePath
-                                touched += target.absolutePath
-                                updateJournalPath(file, target)
-                                done++
-                                groupDone++
-                            } else failed++
-                            if (seen % 10 == 0) _state.value = UiState.Working("Renommage…", seen, total)
-                        }
-                        if (groupDone > 0) shortcuts.put(group.name, "Classement automatique", group.name)
-                    }
-                    if (touched.isNotEmpty()) MediaScannerConnection.scanFile(getApplication(), touched.toTypedArray(), null, null)
-                    done to failed
-                }
-                searchIndex = null
-                val (done, failed) = stats
-                val text = StringBuilder("${countText(done)} renommé(s) selon ce que l'appli a reconnu. Les raccourcis (classement « Classement automatique ») les retrouvent, en haut de l'onglet Photos.")
-                if (failed > 0) text.append("\n$failed fichier(s) n'ont pas pu être renommés et sont restés tels quels.")
-                refresh(text.toString())
-            } catch (e: Exception) {
-                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
-            }
-        }
-    }
-
     // ---- Renommer une photo --------------------------------------------------------------------
 
     /**
@@ -1793,262 +1556,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = UiState.DupReview(groups, message, undoCount)
     }
 
-    // ---- Recherche par visage ------------------------------------------------------------------
-    // Tout se passe sur le téléphone. On choisit une photo, l'appli retrouve les photos où la même personne apparaît.
-
-    private fun photosToScan(current: Place): List<File> = Gallery.allMedia(current.outputDir).filter { !PhotoFiles.isVideo(it) }
-
-    fun openFaces() {
-        val current = place ?: return
-        viewModelScope.launch { showFaces(current) }
-    }
-
-    private suspend fun showFaces(current: Place, message: String? = null) {
-        _state.value = UiState.Working("Ouverture…", 0, 0)
-        val screen = withContext(Dispatchers.IO) {
-            faceCache.load()
-            val photos = photosToScan(current)
-            var analysed = 0
-            var faces = 0
-            for (f in photos) {
-                val e = faceCache.get(f) ?: continue
-                analysed++
-                faces += e.faces.size
-            }
-            UiState.Faces(analysed, photos.size, faces, message)
-        }
-        _state.value = screen
-    }
-
-    /** Regarde les photos pas encore vues (les autres sont retenues), puis revient à l'accueil des visages. */
-    fun startFaceScan() {
-        val current = place ?: return
-        if (faceJob?.isActive == true) return
-        faceJob = viewModelScope.launch {
-            var engine: FaceEngine? = null
-            try {
-                _state.value = UiState.FaceScan(0, 0, 0)
-                val todo = withContext(Dispatchers.IO) {
-                    faceCache.load()
-                    photosToScan(current).filter { faceCache.get(it) == null }
-                }
-                var faces = withContext(Dispatchers.IO) { photosToScan(current).sumOf { faceCache.get(it)?.faces?.size ?: 0 } }
-                if (todo.isNotEmpty()) {
-                    val e = withContext(Dispatchers.IO) { FaceEngine(getApplication()) }
-                    engine = e
-                    for ((i, file) in todo.withIndex()) {
-                        ensureActive()
-                        val found = withContext(Dispatchers.Default) {
-                            val bitmap = Thumbs.loadUncached(file, 1280)
-                            if (bitmap == null) emptyList() else try {
-                                runCatching { e.analyze(bitmap) }.getOrDefault(emptyList())
-                            } finally {
-                                bitmap.recycle()
-                            }
-                        }
-                        withContext(Dispatchers.IO) { faceCache.put(file, found.map { FaceCache.Face(it.box, it.embedding) }) }
-                        faces += found.size
-                        if ((i + 1) % 3 == 0 || i + 1 == todo.size) _state.value = UiState.FaceScan(i + 1, todo.size, faces)
-                    }
-                }
-                showFaces(current, if (todo.isEmpty()) "Rien de nouveau à regarder : toutes les photos ont déjà été analysées." else "Analyse terminée.")
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                refresh("L'analyse des visages a échoué : ${e.message ?: e.javaClass.simpleName}", isError = true)
-            } finally {
-                engine?.close()
-            }
-        }
-    }
-
-    /** Arrête l'analyse : ce qui est déjà vu est retenu, on pourra reprendre. */
-    fun stopFaceScan() {
-        val current = place ?: return
-        val job = faceJob
-        viewModelScope.launch {
-            job?.cancelAndJoin()
-            showFaces(current, "Analyse arrêtée. Vous pourrez la reprendre : les photos déjà vues ne sont pas refaites.")
-        }
-    }
-
-    /** La personne a choisi une photo (sélecteur de photos du téléphone) : on y cherche les visages. */
-    fun searchFaceFromPhoto(uri: Uri) {
-        val current = place ?: return
-        viewModelScope.launch {
-            var engine: FaceEngine? = null
-            try {
-                _state.value = UiState.Working("Recherche du visage…", 0, 0)
-                val found = withContext(Dispatchers.Default) {
-                    val bitmap = loadPicked(uri)
-                    if (bitmap == null) null else {
-                        val e = FaceEngine(getApplication())
-                        engine = e
-                        try {
-                            e.analyze(bitmap, withCrops = true)
-                        } finally {
-                            bitmap.recycle()
-                        }
-                    }
-                }
-                when {
-                    found == null -> showFaces(current, "Cette photo n'a pas pu être lue.")
-                    found.isEmpty() -> showFaces(current, "Aucun visage trouvé sur cette photo. Essayez-en une autre, où le visage est bien visible.")
-                    found.size == 1 -> startFaceSearch(current, found[0].embedding)
-                    else -> {
-                        pickedFaces = found
-                        _state.value = UiState.FacePick(found.mapNotNull { it.crop })
-                    }
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                refresh("La recherche par visage a échoué : ${e.message ?: e.javaClass.simpleName}", isError = true)
-            } finally {
-                engine?.close()
-            }
-        }
-    }
-
-    /** Plusieurs visages sur la photo : la personne a touché le n° [index]. */
-    fun chooseFace(index: Int) {
-        val current = place ?: return
-        val face = pickedFaces.getOrNull(index) ?: return
-        viewModelScope.launch { startFaceSearch(current, face.embedding) }
-    }
-
-    private suspend fun startFaceSearch(current: Place, embedding: FloatArray) {
-        _state.value = UiState.Working("Recherche des photos…", 0, 0)
-        faceQuery = embedding
-        faceLevel = 1
-        withContext(Dispatchers.IO) { faceCache.load() }
-        showFaceResults()
-    }
-
-    fun setFaceLevel(level: Int) {
-        faceLevel = level.coerceIn(0, FACE_LEVELS.size - 1)
-        viewModelScope.launch { showFaceResults() }
-    }
-
-    private suspend fun showFaceResults(message: String? = null, undoCount: Int = 0) {
-        val current = place ?: return
-        val query = faceQuery
-        if (query == null) {
-            showFaces(current)
-            return
-        }
-        val out = current.outputDir.absolutePath
-        val files = withContext(Dispatchers.Default) {
-            faceCache.search(query, FACE_LEVELS[faceLevel]) { isRanged(out, it) }.map { File(it.path) }
-        }
-        _state.value = UiState.FaceResults(files, faceLevel, message, undoCount)
-    }
-
-    /** Ouvre l'image choisie, réduite et dans le bon sens. */
-    private fun loadPicked(uri: Uri): Bitmap? {
-        val resolver = getApplication<Application>().contentResolver
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-        var sample = 1
-        while (bounds.outWidth / (sample * 2) >= 1280 && bounds.outHeight / (sample * 2) >= 1280) sample *= 2
-        val options = BitmapFactory.Options().apply { inSampleSize = sample }
-        val bitmap = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) } ?: return null
-        val degrees = try {
-            resolver.openInputStream(uri)?.use {
-                when (ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
-                    ExifInterface.ORIENTATION_ROTATE_90 -> 90
-                    ExifInterface.ORIENTATION_ROTATE_180 -> 180
-                    ExifInterface.ORIENTATION_ROTATE_270 -> 270
-                    else -> 0
-                }
-            } ?: 0
-        } catch (e: Exception) {
-            0
-        }
-        if (degrees == 0) return bitmap
-        val matrix = Matrix().apply { postRotate(degrees.toFloat()) }
-        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-    }
-
-    // ---- Recherche automatique de personnes nues -----------------------------------------------
-    // Le modèle tourne sur le téléphone. L'appli ne fait que PROPOSER : rien ne bouge sans l'accord de la personne.
-
-    /** Les photos proposées : score assez haut, toujours là, dans « Photos rangées » (ni « À l'écart », ni corbeille). */
-    private fun currentSuggestions(p: Place): List<File> {
-        nudityCache.load()
-        val out = p.outputDir.absolutePath
-        return nudityCache.hits(NudityModel.THRESHOLD).map { File(it.path) }.filter { isRanged(out, it.absolutePath) }
-    }
-
-    /** Vrai pour une photo de « Photos rangées » (ni « À l'écart », ni corbeille ou autre dossier caché). */
-    private fun isRanged(outputPath: String, path: String): Boolean =
-        path.startsWith("$outputPath/") && !path.startsWith("$outputPath/${Place.ASIDE_DIR}/") && !path.startsWith("$outputPath/.")
-
-    /** Regarde les photos pas encore vues (les autres sont retenues), puis montre les suggestions. */
-    fun startNudityScan() {
-        val current = place ?: return
-        if (scanJob?.isActive == true) return
-        scanJob = viewModelScope.launch {
-            var detector: NudityDetector? = null
-            try {
-                _state.value = UiState.NudityScan(0, 0, 0)
-                val todo = withContext(Dispatchers.IO) {
-                    nudityCache.load()
-                    Gallery.allMedia(current.outputDir).filter { !PhotoFiles.isVideo(it) && nudityCache.get(it) == null }
-                }
-                var found = withContext(Dispatchers.IO) { currentSuggestions(current).size }
-                if (todo.isNotEmpty()) {
-                    val d = withContext(Dispatchers.IO) { NudityDetector(getApplication()) }
-                    detector = d
-                    for ((i, file) in todo.withIndex()) {
-                        ensureActive()
-                        val score = withContext(Dispatchers.Default) { runCatching { d.score(file) }.getOrNull() } ?: 0f
-                        withContext(Dispatchers.IO) { nudityCache.put(file, score) }
-                        if (score >= NudityModel.THRESHOLD) found++
-                        if ((i + 1) % 5 == 0 || i + 1 == todo.size) _state.value = UiState.NudityScan(i + 1, todo.size, found)
-                    }
-                }
-                showReview(if (todo.isEmpty()) "Rien de nouveau à regarder : tout a déjà été vu." else null)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                refresh("La recherche automatique a échoué : ${e.message ?: e.javaClass.simpleName}", isError = true)
-            } finally {
-                detector?.close()
-            }
-        }
-    }
-
-    /** Arrête la recherche en cours et montre ce qui a été trouvé jusque-là (on pourra reprendre sans tout refaire). */
-    fun stopNudityScan() {
-        val job = scanJob
-        viewModelScope.launch {
-            job?.cancelAndJoin()
-            showReview("Recherche arrêtée. Vous pourrez la reprendre : les photos déjà vues ne sont pas refaites.")
-        }
-    }
-
-    fun openReview() {
-        if (place == null) return
-        viewModelScope.launch { showReview() }
-    }
-
-    private suspend fun showReview(message: String? = null, undoCount: Int = 0) {
-        val current = place ?: return
-        val files = withContext(Dispatchers.IO) { currentSuggestions(current) }
-        suggestionCount = files.size
-        _state.value = UiState.Review(files, message, undoCount)
-    }
-
-    /** « Ce n'est pas ça » : ces photos ne sont plus proposées. Elles ne bougent pas. */
-    fun dismissSuggestions(files: List<File>) {
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) { nudityCache.dismiss(files) }
-            showReview("${countText(files.size)} retiré(s) de la liste. Elles n'ont pas bougé.")
-        }
-    }
-
     // ---- Mise à jour ---------------------------------------------------------------------------
 
     fun checkUpdate(currentVersion: String, onResult: () -> Unit) {
@@ -2079,6 +1586,5 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         const val FIRST_BATCH = 10
 
         /** Ressemblance minimale (cosinus) selon le niveau : sûr, normal, large. */
-        val FACE_LEVELS = floatArrayOf(0.45f, 0.363f, 0.28f)
     }
 }
