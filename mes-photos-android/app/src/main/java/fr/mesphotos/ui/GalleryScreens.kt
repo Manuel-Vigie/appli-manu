@@ -274,6 +274,9 @@ fun BrowseScreen(
     BackHandler(enabled = selecting || state.path.isNotEmpty()) { if (selecting) stopSelecting() else onUp() }
 
     val title = if (state.path.isEmpty()) "Photos" else state.path.last()
+        val counts = ArrayList<String>()
+        if (state.folders.isNotEmpty()) counts += if (state.folders.size > 1) "${state.folders.size} albums" else "1 album"
+        if (state.files.isNotEmpty()) counts += if (state.files.size > 1) "${spaced(state.files.size)} photos et vidéos" else "1 photo ou vidéo"
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (selecting) {
@@ -293,9 +296,6 @@ fun BrowseScreen(
                 },
             )
         } else {
-            val counts = ArrayList<String>()
-            if (state.folders.isNotEmpty()) counts += if (state.folders.size > 1) "${state.folders.size} albums" else "1 album"
-            if (state.files.isNotEmpty()) counts += if (state.files.size > 1) "${spaced(state.files.size)} photos et vidéos" else "1 photo ou vidéo"
             if (state.path.isNotEmpty()) TopBar(
                 title = title,
                 subtitle = counts.joinToString("  ·  ").ifEmpty { null },
