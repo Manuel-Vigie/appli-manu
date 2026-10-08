@@ -713,7 +713,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         browsePath = path
         val empty = listing.folders.isEmpty() && listing.files.isEmpty()
-        val items = if (path.isEmpty()) withContext(Dispatchers.IO) { shortcutItems(shortcuts.all(), searchIndex ?: buildSearchIndex(current)) } else emptyList()
+        val items = if (path.isEmpty()) withContext(Dispatchers.IO) { shortcutItems(allShortcuts(), searchIndex ?: buildSearchIndex(current)) } else emptyList()
         _state.value = UiState.Browse(
             path, listing.folders, listing.files,
             message = message ?: if (empty && path.isEmpty() && items.isEmpty()) "Rien à voir pour l'instant : rangez d'abord vos photos." else null,
@@ -1243,13 +1243,27 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val results = if (terms.isEmpty()) emptyList() else withContext(Dispatchers.Default) {
             index.filter { Gallery.matches(it.text, terms) }.map { it.file }
         }
-        val matchingShortcuts = withContext(Dispatchers.Default) { shortcutItems(if (terms.isEmpty()) shortcuts.all() else shortcuts.matching(terms), index) }
+        val matchingShortcuts = withContext(Dispatchers.Default) { shortcutItems(if (terms.isEmpty()) allShortcuts() else allShortcuts().filter { Gallery.matches(Gallery.normalize(it.name + " " + it.category), terms) }, index) }
         _state.value = UiState.Search(query, results, message, undoCount, matchingShortcuts)
     }
 
     // ---- Raccourcis ----------------------------------------------------------------------------
     // Un raccourci = un nom + un classement (« Immatriculation » dans « Véhicule ») qui mène droit à une photo.
     // Rien n'est copié ni déplacé : la photo reste là où elle est.
+
+    /**
+     * Raccourcis fournis d'office : « Vidéos » montre toutes les vidéos là où elles sont (rien n'est déplacé ni copié).
+     * Si la personne en crée un du même nom et du même classement, le sien remplace celui d'office.
+     */
+    private val builtInShortcuts = listOf(Shortcut("Vidéos", "Types", "videos"))
+
+    private fun allShortcuts(): List<Shortcut> {
+        val own = shortcuts.all()
+        val extra = builtInShortcuts.filter { b ->
+            own.none { Gallery.normalize(it.name) == Gallery.normalize(b.name) && Gallery.normalize(it.category) == Gallery.normalize(b.category) }
+        }
+        return (own + extra).sortedWith(compareBy({ Gallery.normalize(it.category) }, { Gallery.normalize(it.name) }))
+    }
 
     /** Les classements déjà utilisés, puis quelques idées. */
     fun shortcutCategories(): List<String> =
@@ -1269,6 +1283,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun removeShortcut(shortcut: Shortcut) {
+        val own = shortcuts.all().any { Gallery.normalize(it.name) == Gallery.normalize(shortcut.name) && Gallery.normalize(it.category) == Gallery.normalize(shortcut.category) }
+        if (!own) {
+            announce("Le raccourci « ${shortcut.name} » est fourni d'office : il ne peut pas être retiré.")
+            return
+        }
         shortcuts.remove(shortcut)
         announce("Raccourci « ${shortcut.name} » retiré. Aucune photo n'a bougé.")
     }
@@ -1289,7 +1308,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Le chemin de chaque photo (sans accents ni majuscules), gardé en mémoire : sert à la loupe et au compteur des raccourcis. */
     private fun buildSearchIndex(current: Place): List<SearchEntry> =
         Gallery.allMedia(current.outputDir)
-            .map { SearchEntry(it, Gallery.normalize(it.toRelativeString(current.outputDir).replace('/', ' '))) }
+            // Les vidéos portent en plus le mot « videos » : c'est ce qui permet le raccourci « Vidéos » (et de taper « videos » dans la loupe).
+            .map { SearchEntry(it, Gallery.normalize(it.toRelativeString(current.outputDir).replace('/', ' ')) + if (PhotoFiles.isVideo(it)) " videos" else "") }
             .sortedByDescending { it.text } // les plus récentes d'abord
             .also { searchIndex = it }
 
