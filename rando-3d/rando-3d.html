@@ -678,7 +678,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <p class="modal-note">Ces lieux (et les étiquettes que tu as déjà posées sur la rando) apparaissent dans le film quand le point passe devant.</p>
       <p class="modal-note">Garde cette page ouverte et l'écran allumé pendant que le film se prépare. Utilise la carte choisie dans « Carte » (photos aériennes ou autre).</p>
       <div class="modal-actions"><button type="button" class="btn" id="filmNo">Annuler</button><button type="button" class="btn primary" id="filmGo">Créer le film</button></div>
-      <button type="button" class="btn" id="filmBoth">🎬 Créer les deux films (Photos IGN + Satellite)</button>
+      <button type="button" class="btn" id="filmBoth">🎬 Créer les deux vidéos (Topo + Photos IGN)</button>
     </div>
     <div id="filmRun" class="film-sec" hidden>
       <canvas id="filmPrev" class="film-prev" width="320" height="180"></canvas>
@@ -719,7 +719,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       <label class="check"><input type="checkbox" id="vOverlay" checked> Afficher le titre, les stats et le profil</label>
       <p class="modal-note" id="vNote">La vidéo est fabriquée image par image : elle est fluide même si ton téléphone est lent. Garde l'écran allumé et reste sur cette page jusqu'à la fin ; elle sera aussi dans « Mes films ».</p>
       <div class="modal-actions"><button type="button" class="btn" id="vCancel">Annuler</button><button type="button" class="btn primary" id="vStart">Enregistrer la vidéo</button></div>
-      <button type="button" class="btn" id="vBoth">🎬 Créer les deux films (Photos IGN + Satellite)</button>
+      <button type="button" class="btn" id="vBoth">🎬 Créer les deux vidéos (Topo + Photos IGN)</button>
     </div>
   </div>
   <div class="rec-layer" id="recLayer" hidden>
@@ -800,7 +800,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
         <h2>Mes films</h2>
         <p>Les films de la carte que tu as créés, gardés sur ce téléphone.</p>
       </div>
-      <button type="button" class="pg-save" id="pgBoth">🎬 Créer les deux films (Photos IGN + Satellite)</button>
+      <button type="button" class="pg-save" id="pgBoth">🎬 Créer les deux vidéos (Topo + Photos IGN)</button>
       <div id="pgFilms"></div>
     </section>
   </div>
@@ -3952,6 +3952,8 @@ const fBack=u=>{const c1=2.2,c3=c1+1;return 1+c3*Math.pow(u-1,3)+c1*Math.pow(u-1
 function filmLabelDraw(x,W,H,k,m,labs,o){
   if(!labs||!labs.length)return;
   const sans='Arial,Helvetica,sans-serif',boxes=[];
+  // le bandeau des compteurs (en bas à gauche) est une zone interdite pour les étiquettes
+  if(o.statsA>.05){const pad=14*k,cw=Math.min(W*.22,66*k),pw=4*cw+12*k,ph=40*k,py0=H-pad-(2*7.4*k+4*k)-ph;boxes.push([pad-8*k,py0-8*k,pad+pw+8*k,py0+ph+8*k])}
   // zones libres (changent en douceur, jamais d'un coup) : sous le titre, au-dessus des compteurs
   const top=H*(.07+.18*o.titleA),bot=H*(.9-.16*o.statsA);
   // chaque étiquette garde son état d'une image à l'autre : elle ne clignote plus
@@ -3966,7 +3968,8 @@ function filmLabelDraw(x,W,H,k,m,labs,o){
   // pendant la marche : seulement les 3 lieux les plus proches du marcheur (ceux déjà vus, loin, s'effacent) → moins brouillon au retour
   if(o.walker&&o.labA<.5){
     const cl=Math.cos(o.walker[1]*Math.PI/180),dist=l=>Math.hypot((l.ll[0]-o.walker[0])*cl,l.ll[1]-o.walker[1])*(l.vis>.5?.7:1);
-    act.filter(l=>l.want).sort((p,q)=>dist(p)-dist(q)).slice(3).forEach(l=>{l.want=0});
+    // une étiquette reste au moins 5 s à l'écran avant de pouvoir s'effacer (pas de défilement trop rapide)
+    act.filter(l=>l.want).sort((p,q)=>dist(p)-dist(q)).slice(3).forEach(l=>{if((l.on||0)>=150)l.want=0});
   }
   act.sort((p,q)=>((q.vis>.05)-(p.vis>.05))||(q.pri-p.pri));
   x.save();x.textBaseline='alphabetic';
@@ -3987,11 +3990,12 @@ function filmLabelDraw(x,W,H,k,m,labs,o){
       const place=(s2,ns)=>{const v=fit(s2);if(v===null)return null;
         for(const n of check?ns:[0]){
           const y=Math.max(lo,Math.min(hi,base+n*step)),bb=[v-M,y-M,v+w+M,y+h+M];
-          if(!boxes.some(q=>bb[0]<q[2]&&bb[2]>q[0]&&bb[1]<q[3]&&bb[3]>q[1]))return{bx:v,by:y,bb}}
+          if(Math.abs(y+h/2-py)<=3*h&&!boxes.some(q=>bb[0]<q[2]&&bb[2]>q[0]&&bb[1]<q[3]&&bb[3]>q[1]))return{bx:v,by:y,bb}}
         return null};
       // d'abord sans empiler (côté préféré, puis de l'autre côté du parcours), ensuite seulement en décalant plus haut/bas
       let sd=l.side,res=place(sd,[0]);if(!res){res=place(-sd,[0]);if(res)sd=-sd}
-      if(!res){res=place(sd,[-1,1,-2,2,-3,3]);if(!res){res=place(-sd,[-1,1,-2,2,-3,3]);if(res)sd=-sd}}
+      const stk=o.labA<.5?[-1,1]:[-1,1,-2,2,-3,3];
+      if(!res){res=place(sd,stk);if(!res){res=place(-sd,stk);if(res)sd=-sd}}
       l.sd=sd;
       if(!res||py<.03*H||py>.97*H)ok=false;
       else{bx=res.bx;by=res.by;if(ok)boxes.push(res.bb)}
@@ -3999,7 +4003,8 @@ function filmLabelDraw(x,W,H,k,m,labs,o){
       if(bx!==null){const tx=bx-px,ty=by-py;if(!l.o)l.o=[tx,ty];else{l.o[0]+=(tx-l.o[0])*.07;l.o[1]+=(ty-l.o[1])*.07}bx=px+l.o[0];by=py+l.o[1]}
     }
     if(l.vis<=.01&&!ok)l.o=null;
-    l.vis=Math.max(0,Math.min(1,l.vis+(ok?1:-1)/9));
+    l.vis=Math.max(0,Math.min(1,l.vis+(ok?1/14:-1/22)));
+    l.on=l.vis>.5&&ok?(l.on||0)+1:(l.vis>.05?(l.on||0):0);
     if(!pt||bx===null||l.vis<=.01)continue;
     const vis=l.vis,sc=vis>=1?1:Math.max(.01,fBack(vis)),al=Math.min(1,vis*2),side=l.sd;
     const ex=px<bx+w/2?bx:bx+w,ey=by+h/2;
@@ -4193,7 +4198,7 @@ async function filmRunOne(fmtKey,both){
     $('filmDoneTxt').textContent=`Ton film est prêt (${(blob.size/1048576).toFixed(0)} Mo). Il est enregistré dans tes Téléchargements.`;
     filmShow('filmDone');
     if(!both)try{filmSave()}catch(e){}
-    filmStoreAdd(blob,(title||'Ma randonnée')+(fmtKey==='v'?' · vertical':' · 16:9')+' · '+(FILM.style==='sat'?'Satellite':'Photos IGN')).then(ok=>{if(ok&&!both)$('filmDoneTxt').textContent+=' Il est aussi dans l’onglet « Mes films ».'});
+    filmStoreAdd(blob,(title||'Ma randonnée')+(fmtKey==='v'?' · vertical':' · 16:9')).then(ok=>{if(ok&&!both)$('filmDoneTxt').textContent+=' Il est aussi dans l’onglet « Mes films ».'});
   }catch(e){
     console.error(e);fail(e&&e.message?e.message:"Le film n'a pas pu être créé.");
   }finally{
@@ -4309,23 +4314,19 @@ async function filmsRender(){
     c.append(d,acts);box.appendChild(c);
   });
 }
-// un seul bouton : fabrique deux films de la carte, l'un après l'autre : un avec les Photos IGN, un avec le Satellite (mêmes réglages : format, durée, titre, lieux)
+// un seul bouton : fabrique le Film de la carte animée (Photos IGN), puis la vidéo du Replay (carte Topo), l'un après l'autre (réglages actuels, 16:9 par défaut)
 async function bothVideos(){
   if(!T||T.planBase||T.sample){toast("Charge d'abord une trace.");return}
   if(!(window.VideoEncoder&&window.VideoFrame)){toast("Ce film demande un Chrome récent sur ton téléphone. Mets Chrome à jour puis réessaie.",8000);return}
   if(FILM.on||REC)return;
   navGo('replay');$('videoPanel').hidden=true;
   openFilm();
-  const fk=FILM.fmt==='both'?'h1080':FILM.fmt,keep=FILM.style;
-  try{
-    for(const st of ['ortho','sat']){
-      FILM.style=st;
-      await filmRunOne(fk,true);
-      if(!FILM.url||FILM.cancel)return;
-      if(st==='ortho')toast('Film Photos IGN prêt. Je fabrique maintenant le film Satellite…',6000);
-    }
-    $('filmDoneTxt').textContent='Tes deux films sont prêts : Photos IGN et Satellite. Ils sont dans l’onglet « Mes films » (touche « Enregistrer » sur chacun pour le mettre dans Téléchargements).';
-  }finally{FILM.style=keep;[...$('filmStyle').children].forEach(c=>c.setAttribute('aria-pressed',c.dataset.v===keep))}
+  await filmRunOne(FILM.fmt==='both'?'h1080':FILM.fmt,true);
+  $('filmBack').hidden=true;
+  if(!FILM.url||FILM.cancel)return;
+  toast('Film de la carte (Photos IGN) prêt. Je fabrique maintenant la vidéo du replay (carte Topo)…',6000);
+  $('vTitleIn').value=T.name;$('vSubIn').value='';recQueue=[];recFmt=vidOpts.fmt==='v'?'v':'h';
+  startRecording();
 }
 ['filmBoth','vBoth','pgBoth'].forEach(id=>$(id).addEventListener('click',bothVideos));
 function navGo(tab){
@@ -4492,7 +4493,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V60", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Un seul bouton « Créer les deux films » : un film avec la carte Photos IGN, puis le même avec le Satellite, rangés dans « Mes films » (le nom de la carte est dans le titre).", "Film : les étiquettes proches ne sont plus collées l'une à l'autre. Elles se répartissent des deux côtés du parcours et, si besoin, s'empilent avec un vrai espace entre elles.", "Bouton « 🎬 Créer les deux vidéos (carte + replay) » (onglet Mes films et dans les deux fenêtres vidéo) : fabrique le Film de la carte puis la vidéo du replay, l'un après l'autre, et les range dans Mes films. Film : au retour, seuls les 3 lieux les plus proches du marcheur restent affichés (moins brouillon).", "Nouveau choix « Les deux » dans le Film de la carte et dans la vidéo du replay : l'app fabrique la version 16:9 puis la version verticale, l'une après l'autre, et range les deux dans « Mes films » (nom avec « 16:9 » ou « vertical »)."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V61", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Étiquettes du film plus calmes : elles restent au moins 5 s à l'écran, apparaissent et s'effacent plus lentement, ne passent plus sur les compteurs et leur trait ne traverse plus l'écran. Le bouton « deux vidéos » refait Replay (Topo) + Film (Photos IGN).", "Un seul bouton « Créer les deux films » : un film avec la carte Photos IGN, puis le même avec le Satellite, rangés dans « Mes films » (le nom de la carte est dans le titre).", "Film : les étiquettes proches ne sont plus collées l'une à l'autre. Elles se répartissent des deux côtés du parcours et, si besoin, s'empilent avec un vrai espace entre elles.", "Bouton « 🎬 Créer les deux vidéos (carte + replay) » (onglet Mes films et dans les deux fenêtres vidéo) : fabrique le Film de la carte puis la vidéo du replay, l'un après l'autre, et les range dans Mes films. Film : au retour, seuls les 3 lieux les plus proches du marcheur restent affichés (moins brouillon)."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
