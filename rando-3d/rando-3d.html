@@ -2909,7 +2909,9 @@ function beginnerData(D){
   const tips=[...(reportMode!=='day'?['Avec un sac lourd, on avance plus lentement, surtout en montée : prévois large et choisis des étapes courtes.']:[]),'Pars tôt pour finir avant la nuit et avoir de la marge.','Regarde la météo la veille ; en cas d’orage ou de brouillard épais, on renonce.','Garde un rythme où tu peux encore parler : si tu es essoufflé, ralentis.','On peut faire demi-tour à tout moment : il n’y a aucune honte.','Préviens quelqu’un de ton itinéraire et de ton heure de retour.'];
   return {lv,L,MD,km,up,down,kmE,steep,tot:hm(tot),walk:hm(walk),avg,lines,gear,tips};
 }
+const isRecorded=tr=>!!tr.hasTime&&!tr.planned;   // rando déjà faite (heures réelles) : pas d'estimation débutant
 function beginnerHTML(D){
+  if(isRecorded(D.tr))return '';
   const B=beginnerData(D);
   return `<section class="rp-beg"><h2>Pour les débutants</h2>
    <div class="rp-modesel"><span>Type de sortie :</span>${Object.keys(REPORT_MODES).map(k=>`<button type="button" data-mode="${k}" aria-pressed="${k===reportMode}">${REPORT_MODES[k].short}</button>`).join('')}</div>
@@ -2923,7 +2925,7 @@ function beginnerHTML(D){
 }
 function reportShareText(D){
   const B=beginnerData(D),tr=D.tr,pl=D.places.slice(0,6).map(p=>p.name).join(', ');
-  return `🥾 ${tr.name}\nDistance : ${fmtKm(tr.total)} km\nDénivelé : +${nf0.format(B.up)} m / −${nf0.format(B.down)} m\nAltitude : ${nf0.format(tr.eMin)} à ${nf0.format(tr.eMax)} m\nDifficulté : ${B.L.n}\nSortie : ${B.MD.n} (${B.MD.s})\nDurée estimée (pauses comprises) : ${B.tot}\n`+(pl?`On passe par : ${pl}\n`:'')+(D.steepUp?`Montée la plus raide : km ${fmtKm(tr.rd[D.steepUp.i0])} → ${fmtKm(tr.rd[D.steepUp.i1])} (${Math.round(D.steepUp.avg)} %)\n`:'')+`À prévoir : bonnes chaussures, eau, collation, veste de pluie.`;
+  return `🥾 ${tr.name}\nDistance : ${fmtKm(tr.total)} km\nDénivelé : +${nf0.format(B.up)} m / −${nf0.format(B.down)} m\nAltitude : ${nf0.format(tr.eMin)} à ${nf0.format(tr.eMax)} m\nDifficulté : ${B.L.n}\n${isRecorded(tr)?`Durée : ${fmtDur(tr.time[tr.N-1])}`:`Sortie : ${B.MD.n} (${B.MD.s})\nDurée estimée (pauses comprises) : ${B.tot}`}\n`+(pl?`On passe par : ${pl}\n`:'')+(D.steepUp?`Montée la plus raide : km ${fmtKm(tr.rd[D.steepUp.i0])} → ${fmtKm(tr.rd[D.steepUp.i1])} (${Math.round(D.steepUp.avg)} %)\n`:'')+`À prévoir : bonnes chaussures, eau, collation, veste de pluie.`;
 }
 function reportProfileSVG(D){
   const tr=D.tr,narrow=innerWidth<640,W=narrow?560:1000,H=narrow?230:250,pl=narrow?62:66,pr=12,pt=14,pb=30,iw=W-pl-pr,ih=H-pt-pb;
@@ -4625,7 +4627,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V68", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : tu choisis le type de sortie (à la journée, trekking avec sac de 12 kg, trekking très chargé). La durée, la vitesse moyenne (1,5 à 1,8 km/h avec sac et dénivelé), la difficulté et la liste de matériel s'adaptent.", "Rapport rando : sous le km-effort, une phrase explique « 19,1 km de rando = 30,8 km à plat ».", "Film : avant de créer le film, la liste des noms qui seront écrits s'affiche. Chaque nom est vérifié avec une 2e source (✓), tu peux décocher un nom faux ou le corriger. Les noms de départ/arrivée se corrigent là aussi.", "Film : caméra plus proche, étiquettes collées à leur lieu (elles ne bougent plus toutes seules), faux « villages » (noms de montagnes) supprimés, et deux cases pour taper le nom du départ et de l'arrivée (ex. Le Pra)."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V69", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : la partie « Pour les débutants » (difficulté, durée estimée, matériel) n'apparaît que pour une rando à préparer. Pour une rando déjà enregistrée avec ses heures, le rapport garde les vrais temps.", "Rapport rando : tu choisis le type de sortie (à la journée, trekking avec sac de 12 kg, trekking très chargé). La durée, la vitesse moyenne (1,5 à 1,8 km/h avec sac et dénivelé), la difficulté et la liste de matériel s'adaptent.", "Rapport rando : sous le km-effort, une phrase explique « 19,1 km de rando = 30,8 km à plat ».", "Film : avant de créer le film, la liste des noms qui seront écrits s'affiche. Chaque nom est vérifié avec une 2e source (✓), tu peux décocher un nom faux ou le corriger. Les noms de départ/arrivée se corrigent là aussi."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
