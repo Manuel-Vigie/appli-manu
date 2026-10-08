@@ -54,6 +54,43 @@ object FileHealth {
         return if (looksRandom(head)) Health(Verdict.SCRAMBLED) else Health(Verdict.UNKNOWN)
     }
 
+    /**
+     * Vrai si le JPEG lu dans [input] va jusqu'à sa vraie fin (repère FF D9 de l'image elle-même, pas celui de la petite image
+     * cachée dans l'en-tête). On suit la structure : les repères avec une longueur sont sautés, les « FF 00 » et les repères de
+     * redémarrage sont ignorés dans les données. Des octets en plus après la fin (données du constructeur) ne gênent pas.
+     */
+    fun jpegReachesEnd(input: java.io.InputStream): Boolean {
+        val stream = java.io.BufferedInputStream(input, 256 * 1024)
+        var b = stream.read()
+        if (b != 0xFF || stream.read() != 0xD8) return false
+        while (true) {
+            b = stream.read()
+            if (b < 0) return false
+            if (b != 0xFF) continue
+            var m = stream.read()
+            while (m == 0xFF) m = stream.read()
+            if (m < 0) return false
+            when {
+                m == 0x00 || m == 0x01 || m in 0xD0..0xD8 -> continue
+                m == 0xD9 -> return true
+                else -> {
+                    val hi = stream.read()
+                    val lo = stream.read()
+                    if (hi < 0 || lo < 0) return false
+                    val len = (hi shl 8) or lo
+                    var left = (len - 2).coerceAtLeast(0).toLong()
+                    while (left > 0) {
+                        val skipped = stream.skip(left)
+                        if (skipped <= 0) {
+                            if (stream.read() < 0) return false
+                            left--
+                        } else left -= skipped
+                    }
+                }
+            }
+        }
+    }
+
     private fun at(b: ByteArray, i: Int): Int = if (i in b.indices) b[i].toInt() and 0xFF else -1
 
     private fun hasKnownSignature(h: ByteArray): Boolean {

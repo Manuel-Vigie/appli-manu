@@ -58,4 +58,26 @@ class FileHealthTest {
         val head = bytes(0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6F, 0x6D, 0, 0, 2, 0)
         assertEquals(Verdict.OK, FileHealth.classify("mp4", head, ByteArray(32), 10000).verdict)
     }
+
+    private fun ints(vararg v: Int) = bytes(*v)
+
+    @Test
+    fun jpegWithEndAndTrailingDataIsComplete() {
+        // SOI, un segment APP0 de longueur 4, des données avec FF00, EOI, puis des données du constructeur.
+        val data = ints(0xFF, 0xD8, 0xFF, 0xE0, 0, 4, 1, 2, 0xFF, 0xDA, 0, 2, 5, 6, 0xFF, 0, 7, 0xFF, 0xD9, 9, 9, 9)
+        assertTrue(FileHealth.jpegReachesEnd(data.inputStream()))
+    }
+
+    @Test
+    fun jpegCutBeforeEndIsTruncated() {
+        val data = ints(0xFF, 0xD8, 0xFF, 0xE0, 0, 4, 1, 2, 0xFF, 0xDA, 0, 2, 5, 6, 0xFF, 0, 7, 8)
+        assertFalse(FileHealth.jpegReachesEnd(data.inputStream()))
+    }
+
+    @Test
+    fun endMarkerInsideEmbeddedThumbnailDoesNotCount() {
+        // L'EOI du segment APP1 (petite image cachée) est dans un segment sauté : il ne doit pas compter.
+        val data = ints(0xFF, 0xD8, 0xFF, 0xE1, 0, 6, 0xFF, 0xD9, 1, 2, 0xFF, 0xDA, 0, 2, 5, 6)
+        assertFalse(FileHealth.jpegReachesEnd(data.inputStream()))
+    }
 }

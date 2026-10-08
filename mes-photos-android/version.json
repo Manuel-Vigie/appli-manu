@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V24",
+  "version": "V25",
   "date": "08/10/2026",
   "nouveautes": [
+    "Vérification plus juste : un JPEG n'est dit « coupé » que si on ne trouve vraiment pas sa fin (beaucoup de photos ont des données en plus après). Pour les fichiers au contenu inconnu, on affiche leurs premiers octets pour comprendre ce qu'ils sont.",
     "Outils, « Vérifier les photos » : parcourt la carte et dit combien de photos sont saines, brouillées (chiffrées), coupées, vides ou réparables, avec leurs dates et dossiers. Réparation en copie quand c'est possible.",
     "Photo qui ne s'affiche pas : l'écran en grand explique maintenant pourquoi (taille, type réel du fichier, fichier coupé ou erreur de lecture de la carte).",
-    "Le menu déroulant des raccourcis est fermé à chaque fois qu'on revient sur la page : il se referme derrière vous.",
-    "Photos et vidéos qui n'apparaissaient pas : l'appli essaie maintenant plusieurs lecteurs (HEIC, WebP, vidéos difficiles…). Sinon la case indique le format, et en grand un bouton « Ouvrir avec une autre appli »."
+    "Le menu déroulant des raccourcis est fermé à chaque fois qu'on revient sur la page : il se referme derrière vous."
   ],
   "pastille": false,
   "fichiers": []

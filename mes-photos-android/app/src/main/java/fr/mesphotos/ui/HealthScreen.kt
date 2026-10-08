@@ -82,6 +82,15 @@ fun HealthScreen(state: UiState.HealthView, onBack: () -> Unit, onRepair: () -> 
                         r.byFolder.forEach { Line(it.first, it.second) }
                     }
                 }
+                if (r.unknownKinds.isNotEmpty()) {
+                    item {
+                        Section {
+                            Title("Contenu inconnu : débuts de fichier")
+                            r.unknownKinds.forEach { Line(it.first, it.second) }
+                            Body("Les 4 premiers octets de chaque fichier. S'ils sont tous différents, le début est brouillé ; s'ils se répètent, c'est un format ou une marque commune.")
+                        }
+                    }
+                }
                 item {
                     Section {
                         Title("Exemples")

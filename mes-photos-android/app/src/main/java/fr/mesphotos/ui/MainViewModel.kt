@@ -82,6 +82,8 @@ class HealthReport(
     /** Quelques noms de fichiers à problème, avec leur diagnostic. */
     val samples: List<String>,
     val repairable: List<Pair<File, Health>>,
+    /** Pour les fichiers « contenu inconnu » : les débuts de fichier les plus fréquents (4 premiers octets) et l'état de la fin. */
+    val unknownKinds: List<Pair<String, Int>> = emptyList(),
     val message: String? = null,
 )
 
@@ -819,9 +821,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     val folders = HashMap<String, Int>()
                     val samples = ArrayList<String>()
                     val repairable = ArrayList<Pair<File, Health>>()
+                    val unknown = HashMap<String, Int>()
                     val dateFormat = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.FRANCE)
                     for ((i, file) in all.withIndex()) {
-                        val health = healthOf(file)
+                        val checked = healthOf(file)
+                        val health = checked.first
+                        if (health.verdict == Verdict.UNKNOWN) unknown[checked.second] = (unknown[checked.second] ?: 0) + 1
                         counts[health.verdict] = (counts[health.verdict] ?: 0) + 1
                         if (health.verdict != Verdict.OK) {
                             val day = dateFormat.format(java.util.Date(file.lastModified()))
@@ -838,6 +843,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         dates.entries.sortedByDescending { it.value }.take(6).map { it.key to it.value },
                         folders.entries.sortedByDescending { it.value }.take(8).map { it.key to it.value },
                         samples, repairable,
+                        unknownKinds = unknown.entries.sortedByDescending { it.value }.take(8).map { it.key to it.value },
                     )
                 }
                 _state.value = UiState.HealthView(report)
@@ -847,7 +853,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun healthOf(file: File): Health = try {
+    /** Le diagnostic d'un fichier, et une « étiquette » (début du fichier + état de la fin) pour regrouper les cas inconnus. */
+    private fun healthOf(file: File): Pair<Health, String> = try {
         java.io.RandomAccessFile(file, "r").use { raf ->
             val length = raf.length()
             val head = ByteArray(minOf(length, FileHealth.HEAD.toLong()).toInt())
@@ -855,10 +862,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val tail = ByteArray(minOf(length, FileHealth.TAIL.toLong()).toInt())
             raf.seek(length - tail.size)
             raf.readFully(tail)
-            FileHealth.classify(file.extension, head, tail, length)
+            var health = FileHealth.classify(file.extension, head, tail, length)
+            // « Coupé » n'est confirmé qu'en suivant tout le JPEG : beaucoup de photos ont des données en plus après leur fin.
+            if (health.verdict == Verdict.TRUNCATED) {
+                val complete = java.io.FileInputStream(file).use { FileHealth.jpegReachesEnd(it) }
+                if (complete) health = Health(Verdict.OK)
+            }
+            val firstBytes = head.take(4).joinToString(" ") { "%02X".format(it) }
+            val ends = tail.size >= 2 && tail[tail.size - 2] == 0xFF.toByte() && tail[tail.size - 1] == 0xD9.toByte()
+            health to (firstBytes + (if (ends) " · fin JPEG présente" else " · fin JPEG absente"))
         }
     } catch (e: Exception) {
-        Health(Verdict.UNKNOWN)
+        Health(Verdict.UNKNOWN) to "illisible (erreur de la carte)"
     }
 
     private fun verdictText(v: Verdict) = when (v) {
@@ -924,7 +939,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 _state.value = UiState.HealthView(
                     HealthReport(
                         state.report.total, state.report.counts, state.report.byDate, state.report.byFolder,
-                        state.report.samples, emptyList(), message = text + if (made < todo.size) "\n${todo.size - made} n'ont pas pu l'être." else "",
+                        state.report.samples, emptyList(), unknownKinds = state.report.unknownKinds, message = text + if (made < todo.size) "\n${todo.size - made} n'ont pas pu l'être." else "",
                     ),
                 )
             } catch (e: Exception) {
