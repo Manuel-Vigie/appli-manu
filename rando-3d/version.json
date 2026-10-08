@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V72",
+  "version": "V73",
   "date": "08/10/2026",
   "nouveautes": [
+    "Rapport rando : les points de passage n'affichent plus « 0 m » quand l'altitude du lieu est inconnue ; on prend alors l'altitude du chemin à cet endroit. Corrigé aussi sur la carte (lieux gardés en mémoire).",
     "Rapport rando : les pauses se règlent en minutes (temps de pause total) au lieu de pourcentages ; vide = automatique.",
     "Rapport rando : tu peux mettre ta vitesse moyenne (km/h, pauses comprises) et choisir des pauses courtes, normales ou longues. Durée totale, temps de marche, temps de pause et heures de passage sont recalculés.",
-    "Rapport rando : deux boutons en haut, « Une rando à préparer » / « Une rando déjà faite ». Tu peux donc sortir le rapport pour débutants (durée, difficulté, matériel) même avec ta trace GPS enregistrée, pour le donner à quelqu'un.",
-    "Rapport rando : la partie « Pour les débutants » (difficulté, durée estimée, matériel) n'apparaît que pour une rando à préparer. Pour une rando déjà enregistrée avec ses heures, le rapport garde les vrais temps."
+    "Rapport rando : deux boutons en haut, « Une rando à préparer » / « Une rando déjà faite ». Tu peux donc sortir le rapport pour débutants (durée, difficulté, matériel) même avec ta trace GPS enregistrée, pour le donner à quelqu'un."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v72"
+    "cache": "rr3d-v73"
   },
   "fichiers": [
     "rando-3d.html",

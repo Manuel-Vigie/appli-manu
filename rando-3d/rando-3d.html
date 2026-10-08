@@ -1388,7 +1388,7 @@ async function fetchPlaces(tr){
   const distTrail=(x,z)=>{let d=Infinity,bi=0;trail.forEach((p,k)=>{const dd=Math.hypot(p[0]-x,p[1]-z);if(dd<d){d=dd;bi=k}});return [d,Math.min(tr.N-1,bi*stride)]};
   const items=[];let osmOk=false;
   let cached=null;try{const c=JSON.parse(localStorage.getItem('rr3d-places:'+tr.sig)||'null');if(c&&Date.now()-c.t<30*864e5)cached=c}catch(e){}
-  if(cached){items.push(...cached.items.map(p=>{const [x,z]=tr.toXZ(p.lat,p.lon);return {...p,x,z}}));osmOk=cached.src==='osm';tr.placesWiki=cached.src==='wiki'}
+  if(cached){items.push(...cached.items.map(p=>{const [x,z]=tr.toXZ(p.lat,p.lon);return {...p,ele:p.ele==null?NaN:p.ele,x,z}}));osmOk=cached.src==='osm';tr.placesWiki=cached.src==='wiki'}
   else try{
     const q=`[out:json][timeout:25];(node["natural"="peak"]["name"]${bb};node["natural"="volcano"]["name"]${bb};node["natural"="saddle"]["name"]${bb};node["mountain_pass"="yes"]["name"]${bb};node["tourism"="alpine_hut"]["name"]${bb};node["tourism"="wilderness_hut"]["name"]${bb};way["natural"="water"]["name"]${bb};relation["natural"="water"]["name"]${bb};node["natural"="glacier"]["name"]${bb};way["natural"="glacier"]["name"]${bb};node["place"~"^(village|town|hamlet|locality)$"]["name"]${bb};);out center 800;`;
     const j=await overpass(q);osmOk=true;
@@ -2982,7 +2982,7 @@ function reportHTML(D,wx){
   const loopEnd=Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200;
   const endCard=(lbl,nm,alt,la,lo,t,col)=>`<div class="rp-end"><span class="rp-flag" style="background:${col}"></span><div><span class="rp-endl">${lbl}</span><b>${escH(nm||'')}${nm?' · ':''}${nf0.format(alt)} m</b><span class="rp-endc">${coord(la,lo)}${t?` · ${t}`:''}</span></div></div>`;
   const ends=endCard(loopEnd?'Départ et arrivée':'Départ',D.startName,tr.se[0],sLat,sLon,D.timed?clock(0):'','#1c9a4e')+(loopEnd?'':endCard('Arrivée',D.endName,tr.se[tr.N-1],eLat,eLon,D.timed?clock(tot):'','repeating-conic-gradient(#111 0 25%,#fff 0 50%) 0 0/8px 8px'));
-  const pts=D.places.map(p=>`<li><span class="rp-km">km ${fmtKm(tr.rd[p.i])}</span><b>${escH(p.name)}</b>${isFinite(p.ele)?` · ${nf0.format(p.ele)} m`:''}${D.timed?`<span class="rp-t">${clock(tr.time[p.i])}</span>`:''}</li>`).join('');
+  const pts=D.places.map(p=>`<li><span class="rp-km">km ${fmtKm(tr.rd[p.i])}</span><b>${escH(p.name)}</b>${(()=>{const e=p.ele>0&&isFinite(p.ele)?p.ele:tr.se[p.i];return isFinite(e)?` · ${nf0.format(Math.round(e))} m`:''})()}${D.timed?`<span class="rp-t">${clock(tr.time[p.i])}</span>`:''}</li>`).join('');
   return `<div class="rp">
   <header class="rp-head"><div class="rp-eye"><span class="rp-gr"></span>Rapport de rando</div><h1>${escH(tr.name)}</h1>
    <p>${[date,D.timed?`départ ${clock(0)}`:'',tr.planned?`allure : ${nf1.format(pace.flat)} km/h · ${pace.up} m/h en montée · ${pace.down} m/h en descente`:''].filter(Boolean).join(' · ')}</p>
@@ -3120,9 +3120,9 @@ async function openReport(tr,places){
 function placesOnRoute(tr,srcTr){
   const out=[];const src=(srcTr&&srcTr.places)||[];const A=srcTr?areaFor(srcTr):null;
   for(const p of src){const [lat,lon]=A.ll(p.x,p.z),[x,z]=tr.toXZ(lat,lon);let d=Infinity,bi=0;for(let i=0;i<tr.N;i+=2){const dd=Math.hypot(tr.rx[i]-x,tr.rz[i]-z);if(dd<d){d=dd;bi=i}}
-    if(d<150&&p.kind!=='summit')out.push({name:p.name,ele:p.ele,i:bi})}
+    if(d<150&&p.kind!=='summit')out.push({name:p.name,ele:p.ele>0?p.ele:NaN,i:bi})}
   for(const p of (tr.pois||[]))if(p.d<Math.max(1500,tr.total*0.004))out.push({name:`${p.emoji} ${p.name}`,ele:NaN,i:p.i});
-  for(const t of (tr.tags||[])){const [x,z]=tr.toXZ(t.lat,t.lon);let d=Infinity,bi=0;for(let i=0;i<tr.N;i+=2){const dd=Math.hypot(tr.rx[i]-x,tr.rz[i]-z);if(dd<d){d=dd;bi=i}}if(d<200)out.push({name:t.name,ele:t.ele,i:bi})}
+  for(const t of (tr.tags||[])){const [x,z]=tr.toXZ(t.lat,t.lon);let d=Infinity,bi=0;for(let i=0;i<tr.N;i+=2){const dd=Math.hypot(tr.rx[i]-x,tr.rz[i]-z);if(dd<d){d=dd;bi=i}}if(d<200)out.push({name:t.name,ele:t.ele>0?t.ele:NaN,i:bi})}
   return out;
 }
 $('reportBtn').addEventListener('click',()=>{if(!T||T.planBase){toast("Charge une trace ou crée un itinéraire d'abord.");return}setPlaying(false);openReport(T,placesOnRoute(T,T))});
@@ -4037,7 +4037,7 @@ async function filmLabels(review){
     if(picked.some(q=>Math.abs(q.iNear-p.iNear)<N*.08)||L.some(l=>Math.abs(l.f*e-p.iNear)<N*.06))continue;
     picked.push(p);
   }
-  for(const p of picked)add({kind:p.kind,pri:PR[p.kind],f:p.iNear/e,ll:ll(p.iNear),title:p.name,sub:FILM_KINDTXT[p.kind]+(isFinite(p.ele)&&p.kind!=='hut'&&p.kind!=='village'?' · '+nf0.format(p.ele)+' m':'')});
+  for(const p of picked)add({kind:p.kind,pri:PR[p.kind],f:p.iNear/e,ll:ll(p.iNear),title:p.name,sub:FILM_KINDTXT[p.kind]+(p.ele>0&&p.kind!=='hut'&&p.kind!=='village'?' · '+nf0.format(p.ele)+' m':'')});
   // vérification : 2e source (Wikidata) pour les noms de villages / départ / arrivée ; corrections de Manuel
   const wk=FILM.wiki||[],nm=t=>(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');
   const ed=(FILM.edSig===T.sig&&FILM.ed)||{};
@@ -4643,7 +4643,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V72", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : les pauses se règlent en minutes (temps de pause total) au lieu de pourcentages ; vide = automatique.", "Rapport rando : tu peux mettre ta vitesse moyenne (km/h, pauses comprises) et choisir des pauses courtes, normales ou longues. Durée totale, temps de marche, temps de pause et heures de passage sont recalculés.", "Rapport rando : deux boutons en haut, « Une rando à préparer » / « Une rando déjà faite ». Tu peux donc sortir le rapport pour débutants (durée, difficulté, matériel) même avec ta trace GPS enregistrée, pour le donner à quelqu'un.", "Rapport rando : la partie « Pour les débutants » (difficulté, durée estimée, matériel) n'apparaît que pour une rando à préparer. Pour une rando déjà enregistrée avec ses heures, le rapport garde les vrais temps."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V73", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : les points de passage n'affichent plus « 0 m » quand l'altitude du lieu est inconnue ; on prend alors l'altitude du chemin à cet endroit. Corrigé aussi sur la carte (lieux gardés en mémoire).", "Rapport rando : les pauses se règlent en minutes (temps de pause total) au lieu de pourcentages ; vide = automatique.", "Rapport rando : tu peux mettre ta vitesse moyenne (km/h, pauses comprises) et choisir des pauses courtes, normales ou longues. Durée totale, temps de marche, temps de pause et heures de passage sont recalculés.", "Rapport rando : deux boutons en haut, « Une rando à préparer » / « Une rando déjà faite ». Tu peux donc sortir le rapport pour débutants (durée, difficulté, matériel) même avec ta trace GPS enregistrée, pour le donner à quelqu'un."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
