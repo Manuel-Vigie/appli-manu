@@ -276,6 +276,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     s,
                     onBack = viewModel::openGallery,
                     onOrder = viewModel::setAllOrder,
+                    onHideRenamed = viewModel::setHideRenamed,
                     onOpen = viewModel::openViewer,
                     onMove = viewModel::moveSelection,
                     onUndoMove = viewModel::undoMove,

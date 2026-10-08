@@ -50,6 +50,7 @@ fun AllPhotosScreen(
     state: UiState.Search,
     onBack: () -> Unit,
     onOrder: (AllOrder) -> Unit,
+    onHideRenamed: (Boolean) -> Unit,
     onOpen: (List<File>, Int) -> Unit,
     onMove: (MoveKind, Set<String>, List<File>) -> Unit,
     onUndoMove: () -> Unit,
@@ -103,6 +104,11 @@ fun AllPhotosScreen(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            FilterChip(
+                selected = state.hideRenamed,
+                onClick = { onHideRenamed(!state.hideRenamed) },
+                label = { Text(if (state.hideRenamed) "Renommées cachées (${state.renamedCount})" else "Cacher les renommées (${state.renamedCount})") },
+            )
             AllOrder.values().forEach { order ->
                 FilterChip(selected = state.order == order, onClick = { onOrder(order) }, label = { Text(order.label) })
             }
@@ -121,7 +127,7 @@ fun AllPhotosScreen(
 
         if (state.results.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth().padding(28.dp), contentAlignment = Alignment.Center) {
-                Text("Aucune photo pour l'instant : rangez d'abord vos photos.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(if (state.hideRenamed && state.renamedCount > 0) "Bravo : toutes les photos sont renommées. Touchez la puce en haut pour les revoir." else "Aucune photo pour l'instant : rangez d'abord vos photos.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
             LazyVerticalGrid(

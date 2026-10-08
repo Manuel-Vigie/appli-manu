@@ -181,6 +181,8 @@ sealed interface UiState {
         val shortcuts: List<ShortcutItem> = emptyList(),
         /** Seulement pour « Toutes les photos » : l'ordre choisi. */
         val order: AllOrder? = null,
+        val hideRenamed: Boolean = false,
+        val renamedCount: Int = 0,
     ) : UiState
 
     /** Accueil de la recherche par visage : combien de photos ont déjà été regardées. */
@@ -1278,6 +1280,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private var allOrder = AllOrder.NEWEST
+    /** Vrai d'office : « Toutes les photos » ne montre que celles qui n'ont pas encore été renommées (nom du type « Mot - IMG_… »). */
+    private var hideRenamed = true
+
+    private fun isRenamed(name: String) = name.contains(" - ")
+
+    fun setHideRenamed(hide: Boolean) {
+        hideRenamed = hide
+        search(ALL_QUERY)
+    }
 
     /** « Toutes les photos » : toutes les photos et vidéos de « Photos rangées » à la suite, à choisir et à mettre au coffre-fort. */
     fun openAllPhotos() = search(ALL_QUERY)
@@ -1297,8 +1308,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         if (query == ALL_QUERY) {
             val order = allOrder
+            val hide = hideRenamed
+            val renamedCount = index.count { isRenamed(it.file.name) }
             val all = withContext(Dispatchers.IO) {
-                val files = index.map { it.file } // déjà de la plus récente à la plus ancienne
+                val everything = index.map { it.file } // déjà de la plus récente à la plus ancienne
+                val files = if (hide) everything.filterNot { isRenamed(it.name) } else everything
                 when (order) {
                     AllOrder.NEWEST -> files
                     AllOrder.OLDEST -> files.asReversed()
@@ -1306,7 +1320,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     AllOrder.BIGGEST -> files.sortedByDescending { it.length() }
                 }
             }
-            _state.value = UiState.Search(query, all, message, undoCount, emptyList(), order)
+            _state.value = UiState.Search(query, all, message, undoCount, emptyList(), order, hide, renamedCount)
             return
         }
         val terms = Gallery.terms(query)
