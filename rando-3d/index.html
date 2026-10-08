@@ -3943,6 +3943,7 @@ async function filmLabels(){
     picked.push(p);
   }
   for(const p of picked)add({kind:p.kind,pri:PR[p.kind],f:p.iNear/e,ll:ll(p.iNear),title:p.name,sub:FILM_KINDTXT[p.kind]+(isFinite(p.ele)&&p.kind!=='hut'&&p.kind!=='village'?' · '+nf0.format(p.ele)+' m':'')});
+  [...L].sort((a,b)=>a.f-b.f).forEach((l,i)=>{l.sgn=i%2?-1:1});   // côté fixe de chaque étiquette par rapport au sens de marche : 1 = gauche, -1 = droite (en alternance)
   return L;
 }
 // affiche les étiquettes visibles : cartes blanches avec pastille-icône, qui « sautent » à l'apparition (style Relive)
@@ -3956,58 +3957,63 @@ function filmLabelDraw(x,W,H,k,m,labs,o){
   if(o.statsA>.05){const pad=14*k,cw=Math.min(W*.22,66*k),pw=4*cw+12*k,ph=40*k,py0=H-pad-(2*7.4*k+4*k)-ph;boxes.push([pad-8*k,py0-8*k,pad+pw+8*k,py0+ph+8*k])}
   // zones libres (changent en douceur, jamais d'un coup) : sous le titre, au-dessus des compteurs
   const top=H*(.07+.18*o.titleA),bot=H*(.9-.16*o.statsA);
-  // chaque étiquette garde son état d'une image à l'autre : elle ne clignote plus
+  // le parcours (projeté à l'écran) : une étiquette ne doit jamais le recouvrir
+  const rs=[];
+  if(o.route){let pr=null;for(const q of o.route){const r=m.project(q);if(!r){pr=null;continue}
+    if(pr){const d=Math.hypot(r.x-pr.x,r.y-pr.y),nn=Math.min(40,Math.ceil(d/(5*k)));for(let i=1;i<=nn;i++)rs.push([pr.x+(r.x-pr.x)*i/nn,pr.y+(r.y-pr.y)*i/nn])}else rs.push([r.x,r.y]);pr=r}}
+  const onPath=(X,Y,w,h)=>{const e=4*k;for(const q of rs)if(q[0]>X-e&&q[0]<X+w+e&&q[1]>Y-e&&q[1]<Y+h+e)return true;return false};
   const act=[];
   for(const l of labs){
     let a=o.labA;
     if(o.walkF!=null){const d=o.walkF-l.f;a=Math.max(a,d<-.03?0:1)}
     l.want=a>.5?1:0;
-    if(l.vis===undefined){l.vis=0;l.side=0}
+    if(l.vis===undefined)l.vis=0;
     if(l.want||l.vis>.01)act.push(l);
   }
-  // pendant la marche : seulement les 3 lieux les plus proches du marcheur (ceux déjà vus, loin, s'effacent) → moins brouillon au retour
+  // pendant la marche : seulement les 3 lieux les plus proches du marcheur ; une étiquette reste au moins 5 s à l'écran
   if(o.walker&&o.labA<.5){
     const cl=Math.cos(o.walker[1]*Math.PI/180),dist=l=>Math.hypot((l.ll[0]-o.walker[0])*cl,l.ll[1]-o.walker[1])*(l.vis>.5?.7:1);
-    // une étiquette reste au moins 5 s à l'écran avant de pouvoir s'effacer (pas de défilement trop rapide)
     act.filter(l=>l.want).sort((p,q)=>dist(p)-dist(q)).slice(3).forEach(l=>{if((l.on||0)>=150)l.want=0});
   }
   act.sort((p,q)=>((q.vis>.05)-(p.vis>.05))||(q.pri-p.pri));
   x.save();x.textBaseline='alphabetic';
   for(const l of act){
-    const pt=m.project(l.ll);let ok=!!pt&&l.want===1,px=0,py=0,bx=0,by=0,w=0,h=0,u=k*(l.kind==='top'?1.5:1.32),gap=24*u;
+    const pt=m.project(l.ll);let ok=!!pt&&l.want===1,px=0,py=0,bx=0,by=0,w=0,h=0,ex=0,ey=0,u=k*(l.kind==='top'?1.5:1.32);
     if(pt){
       px=pt.x;py=pt.y;
       x.font=`700 ${9*u}px ${sans}`;const tw=x.measureText(l.title).width;
       let sw=0;if(l.sub){x.font=`600 ${6.4*u}px ${sans}`;sw=x.measureText(l.sub).width}
       h=(l.sub?26:19)*u;w=Math.min(W*.5,Math.max(tw,sw)+16*u);
-      // côté opposé au parcours, avec « mémoire » : on ne change de côté que si le tracé s'est nettement rapproché
-      let dx=0,c=0;for(const q of l.nb||[]){const r=m.project(q);if(r){dx+=r.x-px;c++}}
-      dx=c?dx/c:0;
-      if(!l.side)l.side=dx>0?-1:1;else if(dx*l.side>40*k)l.side=-l.side;
-      const fit=sd=>{const v=sd>0?px+gap:px-gap-w;return v>=3*k&&v+w<=W-3*k?v:null};
-      // si une autre étiquette gêne (ex. deux lieux au même endroit), on décale celle-ci plus haut ou plus bas au lieu de la cacher
-      const base=py-h/2-12*u,step=h+16*k,lo=top,hi=Math.max(top,bot-h),check=ok,M=9*k;
-      const place=(s2,ns)=>{const v=fit(s2);if(v===null)return null;
-        for(const n of check?ns:[0]){
-          const y=Math.max(lo,Math.min(hi,base+n*step)),bb=[v-M,y-M,v+w+M,y+h+M];
-          if(Math.abs(y+h/2-py)<=3*h&&!boxes.some(q=>bb[0]<q[2]&&bb[2]>q[0]&&bb[1]<q[3]&&bb[3]>q[1]))return{bx:v,by:y,bb}}
-        return null};
-      // d'abord sans empiler (côté préféré, puis de l'autre côté du parcours), ensuite seulement en décalant plus haut/bas
-      let sd=l.side,res=place(sd,[0]);if(!res){res=place(-sd,[0]);if(res)sd=-sd}
-      const stk=o.labA<.5?[-1,1]:[-1,1,-2,2,-3,3];
-      if(!res){res=place(sd,stk);if(!res){res=place(-sd,stk);if(res)sd=-sd}}
-      l.sd=sd;
+      // direction du parcours à l'écran à cet endroit ; l'étiquette se place PERPENDICULAIREMENT, toujours du même côté du parcours (gauche ou droite du sens de marche) : elle ne passe jamais sur le tracé
+      const q1=m.project(l.nb[1]),q2=m.project(l.nb[2]);
+      let tx=q1&&q2?q2.x-q1.x:0,ty=q1&&q2?q2.y-q1.y:0,tl=Math.hypot(tx,ty);
+      if(tl<3*k){tx=l.tx||0;ty=l.ty||-1;tl=Math.hypot(tx,ty)||1}
+      tx/=tl;ty/=tl;
+      // lissage léger de la direction (évite les petits tremblements)
+      if(l.tx!==undefined){tx=l.tx*.8+tx*.2;ty=l.ty*.8+ty*.2;const n=Math.hypot(tx,ty)||1;tx/=n;ty/=n}
+      l.tx=tx;l.ty=ty;
+      const sg=l.sgn||1,nx=sg*ty,ny=-sg*tx,gap=20*u,half=Math.abs(nx)*w/2+Math.abs(ny)*h/2;
+      let res=null;
+      for(const n of (o.labA<.5?[0,1,-1]:[0,1,-1,2,-2])){
+        const sh=n*(h+14*k),cx=px+nx*(gap+half)+tx*sh,cy=py+ny*(gap+half)+ty*sh;
+        let X=cx-w/2,Y=cy-h/2;
+        const X0=X;X=Math.max(3*k,Math.min(W-3*k-w,X));
+        if(Math.abs(X-X0)>8*k)continue;
+        if(Y<top||Y+h>bot+h*.5)continue;
+        if(onPath(X,Y,w,h))continue;
+        const M=9*k,bb=[X-M,Y-M,X+w+M,Y+h+M];
+        if(boxes.some(q=>bb[0]<q[2]&&bb[2]>q[0]&&bb[1]<q[3]&&bb[3]>q[1]))continue;
+        res={X,Y,bb};break;
+      }
       if(!res||py<.03*H||py>.97*H)ok=false;
-      else{bx=res.bx;by=res.by;if(ok)boxes.push(res.bb)}
-      if(res){bx=res.bx;by=res.by}else bx=null;
-      if(bx!==null){const tx=bx-px,ty=by-py;if(!l.o)l.o=[tx,ty];else{l.o[0]+=(tx-l.o[0])*.07;l.o[1]+=(ty-l.o[1])*.07}bx=px+l.o[0];by=py+l.o[1]}
+      else{bx=res.X;by=res.Y;if(ok)boxes.push(res.bb)}
+      if(!res)bx=null;
+      else{ex=Math.max(bx,Math.min(bx+w,px));ey=Math.max(by,Math.min(by+h,py))}
     }
-    if(l.vis<=.01&&!ok)l.o=null;
     l.vis=Math.max(0,Math.min(1,l.vis+(ok?1/14:-1/22)));
     l.on=l.vis>.5&&ok?(l.on||0)+1:(l.vis>.05?(l.on||0):0);
     if(!pt||bx===null||l.vis<=.01)continue;
-    const vis=l.vis,sc=vis>=1?1:Math.max(.01,fBack(vis)),al=Math.min(1,vis*2),side=l.sd;
-    const ex=px<bx+w/2?bx:bx+w,ey=by+h/2;
+    l.bb=[bx,by,w,h];const vis=l.vis,sc=vis>=1?1:Math.max(.01,fBack(vis)),al=Math.min(1,vis*2);
     x.save();x.translate(px,py);x.scale(sc,sc);x.translate(-px,-py);x.globalAlpha=al;x.lineCap='round';
     x.strokeStyle='rgba(8,30,50,.55)';x.lineWidth=4.2*k;x.beginPath();x.moveTo(px,py);x.lineTo(ex,ey);x.stroke();
     x.strokeStyle='#ffffff';x.lineWidth=2.2*k;x.beginPath();x.moveTo(px,py);x.lineTo(ex,ey);x.stroke();
@@ -4149,6 +4155,7 @@ async function filmRunOne(fmtKey,both){
       return {cam,fr,ph,kmMode,dot,op,titleA,statsA,labA,walkF};
     };
     const labs=await filmLabels().catch(()=>[]);
+    const routeLL=(()=>{const o=[],nn=Math.min(T.N,220);for(let i=0;i<nn;i++){const j=Math.round(i/(nn-1)*(T.N-1)),[la,lo]=A.ll(T.rx[j],T.rz[j]);o.push([lo,la])}return o})();
     // image finale de contrôle : le premier rendu attend plus longtemps (les photos arrivent)
     const out=document.createElement('canvas');out.width=W;out.height=H;const x=out.getContext('2d');
     const pv=$('filmPrev'),pw=Math.min(320,W),pvh=Math.round(pw*H/W);pv.width=pw;pv.height=pvh;const px=pv.getContext('2d');
@@ -4175,7 +4182,7 @@ async function filmRunOne(fmtKey,both){
       // image = carte + textes
       x.drawImage(m.getCanvas(),0,0,W,H);
       filmHud(x,W,H,{title,sub,titleA:p.titleA,statsA:p.statsA,attr,rd:val(T.rd,p.fr),se:val(T.se,p.fr),up:val(T.up,p.fr),time:val(T.time,p.fr)});
-      filmLabelDraw(x,W,H,k,m,labs,{walker:p.walkF!=null?(()=>{const i=Math.round(Math.max(0,Math.min(1,p.walkF))*(Tk.N-1)),[la,lo]=areaFor(Tk).ll(Tk.rx[i],Tk.rz[i]);return [lo,la]})():null,labA:p.labA,walkF:p.walkF,titleA:p.titleA,statsA:p.statsA,t:n/FPS});
+      filmLabelDraw(x,W,H,k,m,labs,{route:routeLL,walker:p.walkF!=null?(()=>{const i=Math.round(Math.max(0,Math.min(1,p.walkF))*(Tk.N-1)),[la,lo]=areaFor(Tk).ll(Tk.rx[i],Tk.rz[i]);return [lo,la]})():null,labA:p.labA,walkF:p.walkF,titleA:p.titleA,statsA:p.statsA,t:n/FPS});
       const vf=new VideoFrame(out,{timestamp:Math.round(n*1e6/FPS),duration:Math.round(1e6/FPS)});
       enc.encode(vf,{keyFrame:n%60===0});vf.close();
       while(enc.encodeQueueSize>6&&!FILM.cancel)await fSleep(8);
@@ -4493,7 +4500,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V61", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Étiquettes du film plus calmes : elles restent au moins 5 s à l'écran, apparaissent et s'effacent plus lentement, ne passent plus sur les compteurs et leur trait ne traverse plus l'écran. Le bouton « deux vidéos » refait Replay (Topo) + Film (Photos IGN).", "Un seul bouton « Créer les deux films » : un film avec la carte Photos IGN, puis le même avec le Satellite, rangés dans « Mes films » (le nom de la carte est dans le titre).", "Film : les étiquettes proches ne sont plus collées l'une à l'autre. Elles se répartissent des deux côtés du parcours et, si besoin, s'empilent avec un vrai espace entre elles.", "Bouton « 🎬 Créer les deux vidéos (carte + replay) » (onglet Mes films et dans les deux fenêtres vidéo) : fabrique le Film de la carte puis la vidéo du replay, l'un après l'autre, et les range dans Mes films. Film : au retour, seuls les 3 lieux les plus proches du marcheur restent affichés (moins brouillon)."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V62", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : chaque étiquette garde son côté (gauche ou droite du sens de marche, en alternance) et se place de travers par rapport au chemin : elle ne passe plus sur le tracé et ne change plus de côté.", "Étiquettes du film plus calmes : elles restent au moins 5 s à l'écran, apparaissent et s'effacent plus lentement, ne passent plus sur les compteurs et leur trait ne traverse plus l'écran. Le bouton « deux vidéos » refait Replay (Topo) + Film (Photos IGN).", "Un seul bouton « Créer les deux films » : un film avec la carte Photos IGN, puis le même avec le Satellite, rangés dans « Mes films » (le nom de la carte est dans le titre).", "Film : les étiquettes proches ne sont plus collées l'une à l'autre. Elles se répartissent des deux côtés du parcours et, si besoin, s'empilent avec un vrai espace entre elles."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
