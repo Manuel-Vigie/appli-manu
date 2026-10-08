@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -342,6 +343,7 @@ fun BrowseScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Pill(AppIcons.Photos, "Toutes les photos", onOpenAll)
+                        Pill(Icons.Default.PlayArrow, "Vidéos") { onOpenShortcut("videos") }
                         Pill(AppIcons.Camera, "Photographier", onTakePhoto)
                     }
                 }
