@@ -2881,17 +2881,20 @@ function reportData(tr,places){
   const near=(i)=>{let best=null,bd=400;for(const p of (places||[])){const d=Math.abs(p.i-i)*tr.total/(N-1);if(d<bd){bd=d;best=p}}return best?best.name:''};
   return {tr,segs,byCls,timed,t0,startName:near(0),endName:near(N-1),steepUp:climbs[0],steepDown:descs[0],longClimb:best,places:(places||[]).sort((a,b)=>a.i-b.i)};
 }
+const REPORT_MODES={day:{n:'Randonnée à la journée',s:'sac léger',r:3.4,short:'À la journée'},trek:{n:'Trekking',s:'sac d’environ 12 kg',r:2.65,short:'Trekking · 12 kg'},heavy:{n:'Trekking très chargé',s:'sac de 15 kg ou plus',r:2.3,short:'Très chargé · 15 kg+'}};
+let reportMode='trek';try{const m=localStorage.getItem('rr3d-reportmode');if(REPORT_MODES[m])reportMode=m}catch(_){}
 function beginnerData(D){
   const tr=D.tr,km=tr.total/1000,up=tr.up[tr.N-1],down=tr.down[tr.N-1],kmE=km+up/100;
   const steep=(D.byCls[3]+D.byCls[4])/tr.total*100;
-  let lv=kmE<8?0:kmE<15?1:kmE<25?2:kmE<35?3:4;
+  const MD=REPORT_MODES[reportMode],kmA=kmE*3.4/MD.r;
+  let lv=kmA<8?0:kmA<15?1:kmA<25?2:kmA<35?3:4;
   if(steep>12&&lv<4&&lv>0)lv++;
   const L=[{n:'Très facile',col:'#2e9e5b',t:'Une balade tranquille, accessible à tout le monde, même sans entraînement.'},
     {n:'Facile',col:'#7cb342',t:'Accessible à un débutant en bonne santé : on marche à son rythme, avec quelques pauses.'},
     {n:'Moyenne',col:'#f0a21a',t:'Demande un peu d’habitude : mieux vaut avoir déjà fait quelques sorties de 2 à 3 heures.'},
     {n:'Soutenue',col:'#e8731a',t:'Pour des marcheurs qui ont déjà un peu de condition : on sent les jambes et le souffle.'},
     {n:'Difficile',col:'#d7392a',t:'Longue ou très pentue : réservée aux marcheurs entraînés, à préparer sérieusement.'}][lv];
-  const h=km/3.5,v=up/250+down/450,walk=Math.max(h,v)+Math.min(h,v)/2,tot=walk*1.2;
+  const tot=kmE/MD.r,walk=tot/1.2,avg=km/tot;   // réglé sur l'expérience de Manuel : 1,5 à 1,8 km/h de moyenne, pauses comprises, sur une rando à fort dénivelé (≈ 2,65 km-effort par heure)
   const hm=x=>{const m=Math.round(x*60/5)*5;return Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')};
   const lines=[];
   lines.push(`Tu marches <b>${fmtKm(tr.total)} km</b> en montant au total <b>${nf0.format(up)} m</b> et en redescendant <b>${nf0.format(down)} m</b>. ${up<150?'C’est presque plat.':up<400?'Le relief reste modéré.':up<800?'Il y a de vraies montées : prévois de souffler.':'Le dénivelé est important : l’effort se répartit sur toute la journée.'}`);
@@ -2901,23 +2904,26 @@ function beginnerData(D){
   lines.push(steep<3?'Presque aucun passage raide.':`Environ <b>${Math.round(steep)} %</b> du chemin est raide (pente de plus de 15 %).`);
   const gear=['Chaussures de marche qui tiennent la cheville','Eau : '+(tot>5?'2 litres':tot>3?'1,5 litre':'1 litre')+' par personne','Collations (fruits secs, barres)','Veste coupe-vent / pluie','Casquette et crème solaire','Téléphone chargé + batterie externe'];
   if(up>500)gear.push('Bâtons de marche (très utiles en descente)');
+  if(reportMode!=='day')gear.push('Couchage et repas pour les nuits (tente ou refuge, duvet, réchaud)','Nourriture pour tous les jours + de quoi purifier l’eau','Sac bien réglé : le poids sur les hanches, pas sur les épaules');
   if(tr.eMax>1800)gear.push('Une couche chaude : il fait plus froid en altitude');
-  const tips=['Pars tôt pour finir avant la nuit et avoir de la marge.','Regarde la météo la veille ; en cas d’orage ou de brouillard épais, on renonce.','Garde un rythme où tu peux encore parler : si tu es essoufflé, ralentis.','On peut faire demi-tour à tout moment : il n’y a aucune honte.','Préviens quelqu’un de ton itinéraire et de ton heure de retour.'];
-  return {lv,L,km,up,down,kmE,steep,tot:hm(tot),walk:hm(walk),lines,gear,tips};
+  const tips=[...(reportMode!=='day'?['Avec un sac lourd, on avance plus lentement, surtout en montée : prévois large et choisis des étapes courtes.']:[]),'Pars tôt pour finir avant la nuit et avoir de la marge.','Regarde la météo la veille ; en cas d’orage ou de brouillard épais, on renonce.','Garde un rythme où tu peux encore parler : si tu es essoufflé, ralentis.','On peut faire demi-tour à tout moment : il n’y a aucune honte.','Préviens quelqu’un de ton itinéraire et de ton heure de retour.'];
+  return {lv,L,MD,km,up,down,kmE,steep,tot:hm(tot),walk:hm(walk),avg,lines,gear,tips};
 }
 function beginnerHTML(D){
   const B=beginnerData(D);
   return `<section class="rp-beg"><h2>Pour les débutants</h2>
+   <div class="rp-modesel"><span>Type de sortie :</span>${Object.keys(REPORT_MODES).map(k=>`<button type="button" data-mode="${k}" aria-pressed="${k===reportMode}">${REPORT_MODES[k].short}</button>`).join('')}</div>
+   <p class="rp-modetxt">Calculé pour : <b>${B.MD.n}</b> (${B.MD.s}).</p>
    <div class="rp-diff" style="--c:${B.L.col}"><div class="rp-dl">Difficulté</div><b>${B.L.n}</b><div class="rp-dm"><i style="width:${(B.lv+1)*20}%"></i></div><p>${B.L.t}</p></div>
-   <div class="rp-est"><div><span>Durée pour un débutant</span><b>${B.tot}</b><small>avec les pauses</small></div><div><span>Temps de marche seul</span><b>${B.walk}</b><small>allure tranquille</small></div></div>
-   <p class="rp-note" style="margin-top:8px">Estimation avec une allure de débutant (3,5 km/h sur le plat, 250 m de montée et 450 m de descente par heure) plus 20 % de pauses. Un marcheur habitué ira plus vite.</p>
+   <div class="rp-est"><div><span>Durée estimée</span><b>${B.tot}</b><small>pauses comprises · moyenne ${nf1.format(B.avg)} km/h</small></div><div><span>Temps de marche seul</span><b>${B.walk}</b><small>allure tranquille</small></div></div>
+   <p class="rp-note" style="margin-top:8px">Estimation avec le km-effort : environ ${nf1.format(B.MD.r)} km-effort par heure, pauses comprises (${B.MD.n.toLowerCase()}, ${B.MD.s}). Avec un sac d’environ 12 kg et beaucoup de dénivelé, la moyenne tombe vers 1,5 à 1,8 km/h ; à la journée avec un sac léger, on va nettement plus vite.</p>
    <h3>Ce qui t’attend</h3><ul class="rp-ul">${B.lines.map(l=>`<li>${l}</li>`).join('')}</ul>
    <h3>À emporter</h3><ul class="rp-ul rp-chk">${B.gear.map(l=>`<li>${l}</li>`).join('')}</ul>
    <h3>Conseils</h3><ul class="rp-ul">${B.tips.map(l=>`<li>${l}</li>`).join('')}</ul></section>`;
 }
 function reportShareText(D){
   const B=beginnerData(D),tr=D.tr,pl=D.places.slice(0,6).map(p=>p.name).join(', ');
-  return `🥾 ${tr.name}\nDistance : ${fmtKm(tr.total)} km\nDénivelé : +${nf0.format(B.up)} m / −${nf0.format(B.down)} m\nAltitude : ${nf0.format(tr.eMin)} à ${nf0.format(tr.eMax)} m\nDifficulté : ${B.L.n}\nDurée estimée (débutant, pauses comprises) : ${B.tot}\n`+(pl?`On passe par : ${pl}\n`:'')+(D.steepUp?`Montée la plus raide : km ${fmtKm(tr.rd[D.steepUp.i0])} → ${fmtKm(tr.rd[D.steepUp.i1])} (${Math.round(D.steepUp.avg)} %)\n`:'')+`À prévoir : bonnes chaussures, eau, collation, veste de pluie.`;
+  return `🥾 ${tr.name}\nDistance : ${fmtKm(tr.total)} km\nDénivelé : +${nf0.format(B.up)} m / −${nf0.format(B.down)} m\nAltitude : ${nf0.format(tr.eMin)} à ${nf0.format(tr.eMax)} m\nDifficulté : ${B.L.n}\nSortie : ${B.MD.n} (${B.MD.s})\nDurée estimée (pauses comprises) : ${B.tot}\n`+(pl?`On passe par : ${pl}\n`:'')+(D.steepUp?`Montée la plus raide : km ${fmtKm(tr.rd[D.steepUp.i0])} → ${fmtKm(tr.rd[D.steepUp.i1])} (${Math.round(D.steepUp.avg)} %)\n`:'')+`À prévoir : bonnes chaussures, eau, collation, veste de pluie.`;
 }
 function reportProfileSVG(D){
   const tr=D.tr,narrow=innerWidth<640,W=narrow?560:1000,H=narrow?230:250,pl=narrow?62:66,pr=12,pt=14,pb=30,iw=W-pl-pr,ih=H-pt-pb;
@@ -3066,6 +3072,8 @@ const REPORT_CSS=`.rp{--ink:#1d2b2d;--mut:#5b6b6c;--line:#dfe5e2;font-family:"Ba
 .rp-guide dt{font-weight:600}.rp-guide dd{margin:0;color:#3c4b4d}
 .rp-cls{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px;font-size:14px}
 .rp-cls li{display:flex;gap:8px;align-items:baseline}.rp-cls i{width:16px;height:9px;border-radius:4px;flex:none;display:inline-block}
+.rp-modesel{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px;font-size:13.5px;color:var(--mut)}.rp-modesel button{border:1px solid #cfd8d4;background:#fff;border-radius:99px;padding:7px 12px;font:inherit;font-weight:600;color:var(--ink);cursor:pointer}.rp-modesel button[aria-pressed=true]{background:#1d2b2d;color:#fff;border-color:#1d2b2d}.rp-modetxt{margin:0 0 10px;font-size:14px}
+@media print{.rp-modesel{display:none}}
 .rp-beg h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:17px;margin:14px 0 6px}
 .rp-diff{border:1px solid var(--line);border-left:8px solid var(--c);border-radius:12px;padding:12px 14px}.rp-dl{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
 .rp-diff>b{font-family:"Barlow Condensed",sans-serif;font-size:30px;color:var(--c)}.rp-dm{height:8px;background:#eef1ef;border-radius:4px;overflow:hidden;margin:4px 0 8px}.rp-dm i{display:block;height:100%;background:var(--c)}.rp-diff p{margin:0;font-size:14.5px}
@@ -3076,8 +3084,9 @@ const REPORT_CSS=`.rp{--ink:#1d2b2d;--mut:#5b6b6c;--line:#dfe5e2;font-family:"Ba
 .rp-foot{margin-top:24px;font-size:11.5px;color:var(--mut)}
 @media (max-width:520px){.rp{padding:16px 14px 22px}.rp h1{font-size:28px}.rp-kpi b{font-size:23px}.rp-chip{margin-left:0}}`;
 let lastReport=null;
+$('reportBody').addEventListener('click',e=>{const b=e.target.closest('[data-mode]');if(!b||!lastReport)return;reportMode=b.dataset.mode;try{localStorage.setItem('rr3d-reportmode',reportMode)}catch(_){}const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(lastReport.D,lastReport.wx);$('reportPanel').scrollTop=y});
 function reportFileHTML(tr){
-  const doc=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(tr.name)} · fiche rando</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap"><style>body{margin:0;background:#eef1ee}${REPORT_CSS}</style></head><body>${$('reportBody').innerHTML}</body></html>`;
+  const doc=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(tr.name)} · fiche rando</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap"><style>body{margin:0;background:#eef1ee}${REPORT_CSS}</style></head><body>${$('reportBody').innerHTML.replace(/<div class="rp-modesel">.*?<\/div>/s,'')}</body></html>`;
   return doc}
 
 async function openReport(tr,places){
@@ -4616,7 +4625,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V67", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : sous le km-effort, une phrase explique « 19,1 km de rando = 30,8 km à plat ».", "Film : avant de créer le film, la liste des noms qui seront écrits s'affiche. Chaque nom est vérifié avec une 2e source (✓), tu peux décocher un nom faux ou le corriger. Les noms de départ/arrivée se corrigent là aussi.", "Film : caméra plus proche, étiquettes collées à leur lieu (elles ne bougent plus toutes seules), faux « villages » (noms de montagnes) supprimés, et deux cases pour taper le nom du départ et de l'arrivée (ex. Le Pra).", "Nouveau « Rapport rando » pour débutants : difficulté expliquée simplement, durée estimée avec pauses, ce qui t'attend, quoi emporter, conseils, profil et plan tronçon par tronçon. Boutons Imprimer/PDF, Mail, SMS et Partager."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V68", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : tu choisis le type de sortie (à la journée, trekking avec sac de 12 kg, trekking très chargé). La durée, la vitesse moyenne (1,5 à 1,8 km/h avec sac et dénivelé), la difficulté et la liste de matériel s'adaptent.", "Rapport rando : sous le km-effort, une phrase explique « 19,1 km de rando = 30,8 km à plat ».", "Film : avant de créer le film, la liste des noms qui seront écrits s'affiche. Chaque nom est vérifié avec une 2e source (✓), tu peux décocher un nom faux ou le corriger. Les noms de départ/arrivée se corrigent là aussi.", "Film : caméra plus proche, étiquettes collées à leur lieu (elles ne bougent plus toutes seules), faux « villages » (noms de montagnes) supprimés, et deux cases pour taper le nom du départ et de l'arrivée (ex. Le Pra)."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
