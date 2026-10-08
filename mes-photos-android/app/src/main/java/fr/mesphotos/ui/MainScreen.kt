@@ -40,6 +40,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Warning
@@ -217,6 +218,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onOpenVault = openVault,
                         onHealth = viewModel::startHealthCheck,
                         onClassify = viewModel::startLabeling,
+                        onPortraits = viewModel::startPortraits,
                         onDuplicates = viewModel::findDuplicates,
                         onTakePhoto = { askLabel = true },
                         onScan = viewModel::startNudityScan,
@@ -361,6 +363,7 @@ private fun HomeScreen(
     onOpenVault: () -> Unit,
     onHealth: () -> Unit,
     onClassify: (Int) -> Unit,
+    onPortraits: (Int) -> Unit,
     onDuplicates: () -> Unit,
     onTakePhoto: () -> Unit,
     onScan: () -> Unit,
@@ -413,6 +416,8 @@ private fun HomeScreen(
                     ToolGroup(
                         "Recherche",
                         listOf(
+                            Tool(Icons.Default.Face, "Trouver les portraits (essai : 20)", "Repère les visages bien visibles sur 20 photos, vous validez", onClick = { onPortraits(20) }),
+                            Tool(Icons.Default.Face, "Trouver tous les portraits", "Même chose sur toutes les photos pas encore renommées", onClick = { onPortraits(0) }),
                             Tool(Icons.Default.Search, "Classer mes photos (essai : 20)", "L'appli reconnaît plage, voiture, repas… sur 20 photos, vous validez", onClick = { onClassify(20) }),
                             Tool(Icons.Default.Search, "Classer toutes mes photos", "Même chose sur toutes les photos pas encore renommées", onClick = { onClassify(0) }),
                             Tool(AppIcons.Copy, "Doublons", "Comparer et garder une seule photo", onClick = onDuplicates),

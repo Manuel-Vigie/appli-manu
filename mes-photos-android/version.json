@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V36",
+  "version": "V37",
   "date": "08/10/2026",
   "nouveautes": [
+    "Outils > Recherche > « Trouver les portraits » : repère les photos avec un visage bien visible (Portrait) ou des personnes plus petites (Personnes), vous cochez, puis il renomme et crée les raccourcis. Essayez d'abord sur 20 photos.",
     "Outils > Recherche > « Classer mes photos » : l'appli reconnaît plage, voiture, repas, document… sur le téléphone, vous propose des mots à cocher, puis renomme d'un coup et crée les raccourcis. Essayez d'abord sur 20 photos.",
     "« Toutes les photos » cache maintenant celles qui sont déjà renommées : il ne reste que celles à faire. Une puce en haut permet de les revoir.",
-    "Après « Renommer », vous voyez tout de suite les photos renommées (liste des photos qui portent le mot), et une case permet de créer le raccourci en même temps.",
-    "Renommer plusieurs photos d'un coup : choisissez-les, touchez « Renommer », choisissez un mot (Immatriculation…) : il est ajouté devant leur nom, la date est gardée, et un raccourci du même mot les retrouve."
+    "Après « Renommer », vous voyez tout de suite les photos renommées (liste des photos qui portent le mot), et une case permet de créer le raccourci en même temps."
   ],
   "pastille": false,
   "fichiers": []

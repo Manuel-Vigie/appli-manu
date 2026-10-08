@@ -1447,6 +1447,60 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * « Trouver les portraits » : cherche les visages (le même moteur que l'onglet Visages, avec sa mémoire) et propose deux groupes :
+     * « Portrait » (un visage gros et bien visible, au plus 3 personnes) et « Personnes » (visages plus petits ou groupes).
+     */
+    fun startPortraits(limit: Int) {
+        val current = place ?: return
+        viewModelScope.launch {
+            var engine: FaceEngine? = null
+            try {
+                _state.value = UiState.Working("Recherche des photos…", 0, 0)
+                val view = withContext(Dispatchers.IO) {
+                    faceCache.load()
+                    val candidates = PhotoFiles.list(current, includeSorted = true).map { it.file }
+                        .filter { !PhotoFiles.isVideo(it) && !isRenamed(it.name) }
+                        .sortedByDescending { it.lastModified() }
+                        .let { if (limit > 0) it.take(limit) else it }
+                    val portraits = ArrayList<File>()
+                    val people = ArrayList<File>()
+                    var none = 0
+                    for ((i, file) in candidates.withIndex()) {
+                        var faces = faceCache.get(file)?.faces?.map { it.box }
+                        if (faces == null) {
+                            val e = engine ?: FaceEngine(getApplication()).also { engine = it }
+                            val bitmap = Thumbs.loadUncached(file, 1280)
+                            val found = if (bitmap == null) emptyList() else try {
+                                runCatching { e.analyze(bitmap) }.getOrDefault(emptyList())
+                            } finally {
+                                bitmap.recycle()
+                            }
+                            faceCache.put(file, found.map { FaceCache.Face(it.box, it.embedding) })
+                            faces = found.map { it.box }
+                        }
+                        val biggest = faces.maxOfOrNull { it[2] * it[3] } ?: 0f
+                        when {
+                            faces.isEmpty() -> none++
+                            biggest >= 0.04f && faces.size <= 3 -> portraits += file
+                            else -> people += file
+                        }
+                        if (i % 3 == 0 || i == candidates.size - 1) _state.value = UiState.Working("Recherche des visages…", i + 1, candidates.size)
+                    }
+                    val groups = ArrayList<LabelGroup>()
+                    if (portraits.isNotEmpty()) groups += LabelGroup("Portrait", portraits)
+                    if (people.isNotEmpty()) groups += LabelGroup("Personnes", people)
+                    UiState.LabelView(groups, candidates.size, none)
+                }
+                _state.value = view
+            } catch (e: Exception) {
+                refresh("La recherche des portraits n'a pas pu se faire : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            } finally {
+                engine?.close()
+            }
+        }
+    }
+
     /** Ajoute le mot de chaque groupe coché devant le nom de ses photos, et crée un raccourci du même nom. */
     fun applyLabels(chosen: Set<String>) {
         val view = _state.value as? UiState.LabelView ?: return
