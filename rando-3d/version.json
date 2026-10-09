@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V86",
+  "version": "V87",
   "date": "09/10/2026",
   "nouveautes": [
+    "Nouveau bouton « 🔗 Ouvrir un lien » (page Mes randos) : colle un lien Suunto ou un lien de fichier GPX/FIT et la trace s'ouvre directement, sans rien télécharger ni convertir.",
     "Rapport rando : nouveau bouton « 📄 PDF par mail ». Il fabrique un vrai PDF (pages A4 avec la carte) et ouvre le partage du téléphone : choisis Gmail et le PDF est déjà en pièce jointe.",
     "Rapport rando, carte : le parcours est de nouveau tout en rouge, et de petits carrés verts avec une tente marquent les endroits plats (à moins de 50 m du chemin) où l'on pourrait poser la tente.",
-    "Rapport rando, carte : légende plus petite, placée dans un coin où elle ne gêne pas le parcours ; le vert marque maintenant les passages vraiment plats (0 à 2 %, au moins 80 m) avec un trait de la même largeur que le rouge.",
-    "Rapport rando, carte : les passages presque plats (pente de moins de 5 % sur 200 m ou plus) sont en vert sur le tracé, pour repérer où poser la tente ; légende sur la carte."
+    "Rapport rando, carte : légende plus petite, placée dans un coin où elle ne gêne pas le parcours ; le vert marque maintenant les passages vraiment plats (0 à 2 %, au moins 80 m) avec un trait de la même largeur que le rouge."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v86"
+    "cache": "rr3d-v87"
   },
   "fichiers": [
     "rando-3d.html",

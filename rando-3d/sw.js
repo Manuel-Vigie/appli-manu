@@ -1,5 +1,5 @@
 // Replay Rando 3D — service worker (mise en cache pour usage hors connexion)
-const VERSION = 'rr3d-v86';
+const VERSION = 'rr3d-v87';
 const SHELL = VERSION + '-app';
 const LIBS = 'rr3d-libs';
 const TILES = 'rr3d-tiles';

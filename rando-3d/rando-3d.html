@@ -791,6 +791,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
       </div>
       <label class="pg-import" for="gpxInput" data-close><i>⬆️</i><b>Importer une trace</b><small>GPX, FIT, TCX ou KML</small></label>
       <div class="pg-grid">
+        <button type="button" class="pg-tile" id="linkTile"><i>🔗</i><b>Ouvrir un lien</b><small>Suunto, GPX, FIT… sans rien télécharger</small></button>
         <button type="button" class="pg-tile" data-fwd="planBtn"><i>✏️</i><b>Créer un itinéraire</b><small>Tracer sur la carte</small></button>
         <button type="button" class="pg-tile" data-fwd="libBtn"><i>🗂️</i><b>Gérer mes randos</b><small>Sauvegarder, supprimer</small></button>
       </div>
@@ -2201,6 +2202,30 @@ async function handleFiles(files){
   if(!gpx&&!imgs.length)toast('Formats acceptés : traces GPX, FIT, TCX, KML (même nommées .bin ou .txt) et photos JPEG ou PNG.');
 }
 $('gpxInput').addEventListener('change',e=>{handleFiles(e.target.files);e.target.value=''});
+/* ---------- Ouvrir une trace depuis un lien (Suunto, fichier GPX/FIT/TCX/KML en ligne) : pas besoin de convertir, l'appli lit déjà ces formats ---------- */
+async function importFromLink(){
+  let u=(prompt('Colle ici le lien de la trace (Suunto, GPX, FIT…)')||'').trim();
+  if(!u)return;
+  const m=u.match(/https?:\/\/[^\s"'<>]+/i);if(!m){toast("Ce n'est pas un lien web.",5000);return}u=m[0];
+  toast('Récupération de la trace…',4000);
+  const tries=[u,'https://api.allorigins.win/raw?url='+encodeURIComponent(u),'https://corsproxy.io/?'+encodeURIComponent(u)];
+  for(const t of tries){
+    try{
+      const c=new AbortController(),to=setTimeout(()=>c.abort(),25000);
+      const r=await fetch(t,{signal:c.signal});clearTimeout(to);if(!r.ok)continue;
+      const buf=await r.arrayBuffer(),b=new Uint8Array(buf);
+      const isFit=b.length>12&&String.fromCharCode(b[8],b[9],b[10],b[11])==='.FIT',gz=b[0]===0x1f&&b[1]===0x8b;
+      const head=new TextDecoder().decode(b.subarray(0,6000));
+      if(!isFit&&!gz&&!/<gpx|<trkpt|<rtept|<TrainingCenter|<Trackpoint|<kml|<coordinates/i.test(head))continue;
+      const nm=/sports-tracker|suunto/i.test(u)?'Itinéraire Suunto':decodeURIComponent((u.split('?')[0].split('/').pop()||'trace').replace(/\.(gpx|fit|tcx|kml)$/i,''))||'trace';
+      await handleFiles([new File([buf],nm+(isFit?'.fit':'.gpx'))]);
+      navGo('replay');return;
+    }catch(e){}
+  }
+  toast("Impossible de récupérer ce lien depuis l'appli (lien périmé, ou site qui refuse). Ouvre-le dans Chrome, enregistre le fichier, puis « Importer une trace ».",10000);
+}
+$('linkTile').addEventListener('click',importFromLink);
+
 $('photoInput').addEventListener('change',e=>{handleFiles(e.target.files);e.target.value=''});
 let dragDepth=0;
 addEventListener('dragenter',e=>{e.preventDefault();dragDepth++;$('drop').hidden=false});
@@ -4903,7 +4928,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V86", "date": "09/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : nouveau bouton « 📄 PDF par mail ». Il fabrique un vrai PDF (pages A4 avec la carte) et ouvre le partage du téléphone : choisis Gmail et le PDF est déjà en pièce jointe.", "Rapport rando, carte : le parcours est de nouveau tout en rouge, et de petits carrés verts avec une tente marquent les endroits plats (à moins de 50 m du chemin) où l'on pourrait poser la tente.", "Rapport rando, carte : légende plus petite, placée dans un coin où elle ne gêne pas le parcours ; le vert marque maintenant les passages vraiment plats (0 à 2 %, au moins 80 m) avec un trait de la même largeur que le rouge.", "Rapport rando, carte : les passages presque plats (pente de moins de 5 % sur 200 m ou plus) sont en vert sur le tracé, pour repérer où poser la tente ; légende sur la carte."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V87", "date": "09/10/2026", "cache": "rr3d-v", "nouveautes": ["Nouveau bouton « 🔗 Ouvrir un lien » (page Mes randos) : colle un lien Suunto ou un lien de fichier GPX/FIT et la trace s'ouvre directement, sans rien télécharger ni convertir.", "Rapport rando : nouveau bouton « 📄 PDF par mail ». Il fabrique un vrai PDF (pages A4 avec la carte) et ouvre le partage du téléphone : choisis Gmail et le PDF est déjà en pièce jointe.", "Rapport rando, carte : le parcours est de nouveau tout en rouge, et de petits carrés verts avec une tente marquent les endroits plats (à moins de 50 m du chemin) où l'on pourrait poser la tente.", "Rapport rando, carte : légende plus petite, placée dans un coin où elle ne gêne pas le parcours ; le vert marque maintenant les passages vraiment plats (0 à 2 %, au moins 80 m) avec un trait de la même largeur que le rouge."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
