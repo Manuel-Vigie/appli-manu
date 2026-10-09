@@ -2970,6 +2970,66 @@ function reportShareText(D){
   const B=beginnerData(D),tr=D.tr,pl=D.places.slice(0,6).map(p=>p.name).join(', ');
   return `🥾 ${tr.name}\nDistance : ${fmtKm(tr.total)} km\nDénivelé : +${nf0.format(B.up)} m / −${nf0.format(B.down)} m\nAltitude : ${nf0.format(tr.eMin)} à ${nf0.format(tr.eMax)} m\nDifficulté : ${B.L.n}\n${isRecorded(tr)?`Durée : ${fmtDur(tr.time[tr.N-1])}`:`Sortie : ${B.MD.n} (${B.MD.s})\nDurée estimée : ${B.tot} (marche ${B.walk} + pauses ${B.pause}, moyenne ${nf1.format(B.avg)} km/h)`}\n`+(isRecorded(tr)||!B.plan.trek||B.plan.days<2?(isRecorded(tr)?'':`Départ ${reportStart}, arrivée vers ${B.plan.rows[B.plan.rows.length-1].t1}\n`):B.plan.rows.map(r=>`Jour ${r.k} : ${r.t0} → ${r.t1}, ${fmtKm(r.km*1000)} km, +${nf0.format(Math.round(r.up))} m${r.k<B.plan.days?', bivouac vers '+nf0.format(Math.round(r.alt))+' m':''}\n`).join(''))+(pl?`On passe par : ${pl}\n`:'')+(D.steepUp?`Montée la plus raide : km ${fmtKm(tr.rd[D.steepUp.i0])} → ${fmtKm(tr.rd[D.steepUp.i1])} (${Math.round(D.steepUp.avg)} %)\n`:'')+`À prévoir : bonnes chaussures, eau, collation, veste de pluie.`;
 }
+// ---- carte IGN pour le rapport (image faite avec les tuiles IGN + le parcours) ----
+const RMAP_LAYERS=[
+ {k:'scan',max:16,url:(z,x,y)=>`https://data.geopf.fr/private/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.MAPS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX=${z}&TILEROW=${y}&TILECOL=${x}&FORMAT=image/jpeg&apikey=ign_scan_ws`},
+ {k:'plan',max:17,url:(z,x,y)=>`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX=${z}&TILEROW=${y}&TILECOL=${x}&FORMAT=image/png`}];
+const mercX=(lo,z)=>(lo+180)/360*Math.pow(2,z)*256,mercY=(la,z)=>{const r=la*Math.PI/180;return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*Math.pow(2,z)*256};
+function rmapLoad(url){return new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';const t=setTimeout(()=>{im.src='';res(null)},14000);im.onload=()=>{clearTimeout(t);res(im)};im.onerror=()=>{clearTimeout(t);res(null)};im.src=url})}
+async function reportMapBase(tr){
+  const A=areaFor(tr),st=Math.max(1,Math.floor(tr.N/1500)),pts=[];
+  for(let i=0;i<tr.N;i+=st){const [la,lo]=A.ll(tr.rx[i],tr.rz[i]);pts.push([la,lo,i])}
+  {const [la,lo]=A.ll(tr.rx[tr.N-1],tr.rz[tr.N-1]);pts.push([la,lo,tr.N-1])}
+  let la0=90,la1=-90,lo0=180,lo1=-180;for(const q of pts){la0=Math.min(la0,q[0]);la1=Math.max(la1,q[0]);lo0=Math.min(lo0,q[1]);lo1=Math.max(lo1,q[1])}
+  const dla=Math.max(la1-la0,.004)*.1,dlo=Math.max(lo1-lo0,.004)*.1;la0-=dla;la1+=dla;lo0-=dlo;lo1+=dlo;
+  for(const L of RMAP_LAYERS){
+    let z=L.max;for(;z>8;z--){const w=mercX(lo1,z)-mercX(lo0,z),h=mercY(la0,z)-mercY(la1,z);if(w<=2000&&h<=2400)break}
+    const w0=mercX(lo1,z)-mercX(lo0,z),h0=mercY(la0,z)-mercY(la1,z),W=Math.round(Math.max(w0,800,h0*.7)),H=Math.round(Math.max(h0,500,w0*.55));
+    const cx=(mercX(lo0,z)+mercX(lo1,z))/2,cy=(mercY(la0,z)+mercY(la1,z))/2,ox=cx-W/2,oy=cy-H/2;
+    const tx0=Math.floor(ox/256),tx1=Math.floor((ox+W)/256),ty0=Math.floor(oy/256),ty1=Math.floor((oy+H)/256),n=Math.pow(2,z);
+    const jobs=[];for(let ty=ty0;ty<=ty1;ty++)for(let tx=tx0;tx<=tx1;tx++)if(ty>=0&&ty<n)jobs.push({tx,ty,p:rmapLoad(L.url(z,((tx%n)+n)%n,ty))});
+    const imgs=await Promise.all(jobs.map(j=>j.p));
+    const ok=imgs.filter(Boolean).length;
+    if(ok<jobs.length*.7)continue;   // trop de tuiles manquantes : on essaie la couche suivante
+    const cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');x.fillStyle='#eef0ea';x.fillRect(0,0,W,H);
+    jobs.forEach((j,i)=>{if(imgs[i])x.drawImage(imgs[i],j.tx*256-ox,j.ty*256-oy,256,256)});
+    return {cv,W,H,z,ox,oy,layer:L.k,cache:{},pts:pts.map(q=>[mercX(q[1],z)-ox,mercY(q[0],z)-oy,q[2]]),lat:(la0+la1)/2};
+  }
+  return null;
+}
+function reportMapOverlay(tr,B,marks){
+  const cv=document.createElement('canvas');cv.width=B.W;cv.height=B.H;const x=cv.getContext('2d');x.drawImage(B.cv,0,0);
+  const sc=Math.max(1,B.W/1100),P=B.pts;
+  x.lineCap='round';x.lineJoin='round';
+  const path=()=>{x.beginPath();P.forEach((q,i)=>i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]))};
+  path();x.strokeStyle='rgba(255,255,255,.95)';x.lineWidth=9*sc;x.stroke();
+  path();x.strokeStyle='#d8131f';x.lineWidth=4.6*sc;x.stroke();
+  const at=d=>{let best=P[0],bd=1e18;for(const q of P){const dd=Math.abs(tr.rd[q[2]]-d);if(dd<bd){bd=dd;best=q}}return best};
+  const bubble=(q,txt,fill,fg,r)=>{x.beginPath();x.arc(q[0],q[1],r,0,7);x.fillStyle=fill;x.fill();x.lineWidth=2*sc;x.strokeStyle='#fff';x.stroke();x.fillStyle=fg;x.font=`700 ${r*.95}px Arial,Helvetica,sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(txt,q[0],q[1]+.5*sc)};
+  // bornes kilométriques
+  const km=tr.total/1000,ks=km<=10?1:km<=30?2:km<=60?5:10;
+  for(let k=ks;k<km-ks*.4;k+=ks)bubble(at(k*1000),String(k),'#fff','#1d2b2d',11*sc);
+  (marks||[]).forEach((m,i)=>{const q=at(m.d);x.beginPath();const r=15*sc;x.roundRect?x.roundRect(q[0]-r*1.1,q[1]-r*.8,r*2.2,r*1.6,5*sc):x.rect(q[0]-r*1.1,q[1]-r*.8,r*2.2,r*1.6);x.fillStyle='#e8731a';x.fill();x.lineWidth=2*sc;x.strokeStyle='#fff';x.stroke();x.fillStyle='#fff';x.font=`700 ${r*.95}px Arial,Helvetica,sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(m.t,q[0],q[1]+.5*sc)});
+  const loop=Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200;
+  bubble(P[P.length-1],loop?'':'A','#1d2b2d','#fff',loop?0:16*sc);
+  bubble(P[0],loop?'D/A':'D','#1c9a4e','#fff',(loop?20:16)*sc);
+  // échelle, nord, source
+  const mpp=156543.03*Math.cos(B.lat*Math.PI/180)/Math.pow(2,B.z),want=140*sc*mpp,nice=[50,100,200,500,1000,2000,5000,10000,20000].reduce((a,b)=>Math.abs(b-want)<Math.abs(a-want)?b:a),bw=nice/mpp;
+  x.fillStyle='rgba(255,255,255,.85)';x.fillRect(12*sc,B.H-48*sc,bw+28*sc,36*sc);
+  x.fillStyle='#1d2b2d';x.fillRect(26*sc,B.H-26*sc,bw,4*sc);x.font=`600 ${14*sc}px Arial,Helvetica,sans-serif`;x.textAlign='left';x.textBaseline='alphabetic';x.fillText(nice>=1000?nice/1000+' km':nice+' m',26*sc,B.H-31*sc);
+  x.fillStyle='rgba(255,255,255,.85)';x.fillRect(B.W-46*sc,12*sc,34*sc,48*sc);x.fillStyle='#1d2b2d';x.beginPath();x.moveTo(B.W-29*sc,18*sc);x.lineTo(B.W-38*sc,46*sc);x.lineTo(B.W-29*sc,40*sc);x.lineTo(B.W-20*sc,46*sc);x.closePath();x.fill();x.font=`700 ${12*sc}px Arial,Helvetica,sans-serif`;x.textAlign='center';x.fillText('N',B.W-29*sc,57*sc);
+  const at2=B.layer==='scan'?'Carte © IGN':'Plan © IGN';x.font=`600 ${12*sc}px Arial,Helvetica,sans-serif`;const tw=x.measureText(at2).width;x.fillStyle='rgba(255,255,255,.85)';x.fillRect(B.W-tw-26*sc,B.H-28*sc,tw+20*sc,20*sc);x.fillStyle='#333';x.textAlign='right';x.fillText(at2,B.W-16*sc,B.H-13*sc);
+  try{return cv.toDataURL('image/jpeg',.88)}catch(e){return null}
+}
+function reportMapHTML(D,B0){
+  const R=lastReport&&lastReport.D===D?lastReport:null,tr=D.tr;
+  if(!R||R.mapBase===undefined)return `<section class="rp-map rp-noprint"><h2>Carte et parcours</h2><p class="rp-note">Carte IGN en cours de chargement…</p></section>`;
+  const B=R.mapBase;if(!B)return `<section class="rp-map rp-noprint"><h2>Carte et parcours</h2><p class="rp-note">La carte IGN n'a pas pu être chargée (pas d'internet, ou parcours hors de France). Rouvre le rapport avec du réseau pour l'obtenir.</p></section>`;
+  const marks=B0&&B0.plan.trek&&B0.plan.days>1?B0.plan.rows.slice(0,-1).map(r=>({d:tr.rd[r.i1],t:'N'+r.k})):[],sig=marks.map(m=>m.t+':'+Math.round(m.d)).join(',');
+  const url=B.cache[sig]||(B.cache[sig]=reportMapOverlay(tr,B,marks));
+  if(!url)return '';
+  return `<section class="rp-map"><h2>Carte et parcours</h2><img src="${url}" alt="Carte IGN avec le parcours en rouge"><p class="rp-note" style="margin-top:6px">Parcours en rouge${marks.length?', bivouacs N1, N2… en orange':''}. D = départ${Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200?' et arrivée':', A = arrivée'} ; les ronds blancs numérotés sont les kilomètres.</p></section>`;
+}
 function reportProfileSVG(D){
   const tr=D.tr,narrow=innerWidth<640,W=narrow?560:1000,H=narrow?230:250,pl=narrow?62:66,pr=12,pt=14,pb=30,iw=W-pl-pr,ih=H-pt-pb;
   const span=Math.max(tr.eMax-tr.eMin,30),st=[10,20,50,100,200,250,500].find(s=>span/s<=5)||500;
@@ -3029,6 +3089,7 @@ function reportHTML(D,wx){
   <section class="rp-ends">${ends}</section>
   <p class="rp-note" style="margin-top:10px">Toutes les explications des chiffres sont détaillées en bas de la fiche, dans <a href="#rpGuide" class="rp-link">« Comment lire cette fiche »</a>.</p>
   <section class="rp-kpis">${kpi('Distance',fmtKm(tr.total),'km')}${kpi('Dénivelé +',nf0.format(tr.up[tr.N-1]),'m')}${kpi('Dénivelé −',nf0.format(tr.down[tr.N-1]),'m')}${kpi(tr.planned||!tr.hasTime?'Durée estimée':'Durée',fmtDur(tot*ts),'')}${D.timed?kpi('Arrivée',clock(tot),''):''}${kpi('Altitude max',nf0.format(tr.eMax),'m')}<div class="rp-kpi"><span>km-effort</span><b>${nf1.format(kmE)}<small>km</small></b><em>${fmtKm(tr.total)} km de rando = ${nf1.format(kmE)} km à plat</em></div></section>
+  ${reportMapHTML(D,B0)}
   ${beginnerHTML(D)}
   <section><h2>Profil et pentes</h2><p class="rp-note">Le dessin montre l'altitude (à gauche) selon la distance parcourue (en bas). Chaque bande de couleur est un tronçon ; le chiffre blanc est sa pente moyenne. Les ronds blancs marquent les lieux nommés sur ton chemin.</p>${reportProfileSVG(D)}
    <p class="rp-note" style="margin-top:10px">La barre ci-dessous additionne les kilomètres de chaque couleur : elle dit quelle part de la rando est plate, douce, soutenue ou raide.</p><div class="rp-dist">${dist}</div><div class="rp-legend">${legend}</div></section>
@@ -3127,6 +3188,8 @@ const REPORT_CSS=`.rp{--ink:#1d2b2d;--mut:#5b6b6c;--line:#dfe5e2;font-family:"Ba
 .rp-diff{border:1px solid var(--line);border-left:8px solid var(--c);border-radius:12px;padding:12px 14px}.rp-dl{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
 .rp-diff>b{font-family:"Barlow Condensed",sans-serif;font-size:30px;color:var(--c)}.rp-dm{height:8px;background:#eef1ef;border-radius:4px;overflow:hidden;margin:4px 0 8px}.rp-dm i{display:block;height:100%;background:var(--c)}.rp-diff p{margin:0;font-size:14.5px}
 .rp-days{display:flex;flex-direction:column;gap:8px}.rp-day{border:1px solid var(--line);border-left:6px solid #1d2b2d;border-radius:10px;padding:9px 12px;display:flex;flex-direction:column;gap:2px;font-size:14px;break-inside:avoid}.rp-day b{font-size:16px}.rp-day span{color:var(--mut)}.rp-modesel input[type=time]{width:112px}
+.rp-map img{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:10px}.rp-map{break-inside:avoid}
+@media print{.rp-noprint{display:none}.rp-map img{max-height:22cm;width:auto;max-width:100%;margin:0 auto}}
 .rp-names input[type=text]{width:150px}.rp-cands button small{font-weight:400;color:var(--mut);margin-left:3px}.rp-modesel input{width:84px;border:1px solid #cfd8d4;border-radius:10px;padding:7px 8px;font:inherit;font-weight:600}
 .rp-est b{font-size:24px!important}.rp-est{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.rp-est>div{border:1px solid var(--line);border-radius:12px;padding:9px 10px}.rp-est span{display:block;font-size:12.5px;color:var(--mut)}.rp-est b{font-family:"Barlow Condensed",sans-serif;font-size:28px}.rp-est small{display:block;font-size:12px;color:var(--mut)}
 .rp-ul{margin:0;padding-left:20px;font-size:14.5px;display:flex;flex-direction:column;gap:5px}.rp-chk{list-style:"☐  "}
@@ -3157,8 +3220,9 @@ async function openReport(tr,places){
   let wx='';
   const wxLine=w=>!w?'':w.sample||!isFinite(w.tmin)?`Météo d'exemple : ${WX[w.kind].label.toLowerCase()}`:`Météo ${tr.planned?'prévue':'du jour'} : ${WX[w.kind].label.toLowerCase()}, ${nf0.format(w.tmin)}${Math.round(w.tmin)!==Math.round(w.tmax)?' à '+nf0.format(w.tmax):''} °C`+(w.rain>=0.5?`, ${nf1.format(w.rain)} mm de pluie`:'');
   if(tr===T&&wxState)wx=wxLine(wxState);
-  const render=()=>{$('reportBody').innerHTML=reportHTML(D,wx);lastReport={D,wx,cands:lastReport&&lastReport.D===D?lastReport.cands:undefined}};
+  const render=()=>{$('reportBody').innerHTML=reportHTML(D,wx);{const keep=lastReport&&lastReport.D===D?lastReport:{};lastReport={D,wx,cands:keep.cands,mapBase:keep.mapBase}}};
   render();$('reportPanel').hidden=false;$('reportPanel').scrollTop=0;
+  reportMapBase(tr).catch(()=>null).then(B=>{if(!lastReport||lastReport.D!==D||$('reportPanel').hidden)return;lastReport.mapBase=B;const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(D,lastReport.wx);$('reportPanel').scrollTop=y});
   {Promise.all([nameCands(tr,0),nameCands(tr,tr.N-1)]).then(([a,b])=>{if(!lastReport||lastReport.D!==D||$('reportPanel').hidden||(!a.length&&!b.length))return;lastReport.cands={s:a,e:b};const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(D,lastReport.wx);$('reportPanel').scrollTop=y}).catch(()=>{})}
   if(!wx&&(tr.hasTime||tr.planned)&&tr!==T){const w=await fetchWeather(tr).catch(()=>null);if(w&&!$('reportPanel').hidden){wx=wxLine(w);render()}}
 }
@@ -4704,7 +4768,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V80", "date": "08/10/2026", "cache": "rr3d-v", "nouveautes": ["Film : étiquettes environ 25 % plus petites, dimensionnées automatiquement d'après la vidéo (même taille relative en 16:9 et en vertical), jamais plus larges que 40 % de l'écran, et elles rétrécissent d'elles-mêmes (jusqu'à -20 %) quand la place manque.", "Rapport trekking : bivouac en autonomie (tente) au lieu de refuge : le plan jour par jour parle de « Bivouac », ne propose plus de refuge et indique un lac proche pour l'eau quand il y en a un.", "Rapport rando (trekking) : heure de départ le matin, heure d'arrivée au camp le soir et nombre de nuits. L'appli découpe la rando jour par jour (horaires, km, dénivelé, altitude et lieu du camp) et les heures de passage suivent.", "Film : durée « Auto » (par défaut, 40 à 100 s) qui s'adapte à la longueur de la rando, caméra reculée si la marche reste trop rapide à l'écran, et étiquettes plus petites avec un texte plus gros."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V81", "date": "09/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : une carte IGN (TOP 25, sinon Plan IGN) avec le parcours en rouge, départ/arrivée, km numérotés, bivouacs, échelle et nord, prête à imprimer ou à envoyer. Il faut du réseau à l'ouverture du rapport.", "Film : étiquettes environ 25 % plus petites, dimensionnées automatiquement d'après la vidéo (même taille relative en 16:9 et en vertical), jamais plus larges que 40 % de l'écran, et elles rétrécissent d'elles-mêmes (jusqu'à -20 %) quand la place manque.", "Rapport trekking : bivouac en autonomie (tente) au lieu de refuge : le plan jour par jour parle de « Bivouac », ne propose plus de refuge et indique un lac proche pour l'eau quand il y en a un.", "Rapport rando (trekking) : heure de départ le matin, heure d'arrivée au camp le soir et nombre de nuits. L'appli découpe la rando jour par jour (horaires, km, dénivelé, altitude et lieu du camp) et les heures de passage suivent."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
