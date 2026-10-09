@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V81",
+  "version": "V82",
   "date": "09/10/2026",
   "nouveautes": [
+    "Rapport rando : bivouacs placés par toi, en touchant la carte ou en tapant leur km ; les jours, horaires et heures de passage se recalculent. La barre « kilomètres et pourcentages » est expliquée en clair (Presque plat, Pente douce… avec km et % du parcours).",
     "Rapport rando : une carte IGN (TOP 25, sinon Plan IGN) avec le parcours en rouge, départ/arrivée, km numérotés, bivouacs, échelle et nord, prête à imprimer ou à envoyer. Il faut du réseau à l'ouverture du rapport.",
     "Film : étiquettes environ 25 % plus petites, dimensionnées automatiquement d'après la vidéo (même taille relative en 16:9 et en vertical), jamais plus larges que 40 % de l'écran, et elles rétrécissent d'elles-mêmes (jusqu'à -20 %) quand la place manque.",
-    "Rapport trekking : bivouac en autonomie (tente) au lieu de refuge : le plan jour par jour parle de « Bivouac », ne propose plus de refuge et indique un lac proche pour l'eau quand il y en a un.",
-    "Rapport rando (trekking) : heure de départ le matin, heure d'arrivée au camp le soir et nombre de nuits. L'appli découpe la rando jour par jour (horaires, km, dénivelé, altitude et lieu du camp) et les heures de passage suivent."
+    "Rapport trekking : bivouac en autonomie (tente) au lieu de refuge : le plan jour par jour parle de « Bivouac », ne propose plus de refuge et indique un lac proche pour l'eau quand il y en a un."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v81"
+    "cache": "rr3d-v82"
   },
   "fichiers": [
     "rando-3d.html",
