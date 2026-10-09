@@ -3001,7 +3001,7 @@ async function reportMapBase(tr){
     if(ok<jobs.length*.7)continue;   // trop de tuiles manquantes : on essaie la couche suivante
     const cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');x.fillStyle='#eef0ea';x.fillRect(0,0,W,H);
     jobs.forEach((j,i)=>{if(imgs[i])x.drawImage(imgs[i],j.tx*256-ox,j.ty*256-oy,256,256)});
-    return {cv,W,H,z,ox,oy,layer:L.k,cache:{},pts:pts.map(q=>[mercX(q[1],z)-ox,mercY(q[0],z)-oy,q[2]]),lat:(la0+la1)/2};
+    return {cv,W,H,z,ox,oy,proj:i=>{const [la,lo]=A.ll(tr.rx[i],tr.rz[i]);return [mercX(lo,z)-ox,mercY(la,z)-oy]},layer:L.k,cache:{},pts:pts.map(q=>[mercX(q[1],z)-ox,mercY(q[0],z)-oy,q[2]]),lat:(la0+la1)/2};
   }
   return null;
 }
@@ -3012,10 +3012,13 @@ function reportMapOverlay(tr,B,marks){
   const path=()=>{x.beginPath();P.forEach((q,i)=>i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]))};
   path();x.strokeStyle='rgba(255,255,255,.95)';x.lineWidth=9*sc;x.stroke();
   path();x.strokeStyle='#d8131f';x.lineWidth=4.6*sc;x.stroke();
-  // zones presque plates (pente < 5 % sur 200 m ou plus) en vert : emplacements possibles pour la tente
+  // zones plates (pente de 0 à 2 % mesurée sur ≈ 60 m), au moins 80 m d'affilée, en vert : emplacements possibles pour la tente
   let nFlat=0;
-  try{computeSlopes(tr);let a=-1;const flush=b=>{if(a<0)return;const d0=tr.rd[P[a][2]],d1=tr.rd[P[b][2]];if(d1-d0>=200){nFlat++;x.beginPath();for(let j=a;j<=b;j++)j===a?x.moveTo(P[j][0],P[j][1]):x.lineTo(P[j][0],P[j][1]);x.strokeStyle='rgba(255,255,255,.95)';x.lineWidth=11*sc;x.stroke();x.strokeStyle='#17a34a';x.lineWidth=7*sc;x.stroke()}a=-1};
-    for(let j=0;j<P.length;j++){if(tr.cls[P[j][2]]===0){if(a<0)a=j}else{flush(j-1)}}flush(P.length-1)}catch(e){}
+  try{const N=tr.N,fl=new Uint8Array(N),w=30;let a=0,b=0;
+    for(let i=0;i<N;i++){while(a<i&&tr.rd[i]-tr.rd[a]>w)a++;if(b<i)b=i;while(b<N-1&&tr.rd[b]-tr.rd[i]<w)b++;
+      const dd=tr.rd[b]-tr.rd[a];fl[i]=dd>20&&Math.abs(tr.se[b]-tr.se[a])/dd*100<=2?1:0}
+    let r0=-1;const flush=r1=>{if(r0<0)return;if(tr.rd[r1]-tr.rd[r0]>=80){nFlat++;x.beginPath();const st=Math.max(1,Math.floor((r1-r0)/200));for(let j=r0;j<=r1;j+=st){const q=B.proj(j);j===r0?x.moveTo(q[0],q[1]):x.lineTo(q[0],q[1])}const q2=B.proj(r1);x.lineTo(q2[0],q2[1]);x.strokeStyle='#17a34a';x.lineWidth=4.6*sc;x.stroke()}r0=-1};
+    for(let i=0;i<N;i++){if(fl[i]){if(r0<0)r0=i}else flush(i-1)}flush(N-1)}catch(e){}
   const at=d=>{let best=P[0],bd=1e18;for(const q of P){const dd=Math.abs(tr.rd[q[2]]-d);if(dd<bd){bd=dd;best=q}}return best};
   const bubble=(q,txt,fill,fg,r)=>{x.beginPath();x.arc(q[0],q[1],r,0,7);x.fillStyle=fill;x.fill();x.lineWidth=2*sc;x.strokeStyle='#fff';x.stroke();x.fillStyle=fg;x.font=`700 ${r*.95}px Arial,Helvetica,sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(txt,q[0],q[1]+.5*sc)};
   // bornes kilométriques
@@ -3025,10 +3028,13 @@ function reportMapOverlay(tr,B,marks){
   const loop=Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200;
   bubble(P[P.length-1],loop?'':'A','#1d2b2d','#fff',loop?0:16*sc);
   bubble(P[0],loop?'D/A':'D','#1c9a4e','#fff',(loop?20:16)*sc);
-  // légende
-  {x.font=`600 ${13*sc}px Arial,Helvetica,sans-serif`;const lw=(nFlat?292:150)*sc;x.fillStyle='rgba(255,255,255,.88)';x.fillRect(12*sc,12*sc,lw,(nFlat?58:34)*sc);
-   x.lineWidth=5*sc;x.lineCap='round';x.strokeStyle='#d8131f';x.beginPath();x.moveTo(22*sc,30*sc);x.lineTo(50*sc,30*sc);x.stroke();x.fillStyle='#1d2b2d';x.textAlign='left';x.textBaseline='middle';x.fillText('Parcours',58*sc,30*sc);
-   if(nFlat){x.strokeStyle='#17a34a';x.lineWidth=7*sc;x.beginPath();x.moveTo(22*sc,53*sc);x.lineTo(50*sc,53*sc);x.stroke();x.fillText('Presque plat (< 5 %) : tente possible',58*sc,53*sc)}}
+  // légende (petite), placée dans le coin où elle ne gêne pas le parcours
+  {const fs=11*sc,lw=(nFlat?196:112)*sc,lh=(nFlat?40:22)*sc,m=10*sc;x.font=`600 ${fs}px Arial,Helvetica,sans-serif`;
+   const cands=[[m,m],[B.W-lw-m-44*sc,m],[B.W-lw-m,B.H-lh-m-26*sc],[m,B.H-lh-m-52*sc],[B.W/2-lw/2,m],[B.W/2-lw/2,B.H-lh-m]];
+   let best=cands[0],bs=1e9;for(const c of cands){let n=0;for(const q of P)if(q[0]>c[0]-14*sc&&q[0]<c[0]+lw+14*sc&&q[1]>c[1]-14*sc&&q[1]<c[1]+lh+14*sc)n++;if(n<bs){bs=n;best=c;if(n===0)break}}
+   const [lx,ly]=best;x.fillStyle='rgba(255,255,255,.88)';x.fillRect(lx,ly,lw,lh);
+   x.lineCap='round';x.lineWidth=3.6*sc;x.strokeStyle='#d8131f';x.beginPath();x.moveTo(lx+7*sc,ly+11*sc);x.lineTo(lx+27*sc,ly+11*sc);x.stroke();x.fillStyle='#1d2b2d';x.textAlign='left';x.textBaseline='middle';x.fillText('Parcours',lx+33*sc,ly+11*sc);
+   if(nFlat){x.strokeStyle='#17a34a';x.beginPath();x.moveTo(lx+7*sc,ly+29*sc);x.lineTo(lx+27*sc,ly+29*sc);x.stroke();x.fillText('Plat (0–2 %) : tente possible',lx+33*sc,ly+29*sc)}}
   // échelle, nord, source
   const mpp=156543.03*Math.cos(B.lat*Math.PI/180)/Math.pow(2,B.z),want=140*sc*mpp,nice=[50,100,200,500,1000,2000,5000,10000,20000].reduce((a,b)=>Math.abs(b-want)<Math.abs(a-want)?b:a),bw=nice/mpp;
   x.fillStyle='rgba(255,255,255,.85)';x.fillRect(12*sc,B.H-48*sc,bw+28*sc,36*sc);
@@ -3044,7 +3050,7 @@ function reportMapHTML(D,B0){
   const marks=B0&&B0.plan.trek&&B0.plan.days>1?B0.plan.rows.slice(0,-1).map(r=>({d:tr.rd[r.i1],t:'N'+r.k})):[],sig=marks.map(m=>m.t+':'+Math.round(m.d)).join(',');
   const url=B.cache[sig]||(B.cache[sig]=reportMapOverlay(tr,B,marks));
   if(!url)return '';
-  return `<section class="rp-map"><h2>Carte et parcours</h2><img src="${url}" alt="Carte IGN avec le parcours en rouge"><p class="rp-note" style="margin-top:6px">Parcours en rouge ; <b style="color:#17a34a">en vert, les passages presque plats</b> (pente de moins de 5 % sur au moins 200 m) où l'on peut sans doute poser la tente — à vérifier sur place (sol, eau, vent)${marks.length?' ; bivouacs N1, N2… en orange':''}. D = départ${Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200?' et arrivée':', A = arrivée'} ; les ronds blancs numérotés sont les kilomètres.</p></section>`;
+  return `<section class="rp-map"><h2>Carte et parcours</h2><img src="${url}" alt="Carte IGN avec le parcours en rouge"><p class="rp-note" style="margin-top:6px">Parcours en rouge ; <b style="color:#17a34a">en vert, les passages plats</b> (pente de 0 à 2 % sur au moins 80 m) où l'on peut sans doute poser la tente — à vérifier sur place (sol, eau, vent)${marks.length?' ; bivouacs N1, N2… en orange':''}. D = départ${Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200?' et arrivée':', A = arrivée'} ; les ronds blancs numérotés sont les kilomètres.</p></section>`;
 }
 function reportProfileSVG(D){
   const tr=D.tr,narrow=innerWidth<640,W=narrow?560:1000,H=narrow?230:250,pl=narrow?62:66,pr=12,pt=14,pb=30,iw=W-pl-pr,ih=H-pt-pb;
@@ -4796,7 +4802,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V83", "date": "09/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando, carte : les passages presque plats (pente de moins de 5 % sur 200 m ou plus) sont en vert sur le tracé, pour repérer où poser la tente ; légende sur la carte.", "Rapport rando : bivouacs placés par toi, en touchant la carte ou en tapant leur km ; les jours, horaires et heures de passage se recalculent. La barre « kilomètres et pourcentages » est expliquée en clair (Presque plat, Pente douce… avec km et % du parcours).", "Rapport rando : une carte IGN (TOP 25, sinon Plan IGN) avec le parcours en rouge, départ/arrivée, km numérotés, bivouacs, échelle et nord, prête à imprimer ou à envoyer. Il faut du réseau à l'ouverture du rapport.", "Film : étiquettes environ 25 % plus petites, dimensionnées automatiquement d'après la vidéo (même taille relative en 16:9 et en vertical), jamais plus larges que 40 % de l'écran, et elles rétrécissent d'elles-mêmes (jusqu'à -20 %) quand la place manque."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V84", "date": "09/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando, carte : légende plus petite, placée dans un coin où elle ne gêne pas le parcours ; le vert marque maintenant les passages vraiment plats (0 à 2 %, au moins 80 m) avec un trait de la même largeur que le rouge.", "Rapport rando, carte : les passages presque plats (pente de moins de 5 % sur 200 m ou plus) sont en vert sur le tracé, pour repérer où poser la tente ; légende sur la carte.", "Rapport rando : bivouacs placés par toi, en touchant la carte ou en tapant leur km ; les jours, horaires et heures de passage se recalculent. La barre « kilomètres et pourcentages » est expliquée en clair (Presque plat, Pente douce… avec km et % du parcours).", "Rapport rando : une carte IGN (TOP 25, sinon Plan IGN) avec le parcours en rouge, départ/arrivée, km numérotés, bivouacs, échelle et nord, prête à imprimer ou à envoyer. Il faut du réseau à l'ouverture du rapport."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
