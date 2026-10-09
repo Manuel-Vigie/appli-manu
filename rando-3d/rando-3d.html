@@ -598,7 +598,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
     </div>
   </div>
   <div class="report-panel" id="reportPanel" hidden>
-    <div class="report-bar"><button type="button" class="btn" id="reportClose">← Retour</button><span class="grow"></span><button type="button" class="btn" id="reportPrint">Imprimer / PDF</button><button type="button" class="btn" id="reportMail">✉ Mail</button><button type="button" class="btn" id="reportSms">💬 SMS</button><button type="button" class="btn" id="reportShare">Partager</button><button type="button" class="btn primary" id="reportSave">Enregistrer</button></div>
+    <div class="report-bar"><button type="button" class="btn" id="reportClose">← Retour</button><span class="grow"></span><button type="button" class="btn" id="reportPrint">Imprimer / PDF</button><button type="button" class="btn" id="reportPdf">📄 PDF par mail</button><button type="button" class="btn" id="reportMail">✉ Mail</button><button type="button" class="btn" id="reportSms">💬 SMS</button><button type="button" class="btn" id="reportShare">Partager</button><button type="button" class="btn primary" id="reportSave">Enregistrer</button></div>
     <div id="reportBody"></div>
   </div>
   <div class="sv-panel" id="svPanel" hidden>
@@ -3330,6 +3330,68 @@ $('reportSave').addEventListener('click',()=>{
   const doc=reportFileHTML(tr);
   downloadText(doc,safeName(tr.name)+'-fiche-rando.html','text/html').then(ok=>ok&&toast('Fiche enregistrée dans tes téléchargements : ouvre-la avec Chrome, même sans l’app.',6000));
 });
+// ---- PDF du rapport (pour l'envoyer par mail) : chaque bloc du rapport est photographié puis posé sur des pages A4 ----
+const PDF_LIBS=[['https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js','html2canvas'],['https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js','jspdf']];
+const loadLib=(url,g)=>window[g]?Promise.resolve():new Promise((res,rej)=>{const sc=document.createElement('script');sc.src=url;sc.onload=res;sc.onerror=()=>rej(new Error('lib '+g));document.head.appendChild(sc)});
+async function reportPDFBlob(tr){
+  await Promise.all(PDF_LIBS.map(l=>loadLib(l[0],l[1])));
+  const fr=document.createElement('iframe');fr.style.cssText='position:fixed;left:-12000px;top:0;width:794px;height:1200px;border:0';
+  const html=reportFileHTML(tr).replace('</style>','.rp-noprint{display:none!important}html,body{background:#fff!important;margin:0}.rp{max-width:none!important;padding:0!important;box-shadow:none!important;border-radius:0!important}.rp-map img{max-height:none!important;cursor:auto}</style>');
+  fr.srcdoc=html;
+  try{
+    await new Promise(r=>{fr.onload=r;document.body.appendChild(fr);setTimeout(r,8000)});
+    const doc=fr.contentDocument;
+    await Promise.race([doc.fonts?doc.fonts.ready:0,new Promise(r=>setTimeout(r,4000))]);
+    await Promise.all([...doc.images].map(i=>i.decode?i.decode().catch(()=>{}):0));
+    const kids=[...doc.querySelector('.rp').children].filter(e=>e.offsetHeight>4);
+    const {jsPDF}=window.jspdf,pdf=new jsPDF({unit:'pt',format:'a4',compress:true});
+    const PW=pdf.internal.pageSize.getWidth(),PH=pdf.internal.pageSize.getHeight(),M=30,UW=PW-2*M,UH=PH-M-40,GAP=10;
+    let y=M,first=true;
+    const newPage=()=>{pdf.addPage();y=M};
+    for(const el of kids){
+      const c=await window.html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true,logging:false});
+      if(!c.width||!c.height)continue;
+      let k=UW/c.width,h=c.height*k;
+      if(h>UH&&UH/c.height>=k*.62){k=UH/c.height;h=UH}   // un peu réduit pour tenir sur une page (la carte)
+      const w=c.width*k;
+      if(h<=UH){
+        if(y+h>PH-40&&!first&&y>M)newPage();
+        pdf.addImage(c.toDataURL('image/jpeg',.9),'JPEG',M+(UW-w)/2,y,w,h);y+=h+GAP;first=false;
+      }else{                                   // bloc très long : découpé en tranches
+        const sh=Math.floor(UH/k);
+        for(let sy=0;sy<c.height;sy+=sh){
+          const hh=Math.min(sh,c.height-sy),t=document.createElement('canvas');t.width=c.width;t.height=hh;t.getContext('2d').drawImage(c,0,sy,c.width,hh,0,0,c.width,hh);
+          if(y+hh*k>PH-40&&y>M)newPage();
+          pdf.addImage(t.toDataURL('image/jpeg',.9),'JPEG',M,y,UW,hh*k);y+=hh*k+GAP;first=false}
+      }
+    }
+    const n=pdf.internal.getNumberOfPages();pdf.setFontSize(8);pdf.setTextColor(120);
+    for(let i=1;i<=n;i++){pdf.setPage(i);try{pdf.text(`${tr.name} · fiche rando · page ${i}/${n}`,M,PH-18)}catch(e){pdf.text(`Fiche rando · page ${i}/${n}`,M,PH-18)}}
+    return pdf.output('blob');
+  }finally{fr.remove()}
+}
+let lastPdf=null,pdfBusy=false;
+$('reportPdf').addEventListener('click',async()=>{
+  if(!lastReport||pdfBusy)return;const D=lastReport.D,tr=D.tr,b=$('reportPdf'),label='📄 PDF par mail',text=reportShareText(D),fname=safeName(tr.name)+'-fiche-rando.pdf';
+  const key=$('reportBody').innerHTML.length+':'+tr.name;
+  const mailto=()=>{location.href='mailto:?subject='+encodeURIComponent('Rando : '+tr.name)+'&body='+encodeURIComponent(text+'\n\n(Joins le PDF « '+fname+' » à ce mail.)')};
+  const send=async blob=>{
+    const f=new File([blob],fname,{type:'application/pdf'});
+    if(navigator.canShare&&navigator.canShare({files:[f]})){
+      try{await navigator.share({title:'Rando : '+tr.name,text,files:[f]});return true}
+      catch(e){if(e&&e.name==='AbortError')return true;if(e&&e.name==='NotAllowedError')return 'again'}}
+    const ok=await saveFile(blob,fname,'application/pdf');
+    if(ok){toast('PDF enregistré dans tes téléchargements : joins-le au mail qui s’ouvre.',7000);setTimeout(mailto,1500)}
+    return true};
+  if(lastPdf&&lastPdf.key===key){const r=await send(lastPdf.blob);if(r==='again')toast('Touche encore une fois pour envoyer.',4000);b.textContent=label;return}
+  pdfBusy=true;b.disabled=true;b.textContent='PDF en cours…';
+  try{
+    const blob=await reportPDFBlob(tr);lastPdf={key,blob};
+    const r=await send(blob);
+    if(r==='again'){b.textContent='📤 Envoyer le PDF';toast('PDF prêt : touche « Envoyer le PDF ».',6000)}else b.textContent=label;
+  }catch(e){console.error(e);b.textContent=label;toast('Impossible de fabriquer le PDF ici (il faut du réseau la première fois). Essaie « Imprimer / PDF ».',8000)}
+  finally{pdfBusy=false;b.disabled=false}
+});
 {const st=document.createElement('style');st.textContent=REPORT_CSS+`
 .report-panel{position:absolute;inset:0;z-index:30;background:#e9eeeb;overflow:auto;-webkit-overflow-scrolling:touch}
 .report-bar{position:sticky;top:0;z-index:2;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding:10px 16px;padding-top:calc(46px + env(safe-area-inset-top, 0px));background:rgba(233,238,235,.94);backdrop-filter:blur(6px)}
@@ -4841,7 +4903,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V85", "date": "09/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando, carte : le parcours est de nouveau tout en rouge, et de petits carrés verts avec une tente marquent les endroits plats (à moins de 50 m du chemin) où l'on pourrait poser la tente.", "Rapport rando, carte : légende plus petite, placée dans un coin où elle ne gêne pas le parcours ; le vert marque maintenant les passages vraiment plats (0 à 2 %, au moins 80 m) avec un trait de la même largeur que le rouge.", "Rapport rando, carte : les passages presque plats (pente de moins de 5 % sur 200 m ou plus) sont en vert sur le tracé, pour repérer où poser la tente ; légende sur la carte.", "Rapport rando : bivouacs placés par toi, en touchant la carte ou en tapant leur km ; les jours, horaires et heures de passage se recalculent. La barre « kilomètres et pourcentages » est expliquée en clair (Presque plat, Pente douce… avec km et % du parcours)."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V86", "date": "09/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : nouveau bouton « 📄 PDF par mail ». Il fabrique un vrai PDF (pages A4 avec la carte) et ouvre le partage du téléphone : choisis Gmail et le PDF est déjà en pièce jointe.", "Rapport rando, carte : le parcours est de nouveau tout en rouge, et de petits carrés verts avec une tente marquent les endroits plats (à moins de 50 m du chemin) où l'on pourrait poser la tente.", "Rapport rando, carte : légende plus petite, placée dans un coin où elle ne gêne pas le parcours ; le vert marque maintenant les passages vraiment plats (0 à 2 %, au moins 80 m) avec un trait de la même largeur que le rouge.", "Rapport rando, carte : les passages presque plats (pente de moins de 5 % sur 200 m ou plus) sont en vert sur le tracé, pour repérer où poser la tente ; légende sur la carte."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
