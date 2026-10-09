@@ -3012,6 +3012,10 @@ function reportMapOverlay(tr,B,marks){
   const path=()=>{x.beginPath();P.forEach((q,i)=>i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]))};
   path();x.strokeStyle='rgba(255,255,255,.95)';x.lineWidth=9*sc;x.stroke();
   path();x.strokeStyle='#d8131f';x.lineWidth=4.6*sc;x.stroke();
+  // zones presque plates (pente < 5 % sur 200 m ou plus) en vert : emplacements possibles pour la tente
+  let nFlat=0;
+  try{computeSlopes(tr);let a=-1;const flush=b=>{if(a<0)return;const d0=tr.rd[P[a][2]],d1=tr.rd[P[b][2]];if(d1-d0>=200){nFlat++;x.beginPath();for(let j=a;j<=b;j++)j===a?x.moveTo(P[j][0],P[j][1]):x.lineTo(P[j][0],P[j][1]);x.strokeStyle='rgba(255,255,255,.95)';x.lineWidth=11*sc;x.stroke();x.strokeStyle='#17a34a';x.lineWidth=7*sc;x.stroke()}a=-1};
+    for(let j=0;j<P.length;j++){if(tr.cls[P[j][2]]===0){if(a<0)a=j}else{flush(j-1)}}flush(P.length-1)}catch(e){}
   const at=d=>{let best=P[0],bd=1e18;for(const q of P){const dd=Math.abs(tr.rd[q[2]]-d);if(dd<bd){bd=dd;best=q}}return best};
   const bubble=(q,txt,fill,fg,r)=>{x.beginPath();x.arc(q[0],q[1],r,0,7);x.fillStyle=fill;x.fill();x.lineWidth=2*sc;x.strokeStyle='#fff';x.stroke();x.fillStyle=fg;x.font=`700 ${r*.95}px Arial,Helvetica,sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(txt,q[0],q[1]+.5*sc)};
   // bornes kilométriques
@@ -3021,6 +3025,10 @@ function reportMapOverlay(tr,B,marks){
   const loop=Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200;
   bubble(P[P.length-1],loop?'':'A','#1d2b2d','#fff',loop?0:16*sc);
   bubble(P[0],loop?'D/A':'D','#1c9a4e','#fff',(loop?20:16)*sc);
+  // légende
+  {x.font=`600 ${13*sc}px Arial,Helvetica,sans-serif`;const lw=(nFlat?292:150)*sc;x.fillStyle='rgba(255,255,255,.88)';x.fillRect(12*sc,12*sc,lw,(nFlat?58:34)*sc);
+   x.lineWidth=5*sc;x.lineCap='round';x.strokeStyle='#d8131f';x.beginPath();x.moveTo(22*sc,30*sc);x.lineTo(50*sc,30*sc);x.stroke();x.fillStyle='#1d2b2d';x.textAlign='left';x.textBaseline='middle';x.fillText('Parcours',58*sc,30*sc);
+   if(nFlat){x.strokeStyle='#17a34a';x.lineWidth=7*sc;x.beginPath();x.moveTo(22*sc,53*sc);x.lineTo(50*sc,53*sc);x.stroke();x.fillText('Presque plat (< 5 %) : tente possible',58*sc,53*sc)}}
   // échelle, nord, source
   const mpp=156543.03*Math.cos(B.lat*Math.PI/180)/Math.pow(2,B.z),want=140*sc*mpp,nice=[50,100,200,500,1000,2000,5000,10000,20000].reduce((a,b)=>Math.abs(b-want)<Math.abs(a-want)?b:a),bw=nice/mpp;
   x.fillStyle='rgba(255,255,255,.85)';x.fillRect(12*sc,B.H-48*sc,bw+28*sc,36*sc);
@@ -3036,7 +3044,7 @@ function reportMapHTML(D,B0){
   const marks=B0&&B0.plan.trek&&B0.plan.days>1?B0.plan.rows.slice(0,-1).map(r=>({d:tr.rd[r.i1],t:'N'+r.k})):[],sig=marks.map(m=>m.t+':'+Math.round(m.d)).join(',');
   const url=B.cache[sig]||(B.cache[sig]=reportMapOverlay(tr,B,marks));
   if(!url)return '';
-  return `<section class="rp-map"><h2>Carte et parcours</h2><img src="${url}" alt="Carte IGN avec le parcours en rouge"><p class="rp-note" style="margin-top:6px">Parcours en rouge${marks.length?', bivouacs N1, N2… en orange':''}. D = départ${Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200?' et arrivée':', A = arrivée'} ; les ronds blancs numérotés sont les kilomètres.</p></section>`;
+  return `<section class="rp-map"><h2>Carte et parcours</h2><img src="${url}" alt="Carte IGN avec le parcours en rouge"><p class="rp-note" style="margin-top:6px">Parcours en rouge ; <b style="color:#17a34a">en vert, les passages presque plats</b> (pente de moins de 5 % sur au moins 200 m) où l'on peut sans doute poser la tente — à vérifier sur place (sol, eau, vent)${marks.length?' ; bivouacs N1, N2… en orange':''}. D = départ${Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200?' et arrivée':', A = arrivée'} ; les ronds blancs numérotés sont les kilomètres.</p></section>`;
 }
 function reportProfileSVG(D){
   const tr=D.tr,narrow=innerWidth<640,W=narrow?560:1000,H=narrow?230:250,pl=narrow?62:66,pr=12,pt=14,pb=30,iw=W-pl-pr,ih=H-pt-pb;
@@ -4788,7 +4796,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V82", "date": "09/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando : bivouacs placés par toi, en touchant la carte ou en tapant leur km ; les jours, horaires et heures de passage se recalculent. La barre « kilomètres et pourcentages » est expliquée en clair (Presque plat, Pente douce… avec km et % du parcours).", "Rapport rando : une carte IGN (TOP 25, sinon Plan IGN) avec le parcours en rouge, départ/arrivée, km numérotés, bivouacs, échelle et nord, prête à imprimer ou à envoyer. Il faut du réseau à l'ouverture du rapport.", "Film : étiquettes environ 25 % plus petites, dimensionnées automatiquement d'après la vidéo (même taille relative en 16:9 et en vertical), jamais plus larges que 40 % de l'écran, et elles rétrécissent d'elles-mêmes (jusqu'à -20 %) quand la place manque.", "Rapport trekking : bivouac en autonomie (tente) au lieu de refuge : le plan jour par jour parle de « Bivouac », ne propose plus de refuge et indique un lac proche pour l'eau quand il y en a un."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V83", "date": "09/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando, carte : les passages presque plats (pente de moins de 5 % sur 200 m ou plus) sont en vert sur le tracé, pour repérer où poser la tente ; légende sur la carte.", "Rapport rando : bivouacs placés par toi, en touchant la carte ou en tapant leur km ; les jours, horaires et heures de passage se recalculent. La barre « kilomètres et pourcentages » est expliquée en clair (Presque plat, Pente douce… avec km et % du parcours).", "Rapport rando : une carte IGN (TOP 25, sinon Plan IGN) avec le parcours en rouge, départ/arrivée, km numérotés, bivouacs, échelle et nord, prête à imprimer ou à envoyer. Il faut du réseau à l'ouverture du rapport.", "Film : étiquettes environ 25 % plus petites, dimensionnées automatiquement d'après la vidéo (même taille relative en 16:9 et en vertical), jamais plus larges que 40 % de l'écran, et elles rétrécissent d'elles-mêmes (jusqu'à -20 %) quand la place manque."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
