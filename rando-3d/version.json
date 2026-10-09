@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V84",
+  "version": "V85",
   "date": "09/10/2026",
   "nouveautes": [
+    "Rapport rando, carte : le parcours est de nouveau tout en rouge, et de petits carrés verts avec une tente marquent les endroits plats (à moins de 50 m du chemin) où l'on pourrait poser la tente.",
     "Rapport rando, carte : légende plus petite, placée dans un coin où elle ne gêne pas le parcours ; le vert marque maintenant les passages vraiment plats (0 à 2 %, au moins 80 m) avec un trait de la même largeur que le rouge.",
     "Rapport rando, carte : les passages presque plats (pente de moins de 5 % sur 200 m ou plus) sont en vert sur le tracé, pour repérer où poser la tente ; légende sur la carte.",
-    "Rapport rando : bivouacs placés par toi, en touchant la carte ou en tapant leur km ; les jours, horaires et heures de passage se recalculent. La barre « kilomètres et pourcentages » est expliquée en clair (Presque plat, Pente douce… avec km et % du parcours).",
-    "Rapport rando : une carte IGN (TOP 25, sinon Plan IGN) avec le parcours en rouge, départ/arrivée, km numérotés, bivouacs, échelle et nord, prête à imprimer ou à envoyer. Il faut du réseau à l'ouverture du rapport."
+    "Rapport rando : bivouacs placés par toi, en touchant la carte ou en tapant leur km ; les jours, horaires et heures de passage se recalculent. La barre « kilomètres et pourcentages » est expliquée en clair (Presque plat, Pente douce… avec km et % du parcours)."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v84"
+    "cache": "rr3d-v85"
   },
   "fichiers": [
     "rando-3d.html",
