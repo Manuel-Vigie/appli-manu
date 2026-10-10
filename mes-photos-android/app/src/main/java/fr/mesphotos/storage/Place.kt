@@ -8,9 +8,15 @@ data class Place(
     val key: String,
     val title: String,
     val root: File,
+    /** Vrai pour un téléphone SANS carte SD : l'appli travaille alors dans la mémoire du téléphone (voir [Places.detect]). */
+    val internal: Boolean = false,
 ) {
-    /** Toute la carte est parcourue (sauf « Android » et les dossiers cachés). */
-    val scanRoots: List<File> get() = listOf(root)
+    /**
+     * Carte SD : toute la carte est parcourue (sauf « Android » et les dossiers cachés).
+     * Mémoire du téléphone : seulement les dossiers de photos habituels (DCIM, Pictures, Movies, Download), pas le reste.
+     */
+    val scanRoots: List<File>
+        get() = if (internal) INTERNAL_SCAN.map { File(root, it) }.filter { it.isDirectory } else listOf(root)
     val outputDir: File get() = File(root, OUTPUT_DIR)
 
     /**
@@ -23,6 +29,9 @@ data class Place(
     val legacyCaptureDir: File get() = File(root, CAPTURE_DIR)
 
     companion object {
+        /** Dossiers parcourus dans la mémoire du téléphone (quand il n'y a pas de carte SD). */
+        val INTERNAL_SCAN = listOf("DCIM", "Pictures", "Movies", "Download")
+
         const val OUTPUT_DIR = "Photos rangées"
 
         const val CAPTURE_DIR = "Photos à trier"

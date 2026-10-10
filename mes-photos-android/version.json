@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V48",
+  "version": "V49",
   "date": "08/10/2026",
   "nouveautes": [
+    "Fonctionne aussi sur un téléphone SANS carte SD : l'appli range alors dans la mémoire du téléphone (dossiers DCIM, Pictures, Movies, Download). Sur un téléphone qui a (ou a déjà eu) une carte SD, rien ne change.",
     "Plus de gros titre « Albums » : les deux albums (vidéos et photos) montrent seulement leur image, avec leur nom « Album vidéos » / « Album photos » en plus petit, écrit en dessous.",
     "Le raccourci « Vidéos » est retiré (l'album du bas le remplace). Les deux albums s'appellent « Album vidéos » et « Album photos », et l'album vidéos compte des vidéos.",
-    "L'album « Vidéos » est classé par date comme vos albums : année, puis mois, puis jour, avec seulement les vidéos et leur nombre. Rien n'est déplacé.",
-    "Un album « Vidéos » à côté des autres albums (page d'accueil des photos) : toutes vos vidéos, de la plus récente à la plus ancienne (ordre au choix en haut), là où elles sont. On peut les choisir comme dans « Toutes les photos »."
+    "L'album « Vidéos » est classé par date comme vos albums : année, puis mois, puis jour, avec seulement les vidéos et leur nombre. Rien n'est déplacé."
   ],
   "pastille": false,
   "fichiers": []

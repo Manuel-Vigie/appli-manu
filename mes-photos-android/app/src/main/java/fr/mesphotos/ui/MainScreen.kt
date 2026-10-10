@@ -391,6 +391,14 @@ private fun HomeScreen(
                 }
             } else {
                 item { SortCard(state.toSort, onSort) }
+                if (state.internal) item {
+                    Text(
+                        "Ce téléphone n'a pas de carte SD : l'appli range dans la mémoire du téléphone (dossier « Photos rangées »), à partir de DCIM, Pictures, Movies et Download seulement.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 6.dp),
+                    )
+                }
 
                 // Un menu déroulant par catégorie, fermé au départ : des boutons à plat, un par ligne.
                 val groups = listOf(

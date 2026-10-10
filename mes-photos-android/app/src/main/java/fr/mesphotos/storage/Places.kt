@@ -8,10 +8,28 @@ import android.provider.Settings
 import androidx.core.content.ContextCompat
 import java.io.File
 
-/** Détection de la carte SD (la mémoire du téléphone n'est jamais utilisée). */
+/**
+ * Détection de la carte SD. La mémoire du téléphone n'est utilisée que sur un téléphone qui n'a JAMAIS eu de carte SD avec cette appli
+ * (mémorisé) : si une carte a déjà été vue, on ne bascule jamais vers la mémoire du téléphone, même carte retirée.
+ */
 object Places {
 
+    private const val PREFS = "mesphotos"
+    private const val SD_SEEN = "sd_seen"
+
     fun detect(context: Context): List<Place> {
+        val cards = detectCards(context)
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (cards.isNotEmpty()) {
+            if (!prefs.getBoolean(SD_SEEN, false)) prefs.edit().putBoolean(SD_SEEN, true).apply()
+            return cards
+        }
+        if (prefs.getBoolean(SD_SEEN, false)) return emptyList()
+        val root = Environment.getExternalStorageDirectory()
+        return if (root != null && root.isDirectory) listOf(Place("interne", "Mémoire du téléphone", root, internal = true)) else emptyList()
+    }
+
+    private fun detectCards(context: Context): List<Place> {
         val result = ArrayList<Place>()
         context.getExternalFilesDirs(null).forEachIndexed { index, dir ->
             if (dir == null || index == 0) return@forEachIndexed // le premier est la mémoire du téléphone

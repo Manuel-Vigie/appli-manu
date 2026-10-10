@@ -106,6 +106,8 @@ sealed interface UiState {
     data class Home(
         val access: Boolean,
         val hasCard: Boolean,
+        /** Vrai quand l'appli travaille dans la mémoire du téléphone (téléphone sans carte SD). */
+        val internal: Boolean = false,
         /** Photos et vidéos à ranger / déjà rangées (null tant que le comptage n'est pas fini). */
         val toSort: Int?,
         val sorted: Int?,
@@ -330,6 +332,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = UiState.Home(
             access = access,
             hasCard = place != null,
+            internal = place?.internal == true,
             toSort = counts?.first,
             sorted = counts?.second,
             hasUndo = hasUndo(),
