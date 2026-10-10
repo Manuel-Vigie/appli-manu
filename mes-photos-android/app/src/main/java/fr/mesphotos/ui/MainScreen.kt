@@ -40,6 +40,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lock
@@ -49,6 +50,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import fr.mesphotos.storage.Places
 import fr.mesphotos.logic.Tags
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -109,6 +111,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
     }
     var askLabel by remember { mutableStateOf(false) }
     // Renommer plusieurs photos d'un coup : dossiers et fichiers choisis, en attente du mot à ajouter.
+    var askStorage by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf<Pair<Set<String>, List<File>>?>(null) }
 
     // Coffre-fort : on demande le verrouillage du téléphone (code, schéma, empreinte…) avant de l'ouvrir.
@@ -188,6 +191,41 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                 onDismiss = { askLabel = false },
             )
         }
+        if (askStorage) {
+            val current = viewModel.storageChoice()
+            val hasSd = viewModel.hasSdCard()
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { askStorage = false },
+                title = { Text("Où sont mes photos ?") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf(
+                            Triple(Places.SD, "Carte SD", if (hasSd) "Toute la carte est parcourue." else "Aucune carte détectée pour l'instant."),
+                            Triple(Places.INTERNAL, "Mémoire du téléphone", "DCIM, Pictures, Movies et Download seulement."),
+                        ).forEach { (value, title, detail) ->
+                            val enabled = value != Places.SD || hasSd || current == Places.SD
+                            Row(
+                                Modifier.fillMaxWidth().clickable(enabled = enabled) { askStorage = false; viewModel.chooseStorage(value) }.padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                androidx.compose.material3.RadioButton(selected = current == value, onClick = null, enabled = enabled)
+                                Spacer(Modifier.width(10.dp))
+                                Column {
+                                    Text(title, style = MaterialTheme.typography.titleMedium)
+                                    Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                        Text(
+                            "Changer d'endroit ne déplace rien : les photos de l'autre endroit y restent. L'appli range et montre seulement l'endroit choisi.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+                confirmButton = { TextButton(onClick = { askStorage = false }) { Text("Fermer") } },
+            )
+        }
         val sharedBatch by viewModel.shared.collectAsStateWithLifecycle()
         sharedBatch?.let { batch ->
             TagDialog(
@@ -234,6 +272,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onOpenAside = { viewModel.openTrash(MoveKind.ASIDE) },
                         onOpenVault = openVault,
                         onHealth = viewModel::startHealthCheck,
+                        onStorage = { askStorage = true },
                         onDuplicates = viewModel::findDuplicates,
                         onTakePhoto = { askLabel = true },
                         onCheckUpdate = { viewModel.checkUpdate(version) { updateTick++ } },
@@ -351,6 +390,7 @@ private fun HomeScreen(
     onOpenAside: () -> Unit,
     onOpenVault: () -> Unit,
     onHealth: () -> Unit,
+    onStorage: () -> Unit,
     onDuplicates: () -> Unit,
     onTakePhoto: () -> Unit,
     onCheckUpdate: () -> Unit,
@@ -386,7 +426,8 @@ private fun HomeScreen(
                 item {
                     Section {
                         Title("Aucune carte SD trouvée")
-                        Body("L'appli ne range que sur la carte SD, jamais dans la mémoire du téléphone. Vérifiez que la carte est bien insérée, puis rouvrez l'appli.")
+                        Body("Vérifiez que la carte est bien insérée, puis rouvrez l'appli. Ou choisissez de travailler dans la mémoire du téléphone.")
+                        BigButton("Choisir où sont mes photos", onStorage)
                     }
                 }
             } else {
@@ -419,6 +460,10 @@ private fun HomeScreen(
                             Tool(Icons.Default.Lock, "À l'écart", if (state.asideCount > 0) "${spaced(state.asideCount)} fichier(s)" else "Vide", onClick = onOpenAside),
                             Tool(Icons.Default.Delete, "Corbeille", if (state.trashCount > 0) "${spaced(state.trashCount)} fichier(s)" else "Vide", onClick = onOpenTrash),
                         ),
+                    ),
+                    ToolGroup(
+                        "Réglages",
+                        listOf(Tool(Icons.Default.Settings, "Où sont mes photos ?", if (state.internal) "Mémoire du téléphone" else "Carte SD", onClick = onStorage)),
                     ),
                     ToolGroup(
                         "Réparation",

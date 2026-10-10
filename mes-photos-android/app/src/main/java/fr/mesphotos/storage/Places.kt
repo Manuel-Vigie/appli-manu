@@ -9,22 +9,32 @@ import androidx.core.content.ContextCompat
 import java.io.File
 
 /**
- * Détection de la carte SD. La mémoire du téléphone n'est utilisée que sur un téléphone qui n'a JAMAIS eu de carte SD avec cette appli
- * (mémorisé) : si une carte a déjà été vue, on ne bascule jamais vers la mémoire du téléphone, même carte retirée.
+ * Où travaille l'appli : carte SD ou mémoire du téléphone. Le choix est mémorisé : au 1er lancement, carte SD si une carte
+ * est détectée, sinon mémoire du téléphone. Une carte retirée ne fait donc jamais basculer l'appli toute seule.
  */
 object Places {
 
     private const val PREFS = "mesphotos"
-    private const val SD_SEEN = "sd_seen"
+    private const val CHOICE = "stockage"
+    const val SD = "sd"
+    const val INTERNAL = "interne"
+
+    fun hasCard(context: Context): Boolean = detectCards(context).isNotEmpty()
+
+    fun choice(context: Context): String {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        prefs.getString(CHOICE, null)?.let { return it }
+        val value = if (hasCard(context)) SD else INTERNAL
+        prefs.edit().putString(CHOICE, value).apply()
+        return value
+    }
+
+    fun choose(context: Context, value: String) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(CHOICE, value).apply()
+    }
 
     fun detect(context: Context): List<Place> {
-        val cards = detectCards(context)
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (cards.isNotEmpty()) {
-            if (!prefs.getBoolean(SD_SEEN, false)) prefs.edit().putBoolean(SD_SEEN, true).apply()
-            return cards
-        }
-        if (prefs.getBoolean(SD_SEEN, false)) return emptyList()
+        if (choice(context) == SD) return detectCards(context)
         val root = Environment.getExternalStorageDirectory()
         return if (root != null && root.isDirectory) listOf(Place("interne", "Mémoire du téléphone", root, internal = true)) else emptyList()
     }

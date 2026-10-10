@@ -343,6 +343,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
+    // ---- Où ranger : carte SD ou mémoire du téléphone ---------------------------------------------------
+
+    fun storageChoice(): String = Places.choice(getApplication())
+
+    fun hasSdCard(): Boolean = Places.hasCard(getApplication())
+
+    /** Change l'endroit de travail. Rien n'est déplacé : les photos de l'autre endroit y restent telles quelles. */
+    fun chooseStorage(value: String) {
+        if (value == Places.choice(getApplication())) return
+        Places.choose(getApplication(), value)
+        videoPath = null
+        browsePath = emptyList()
+        refresh(if (value == Places.INTERNAL) "L'appli travaille maintenant dans la mémoire du téléphone. Rien n'a été déplacé." else "L'appli travaille maintenant sur la carte SD. Rien n'a été déplacé.")
+    }
+
     fun onResume() {
         if (_state.value is UiState.Home) refresh(notice, noticeIsError)
     }
