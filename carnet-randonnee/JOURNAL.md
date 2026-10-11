@@ -2,7 +2,7 @@
 
 ## Identité
 Appli de carnets de randonnée (albums photos, musique, pages). Fonctionne hors connexion (PWA).
-Version actuelle : **V61 · 06/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
+Version actuelle : **V62 · 11/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
 |---|---|
 | `carnet-randonnee.html` | L'appli entière |
 | `carnet-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V61'` |
+| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V62'` |
 | `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-icone-192.png`, `carnet-icone-512.png`, `carnet-icone-masque-512.png` | Icônes |
 
@@ -103,3 +103,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - V60 : bouton rond « tourner l'écran » sur tous les écrans (bibliothèque, album, plein écran, vidéo) ; remplace les boutons « Horizontal » de V56-V59.
 - 05/10 → 06/10 — V39 à V60 : non détaillées dans ce journal.
 - 06/10/2026 — V61 : la pastille ↻ devient verte « Nouvelle version » quand une mise à jour est en ligne (lecture de `version.json`). Cache carnet-app-V61.
+- 11/10/2026 — V62 : couvertures du plateau — titre, sous-titre et « Album N » centrés, taille du texte adaptée à la largeur de la couverture (les mots longs ne sortent plus du cadre). Cache carnet-app-V62.
