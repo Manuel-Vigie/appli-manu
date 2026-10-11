@@ -1557,9 +1557,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         if (!file.isFile) { failed++; continue }
                         if (Gallery.normalize(file.name).contains(wanted)) { already++; continue }
                         val name = RenameNames.build(label, file.name, keepOriginal = true)
-                        val dir = file.parentFile
+                        var dir = file.parentFile
                         if (name == null || dir == null) { failed++; continue }
-                        val target = RenameNames.unique(dir, name)
+                        // Photos « Sans date ni lieu » : elles vont dans un dossier au nom du mot donné (ex. Journées / Najet).
+                        if (dir.name == Planner.NOTHING) {
+                            val folderName = Planner.sanitize(label.split(",").first().trim())
+                            val parentDir = dir.parentFile
+                            if (folderName.isNotEmpty() && parentDir != null) {
+                                val named = File(parentDir, folderName)
+                                if (named.isDirectory || named.mkdirs()) dir = named
+                            }
+                        }
+                        val target = RenameNames.unique(dir!!, name)
                         if (file.renameTo(target) && target.isFile && !file.exists()) {
                             touched += file.absolutePath
                             touched += target.absolutePath
@@ -1574,7 +1583,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 searchIndex = null
                 val (done, already, failed) = stats
                 val lines = ArrayList<String>()
-                lines += if (done == 0) "Rien n'a été renommé." else "${countText(done)} renommé(s) : « ${label.trim()} - … ». Un raccourci « ${label.trim()} » les retrouve."
+                lines += if (done == 0) "Rien n'a été renommé." else "${countText(done)} renommé(s) : « ${label.trim()} - … ». Un raccourci « ${label.trim()} » les retrouve. Celles qui étaient dans « Sans date ni lieu » sont maintenant dans un dossier à ce nom."
                 if (already > 0) lines += "${countText(already)} portaient déjà ce mot."
                 if (failed > 0) lines += "$failed fichier(s) n'ont pas pu être renommés et sont restés tels quels."
                 val words = label.split(",").map { it.trim() }.filter { it.isNotEmpty() }
