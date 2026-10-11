@@ -329,7 +329,7 @@ fun BrowseScreen(
             // En tête de la page d'accueil des photos : l'appareil photo, puis le tiroir des raccourcis.
             if (!selecting && state.path.isEmpty()) {
                 item(key = "hero", span = { GridItemSpan(maxLineSpan) }) {
-                    val covers = (state.folders.mapNotNull { it.cover } + state.files).distinct().take(3)
+                    val covers = emptyList<File>() // image fixe : aucune photo personnelle en présentation
                     PhotoHero(
                         title = "Mes photos",
                         subtitle = counts.joinToString("  ·  ").ifEmpty { null },
@@ -361,7 +361,7 @@ fun BrowseScreen(
             // L'album « Vidéos » : à côté des autres albums, rien n'est déplacé (une recherche, classée par date comme les albums).
             if (!selecting && state.path.isEmpty()) state.videos?.let { videos ->
                 item(key = "videos", span = { GridItemSpan(3) }) {
-                    AlbumCard(videos, selecting = false, selected = false, onClick = onOpenVideos, onLongClick = {}, title = "Album vidéos", unit = "vidéo", captionBelow = true)
+                    AlbumCard(videos, selecting = false, selected = false, onClick = onOpenVideos, onLongClick = {}, title = "Album vidéos", unit = "vidéo", captionBelow = true, illustration = AppIcons.Video, illustrationColors = listOf(Color(0xFF1E3A5F), Color(0xFF3B6EA8)))
                 }
             }
             items(state.folders, key = { "d:" + it.name }, span = { GridItemSpan(3) }) { folder ->
@@ -374,6 +374,8 @@ fun BrowseScreen(
                     // À la racine, le gros dossier par date s'appelle « Album photos » à l'écran (son vrai nom sur la carte ne change pas).
                     title = if (state.path.isEmpty() && folder.name == "Journées") "Album photos" else folder.name,
                     captionBelow = state.path.isEmpty(),
+                    illustration = if (state.path.isEmpty()) AppIcons.Photos else null,
+                    illustrationColors = listOf(Color(0xFF1F5A47), Color(0xFF3E9B7A)),
                 )
             }
             itemsIndexed(state.files, key = { _, f -> "f:" + f.absolutePath }, span = { _, _ -> GridItemSpan(2) }) { index, file ->
@@ -552,6 +554,8 @@ private fun AlbumCard(
     title: String = folder.name,
     unit: String = "photo",
     captionBelow: Boolean = false,
+    illustration: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    illustrationColors: List<Color> = emptyList(),
 ) {
     val countText = if (folder.count > 1) "${spaced(folder.count)} ${unit}s" else "1 $unit"
     Column {
@@ -565,7 +569,11 @@ private fun AlbumCard(
                 .then(if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, shape) else Modifier)
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         ) {
-            folder.cover?.let { Thumb(it, 400, Modifier.fillMaxSize()) }
+            if (illustration != null) {
+                Box(Modifier.matchParentSize().background(Brush.linearGradient(illustrationColors)), contentAlignment = Alignment.Center) {
+                    Icon(illustration, contentDescription = null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(72.dp))
+                }
+            } else folder.cover?.let { Thumb(it, 400, Modifier.fillMaxSize()) }
             if (!captionBelow) Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000)))))
             if (!captionBelow) Column(Modifier.align(Alignment.BottomStart).padding(horizontal = 12.dp, vertical = 10.dp)) {
                 Text(title, color = Color.White, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, maxLines = 2)

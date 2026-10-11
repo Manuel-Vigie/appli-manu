@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V50",
-  "date": "10/10/2026",
+  "version": "V51",
+  "date": "11/10/2026",
   "nouveautes": [
+    "Page d'accueil des photos : plus aucune de vos photos en présentation. Les deux albums ont une image fixe (une caméra pour les vidéos, une photo pour les photos) et le haut de la page est un simple fond de couleur.",
     "Outils > Réglages > « Où sont mes photos ? » : on choisit la carte SD ou la mémoire du téléphone. Un téléphone sans carte SD travaille tout seul dans sa mémoire. Rien n'est déplacé quand on change.",
     "Fonctionne aussi sur un téléphone SANS carte SD : l'appli range alors dans la mémoire du téléphone (dossiers DCIM, Pictures, Movies, Download). Sur un téléphone qui a (ou a déjà eu) une carte SD, rien ne change.",
-    "Plus de gros titre « Albums » : les deux albums (vidéos et photos) montrent seulement leur image, avec leur nom « Album vidéos » / « Album photos » en plus petit, écrit en dessous.",
-    "Le raccourci « Vidéos » est retiré (l'album du bas le remplace). Les deux albums s'appellent « Album vidéos » et « Album photos », et l'album vidéos compte des vidéos."
+    "Plus de gros titre « Albums » : les deux albums (vidéos et photos) montrent seulement leur image, avec leur nom « Album vidéos » / « Album photos » en plus petit, écrit en dessous."
   ],
   "pastille": false,
   "fichiers": []
