@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V55",
+  "version": "V56",
   "date": "11/10/2026",
   "nouveautes": [
+    "Renommer avec un mot (ex. « Ex ») range maintenant les photos dans le dossier « Journées / Ex », même si elles étaient dans un mois. Elles y restent ensuite quand vous touchez Ranger.",
     "Recherche et raccourcis : un mot court comme « Ex » ne trouve plus que le mot entier (plus les photos Suunto qui contiennent « ex » dans « text » ou « exports »). Renommer ne dit plus « portaient déjà ce mot » à tort.",
     "Les photos que vous rangez vous-même dans un dossier à vous (ex. « Journées / Ex ») y restent : Ranger ne les remet plus dans les dossiers par date.",
-    "Le bouton Ranger vide aussi la mémoire du téléphone : photos et vidéos (appareil photo, images, téléchargements, WhatsApp) sont copiées sur la carte SD, puis rangées par date avec les autres. L'original n'est effacé du téléphone qu'après vérification de la copie.",
-    "Les photos « Sans date ni lieu » : quand vous leur donnez un nom (Renommer), elles vont dans un dossier à ce nom, au lieu de rester toutes ensemble."
+    "Le bouton Ranger vide aussi la mémoire du téléphone : photos et vidéos (appareil photo, images, téléchargements, WhatsApp) sont copiées sur la carte SD, puis rangées par date avec les autres. L'original n'est effacé du téléphone qu'après vérification de la copie."
   ],
   "pastille": false,
   "fichiers": []

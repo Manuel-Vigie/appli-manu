@@ -1620,19 +1620,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     var failed = 0
                     for ((i, file) in all.withIndex()) {
                         if (!file.isFile) { failed++; continue }
-                        if (Gallery.matches(Gallery.normalize(file.name), Gallery.terms(label.replace(",", " ")))) { already++; continue }
-                        val name = RenameNames.build(label, file.name, keepOriginal = true)
+                        val hasWord = Gallery.matches(Gallery.normalize(file.name), Gallery.terms(label.replace(",", " ")))
                         var dir = file.parentFile
-                        if (name == null || dir == null) { failed++; continue }
-                        // Photos « Sans date ni lieu » : elles vont dans un dossier au nom du mot donné (ex. Journées / Najet).
-                        if (dir.name == Planner.NOTHING) {
-                            val folderName = Planner.sanitize(label.split(",").first().trim())
-                            val parentDir = dir.parentFile
-                            if (folderName.isNotEmpty() && parentDir != null) {
-                                val named = File(parentDir, folderName)
-                                if (named.isDirectory || named.mkdirs()) dir = named
-                            }
+                        if (dir == null) { failed++; continue }
+                        // Photos rangées : elles vont dans un dossier au nom du mot donné (ex. Journées / Ex), même si elles étaient dans un mois.
+                        val folderName = Planner.sanitize(label.split(",").first().trim())
+                        if (folderName.isNotEmpty() && file.absolutePath.startsWith(current.outputDir.absolutePath + File.separator)) {
+                            val named = File(File(current.outputDir, Planner.PHOTOS), folderName)
+                            if (named.isDirectory || named.mkdirs()) dir = named
                         }
+                        if (hasWord && dir == file.parentFile) { already++; continue }
+                        val name = if (hasWord) file.name else RenameNames.build(label, file.name, keepOriginal = true)
+                        if (name == null) { failed++; continue }
                         val target = RenameNames.unique(dir!!, name)
                         if (file.renameTo(target) && target.isFile && !file.exists()) {
                             touched += file.absolutePath
@@ -1648,7 +1647,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 searchIndex = null
                 val (done, already, failed) = stats
                 val lines = ArrayList<String>()
-                lines += if (done == 0) "Rien n'a été renommé." else "${countText(done)} renommé(s) : « ${label.trim()} - … ». Un raccourci « ${label.trim()} » les retrouve. Celles qui étaient dans « Sans date ni lieu » sont maintenant dans un dossier à ce nom."
+                lines += if (done == 0) "Rien n'a été renommé." else "${countText(done)} renommé(s) : « ${label.trim()} - … ». Un raccourci « ${label.trim()} » les retrouve. Elles sont rangées dans le dossier « Journées / ${label.split(",").first().trim()} »."
                 if (already > 0) lines += "${countText(already)} portaient déjà ce mot."
                 if (failed > 0) lines += "$failed fichier(s) n'ont pas pu être renommés et sont restés tels quels."
                 val words = label.split(",").map { it.trim() }.filter { it.isNotEmpty() }
