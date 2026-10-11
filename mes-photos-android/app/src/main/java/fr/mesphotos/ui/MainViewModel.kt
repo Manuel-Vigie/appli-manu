@@ -1620,7 +1620,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     var failed = 0
                     for ((i, file) in all.withIndex()) {
                         if (!file.isFile) { failed++; continue }
-                        if (Gallery.normalize(file.name).contains(wanted)) { already++; continue }
+                        if (Gallery.matches(Gallery.normalize(file.name), Gallery.terms(label.replace(",", " ")))) { already++; continue }
                         val name = RenameNames.build(label, file.name, keepOriginal = true)
                         var dir = file.parentFile
                         if (name == null || dir == null) { failed++; continue }

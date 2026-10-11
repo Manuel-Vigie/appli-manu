@@ -72,7 +72,20 @@ object Gallery {
     fun terms(query: String): List<String> = normalize(query).split(Regex("\\s+")).filter { it.isNotEmpty() }
 
     /** Vrai si tous les mots se trouvent dans le chemin (déjà normalisé) de la photo. */
-    fun matches(haystack: String, terms: List<String>): Boolean = terms.isNotEmpty() && terms.all { haystack.contains(it) }
+    fun matches(haystack: String, terms: List<String>): Boolean = terms.isNotEmpty() && terms.all { termIn(haystack, it) }
+
+    /** Un mot court (3 lettres ou moins, ex. « Ex ») doit être un mot entier : « ex » ne trouve plus « text » ni « exports ». */
+    private fun termIn(haystack: String, term: String): Boolean {
+        if (term.length > 3) return haystack.contains(term)
+        var from = haystack.indexOf(term)
+        while (from >= 0) {
+            val before = if (from == 0) ' ' else haystack[from - 1]
+            val after = if (from + term.length >= haystack.length) ' ' else haystack[from + term.length]
+            if (!before.isLetterOrDigit() && !after.isLetterOrDigit()) return true
+            from = haystack.indexOf(term, from + 1)
+        }
+        return false
+    }
 
     /** Journées d'abord ; les années, mois et jours du plus récent au plus ancien ; « Date incertaine », puis « Sans date ni lieu » à la fin. */
     fun compareFolders(a: String, b: String): Int {
