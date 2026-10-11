@@ -454,10 +454,75 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // ---- Ranger --------------------------------------------------------------------------------
 
     /** Analyse TOUTE la carte (même ce qui est déjà rangé) pour tout remettre à sa vraie date, puis montre l'aperçu. */
+    /**
+     * Avec la carte SD : avant de ranger, les photos et vidéos de la mémoire du téléphone (DCIM, Pictures, Movies, Download et
+     * WhatsApp) sont COPIÉES sur la carte, dans « Depuis le téléphone », puis l'original n'est effacé qu'une fois la copie
+     * vérifiée (même taille, même date). Elles sont ensuite rangées par date avec les autres. Retourne (copiées, échecs).
+     */
+    private suspend fun importFromPhone(current: Place): Pair<Int, Int> {
+        if (current.internal) return 0 to 0
+        return withContext(Dispatchers.IO) {
+            val phone = android.os.Environment.getExternalStorageDirectory() ?: return@withContext 0 to 0
+            if (!phone.isDirectory || phone.absolutePath == current.root.absolutePath) return@withContext 0 to 0
+            val sources = listOf(
+                "Appareil photo" to File(phone, "DCIM"),
+                "Images" to File(phone, "Pictures"),
+                "Vidéos" to File(phone, "Movies"),
+                "Téléchargements" to File(phone, "Download"),
+                "WhatsApp" to File(phone, "Android/media/com.whatsapp/WhatsApp/Media"),
+                "WhatsApp" to File(phone, "WhatsApp/Media"),
+                "WhatsApp Business" to File(phone, "Android/media/com.whatsapp.w4b/WhatsApp Business/Media"),
+            )
+            val skipDirs = setOf("WhatsApp Stickers", "WhatsApp Profile Photos", "thumbnails")
+            val todo = ArrayList<Pair<String, File>>()
+            fun walk(group: String, dir: File, depth: Int) {
+                if (depth > 12) return
+                for (child in dir.listFiles() ?: return) {
+                    if (child.name.startsWith(".")) continue
+                    if (child.isDirectory) { if (child.name !in skipDirs) walk(group, child, depth + 1) }
+                    else if (PhotoFiles.mimeOf(child) != null && child.length() > 0) todo += group to child
+                }
+            }
+            sources.forEach { (group, dir) -> if (dir.isDirectory) walk(group, dir, 0) }
+            if (todo.isEmpty()) return@withContext 0 to 0
+            val total = todo.sumOf { it.second.length() }
+            if (current.root.usableSpace < total + 200L * 1024 * 1024) return@withContext 0 to todo.size // pas assez de place : rien n'est touché
+            val base = File(current.root, "Depuis le téléphone")
+            val touched = ArrayList<String>()
+            var done = 0
+            var failed = 0
+            for ((i, item) in todo.withIndex()) {
+                val (group, src) = item
+                if (i % 5 == 0) _state.value = UiState.Working("Copie depuis le téléphone vers la carte…", i, todo.size)
+                try {
+                    val dir = File(base, group)
+                    if (!dir.isDirectory && !dir.mkdirs()) { failed++; continue }
+                    val target = RenameNames.unique(dir, src.name)
+                    val size = src.length()
+                    val date = src.lastModified()
+                    src.copyTo(target, overwrite = false)
+                    target.setLastModified(date)
+                    if (target.length() == size && src.length() == size) {
+                        if (src.delete()) { touched += src.absolutePath; touched += target.absolutePath; done++ } else failed++
+                    } else {
+                        target.delete(); failed++
+                    }
+                } catch (e: Exception) { failed++ }
+            }
+            if (touched.isNotEmpty()) MediaScannerConnection.scanFile(getApplication(), touched.toTypedArray(), null, null)
+            done to failed
+        }
+    }
+
     fun analyze() {
         val current = place ?: return
         viewModelScope.launch {
             try {
+                val fromPhone = importFromPhone(current)
+                if (fromPhone.first == 0 && fromPhone.second > 0) {
+                    refresh("Les photos de la mémoire du téléphone n'ont pas pu être copiées sur la carte (place insuffisante ou fichiers bloqués). Rien n'a été effacé du téléphone.", isError = true)
+                    return@launch
+                }
                 _state.value = UiState.Working("Recherche des photos et vidéos…", 0, 0)
                 val scanned = withContext(Dispatchers.IO) {
                     scanner.scan(current, includeSorted = true) { found ->

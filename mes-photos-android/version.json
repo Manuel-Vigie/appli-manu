@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V52",
+  "version": "V53",
   "date": "11/10/2026",
   "nouveautes": [
+    "Le bouton Ranger vide aussi la mémoire du téléphone : photos et vidéos (appareil photo, images, téléchargements, WhatsApp) sont copiées sur la carte SD, puis rangées par date avec les autres. L'original n'est effacé du téléphone qu'après vérification de la copie.",
     "Les photos « Sans date ni lieu » : quand vous leur donnez un nom (Renommer), elles vont dans un dossier à ce nom, au lieu de rester toutes ensemble.",
     "Page d'accueil des photos : plus aucune de vos photos en présentation. Les deux albums ont une image fixe (une caméra pour les vidéos, une photo pour les photos) et le haut de la page est un simple fond de couleur.",
-    "Outils > Réglages > « Où sont mes photos ? » : on choisit la carte SD ou la mémoire du téléphone. Un téléphone sans carte SD travaille tout seul dans sa mémoire. Rien n'est déplacé quand on change.",
-    "Fonctionne aussi sur un téléphone SANS carte SD : l'appli range alors dans la mémoire du téléphone (dossiers DCIM, Pictures, Movies, Download). Sur un téléphone qui a (ou a déjà eu) une carte SD, rien ne change."
+    "Outils > Réglages > « Où sont mes photos ? » : on choisit la carte SD ou la mémoire du téléphone. Un téléphone sans carte SD travaille tout seul dans sa mémoire. Rien n'est déplacé quand on change."
   ],
   "pastille": false,
   "fichiers": []
