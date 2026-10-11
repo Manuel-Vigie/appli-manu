@@ -1,15 +1,16 @@
 {
   "nom": "Carnet de rando",
-  "version": "V62",
+  "version": "V63",
   "date": "11/10/2026",
   "nouveautes": [
+    "Le texte des couvertures d'albums est plus gros.",
     "Les titres des albums sont centrés sur les couvertures et ne sortent plus du cadre.",
     "La pastille ↻ devient verte quand une nouvelle version est en ligne."
   ],
   "cache": "carnet-app-",
   "sw": {
     "fichier": "carnet-sw.js",
-    "cache": "carnet-app-V62"
+    "cache": "carnet-app-V63"
   },
   "fichiers": [
     "carnet-randonnee.html"
