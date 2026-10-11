@@ -44,11 +44,22 @@ object Planner {
         val date = Instant.ofEpochMilli(photo.takenAt).atZone(zone).toLocalDate()
         val month = "%02d - %s".format(date.monthValue, MONTHS[date.monthValue - 1])
         val folder = when {
+            isOwnFolder(photo.currentFolder) -> photo.currentFolder!!
             photo.dateGuessed && !photo.hasGps -> listOf(PHOTOS, NOTHING)
             photo.dateGuessed -> listOf(PHOTOS, UNDATED, date.year.toString(), month)
             else -> listOf(PHOTOS, date.year.toString(), month, dayFolder(date, dayPlaces[date]))
         }
         PlannedMove(photo, folder)
+    }
+
+    /**
+     * Un dossier choisi par la personne sous « Journées » (ex. Journées / Ex) : tout ce qui n'est pas une année,
+     * « Date incertaine » ou « Sans date ni lieu ». Ce qu'elle y a rangé n'est plus jamais remis dans les dossiers par date.
+     */
+    fun isOwnFolder(current: List<String>?): Boolean {
+        if (current == null || current.size < 2 || current[0] != PHOTOS) return false
+        val top = current[1]
+        return top != UNDATED && top != NOTHING && !top.matches(Regex("""\d{4}"""))
     }
 
     /** Toutes les copies exactes vont dans un seul dossier, « Doublons », pour les comparer facilement. */
