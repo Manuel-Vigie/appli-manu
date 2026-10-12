@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V89",
+  "version": "V90",
   "date": "12/10/2026",
   "nouveautes": [
+    "Rapport rando : le temps de pause se règle maintenant PAR JOUR (ex. 120 min par jour). Le total est calculé tout seul (120 min × 3 jours = 6 h) et affiché à côté du champ et dans la case « Pauses ».",
     "Rapport rando plus simple pour tout le monde : un résumé « En bref », des dessins qui montrent ce que représente une pente (3 %, 8 %, 12 %, 20 %, 32 %), des mots clairs à la place du jargon (D+, km-effort, tronçon), la montée comparée à des étages d'immeuble. Accueil : un petit espace sous « Importer ma trace ».",
     "Page d'accueil : le bouton « Ouvrir un lien (Suunto…) » est maintenant juste sous « Importer ma trace ».",
-    "Nouveau bouton « 🔗 Ouvrir un lien » (page Mes randos) : colle un lien Suunto ou un lien de fichier GPX/FIT et la trace s'ouvre directement, sans rien télécharger ni convertir.",
-    "Rapport rando : nouveau bouton « 📄 PDF par mail ». Il fabrique un vrai PDF (pages A4 avec la carte) et ouvre le partage du téléphone : choisis Gmail et le PDF est déjà en pièce jointe."
+    "Nouveau bouton « 🔗 Ouvrir un lien » (page Mes randos) : colle un lien Suunto ou un lien de fichier GPX/FIT et la trace s'ouvre directement, sans rien télécharger ni convertir."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v89"
+    "cache": "rr3d-v90"
   },
   "fichiers": [
     "rando-3d.html",
