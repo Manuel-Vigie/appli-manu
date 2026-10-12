@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V64",
+  "version": "V65",
   "date": "12/10/2026",
   "nouveautes": [
+    "Mettre des photos dans un raccourci/dossier existant (ex. « Famille ») ne crée plus un nouveau raccourci en double dans « Divers » : un raccourci n'est créé que si son nom n'existe pas encore.",
     "Renommer un dossier à vous (ex. « Famille » → « Famille et amis ») : ouvrez « Journées », touchez « Choisir », touchez le dossier, puis « Renommer ce dossier ». Les noms de vos raccourcis sont proposés. Les photos restent dedans.",
     "Mettre des photos dans un raccourci (ex. « Famille et amis ») : Choisir, touchez les photos, « Mettre dans un raccourci », puis touchez le raccourci voulu dans la liste. Elles vont dans le dossier à son nom.",
-    "Renommer un raccourci : appui long sur le raccourci, puis changez son nom. Les mots qu'il cherche restent ceux d'avant (visibles dans la fenêtre) tant que vous ne les changez pas.",
-    "Fond de la page d'accueil, plus simple : dans un album, touchez « Choisir », touchez UNE photo, puis le bouton « Mettre cette photo en fond »."
+    "Renommer un raccourci : appui long sur le raccourci, puis changez son nom. Les mots qu'il cherche restent ceux d'avant (visibles dans la fenêtre) tant que vous ne les changez pas."
   ],
   "pastille": false,
   "fichiers": []

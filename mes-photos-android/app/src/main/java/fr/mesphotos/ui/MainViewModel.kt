@@ -1571,6 +1571,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * Retient que [label] (un nom de personne, par exemple) est sur ces photos : elles ne sont ni renommées ni déplacées. La loupe et les
      * raccourcis les retrouvent ensuite. Puis on montre tout de suite les photos qui portent ce nom.
      */
+    /** Vrai si un raccourci porte déjà ce nom : on n'en crée pas un second (ex. « Famille » en double dans « Divers »). */
+    private fun hasShortcutNamed(name: String): Boolean =
+        shortcuts.all().any { Gallery.normalize(it.name) == Gallery.normalize(name) }
+
     fun tagFiles(files: List<File>, label: String, makeShortcut: Boolean) {
         val words = label.split(",").map { it.trim() }.filter { it.isNotEmpty() }
         if (words.isEmpty() || files.isEmpty()) { refresh("Aucun mot choisi : rien n'a été retenu."); return }
@@ -1581,7 +1585,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val lines = ArrayList<String>()
                 lines += "« ${words.joinToString(" ")} » retenu pour ${countText(files.size)} (rien n'a été renommé ni déplacé)."
                 if (touched < files.size) lines += "${countText(files.size - touched)} l'avaient déjà."
-                if (makeShortcut) {
+                if (makeShortcut && !hasShortcutNamed(words[0])) {
                     shortcuts.put(words[0], words.getOrNull(1) ?: "Personnes", words[0])
                     lines += "Raccourci « ${words[0]} » créé (menu Raccourcis, en haut de l'onglet Photos)."
                 }
@@ -1653,7 +1657,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 if (already > 0) lines += "${countText(already)} portaient déjà ce mot."
                 if (failed > 0) lines += "$failed fichier(s) n'ont pas pu être renommés et sont restés tels quels."
                 val words = label.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                if (makeShortcut && done > 0 && words.isNotEmpty()) {
+                if (makeShortcut && done > 0 && words.isNotEmpty() && !hasShortcutNamed(words[0])) {
                     shortcuts.put(words[0], words.getOrNull(1) ?: "", words[0])
                     lines += "Raccourci « ${words[0]} » créé (menu Raccourcis, en haut de l'onglet Photos)."
                 }
