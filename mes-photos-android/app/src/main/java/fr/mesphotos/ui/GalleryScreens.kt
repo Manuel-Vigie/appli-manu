@@ -131,7 +131,7 @@ internal fun SelectionHeader(selectedCount: Int, allSelected: Boolean, onCancel:
 
 /** Barre du bas en mode « Choisir » : « À l'écart » (rangées à part) ou « Corbeille ». */
 @Composable
-internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNotThat: (() -> Unit)? = null, onVault: (() -> Unit)? = null, onRename: (() -> Unit)? = null) {
+internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNotThat: (() -> Unit)? = null, onVault: (() -> Unit)? = null, onRename: (() -> Unit)? = null, onBackground: (() -> Unit)? = null, backgroundEnabled: Boolean = false) {
     Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp, tonalElevation = 2.dp) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).navigationBarsPadding(),
@@ -186,6 +186,18 @@ internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNot
                             Text("Renommer", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                     }
+                }
+            }
+            if (onBackground != null) {
+                FilledTonalButton(
+                    onClick = onBackground,
+                    enabled = backgroundEnabled,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(18.dp),
+                ) {
+                    Icon(AppIcons.Photos, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (backgroundEnabled) "Mettre cette photo en fond" else "Fond : touchez UNE seule photo", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
             if (onNotThat != null) SoftButton("Ce n'est pas ça : retirer de la liste", onNotThat, enabled = count > 0)
@@ -247,13 +259,14 @@ fun BrowseScreen(
     background: File? = null,
     onPickBackground: () -> Unit = {},
     onRemoveBackground: () -> Unit = {},
+    onSetBackground: (File) -> Unit = {},
 ) {
     var askBackground by remember { mutableStateOf(false) }
     if (askBackground) {
         AlertDialog(
             onDismissRequest = { askBackground = false },
             title = { Text("Photo du haut de la page") },
-            text = { Text("Choisissez une de vos photos pour le fond de « Mes photos ». Seule une copie réduite est gardée dans l'appli : la photo d'origine ne bouge pas.") },
+            text = { Text("Pour choisir facilement : ouvrez un album, touchez « Choisir », touchez UNE photo, puis « Mettre cette photo en fond ». Ou choisissez-la ici dans le sélecteur du téléphone. Seule une copie réduite est gardée dans l'appli : la photo d'origine ne bouge pas.") },
             confirmButton = { TextButton(onClick = { askBackground = false; onPickBackground() }) { Text("Choisir une photo") } },
             dismissButton = {
                 Row {
@@ -417,6 +430,11 @@ fun BrowseScreen(
             onTrash = { confirm = MoveKind.TRASH },
             onVault = { confirm = MoveKind.VAULT },
             onRename = { onRename(selectedFolders, state.files.filter { it.absolutePath in selectedFiles }) },
+            onBackground = {
+                state.files.firstOrNull { it.absolutePath in selectedFiles }?.let(onSetBackground)
+                stopSelecting()
+            },
+            backgroundEnabled = selectedFolders.isEmpty() && selectedFiles.size == 1,
         )
         else tabs()
     }

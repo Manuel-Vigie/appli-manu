@@ -318,6 +318,11 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     background = fond,
                     onPickBackground = { pickFond.launch("image/*") },
                     onRemoveBackground = { Fond.remove(context); fondTick++ },
+                    onSetBackground = { file ->
+                        val ok = Fond.save(context, Uri.fromFile(file))
+                        fondTick++
+                        android.widget.Toast.makeText(context, if (ok) "Photo mise en fond de la page d'accueil." else "Impossible de mettre cette photo en fond.", android.widget.Toast.LENGTH_LONG).show()
+                    },
                 )
                 is UiState.Viewer -> ViewerScreen(
                     s,
