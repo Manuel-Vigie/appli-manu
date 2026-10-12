@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V59",
+  "version": "V60",
   "date": "12/10/2026",
   "nouveautes": [
+    "Photo ouverte en grand : la corbeille 🗑 est de nouveau bien visible (la barre du haut était trop pleine). Les autres actions sont dans le menu ⋮, où se trouve aussi « Mettre en fond de la page d'accueil ».",
     "Tout en haut de « Mes photos », la petite icône photo permet de choisir UNE photo comme fond (au lieu d'un fond vert). Elle peut être retirée à tout moment.",
     "Bouton ↻ (tourner la photo) corrigé : si le fichier refuse la rotation sans perte, l'image est tournée directement ; en cas d'échec, la raison s'affiche.",
-    "Photo ouverte en grand : un bouton ↻ en haut tourne la photo d'un quart de tour vers la droite (autant de fois qu'il faut). La photo reste dans son dossier avec sa date.",
-    "Renommer avec un mot (ex. « Ex ») range maintenant les photos dans le dossier « Journées / Ex », même si elles étaient dans un mois. Elles y restent ensuite quand vous touchez Ranger."
+    "Photo ouverte en grand : un bouton ↻ en haut tourne la photo d'un quart de tour vers la droite (autant de fois qu'il faut). La photo reste dans son dossier avec sa date."
   ],
   "pastille": false,
   "fichiers": []

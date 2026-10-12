@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -623,6 +624,7 @@ fun ViewerScreen(
     onMove: (MoveKind, File) -> Unit,
     onRename: (File, String) -> Unit,
     onRotate: (File) -> Unit = {},
+    onSetBackground: (File) -> Unit = {},
     categories: () -> List<String>,
     onSaveShortcut: (name: String, category: String, words: String) -> Unit,
     onRestoreFromVault: (File) -> Unit = {},
@@ -632,6 +634,7 @@ fun ViewerScreen(
     var confirm by remember { mutableStateOf<MoveKind?>(null) }
     var renaming by remember { mutableStateOf(false) }
     var shortcutDialog by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
     val pager = rememberPagerState(initialPage = state.index.coerceIn(0, (state.files.size - 1).coerceAtLeast(0))) { state.files.size }
     // Photo agrandie : le doigt fait glisser la photo au lieu de passer à la suivante.
     var zoomed by remember { mutableStateOf(false) }
@@ -703,21 +706,20 @@ fun ViewerScreen(
                     if (!PhotoFiles.isVideo(current)) IconButton(onClick = { onRotate(current) }) {
                         Icon(AppIcons.Rotate, contentDescription = "Tourner la photo", tint = Color.White)
                     }
-                    IconButton(onClick = { renaming = true }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Renommer", tint = Color.White)
-                    }
-                    // Étoile : créer un raccourci (une recherche enregistrée) d'après cette photo.
-                    IconButton(onClick = { shortcutDialog = true }) {
-                        Icon(Icons.Default.Star, contentDescription = "Créer un raccourci", tint = Color.White)
-                    }
-                    IconButton(onClick = { confirm = MoveKind.VAULT }) {
-                        Icon(AppIcons.Shield, contentDescription = "Mettre au coffre-fort", tint = Color.White)
-                    }
-                    IconButton(onClick = { confirm = MoveKind.ASIDE }) {
-                        Icon(Icons.Default.Lock, contentDescription = "Mettre à l'écart", tint = Color.White)
-                    }
                     IconButton(onClick = { confirm = MoveKind.TRASH }) {
                         Icon(Icons.Default.Delete, contentDescription = "Mettre à la corbeille", tint = Color.White)
+                    }
+                    Box {
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Plus d'actions", tint = Color.White)
+                        }
+                        androidx.compose.material3.DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            androidx.compose.material3.DropdownMenuItem(text = { Text("Renommer") }, onClick = { menuOpen = false; renaming = true })
+                            androidx.compose.material3.DropdownMenuItem(text = { Text("Créer un raccourci") }, onClick = { menuOpen = false; shortcutDialog = true })
+                            if (!PhotoFiles.isVideo(current)) androidx.compose.material3.DropdownMenuItem(text = { Text("Mettre en fond de la page d'accueil") }, onClick = { menuOpen = false; onSetBackground(current) })
+                            androidx.compose.material3.DropdownMenuItem(text = { Text("Mettre au coffre-fort") }, onClick = { menuOpen = false; confirm = MoveKind.VAULT })
+                            androidx.compose.material3.DropdownMenuItem(text = { Text("Mettre à l'écart") }, onClick = { menuOpen = false; confirm = MoveKind.ASIDE })
+                        }
                     }
                 }
             }

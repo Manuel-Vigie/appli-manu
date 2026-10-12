@@ -325,6 +325,11 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onMove = { kind, file -> viewModel.moveSelection(kind, emptySet(), listOf(file)) },
                     onRename = viewModel::renameFile,
                     onRotate = viewModel::rotateFile,
+                    onSetBackground = { file ->
+                        val ok = Fond.save(context, Uri.fromFile(file))
+                        fondTick++
+                        android.widget.Toast.makeText(context, if (ok) "Photo mise en fond de la page d'accueil." else "Impossible de mettre cette photo en fond.", android.widget.Toast.LENGTH_LONG).show()
+                    },
                     categories = viewModel::shortcutCategories,
                     onSaveShortcut = { name, category, words -> viewModel.saveShortcut(name, category, words, null) },
                     onRestoreFromVault = { file -> viewModel.restoreFromVaultFile(file) },
