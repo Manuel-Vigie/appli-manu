@@ -23,6 +23,8 @@ object DuplicateReview {
         onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
         /** Si fourni : les photos qui se RESSEMBLENT (même image réenregistrée ou redimensionnée) sont aussi regroupées. */
         similarity: ((File) -> ImageInfo?)? = null,
+        /** Mode « large » : aussi les prises de vue d'une même scène faites à moins de 90 secondes d'écart, même cadrées différemment. */
+        loose: Boolean = false,
     ): List<DupGroup> {
         // Deux fichiers de tailles différentes ne sont jamais identiques : on ne compare que ceux de même taille.
         val sameSize = files.filter { it.length() > 0 }.groupBy { it.length() }.values.filter { it.size > 1 }
@@ -41,11 +43,11 @@ object DuplicateReview {
             }
         }
         if (similarity == null) return groups.sortedBy { it.keep.name.lowercase() }
-        return merge(groups, files, root, similarity, onProgress).sortedBy { it.keep.name.lowercase() }
+        return merge(groups, files, root, similarity, onProgress, loose).sortedBy { it.keep.name.lowercase() }
     }
 
     /** Regroupe les copies exactes déjà trouvées et les photos qui se ressemblent (même image, enregistrée deux fois). */
-    private fun merge(exact: List<DupGroup>, files: List<File>, root: File, similarity: (File) -> ImageInfo?, onProgress: (Int, Int) -> Unit): List<DupGroup> {
+    private fun merge(exact: List<DupGroup>, files: List<File>, root: File, similarity: (File) -> ImageInfo?, onProgress: (Int, Int) -> Unit, loose: Boolean): List<DupGroup> {
         val parent = HashMap<File, File>()
         fun root(f: File): File { var x = f; while (parent[x] != null && parent[x] != x) x = parent[x]!!; return x }
         fun union(a: File, b: File) { val ra = root(a); val rb = root(b); if (ra != rb) parent[ra] = rb }
@@ -58,6 +60,17 @@ object DuplicateReview {
         }
         for (i in infos.indices) for (j in i + 1 until infos.size) {
             if (ImageHash.similar(infos[i].second, infos[j].second)) union(infos[i].first, infos[j].first)
+        }
+        if (loose) {
+            // Prises de vue rapprochées dans le temps (rafale, deux essais du même cadre) : tolérance plus grande, proportions libres.
+            val byTime = infos.sortedBy { it.first.lastModified() }
+            for (i in byTime.indices) {
+                var j = i + 1
+                while (j < byTime.size && byTime[j].first.lastModified() - byTime[i].first.lastModified() <= 90_000L) {
+                    if (ImageHash.similar(byTime[i].second, byTime[j].second, maxBits = 18, checkRatio = false)) union(byTime[i].first, byTime[j].first)
+                    j++
+                }
+            }
         }
         val clusters = LinkedHashMap<File, MutableList<File>>()
         val inGroup = HashSet<File>()

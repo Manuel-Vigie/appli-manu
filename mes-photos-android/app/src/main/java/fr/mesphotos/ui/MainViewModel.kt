@@ -1901,7 +1901,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // ---- Doublons ------------------------------------------------------------------------------
 
     /** Compare le contenu des fichiers de « Photos rangées » et montre les copies exactes, groupe par groupe. */
-    fun findDuplicates() {
+    fun findDuplicates() = runDuplicates(loose = false)
+
+    /** Comme « Doublons », mais aussi les photos prises à quelques secondes d'écart et presque pareilles (cadrage un peu différent). */
+    fun findSimilarPhotos() = runDuplicates(loose = true)
+
+    private fun runDuplicates(loose: Boolean) {
         val current = place ?: return
         viewModelScope.launch {
             try {
@@ -1913,6 +1918,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         all, current.outputDir,
                         onProgress = { done, total -> if (done % 20 == 0 || done == total) _state.value = UiState.Working("Comparaison des photos…", done, total) },
                         similarity = { cache.get(it) },
+                        loose = loose,
                     )
                     cache.save(all)
                     found

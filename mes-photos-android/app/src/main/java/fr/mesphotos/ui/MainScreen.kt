@@ -290,6 +290,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onStorage = { askStorage = true },
                         onQuickSort = viewModel::openQuickSort,
                         onDuplicates = viewModel::findDuplicates,
+                        onSimilar = viewModel::findSimilarPhotos,
                         onTakePhoto = { askLabel = true },
                         onCheckUpdate = { viewModel.checkUpdate(version) { updateTick++ } },
                         onDownload = { url ->
@@ -431,6 +432,7 @@ private fun HomeScreen(
     onStorage: () -> Unit,
     onQuickSort: () -> Unit,
     onDuplicates: () -> Unit,
+    onSimilar: () -> Unit,
     onTakePhoto: () -> Unit,
     onCheckUpdate: () -> Unit,
     onDownload: (String) -> Unit,
@@ -494,6 +496,7 @@ private fun HomeScreen(
                         "Doublons",
                         listOf(
                             Tool(AppIcons.Copy, "Doublons", "Comparer et garder une seule photo", onClick = onDuplicates),
+                            Tool(AppIcons.Photos, "Photos presque pareilles", "Prises à quelques secondes d'écart (cadrage un peu différent)", onClick = onSimilar),
                         ),
                     ),
                     ToolGroup(

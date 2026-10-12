@@ -71,11 +71,16 @@ object ImageHash {
 
     private fun gray(c: Int): Double = 0.299 * Color.red(c) + 0.587 * Color.green(c) + 0.114 * Color.blue(c)
 
-    /** Deux photos se ressemblent si leurs empreintes diffèrent de très peu de bits et si leurs proportions sont les mêmes. */
-    fun similar(a: ImageInfo, b: ImageInfo, maxBits: Int = 3): Boolean {
-        val ra = a.width.toDouble() / a.height
-        val rb = b.width.toDouble() / b.height
-        if (Math.abs(ra - rb) / ra > 0.03) return false
+    /**
+     * Deux photos se ressemblent si leurs empreintes diffèrent de très peu de bits et (par défaut) si leurs proportions sont les mêmes.
+     * Mode « large » ([checkRatio] faux, [maxBits] plus grand) : deux prises de vue d'une même scène, cadrées un peu différemment.
+     */
+    fun similar(a: ImageInfo, b: ImageInfo, maxBits: Int = 3, checkRatio: Boolean = true): Boolean {
+        if (checkRatio) {
+            val ra = a.width.toDouble() / a.height
+            val rb = b.width.toDouble() / b.height
+            if (Math.abs(ra - rb) / ra > 0.03) return false
+        }
         return java.lang.Long.bitCount(a.hash xor b.hash) <= maxBits
     }
 
