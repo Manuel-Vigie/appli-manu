@@ -55,6 +55,7 @@ fun AllPhotosScreen(
     onMove: (MoveKind, Set<String>, List<File>) -> Unit,
     onUndoMove: () -> Unit,
     onRename: (Set<String>, List<File>) -> Unit,
+    onDate: (Set<String>, List<File>) -> Unit = { _, _ -> },
     tabs: @Composable () -> Unit,
 ) {
     var selecting by remember(state) { mutableStateOf(false) }
@@ -157,6 +158,7 @@ fun AllPhotosScreen(
             onTrash = { confirm = MoveKind.TRASH },
             onVault = { confirm = MoveKind.VAULT },
             onRename = { onRename(emptySet(), state.results.filter { it.absolutePath in selected }) },
+            onDate = { onDate(emptySet(), state.results.filter { it.absolutePath in selected }) },
         )
         else tabs()
     }

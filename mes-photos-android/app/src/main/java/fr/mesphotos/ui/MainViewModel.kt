@@ -1852,6 +1852,64 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Met les photos/vidéos choisies à la date donnée : la date du fichier est changée et ils sont rangés dans le dossier de ce jour
+     * (« Journées / année / mois / jour », celui qui existe déjà s'il y en a un, avec sa ville).
+     */
+    fun redate(folderNames: Set<String>, files: List<File>, date: java.time.LocalDate) {
+        val current = place ?: return
+        val base = browsePath
+        val toDups = returnsToDups()
+        val toSearch = returnQuery()
+        viewModelScope.launch {
+            try {
+                _state.value = UiState.Working("Changement de date…", 0, 0)
+                val (done, failed) = withContext(Dispatchers.IO) {
+                    val parent = base.fold(current.outputDir) { acc, name -> File(acc, name) }
+                    val all = LinkedHashSet<File>(files)
+                    folderNames.forEach { name -> all += Gallery.media(File(parent, name)) }
+                    val monthDir = File(File(File(current.outputDir, Planner.PHOTOS), date.year.toString()), Planner.monthFolder(date))
+                    val dayDir = monthDir.listFiles { f -> f.isDirectory && f.name.startsWith(Planner.dayPrefix(date)) }?.minByOrNull { it.name }
+                        ?: File(monthDir, Planner.dayFolder(date, null))
+                    dayDir.mkdirs()
+                    val stamp = date.atTime(12, 0).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    var ok = 0
+                    var bad = 0
+                    val touched = ArrayList<String>()
+                    for ((i, f) in all.withIndex()) {
+                        if (!f.isFile) { bad++; continue }
+                        if (f.parentFile == dayDir) {
+                            if (f.setLastModified(stamp)) ok++ else bad++
+                        } else {
+                            val target = RenameNames.unique(dayDir, f.name)
+                            if (f.renameTo(target) && target.isFile && !f.exists()) {
+                                target.setLastModified(stamp)
+                                updateJournalPath(f, target)
+                                touched += f.absolutePath
+                                touched += target.absolutePath
+                                ok++
+                            } else bad++
+                        }
+                        if (i % 5 == 0) _state.value = UiState.Working("Changement de date…", i + 1, all.size)
+                    }
+                    if (touched.isNotEmpty()) MediaScannerConnection.scanFile(getApplication(), touched.toTypedArray(), null, null)
+                    ok to bad
+                }
+                searchIndex = null
+                val label = "%02d/%02d/%d".format(date.dayOfMonth, date.monthValue, date.year)
+                val message = (if (done == 0) "Rien n'a changé." else "${countText(done)} remis au $label.") +
+                    (if (failed > 0) "\n$failed fichier(s) n'ont pas pu être déplacés et sont restés en place." else "")
+                when {
+                    toDups -> showDupReview(message)
+                    toSearch != null -> showSearch(toSearch, message, 0)
+                    else -> showBrowse(base, message = message)
+                }
+            } catch (e: Exception) {
+                refresh("Une erreur est survenue : ${e.message ?: e.javaClass.simpleName}", isError = true)
+            }
+        }
+    }
+
     fun renameFile(file: File, typed: String) {
         viewModelScope.launch {
             val (target, message) = withContext(Dispatchers.IO) { doRename(file, typed) }

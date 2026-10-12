@@ -65,6 +65,12 @@ object Planner {
     /** Toutes les copies exactes vont dans un seul dossier, « Doublons », pour les comparer facilement. */
     fun duplicateFolder(@Suppress("UNUSED_PARAMETER") photo: PhotoInfo): List<String> = listOf(DUPLICATES)
 
+    /** « 10 - octobre » : le dossier du mois, comme le range « Ranger ». */
+    fun monthFolder(date: LocalDate): String = "%02d - %s".format(date.monthValue, MONTHS[date.monthValue - 1])
+
+    /** Début du nom d'un dossier de jour, sans la ville : « 10 octobre (sam) ». */
+    fun dayPrefix(date: LocalDate): String = "%02d %s (%s)".format(date.dayOfMonth, MONTHS[date.monthValue - 1], DAYS[date.dayOfWeek.value - 1])
+
     /** « 14 mars (sam) - Nice » : classé par date dans l'explorateur de fichiers, avec la ville si on la connaît. */
     fun dayFolder(date: LocalDate, town: String?): String {
         val label = "%02d %s (%s)".format(date.dayOfMonth, MONTHS[date.monthValue - 1], DAYS[date.dayOfWeek.value - 1])

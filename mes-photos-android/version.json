@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V73",
+  "version": "V74",
   "date": "12/10/2026",
   "nouveautes": [
+    "Nouveau bouton « Changer la date » (quand vous choisissez des photos ou vidéos) : vous donnez le vrai jour, l'appli corrige la date et les range dans le bon dossier de ce jour.",
     "« Photos presque pareilles » corrigé : il n'avait rien trouvé. Il compare maintenant les couleurs de la scène et l'heure réelle de la prise de vue (pas la date du fichier), jusqu'à 5 minutes d'écart. La 1re recherche est longue.",
     "Nouveau « Photos presque pareilles » (Outils) : retrouve les photos de la même scène prises à moins de 90 secondes d'écart, même si le cadrage change (comme vos deux photos du chien ou du plan du village). Vous vérifiez avant la corbeille.",
-    "Doublons : l'appli propose maintenant de garder la photo la plus nette et la mieux éclairée (puis la plus grande), pas la plus sombre. Vous pouvez toujours toucher une autre photo du groupe pour la garder à la place.",
-    "Doublons : l'outil retrouve maintenant aussi les photos qui se ressemblent (même image enregistrée deux fois, réduite ou renvoyée par WhatsApp), pas seulement les copies identiques. Vous vérifiez avant que quoi que ce soit parte à la corbeille. La 1re recherche est longue, les suivantes plus rapides."
+    "Doublons : l'appli propose maintenant de garder la photo la plus nette et la mieux éclairée (puis la plus grande), pas la plus sombre. Vous pouvez toujours toucher une autre photo du groupe pour la garder à la place."
   ],
   "pastille": false,
   "fichiers": []

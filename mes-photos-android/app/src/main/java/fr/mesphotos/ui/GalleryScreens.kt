@@ -41,6 +41,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
@@ -132,7 +133,7 @@ internal fun SelectionHeader(selectedCount: Int, allSelected: Boolean, onCancel:
 
 /** Barre du bas en mode « Choisir » : « À l'écart » (rangées à part) ou « Corbeille ». */
 @Composable
-internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNotThat: (() -> Unit)? = null, onVault: (() -> Unit)? = null, onRename: (() -> Unit)? = null, onBackground: (() -> Unit)? = null, backgroundEnabled: Boolean = false, onRenameFolder: (() -> Unit)? = null) {
+internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNotThat: (() -> Unit)? = null, onVault: (() -> Unit)? = null, onRename: (() -> Unit)? = null, onBackground: (() -> Unit)? = null, backgroundEnabled: Boolean = false, onRenameFolder: (() -> Unit)? = null, onDate: (() -> Unit)? = null) {
     Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp, tonalElevation = 2.dp) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).navigationBarsPadding(),
@@ -187,6 +188,18 @@ internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNot
                             Text("Mettre dans un raccourci", fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         }
                     }
+                }
+            }
+            if (onDate != null) {
+                FilledTonalButton(
+                    onClick = onDate,
+                    enabled = count > 0,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(18.dp),
+                ) {
+                    Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Changer la date", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
             if (onRenameFolder != null) {
@@ -261,6 +274,7 @@ fun BrowseScreen(
     onSearch: () -> Unit,
     onTakePhoto: () -> Unit,
     onRename: (Set<String>, List<File>) -> Unit,
+    onDate: (Set<String>, List<File>) -> Unit = { _, _ -> },
     onOpenAll: () -> Unit,
     onOpenVideos: () -> Unit,
     onOpenShortcut: (String) -> Unit,
@@ -444,6 +458,7 @@ fun BrowseScreen(
             onTrash = { confirm = MoveKind.TRASH },
             onVault = { confirm = MoveKind.VAULT },
             onRename = { onRename(selectedFolders, state.files.filter { it.absolutePath in selectedFiles }) },
+            onDate = { onDate(selectedFolders, state.files.filter { it.absolutePath in selectedFiles }) },
             onBackground = {
                 state.files.firstOrNull { it.absolutePath in selectedFiles }?.let(onSetBackground)
                 stopSelecting()

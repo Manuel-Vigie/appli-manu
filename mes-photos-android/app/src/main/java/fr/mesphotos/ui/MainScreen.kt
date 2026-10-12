@@ -120,6 +120,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
         if (uri != null) { Fond.save(context, uri); fondTick++ }
     }
     var renaming by remember { mutableStateOf<Pair<Set<String>, List<File>>?>(null) }
+    var redating by remember { mutableStateOf<Pair<Set<String>, List<File>>?>(null) }
 
     // Coffre-fort : on demande le verrouillage du téléphone (code, schéma, empreinte…) avant de l'ouvrir.
     val unlock = rememberLauncherForActivityResult(StartActivityForResult()) { result ->
@@ -258,6 +259,13 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                 onDismiss = { renamingFolder = null },
             )
         }
+        redating?.let { pending ->
+            DateDialog(
+                count = pending.second.size,
+                onConfirm = { d -> redating = null; viewModel.redate(pending.first, pending.second, d) },
+                onDismiss = { redating = null },
+            )
+        }
         renaming?.let { pending ->
             TagDialog(
                 title = "Dans quel raccourci mettre ces photos ?",
@@ -320,6 +328,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onSearch = viewModel::openSearch,
                     onTakePhoto = { askLabel = true },
                     onRename = { folders, files -> renaming = folders to files },
+                    onDate = { folders, files -> redating = folders to files },
                     onOpenAll = viewModel::openAllPhotos,
                     onOpenVideos = viewModel::openVideos,
                     onOpenShortcut = viewModel::openShortcut,
@@ -377,6 +386,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onMove = viewModel::moveSelection,
                     onUndoMove = viewModel::undoMove,
                     onRename = { folders, files -> renaming = folders to files },
+                    onDate = { folders, files -> redating = folders to files },
                 ) else SearchScreen(
                     s,
                     tabs = tabs(0),
@@ -386,6 +396,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onMove = viewModel::moveSelection,
                     onUndoMove = viewModel::undoMove,
                     onRename = { folders, files -> renaming = folders to files },
+                    onDate = { folders, files -> redating = folders to files },
                 )
                 is UiState.TrashView -> TrashScreen(
                     s,
