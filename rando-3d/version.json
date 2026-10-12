@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V88",
+  "version": "V89",
   "date": "12/10/2026",
   "nouveautes": [
+    "Rapport rando plus simple pour tout le monde : un résumé « En bref », des dessins qui montrent ce que représente une pente (3 %, 8 %, 12 %, 20 %, 32 %), des mots clairs à la place du jargon (D+, km-effort, tronçon), la montée comparée à des étages d'immeuble. Accueil : un petit espace sous « Importer ma trace ».",
     "Page d'accueil : le bouton « Ouvrir un lien (Suunto…) » est maintenant juste sous « Importer ma trace ».",
     "Nouveau bouton « 🔗 Ouvrir un lien » (page Mes randos) : colle un lien Suunto ou un lien de fichier GPX/FIT et la trace s'ouvre directement, sans rien télécharger ni convertir.",
-    "Rapport rando : nouveau bouton « 📄 PDF par mail ». Il fabrique un vrai PDF (pages A4 avec la carte) et ouvre le partage du téléphone : choisis Gmail et le PDF est déjà en pièce jointe.",
-    "Rapport rando, carte : le parcours est de nouveau tout en rouge, et de petits carrés verts avec une tente marquent les endroits plats (à moins de 50 m du chemin) où l'on pourrait poser la tente."
+    "Rapport rando : nouveau bouton « 📄 PDF par mail ». Il fabrique un vrai PDF (pages A4 avec la carte) et ouvre le partage du téléphone : choisis Gmail et le PDF est déjà en pièce jointe."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v88"
+    "cache": "rr3d-v89"
   },
   "fichiers": [
     "rando-3d.html",

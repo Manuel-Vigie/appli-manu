@@ -131,6 +131,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
 .w-p{margin:0 0 14px;font-size:16px;line-height:1.45;color:#2d4a58}
 .w-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:0 0 18px;padding:0;list-style:none}
 .w-chips li{font-size:12.5px;font-weight:600;color:#1d5a8c;background:#e3f0fb;border-radius:99px;padding:4px 10px}
+.w-btn#wLink{margin-top:14px}
 .w-btn{display:flex;width:100%;align-items:center;justify-content:center;gap:10px;min-height:52px;border-radius:12px;border:1.5px solid #bcd3e2;background:#fff;color:#14303f;font:600 16px var(--body);cursor:pointer}
 .w-btn svg{width:20px;height:20px;flex:none}
 .w-btn.primary{min-height:58px;background:#d7392a;border-color:transparent;color:#fff;font-size:18px;box-shadow:0 8px 20px -6px rgba(215,57,42,.6)}
@@ -2931,6 +2932,26 @@ let reportStart='08:00',reportEnd='17:30',reportNights=null;try{const a=localSto
 const hmMin=t=>{const m=/^(\d\d):(\d\d)$/.exec(t||'');return m?(+m[1])*60+(+m[2]):0},minHM=m=>{m=Math.round(((m%1440)+1440)%1440);return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};
 let reportBiv={},reportPauseMin=null,reportSpeed=null,reportPause=.2;try{const v=parseFloat(localStorage.getItem('rr3d-reportspeed'));if(v>=.5&&v<=8)reportSpeed=v;const q=parseFloat(localStorage.getItem('rr3d-reportpause'));if(q>=.05&&q<=.4)reportPause=q}catch(_){}
 let reportMode='trek';try{const m=localStorage.getItem('rr3d-reportmode');if(REPORT_MODES[m])reportMode=m}catch(_){}
+/* ---------- Pentes expliquées simplement : mots, angle, dessin ---------- */
+const SLOPE_WORDS=[
+ {n:'Presque plat',say:'on marche comme sur du plat, sans y penser',like:'comme un trottoir à peine incliné'},
+ {n:'Pente douce',say:'on la sent un peu, le souffle monte légèrement',like:'comme une rampe d’accès pour fauteuil roulant'},
+ {n:'Pente soutenue',say:'on ralentit et on raccourcit le pas',like:'comme une rue en pente dans une ville de colline'},
+ {n:'Pente raide',say:'le souffle est court, on s’arrête souvent ; en descente, les genoux travaillent',like:'à peu près comme la rampe d’un parking souterrain'},
+ {n:'Pente très raide',say:'on avance lentement, parfois en s’aidant des mains ; en descente, prudence',like:'deux fois moins raide qu’un escalier, mais sur un sol irrégulier'}];
+const slopeWords=p=>SLOPE_WORDS[slopeClass(Math.abs(p))];
+const slopeDeg=p=>Math.round(Math.atan(Math.abs(p)/100)*180/Math.PI);
+const floorsOf=m=>Math.max(1,Math.round(m/3));   // un étage d'immeuble ≈ 3 m
+// dessin : un marcheur sur une pente de p %, avec « 100 m parcourus » et « p m de montée »
+function slopePic(p,w){
+  const a=Math.min(Math.abs(p),55),col=SLOPE_CLS[slopeClass(Math.abs(p))].col,up=p>=0,th=Math.atan(a/100)*180/Math.PI;
+  const x0=10,x1=110,yb=64,rise=(x1-x0)*a/100,yt=yb-rise,hx=62,hy=yb-(hx-x0)*a/100;
+  const ground=up?`M${x0},${yb}L${x1},${yb}L${x1},${yt.toFixed(1)}Z`:`M${x0},${yb}L${x1},${yb}L${x0},${yt.toFixed(1)}Z`;
+  const sx=up?hx:x1+x0-hx,sy=hy,lean=(up?1:-1)*th*.6,fl=up?1:-1;
+  const lab=Math.round(Math.abs(p));
+  const hiker=`<g transform="translate(${sx.toFixed(1)},${sy.toFixed(1)}) rotate(${lean.toFixed(1)}) scale(1.35)"><line x1="0" y1="-8" x2="0" y2="-19" stroke="#1d2b2d" stroke-width="2.4" stroke-linecap="round"/><circle cx="0" cy="-23" r="3.3" fill="#1d2b2d"/><line x1="0" y1="-8" x2="${-3*fl}" y2="0" stroke="#1d2b2d" stroke-width="2.4" stroke-linecap="round"/><line x1="0" y1="-8" x2="${3.5*fl}" y2="-1" stroke="#1d2b2d" stroke-width="2.4" stroke-linecap="round"/><line x1="0" y1="-17" x2="${6*fl}" y2="-12" stroke="#1d2b2d" stroke-width="2" stroke-linecap="round"/><rect x="${fl>0?-6:2}" y="-19" width="4.5" height="9" rx="1.5" fill="${col}"/></g>`;
+  return `<svg class="rp-sp" viewBox="0 0 120 84" width="${w}" role="img" aria-label="Dessin d’une pente de ${lab} % : ${lab} m de montée pour 100 m parcourus"><path d="${ground}" fill="${col}" fill-opacity=".28" stroke="${col}" stroke-width="2" stroke-linejoin="round"/><line x1="${x0}" y1="${yb}" x2="${x1}" y2="${yb}" stroke="#1d2b2d" stroke-width="1" stroke-dasharray="3 3"/><text x="${(x0+x1)/2}" y="76" text-anchor="middle" font-size="8.5" fill="#5b6b6c">100 m à plat</text><text x="${up?x1-2:x0+2}" y="${Math.max(10,(yt+yb)/2).toFixed(1)}" text-anchor="${up?'end':'start'}" font-size="8.5" font-weight="700" fill="#1d2b2d">${up?'':'↓ '}${lab} m</text>${hiker}</svg>`;
+}
 function beginnerData(D){
   const tr=D.tr,km=tr.total/1000,up=tr.up[tr.N-1],down=tr.down[tr.N-1],kmE=km+up/100;
   const steep=(D.byCls[3]+D.byCls[4])/tr.total*100;
@@ -2965,11 +2986,11 @@ function beginnerData(D){
   const avg=km/tot,pauseH=tot-walk;   // réglé sur l'expérience de Manuel : 1,5 à 1,8 km/h de moyenne, pauses comprises, sur une rando à fort dénivelé (≈ 2,65 km-effort par heure)
   const hm=x=>{const m=Math.round(x*60/5)*5;return Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')};
   const lines=[];
-  lines.push(`Tu marches <b>${fmtKm(tr.total)} km</b> en montant au total <b>${nf0.format(up)} m</b> et en redescendant <b>${nf0.format(down)} m</b>. ${up<150?'C’est presque plat.':up<400?'Le relief reste modéré.':up<800?'Il y a de vraies montées : prévois de souffler.':'Le dénivelé est important : l’effort se répartit sur toute la journée.'}`);
+  lines.push(`Tu marches <b>${fmtKm(tr.total)} km</b>. En tout, tu montes de <b>${nf0.format(up)} m</b> (comme ${nf0.format(floorsOf(up))} étages d’immeuble) et tu redescends de <b>${nf0.format(down)} m</b>. ${up<150?'C’est presque plat.':up<400?'Le relief reste modéré.':up<800?'Il y a de vraies montées : prévois de souffler.':'Le dénivelé est important : l’effort se répartit sur toute la journée.'}`);
   lines.push(`Le point le plus haut est à <b>${nf0.format(tr.eMax)} m</b>, le plus bas à <b>${nf0.format(tr.eMin)} m</b>${tr.eMax-tr.eMin>=1000?' : l’air est plus frais en altitude.':'.'}`);
-  if(D.steepUp)lines.push(`Le passage le plus dur en montée : <b>km ${fmtKm(tr.rd[D.steepUp.i0])} → ${fmtKm(tr.rd[D.steepUp.i1])}</b> (pente moyenne ${Math.round(D.steepUp.avg)} %). Prends ton temps, de petits pas.`);
-  if(D.steepDown&&D.steepDown.avg<=-12)lines.push(`En descente, attention au <b>km ${fmtKm(tr.rd[D.steepDown.i0])} → ${fmtKm(tr.rd[D.steepDown.i1])}</b> (pente −${Math.abs(Math.round(D.steepDown.avg))} %) : ça glisse et ça fatigue les genoux, les bâtons aident.`);
-  lines.push(steep<3?'Presque aucun passage raide.':`Environ <b>${Math.round(steep)} %</b> du chemin est raide (pente de plus de 15 %).`);
+  if(D.steepUp)lines.push(`Le passage le plus dur en montée : <b>km ${fmtKm(tr.rd[D.steepUp.i0])} → ${fmtKm(tr.rd[D.steepUp.i1])}</b> (${Math.round(D.steepUp.avg)} m de montée tous les 100 m : <b>${slopeWords(D.steepUp.avg).n.toLowerCase()}</b>). Prends ton temps, de petits pas.`);
+  if(D.steepDown&&D.steepDown.avg<=-12)lines.push(`En descente, attention au <b>km ${fmtKm(tr.rd[D.steepDown.i0])} → ${fmtKm(tr.rd[D.steepDown.i1])}</b> (${Math.abs(Math.round(D.steepDown.avg))} m de descente tous les 100 m) : ça glisse et ça fatigue les genoux, les bâtons aident.`);
+  lines.push(steep<3?'Presque aucun passage raide.':`Environ <b>${Math.round(steep)} %</b> du chemin est raide (plus de 15 m de montée tous les 100 m, voir les dessins plus bas).`);
   const gear=['Chaussures de marche qui tiennent la cheville','Eau : '+(tot>5?'2 litres':tot>3?'1,5 litre':'1 litre')+' par personne','Collations (fruits secs, barres)','Veste coupe-vent / pluie','Casquette et crème solaire','Téléphone chargé + batterie externe'];
   if(up>500)gear.push('Bâtons de marche (très utiles en descente)');
   if(reportMode!=='day')gear.push('Tente, duvet, matelas et réchaud pour les nuits en autonomie','Nourriture pour tous les jours + de quoi purifier l’eau','Sac bien réglé : le poids sur les hanches, pas sur les épaules');
@@ -2990,10 +3011,10 @@ function beginnerHTML(D){
    <p class="rp-modetxt">Calculé pour : <b>${B.MD.n}</b> (${B.MD.s}).</p>
    <div class="rp-diff" style="--c:${B.L.col}"><div class="rp-dl">Difficulté</div><b>${B.L.n}</b><div class="rp-dm"><i style="width:${(B.lv+1)*20}%"></i></div><p>${B.L.t}</p></div>
    <div class="rp-est"><div><span>Durée totale</span><b>${B.tot}</b><small>moyenne ${nf1.format(B.avg)} km/h</small></div><div><span>Marche</span><b>${B.walk}</b><small>${nf1.format(B.walkSpeed)} km/h</small></div><div><span>Pauses</span><b>${B.pause}</b><small>repas, photos, souffle</small></div></div>
-   <p class="rp-note" style="margin-top:8px">${reportSpeed?`Estimation avec ta vitesse moyenne de ${nf1.format(reportSpeed)} km/h (pauses comprises) : ${fmtKm(D.tr.total)} km ÷ ${nf1.format(reportSpeed)} km/h.`:`Estimation avec le km-effort : environ ${nf1.format(B.MD.r)} km-effort par heure, pauses comprises (${B.MD.n.toLowerCase()}, ${B.MD.s}). Avec un sac d’environ 12 kg et beaucoup de dénivelé, la moyenne tombe vers 1,5 à 1,8 km/h.`} Les pauses (repas, photos, souffle) sont comptées dans le total. Les heures de passage ci-dessous suivent la même estimation.</p>
+   <p class="rp-note" style="margin-top:8px">${reportSpeed?`Estimation avec ta vitesse moyenne de ${nf1.format(reportSpeed)} km/h, pauses comprises : ${fmtKm(D.tr.total)} km ÷ ${nf1.format(reportSpeed)} km/h.`:`Comment c’est calculé : une montée fatigue plus que le plat, donc on compte 1 km de plus pour chaque 100 m de montée. On obtient ici l’équivalent de ${nf1.format(B.kmE)} km à plat, qu’on divise par la vitesse d’un marcheur de type « ${B.MD.n.toLowerCase()} » (environ ${nf1.format(B.MD.r)} km à plat par heure, pauses comprises). Avec un sac d’environ 12 kg et beaucoup de montée, la moyenne réelle tombe vers 1,5 à 1,8 km/h.`} Les pauses (repas, photos, souffle) sont déjà dans le total. Les heures de passage plus bas suivent la même estimation.</p>
    ${(()=>{const P=B.plan,tr=D.tr,fk=v=>fmtKm(v*1000);
      const head=P.trek?`<h3>Jour par jour</h3><p class="rp-note">${P.nights===0?'Une seule journée : pas de nuit dehors.':`${P.days} jours et ${P.nights} nuit${P.nights>1?'s':''}.`} Départ ${reportStart} chaque matin, ${P.custom?'journées calculées selon tes bivouacs':'temps réparti de façon égale entre les jours'} (pauses comprises).${P.over?` <b>Attention : la journée la plus longue dure ${fmtDur(P.maxH*3600000)}, plus que ta fenêtre de ${fmtDur(P.win*3600000)} (${reportStart} → ${reportEnd}). Ajoute une nuit ou raccourcis les pauses.</b>`:''}</p>`:`<h3>Horaires</h3><p class="rp-note">Départ ${reportStart} · arrivée vers ${P.rows[0].t1}.</p>`;
-     const rows=P.trek?P.rows.map(r=>`<div class="rp-day"><b>Jour ${r.k}</b><span>${r.t0} → ${r.t1}</span><span>km ${fk(r.from)} → ${fk(r.to)} · ${fmtKm(r.km*1000)} km</span><span>↗ +${nf0.format(Math.round(r.up))} m · ↘ −${nf0.format(Math.round(r.down))} m</span><span>${r.k<P.days?'Bivouac':'Arrivée'} vers ${nf0.format(Math.round(r.alt))} m${r.place?` · près de ${escH(r.place)}`:''}${r.water&&r.k<P.days?` · eau : ${escH(r.water)}`:''}</span></div>`).join(''):'';
+     const rows=P.trek?P.rows.map(r=>`<div class="rp-day"><b>Jour ${r.k}</b><span>${r.t0} → ${r.t1}</span><span>km ${fk(r.from)} → ${fk(r.to)} · ${fmtKm(r.km*1000)} km</span><span>↗ monte de ${nf0.format(Math.round(r.up))} m · ↘ descend de ${nf0.format(Math.round(r.down))} m</span><span>${r.k<P.days?'Bivouac':'Arrivée'} vers ${nf0.format(Math.round(r.alt))} m${r.place?` · près de ${escH(r.place)}`:''}${r.water&&r.k<P.days?` · eau : ${escH(r.water)}`:''}</span></div>`).join(''):'';
      const biv=P.trek&&P.days>1?`<div class="rp-modesel rp-bivs"><span>Placer les bivouacs (km) :</span>${P.rows.slice(0,-1).map(r=>`<label>N${r.k} <input type="number" data-biv="${r.k}" min="0" step="0.1" inputmode="decimal" value="${reportBiv[r.k]!=null?reportBiv[r.k]:''}" placeholder="${(r.to).toFixed(1)}" aria-label="Kilomètre du bivouac ${r.k}"></label>`).join('')}${P.custom?'<button type="button" data-bivreset="1">Remettre automatique</button>':''}</div><div class="rp-modesel"><span>Astuce : touche la carte pour déplacer le bivouac le plus proche.</span></div>`:(P.trek?`<div class="rp-modesel"><span>Astuce : touche la carte pour placer un bivouac (ça ajoute une nuit).</span></div>`:'');
      return head+(rows?`<div class="rp-days">${rows}</div>`:'')+biv})()}
    <h3>Ce qui t’attend</h3><ul class="rp-ul">${B.lines.map(l=>`<li>${l}</li>`).join('')}</ul>
@@ -3002,7 +3023,7 @@ function beginnerHTML(D){
 }
 function reportShareText(D){
   const B=beginnerData(D),tr=D.tr,pl=D.places.slice(0,6).map(p=>p.name).join(', ');
-  return `🥾 ${tr.name}\nDistance : ${fmtKm(tr.total)} km\nDénivelé : +${nf0.format(B.up)} m / −${nf0.format(B.down)} m\nAltitude : ${nf0.format(tr.eMin)} à ${nf0.format(tr.eMax)} m\nDifficulté : ${B.L.n}\n${isRecorded(tr)?`Durée : ${fmtDur(tr.time[tr.N-1])}`:`Sortie : ${B.MD.n} (${B.MD.s})\nDurée estimée : ${B.tot} (marche ${B.walk} + pauses ${B.pause}, moyenne ${nf1.format(B.avg)} km/h)`}\n`+(isRecorded(tr)||!B.plan.trek||B.plan.days<2?(isRecorded(tr)?'':`Départ ${reportStart}, arrivée vers ${B.plan.rows[B.plan.rows.length-1].t1}\n`):B.plan.rows.map(r=>`Jour ${r.k} : ${r.t0} → ${r.t1}, ${fmtKm(r.km*1000)} km, +${nf0.format(Math.round(r.up))} m${r.k<B.plan.days?', bivouac vers '+nf0.format(Math.round(r.alt))+' m':''}\n`).join(''))+(pl?`On passe par : ${pl}\n`:'')+(D.steepUp?`Montée la plus raide : km ${fmtKm(tr.rd[D.steepUp.i0])} → ${fmtKm(tr.rd[D.steepUp.i1])} (${Math.round(D.steepUp.avg)} %)\n`:'')+`À prévoir : bonnes chaussures, eau, collation, veste de pluie.`;
+  return `🥾 ${tr.name}\nDistance : ${fmtKm(tr.total)} km\nMontées : ${nf0.format(B.up)} m (≈ ${nf0.format(floorsOf(B.up))} étages) · descentes : ${nf0.format(B.down)} m\nAltitude : ${nf0.format(tr.eMin)} à ${nf0.format(tr.eMax)} m\nDifficulté : ${B.L.n}\n${isRecorded(tr)?`Durée : ${fmtDur(tr.time[tr.N-1])}`:`Sortie : ${B.MD.n} (${B.MD.s})\nDurée estimée : ${B.tot} (marche ${B.walk} + pauses ${B.pause}, moyenne ${nf1.format(B.avg)} km/h)`}\n`+(isRecorded(tr)||!B.plan.trek||B.plan.days<2?(isRecorded(tr)?'':`Départ ${reportStart}, arrivée vers ${B.plan.rows[B.plan.rows.length-1].t1}\n`):B.plan.rows.map(r=>`Jour ${r.k} : ${r.t0} → ${r.t1}, ${fmtKm(r.km*1000)} km, +${nf0.format(Math.round(r.up))} m${r.k<B.plan.days?', bivouac vers '+nf0.format(Math.round(r.alt))+' m':''}\n`).join(''))+(pl?`On passe par : ${pl}\n`:'')+(D.steepUp?`Montée la plus raide : km ${fmtKm(tr.rd[D.steepUp.i0])} → ${fmtKm(tr.rd[D.steepUp.i1])} (${Math.round(D.steepUp.avg)} m de montée tous les 100 m)\n`:'')+`À prévoir : bonnes chaussures, eau, collation, veste de pluie.`;
 }
 // ---- carte IGN pour le rapport (image faite avec les tuiles IGN + le parcours) ----
 const RMAP_LAYERS=[
@@ -3144,21 +3165,21 @@ function reportHTML(D,wx){
   const kmE=tr.total/1000+tr.up[tr.N-1]/100;
   const date=D.timed?new Date(D.t0).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'';
   const pc=v=>{const r=Math.round(v);return `${r>0?'↗ +':r<0?'↘ −':'→ '}${Math.abs(r)} %`};
-  const chip=s=>`<span class="rp-chip" style="background:${SLOPE_CLS[s.cls].col}">${pc(s.avg)}</span>`;
-  const kpi=(l,v,u)=>`<div class="rp-kpi"><span>${l}</span><b>${v}${u?`<small>${u}</small>`:''}</b></div>`;
+  const chip=s=>`<span class="rp-chip" style="background:${SLOPE_CLS[s.cls].col}">${slopeWords(s.avg).n} · ${pc(s.avg)}</span>`;
+  const kpi=(l,v,u,em)=>`<div class="rp-kpi"><span>${l}</span><b>${v}${u?`<small>${u}</small>`:''}</b>${em?`<em>${em}</em>`:''}</div>`;
   const mDist=m=>m>=1000?`${fmtKm(m)} km`:`${nf0.format(Math.round(m/10)*10)} m`;
   const hi=(t,s,kind)=>{if(!s)return '';
     const a=tr.rd[s.i0],b=tr.rd[s.i1],len=b-a,e0=tr.se[s.i0],e1=tr.se[s.i1],avg=(e1-e0)/Math.max(1,len)*100,r=Math.round(avg);
-    const txt=kind==='long'?`Du km ${fmtKm(a)} au km ${fmtKm(b)}, tu montes pendant <b>${mDist(len)}</b> : <b>+${nf0.format(e1-e0)} m</b> de dénivelé, de ${nf0.format(e0)} à ${nf0.format(e1)} m, avec une pente moyenne de <b>${r>0?'+':''}${r} %</b>.`
-      :`Entre le km ${fmtKm(a)} et le km ${fmtKm(b)}, sur <b>${mDist(len)}</b>, la pente moyenne est de <b>${r>0?'+':'−'}${Math.abs(r)} %</b> (de ${nf0.format(e0)} à ${nf0.format(e1)} m${D.timed?`, vers ${clock(tr.time[s.i0])}`:''}).`;
-    return `<div class="rp-hl"><span class="rp-dot" style="background:${SLOPE_CLS[slopeClass(avg)].col}"></span><div><b>${t}</b><br>${txt}</div></div>`};
+    const txt=kind==='long'?`Du km ${fmtKm(a)} au km ${fmtKm(b)}, tu montes pendant <b>${mDist(len)}</b> : <b>+${nf0.format(e1-e0)} m</b> de dénivelé, de ${nf0.format(e0)} à ${nf0.format(e1)} m, soit <b>${Math.abs(r)} m tous les 100 m</b> en moyenne.`
+      :`Entre le km ${fmtKm(a)} et le km ${fmtKm(b)}, sur <b>${mDist(len)}</b>, ${r>0?'tu montes':'tu descends'} de <b>${Math.abs(r)} m tous les 100 m</b> : <b>${slopeWords(avg).n.toLowerCase()}</b> (de ${nf0.format(e0)} à ${nf0.format(e1)} m${D.timed?`, vers ${clock(tr.time[s.i0])}`:''}).`;
+    return `<div class="rp-hl">${slopePic(avg,92)}<div><b>${t}</b><br>${txt}<br><small>${slopeWords(avg).say}.</small></div></div>`};
   const dist=D.byCls.map((m,i)=>m>0?`<i style="flex:${m};background:${SLOPE_CLS[i].col}" title="${SLOPE_CLS[i].lbl}"></i>`:'').join('');
   const TN=['Presque plat','Pente douce','Pente soutenue','Pente raide','Pente très raide'],TR=['moins de 5 %','5 à 10 %','10 à 15 %','15 à 25 %','plus de 25 %'];
   const legend=D.byCls.map((m,i)=>m>0?`<div class="rp-ter"><i style="background:${SLOPE_CLS[i].col}"></i><span>${TN[i]} <small>(${TR[i]})</small></span><b>${fmtKm(m)} km</b><em>${nf0.format(m/tr.total*100)} % du parcours</em></div>`:'').join('');
   const rows=D.segs.map((s,j)=>`<div class="rp-row" style="--c:${SLOPE_CLS[s.cls].col}">
       <div class="rp-n">${j+1}</div>
       <div class="rp-main"><div class="rp-l1"><b>km ${fmtKm(tr.rd[s.i0])} → ${fmtKm(tr.rd[s.i1])}</b><span>${fmtKm(s.len)} km</span>${chip(s)}</div>
-      <div class="rp-l2"><span>${nf0.format(tr.se[s.i0])} → ${nf0.format(tr.se[s.i1])} m</span><span>D+ ${nf0.format(s.up)} · D− ${nf0.format(s.down)} m</span>${Math.abs(s.max)>=Math.abs(s.avg)+4?`<span>pointe ${pc(s.max)}</span>`:''}<span>${fmtDur(s.dt*ts)}${D.timed?` · passage ${clock(tr.time[s.i0])}`:''}</span></div>
+      <div class="rp-l2"><span>${nf0.format(tr.se[s.i0])} → ${nf0.format(tr.se[s.i1])} m</span><span>monte de ${nf0.format(s.up)} m · descend de ${nf0.format(s.down)} m</span>${Math.abs(s.max)>=Math.abs(s.avg)+4?`<span>passage le plus raide : ${pc(s.max)}</span>`:''}<span>${fmtDur(s.dt*ts)}${D.timed?` · passage ${clock(tr.time[s.i0])}`:''}</span></div>
       <div class="rp-bar"><i style="width:${Math.max(3,s.len/Math.max(...D.segs.map(x=>x.len))*100).toFixed(1)}%"></i></div></div></div>`).join('');
   const A0=areaFor(tr),[sLat,sLon]=A0.ll(tr.rx[0],tr.rz[0]),[eLat,eLon]=A0.ll(tr.rx[tr.N-1],tr.rz[tr.N-1]);
   const coord=(la,lo)=>`${Math.abs(la).toFixed(5)}° ${la>=0?'N':'S'}, ${Math.abs(lo).toFixed(5)}° ${lo>=0?'E':'O'}`;
@@ -3175,58 +3196,56 @@ function reportHTML(D,wx){
   <div class="rp-modesel rp-names"><span>Nom du départ :</span><input type="text" data-nms maxlength="40" value="${escH(NM.s||'')}" placeholder="${escH(D.startName||'auto')}" aria-label="Nom du départ">${loopEnd?'':`<span>arrivée :</span><input type="text" data-nme maxlength="40" value="${escH(NM.e||'')}" placeholder="${escH(D.endName||'auto')}" aria-label="Nom de l\'arrivée">`}${(()=>{const g=(tr.name||'').split(/\s*[,·\-–—]\s*|\s+et\s+/i)[0].trim();return g&&g.length>2&&g.length<30&&g!==(NM.s||D.startName)&&(tr.name||'').length>g.length?`<button type="button" data-nmsug="${escH(g)}">Utiliser « ${escH(g)} » (titre)</button>`:''})()}</div>
   ${(()=>{const C=lastReport&&lastReport.D===D?lastReport.cands:null;if(!C)return '';const bt=(k,L)=>L.map(c=>`<button type="button" data-nmpick="${k}" data-name="${escH(c.name)}">${escH(c.name)} <small>${c.src}</small></button>`).join('');const hs=bt('s',C.s),he=loopEnd?'':bt('e',C.e);return hs||he?`<div class="rp-modesel rp-cands">${hs?`<span>Départ, selon les cartes :</span>${hs}`:''}${he?`<span>Arrivée :</span>${he}`:''}</div>`:''})()}
   <section class="rp-ends">${ends}</section>
-  <p class="rp-note" style="margin-top:10px">Toutes les explications des chiffres sont détaillées en bas de la fiche, dans <a href="#rpGuide" class="rp-link">« Comment lire cette fiche »</a>.</p>
-  <section class="rp-kpis">${kpi('Distance',fmtKm(tr.total),'km')}${kpi('Dénivelé +',nf0.format(tr.up[tr.N-1]),'m')}${kpi('Dénivelé −',nf0.format(tr.down[tr.N-1]),'m')}${kpi(tr.planned||!tr.hasTime?'Durée estimée':'Durée',fmtDur(tot*ts),'')}${D.timed?kpi('Arrivée',clock(tot),''):''}${kpi('Altitude max',nf0.format(tr.eMax),'m')}<div class="rp-kpi"><span>km-effort</span><b>${nf1.format(kmE)}<small>km</small></b><em>${fmtKm(tr.total)} km de rando = ${nf1.format(kmE)} km à plat</em></div></section>
+  <p class="rp-note" style="margin-top:10px">Un doute sur un mot ou un chiffre ? Tout est expliqué en bas de la fiche, dans <a href="#rpGuide" class="rp-link">« Comment lire cette fiche »</a>.</p>
+  <section class="rp-kpis">${kpi('Distance',fmtKm(tr.total),'km')}${kpi('Total des montées',nf0.format(tr.up[tr.N-1]),'m',`≈ ${nf0.format(floorsOf(tr.up[tr.N-1]))} étages d’immeuble`)}${kpi('Total des descentes',nf0.format(tr.down[tr.N-1]),'m')}${kpi(tr.planned||!tr.hasTime?'Durée estimée':'Durée',fmtDur(tot*ts),'')}${D.timed?kpi('Arrivée',clock(tot),''):''}${kpi('Point le plus haut',nf0.format(tr.eMax),'m','au-dessus de la mer')}<div class="rp-kpi"><span>Équivalent à plat</span><b>${nf1.format(kmE)}<small>km</small></b><em>${fmtKm(tr.total)} km avec la montée fatiguent comme ${nf1.format(kmE)} km sur du plat</em></div></section>
+  ${(()=>{const up=tr.up[tr.N-1],dn=tr.down[tr.N-1],t=fmtDur(tot*ts);
+    const li=[`<li><b>Longueur :</b> ${fmtKm(tr.total)} km à pied${loopEnd?', en boucle (tu reviens à ton point de départ)':''}.</li>`,
+     B0?`<li><b>Durée :</b> environ ${B0.tot}, pauses comprises.</li><li><b>Difficulté :</b> ${B0.L.n}. ${B0.L.t}</li>`:`<li><b>Durée :</b> ${t}.</li>`,
+     `<li><b>Montées :</b> en tout tu montes de ${nf0.format(up)} m, comme ${nf0.format(floorsOf(up))} étages d’immeuble${dn>up*.7?` ; tu redescends de ${nf0.format(dn)} m`:''}.</li>`,
+     D.steepUp?`<li><b>Passage le plus dur :</b> du km ${fmtKm(tr.rd[D.steepUp.i0])} au km ${fmtKm(tr.rd[D.steepUp.i1])} (${slopeWords(D.steepUp.avg).n.toLowerCase()}).</li>`:''].filter(Boolean).join('');
+    return `<section class="rp-brief"><h2>En bref</h2><ul>${li}</ul></section>`})()}
   ${reportMapHTML(D,B0)}
   ${beginnerHTML(D)}
-  <section><h2>Profil et pentes</h2><p class="rp-note">Le dessin montre l'altitude (à gauche) selon la distance parcourue (en bas). Chaque bande de couleur est un tronçon ; le chiffre blanc est sa pente moyenne. Les ronds blancs marquent les lieux nommés sur ton chemin.</p>${reportProfileSVG(D)}
-   <h3 class="rp-h3">Répartition du terrain</h3><p class="rp-note">Sur tes ${fmtKm(tr.total)} km, combien de kilomètres sont plats, en pente douce ou raides. La barre colorée est le parcours entier mis bout à bout : plus une couleur est large, plus il y a de kilomètres de ce type. La pente en % = mètres montés ou descendus pour 100 m parcourus.</p><div class="rp-dist">${dist}</div><div class="rp-ters">${legend}</div></section>
-  <section><h2>À retenir</h2><p class="rp-note">Les trois passages qui demandent le plus d'effort ou d'attention. Seuls les passages d'au moins 200 m sont pris en compte.</p><div class="rp-hls">${hi('Montée la plus raide',D.steepUp)}${hi('Plus longue montée',D.longClimb,'long')}${hi('Descente la plus raide',D.steepDown)}</div></section>
-  <section><h2>Tronçon par tronçon <small>${D.segs.length} parties</small></h2><p class="rp-note">« km 1,2 → 3,4 » : le tronçon commence 1,2 km après le départ et finit au km 3,4. La pastille donne la pente moyenne du tronçon ; « pointe » est son passage le plus raide (sur une cinquantaine de mètres).</p><div class="rp-rows">${rows}</div></section>
+  <section class="rp-slopes"><h2>La pente, en images</h2><p class="rp-note">Une pente de « 20 % » veut dire : <b>pour 100 m parcourus à plat, on monte de 20 m</b>. Ces dessins montrent à quoi ça ressemble. Dans la nature, le sol est irrégulier : ça paraît toujours un peu plus raide qu’au dessin.</p>
+   <div class="rp-spg">${[[3,'moins de 5 %'],[8,'5 à 10 %'],[12,'10 à 15 %'],[20,'15 à 25 %'],[32,'plus de 25 %']].map(([p,r])=>{const w=slopeWords(p);return `<div class="rp-spc">${slopePic(p,150)}<b>${w.n}</b><span class="rp-sps">${r} · angle d’environ ${slopeDeg(p)}°</span><span>${w.say}.</span><span class="rp-spl">${w.like}.</span></div>`}).join('')}</div>
+   <p class="rp-note" style="margin-top:8px">Pour se repérer : 3 m de montée, c’est un étage d’immeuble. Monter de 300 m, c’est donc comme grimper environ 100 étages, mais en prenant son temps, sur plusieurs heures.</p></section>
+  <section><h2>Profil du parcours</h2><p class="rp-note">Ce dessin coupe le chemin en deux et le regarde de côté : la ligne monte quand tu montes, et descend quand tu descends. En bas, la distance parcourue ; à gauche, l’altitude. Chaque couleur dit si c’est raide (vert = facile, rouge et violet = raide). Le chiffre blanc est la montée (+) ou la descente (−) pour 100 m parcourus. Les ronds blancs sont des lieux nommés sur ton chemin.</p>${reportProfileSVG(D)}
+   <h3 class="rp-h3">Quelle part du parcours est facile ou raide ?</h3><p class="rp-note">La barre colorée représente tout le parcours, du départ à l’arrivée, rangé par type de terrain : plus une couleur est large, plus il y a de kilomètres de ce type.</p><div class="rp-dist">${dist}</div><div class="rp-ters">${legend}</div></section>
+  <section><h2>À retenir</h2><p class="rp-note">Les trois passages où il faudra faire le plus attention ou prendre son temps (au moins 200 m de long).</p><div class="rp-hls">${hi('Montée la plus raide',D.steepUp)}${hi('Plus longue montée',D.longClimb,'long')}${hi('Descente la plus raide',D.steepDown)}</div></section>
+  <section><h2>Le parcours, morceau par morceau <small>${D.segs.length} parties</small></h2><p class="rp-note">Le chemin est découpé en morceaux : à chaque fois que la pente change nettement, un nouveau morceau commence. « km 1,2 → 3,4 » veut dire : du kilomètre 1,2 au kilomètre 3,4 depuis le départ. La couleur et le mot disent si c’est facile ou raide.</p><div class="rp-rows">${rows}</div></section>
   ${tr.gr&&!tr.gr.stage&&GRDATA?`<section><h2>Les étapes <small>${GRDATA.stages.length} jours</small></h2><p class="rp-note">Chaque ligne est une journée de marche, d’un lieu où dormir au suivant. ↗ = dénivelé positif du jour, ↘ = dénivelé négatif, durée estimée à ton allure sans les pauses.</p><div class="rp-rows">${GRDATA.stages.map(s=>`<div class="rp-row" style="--c:${SLOPE_CLS[slopeClass(s.up/Math.max(1,s.dist)*100*1.6)].col}"><div class="rp-n">${s.n}</div><div class="rp-main"><div class="rp-l1"><b>${escH(s.from)} → ${escH(s.to)}</b></div><div class="rp-l2"><span>${fmtKm(s.dist)} km</span><span>↗ ${nf0.format(s.up)} m · ↘ ${nf0.format(s.down)} m</span><span>≈ ${fmtDur(s.ms)}</span></div></div></div>`).join('')}</div></section>`:''}
   ${pts?`<section><h2>Points de passage</h2><ul class="rp-pts">${pts}</ul></section>`:''}
   <section class="rp-guide" id="rpGuide"><h2>Comment lire cette fiche</h2>
-   <h3>Les chiffres clés</h3>
+   <h3>Les chiffres du haut</h3>
    <dl>
-    <dt>Distance</dt><dd>Longueur totale du parcours mesurée sur la carte, à plat (sans compter la pente, qui ajoute très peu).</dd>
-    <dt>Dénivelé + (D+)</dt><dd>Total de tous les mètres gagnés en montée, du départ à l'arrivée. Exemple : monter 300 m, redescendre 100 m puis remonter 200 m donne 500 m de D+.</dd>
-    <dt>Dénivelé − (D−)</dt><dd>Total de tous les mètres perdus en descente. Les petites variations de moins de 2 m sont ignorées pour ne pas compter les imprécisions du GPS.</dd>
-    <dt>${tr.planned||!tr.hasTime?'Durée estimée':'Durée'}</dt><dd>${tr.planned?`Temps de marche calculé avec ton allure : ${nf1.format(pace.flat)} km/h sur le plat, ${pace.up} m de montée par heure et ${pace.down} m de descente par heure. On applique la méthode des guides suisses : on prend le plus long entre le temps « à plat » et le temps « de dénivelé », puis on ajoute la moitié de l'autre. Les pauses ne sont pas comptées : ajoute-les toi-même (pique-nique, photos…).`:tr.hasTime?'Temps réellement mis, pauses comprises, d’après les heures enregistrées par ta montre ou ton téléphone.':'Estimation avec ton allure réglée dans « Mon allure » (méthode des guides suisses), sans les pauses.'}</dd>
-    <dt>Arrivée</dt><dd>Heure d'arrivée ${tr.planned?'prévue : heure de départ + durée estimée':'enregistrée'}.</dd>
-    <dt>Altitude max</dt><dd>Point le plus haut du parcours.</dd>
-    <dt>km-effort</dt><dd>Mesure de la difficulté utilisée en trail et en randonnée : les kilomètres + 1 km pour chaque tranche de 100 m de D+. Ici : ${fmtKm(tr.total)} + ${nf0.format(tr.up[tr.N-1])} ÷ 100 = ${nf1.format(kmE)}. Repères : moins de 15 = facile, 15 à 25 = moyen, 25 à 35 = soutenu, plus de 35 = difficile.</dd>
-    <dt>Coordonnées GPS</dt><dd>Position exacte du départ et de l'arrivée (latitude N, longitude E), à saisir dans une appli de navigation pour t'y rendre.</dd>
+    <dt>Distance</dt><dd>La longueur du chemin, comme sur un compteur de voiture. Un marcheur fait en général 3 à 5 km à l'heure sur du plat.</dd>
+    <dt>Total des montées</dt><dd>Tous les mètres qu'on grimpe, mis bout à bout (les spécialistes disent « dénivelé positif » ou « D+ »). Exemple : monter 300 m, redescendre 100 m, puis remonter 200 m fait 500 m de montées. Repère : 3 m, c'est un étage d'immeuble.</dd>
+    <dt>Total des descentes</dt><dd>Tous les mètres qu'on redescend (« D− »). Ça ne fatigue pas le souffle, mais ça fatigue les genoux.</dd>
+    <dt>${tr.planned||!tr.hasTime?'Durée estimée':'Durée'}</dt><dd>${tr.planned||!tr.hasTime?'Le temps pour tout faire, pauses comprises : c’est une estimation, qui dépend de ton rythme et du sac que tu portes.':'Le temps réellement mis, d’après les heures enregistrées par la montre ou le téléphone.'}</dd>
+    <dt>Point le plus haut</dt><dd>L'altitude la plus haute du parcours, en mètres au-dessus du niveau de la mer. Plus on monte, plus il fait froid (environ 6 °C de moins tous les 1 000 m).</dd>
+    <dt>Équivalent à plat</dt><dd>Une montée fatigue plus que le plat. Pour comparer, on compte 1 km de plus pour chaque 100 m de montée (les spécialistes l'appellent « km-effort »). Ici : ${fmtKm(tr.total)} + ${nf0.format(tr.up[tr.N-1])} ÷ 100 = ${nf1.format(kmE)} km. Repère : moins de 15 = facile, 15 à 25 = moyen, 25 à 35 = soutenu, plus de 35 = difficile.</dd>
+    <dt>Départ, arrivée, coordonnées</dt><dd>La position exacte du départ et de l'arrivée, à taper dans une appli de navigation (Maps, Waze…) pour s'y rendre.</dd>
    </dl>
-   <h3>Les couleurs de pente</h3>
-   <p>La pente en % indique combien de mètres on monte (ou descend) pour 100 m parcourus : +10 % = 10 m de montée tous les 100 m. Une flèche ↗ signale une montée, ↘ une descente.</p>
-   <ul class="rp-cls">
-    <li><i style="background:${SLOPE_CLS[0].col}"></i><b>Moins de 5 %</b> — presque plat, on marche à son rythme normal.</li>
-    <li><i style="background:${SLOPE_CLS[1].col}"></i><b>5 à 10 %</b> — pente douce, on la sent mais on garde un bon rythme.</li>
-    <li><i style="background:${SLOPE_CLS[2].col}"></i><b>10 à 15 %</b> — pente soutenue, on ralentit et on raccourcit le pas.</li>
-    <li><i style="background:${SLOPE_CLS[3].col}"></i><b>15 à 25 %</b> — raide : effort important à la montée, attention aux genoux et aux glissades à la descente. Les bâtons aident beaucoup.</li>
-    <li><i style="background:${SLOPE_CLS[4].col}"></i><b>Plus de 25 %</b> — très raide : pas lents, parfois les mains ; en descente, prudence sur terrain humide ou caillouteux.</li>
-   </ul>
-   <h3>Les tronçons</h3>
-   <p>Le parcours est découpé à chaque changement net de pente. Les morceaux trop courts sont rattachés à leur voisin pour garder une liste lisible (au moins ${nf0.format(Math.max(250,tr.total/26))} m par tronçon).</p>
+   <h3>La pente</h3>
+   <p>La pente en % dit combien de mètres on monte (ou descend) pour 100 m parcourus : 10 % = 10 m de montée tous les 100 m. Regarde les dessins de la section « La pente, en images » : ça aide à imaginer.</p>
+   <ul class="rp-cls">${SLOPE_WORDS.map((w,k)=>`<li><i style="background:${SLOPE_CLS[k].col}"></i><b>${w.n}</b> (${['moins de 5 %','5 à 10 %','10 à 15 %','15 à 25 %','plus de 25 %'][k]}) — ${w.say}.</li>`).join('')}</ul>
+   <h3>Le parcours morceau par morceau</h3>
    <dl>
-    <dt>km 1,2 → 3,4</dt><dd>Le tronçon commence 1,2 km après le départ et se termine au km 3,4, comme des bornes kilométriques.</dd>
-    <dt>Distance (en gris)</dt><dd>Longueur du tronçon.</dd>
-    <dt>Pastille colorée</dt><dd>Pente moyenne du tronçon : différence d'altitude entre son début et sa fin, divisée par sa longueur.</dd>
-    <dt>2 273 → 2 229 m</dt><dd>Altitude au début puis à la fin du tronçon.</dd>
-    <dt>D+ et D−</dt><dd>Mètres montés et descendus à l'intérieur du tronçon. Un tronçon qui « descend en moyenne » peut contenir de petites remontées : elles apparaissent dans son D+.</dd>
-    <dt>Pointe</dt><dd>Le passage le plus raide du tronçon, mesuré sur une cinquantaine de mètres. Elle n'est affichée que si elle est nettement plus raide que la moyenne (au moins 4 points de plus).</dd>
-    <dt>Durée</dt><dd>Temps ${tr.planned?'estimé':'mis'} pour parcourir le tronçon.</dd>
-    <dt>Passage</dt><dd>Heure ${tr.planned?'prévue':'réelle'} à laquelle tu arrives au début du tronçon.</dd>
-    <dt>Barre de couleur</dt><dd>Compare la longueur des tronçons entre eux : la plus longue barre correspond au plus long tronçon.</dd>
+    <dt>km 1,2 → 3,4</dt><dd>Du kilomètre 1,2 au kilomètre 3,4, en comptant depuis le départ.</dd>
+    <dt>Le mot et le chiffre coloré</dt><dd>La difficulté du morceau (ex. « Pente raide · ↗ 18 % » : on monte de 18 m tous les 100 m en moyenne).</dd>
+    <dt>Altitude</dt><dd>« 2 273 → 2 229 m » : l'altitude au début, puis à la fin du morceau.</dd>
+    <dt>Monte de… / descend de…</dt><dd>Les mètres grimpés et descendus dans ce morceau. Un morceau qui descend en moyenne peut contenir de petites remontées.</dd>
+    <dt>Passage le plus raide</dt><dd>Le coup de cul du morceau (sur une cinquantaine de mètres), affiché seulement s'il est nettement plus raide que le reste.</dd>
+    <dt>Durée et heure de passage</dt><dd>Le temps ${tr.planned||!tr.hasTime?'estimé':'mis'} pour ce morceau et l'heure ${tr.planned||!tr.hasTime?'prévue':'réelle'} à laquelle tu y arrives.</dd>
    </dl>
-   <h3>À retenir</h3>
+   <h3>Les passages à retenir</h3>
    <dl>
-    <dt>Montée la plus raide</dt><dd>Le tronçon de montée (au moins 200 m) avec la pente moyenne la plus forte.</dd>
-    <dt>Plus longue montée</dt><dd>La plus grande suite de tronçons qui montent sans vraie descente entre eux (pente moyenne au-dessus de 2 %), classée selon le dénivelé gagné.</dd>
-    <dt>Descente la plus raide</dt><dd>Le tronçon de descente (au moins 200 m) avec la pente moyenne la plus forte.</dd>
+    <dt>Montée la plus raide</dt><dd>Le morceau de montée (200 m ou plus) où ça grimpe le plus fort.</dd>
+    <dt>Plus longue montée</dt><dd>La plus grande suite de montée sans vraie descente entre deux.</dd>
+    <dt>Descente la plus raide</dt><dd>Le morceau de descente (200 m ou plus) le plus pentu : le plus dur pour les genoux.</dd>
    </dl>
    <h3>D'où viennent les données</h3>
-   <p>${tr.planned?'Altitudes lues sur le modèle de relief Terrarium (AWS Open Data), précis à une dizaine de mètres près ; sentiers suivis grâce à OpenStreetMap (BRouter).':'Altitudes enregistrées par ta montre ou ton téléphone, lissées sur environ 60 m pour gommer les sauts du GPS.'} Noms des lieux : OpenStreetMap. Météo : Open-Meteo. Ces chiffres sont des repères : sur le terrain, adapte ton rythme à ta forme, à la météo et à l'état du sentier.</p>
+   <p>${tr.planned?'Altitudes lues sur un modèle de relief (Terrarium, AWS Open Data), précis à une dizaine de mètres près ; chemins suivis grâce à OpenStreetMap (BRouter).':'Altitudes enregistrées par la montre ou le téléphone, lissées sur environ 60 m pour gommer les sauts du GPS.'} Noms des lieux : OpenStreetMap. Météo : Open-Meteo. Ces chiffres sont des repères : sur le terrain, adapte ton rythme à ta forme, à la météo et à l'état du sentier.</p>
   </section>
   <footer class="rp-foot">Replay Rando 3D · pentes calculées sur ${tr.planned?'le relief (Terrarium, AWS Open Data)':'les altitudes de ta trace'}${tr.planned?' · temps selon la méthode des guides suisses':''} · noms © OpenStreetMap</footer>
   </div>`;
@@ -3283,7 +3302,10 @@ const REPORT_CSS=`.rp{--ink:#1d2b2d;--mut:#5b6b6c;--line:#dfe5e2;font-family:"Ba
 .rp-names input[type=text]{width:150px}.rp-cands button small{font-weight:400;color:var(--mut);margin-left:3px}.rp-modesel input{width:84px;border:1px solid #cfd8d4;border-radius:10px;padding:7px 8px;font:inherit;font-weight:600}
 .rp-est b{font-size:24px!important}.rp-est{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.rp-est>div{border:1px solid var(--line);border-radius:12px;padding:9px 10px}.rp-est span{display:block;font-size:12.5px;color:var(--mut)}.rp-est b{font-family:"Barlow Condensed",sans-serif;font-size:28px}.rp-est small{display:block;font-size:12px;color:var(--mut)}
 .rp-ul{margin:0;padding-left:20px;font-size:14.5px;display:flex;flex-direction:column;gap:5px}.rp-chk{list-style:"☐  "}
-.rp-beg,.rp-row,.rp-hl,.rp-end{break-inside:avoid}
+.rp-beg,.rp-row,.rp-hl,.rp-end,.rp-brief,.rp-slopes{break-inside:avoid}
+.rp-brief{border:1px solid var(--line);border-left:6px solid #2e9e5b;border-radius:12px;padding:6px 16px 10px;margin-top:16px;background:#f7fbf8}.rp-brief h2{margin-top:10px}.rp-brief ul{margin:0;padding-left:20px;font-size:15.5px;display:flex;flex-direction:column;gap:6px}
+.rp-spg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.rp-spc{display:flex;flex-direction:column;gap:3px;border:1px solid var(--line);border-radius:12px;padding:8px 10px;font-size:13.5px;line-height:1.3}.rp-spc b{font-size:16px}.rp-sps{color:var(--mut);font-size:12.5px}.rp-spl{color:var(--mut);font-style:italic}
+.rp-sp{display:block;flex:none;max-width:100%;height:auto}.rp-hl{flex-direction:column}.rp-hl .rp-sp{width:100%;max-width:190px}
 @media (max-width:520px){.rp-guide dl{grid-template-columns:1fr;gap:2px}.rp-guide dd{margin-bottom:6px}}
 .rp-foot{margin-top:24px;font-size:11.5px;color:var(--mut)}
 @media (max-width:520px){.rp{padding:16px 14px 22px}.rp h1{font-size:28px}.rp-kpi b{font-size:23px}.rp-chip{margin-left:0}}`;
@@ -4930,7 +4952,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V88", "date": "12/10/2026", "cache": "rr3d-v", "nouveautes": ["Page d'accueil : le bouton « Ouvrir un lien (Suunto…) » est maintenant juste sous « Importer ma trace ».", "Nouveau bouton « 🔗 Ouvrir un lien » (page Mes randos) : colle un lien Suunto ou un lien de fichier GPX/FIT et la trace s'ouvre directement, sans rien télécharger ni convertir.", "Rapport rando : nouveau bouton « 📄 PDF par mail ». Il fabrique un vrai PDF (pages A4 avec la carte) et ouvre le partage du téléphone : choisis Gmail et le PDF est déjà en pièce jointe.", "Rapport rando, carte : le parcours est de nouveau tout en rouge, et de petits carrés verts avec une tente marquent les endroits plats (à moins de 50 m du chemin) où l'on pourrait poser la tente."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V89", "date": "12/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando plus simple pour tout le monde : un résumé « En bref », des dessins qui montrent ce que représente une pente (3 %, 8 %, 12 %, 20 %, 32 %), des mots clairs à la place du jargon (D+, km-effort, tronçon), la montée comparée à des étages d'immeuble. Accueil : un petit espace sous « Importer ma trace ».", "Page d'accueil : le bouton « Ouvrir un lien (Suunto…) » est maintenant juste sous « Importer ma trace ».", "Nouveau bouton « 🔗 Ouvrir un lien » (page Mes randos) : colle un lien Suunto ou un lien de fichier GPX/FIT et la trace s'ouvre directement, sans rien télécharger ni convertir.", "Rapport rando : nouveau bouton « 📄 PDF par mail ». Il fabrique un vrai PDF (pages A4 avec la carte) et ouvre le partage du téléphone : choisis Gmail et le PDF est déjà en pièce jointe."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
