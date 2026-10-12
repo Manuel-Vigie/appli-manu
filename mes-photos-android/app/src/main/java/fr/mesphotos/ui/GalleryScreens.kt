@@ -421,7 +421,7 @@ fun BrowseScreen(
                     onClick = { if (selecting) toggleFolder(folder.name) else onInto(folder.name) },
                     onLongClick = { toggleFolder(folder.name) },
                     // À la racine, le gros dossier par date s'appelle « Album photos » à l'écran (son vrai nom sur la carte ne change pas).
-                    title = if (state.path.isEmpty() && folder.name == "Journées") "Album photos" else folder.name,
+                    title = if (state.path.isEmpty() && folder.name == "Journées") "Album photos" else Gallery.displayName(folder.name),
                     captionBelow = state.path.isEmpty(),
                     illustration = if (state.path.isEmpty()) AppIcons.Photos else null,
                     illustrationColors = listOf(Color(0xFF1F5A47), Color(0xFF3E9B7A)),
