@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V95",
+  "version": "V96",
   "date": "12/10/2026",
   "nouveautes": [
+    "Rapport rando relu et corrigé : même durée partout (plus de 4 h 48 / 4 h 50), plus de « passage le plus dur » sur du plat, « jusqu'à 5 % » au lieu de « moins de 5 % » (quand le profil affichait +5 %), une seule journée annoncée comme telle, libellés « altitude » et « durée » ajoutés, « 1 partie » au singulier.",
     "Rapport rando, chaque morceau en phrases claires : « Tu descends de 380 m d'altitude sur 3,9 km. Tous les 100 m avancés, ça fait 10 m de descente, soit environ 3 étages d'immeuble. » Les phrases de descente parlent maintenant des genoux (plus du souffle). Mise en page resserrée sur téléphone.",
     "Rapport rando beaucoup plus court : les explications sont regroupées dans « Le parcours, morceau par morceau » (bonhomme, mot, effort ressenti, passages les plus raides signalés sur chaque morceau, repères de vitesse d'un débutant en haut). Les longues sections d'explications ont disparu.",
-    "Rapport rando : un petit bonhomme sur une pente, de la couleur de la difficulté, est ajouté à chaque morceau de parcours (km → km), à chaque jour et à chaque point de passage (km). Il penche et monte selon la pente.",
-    "Rapport rando : la vitesse d'un marcheur débutant est ajoutée (300 m de montée par heure, 400 m de descente par heure, 3 à 4 km/h à plat, et la vitesse pour chaque type de pente), avec le temps correspondant à ton parcours. Les vitesses et les temps sont en gras pour les distinguer des explications."
+    "Rapport rando : un petit bonhomme sur une pente, de la couleur de la difficulté, est ajouté à chaque morceau de parcours (km → km), à chaque jour et à chaque point de passage (km). Il penche et monte selon la pente."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v95"
+    "cache": "rr3d-v96"
   },
   "fichiers": [
     "rando-3d.html",
