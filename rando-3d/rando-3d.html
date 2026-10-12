@@ -414,6 +414,7 @@ h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05;ma
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
         Importer ma trace
       </button>
+      <button type="button" class="w-btn" id="wLink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Ouvrir un lien (Suunto…)</button>
       <div class="w-row">
         <button type="button" class="w-btn" id="wPlan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8 18h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7"/></svg>Itinéraire</button>
         <button type="button" class="w-btn" id="wLib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>Mes randos</button>
@@ -4893,6 +4894,7 @@ const boot=()=>{
   renderer.setAnimationLoop(frame);
 };
 $('wImport').addEventListener('click',()=>$('gpxInput').click());
+$('wLink').addEventListener('click',()=>importFromLink());
 $('wPlan').addEventListener('click',()=>{hideWelcome();$('planBtn').click()});
 $('wLib').addEventListener('click',()=>$('libBtn').click());
 $('wDemo').addEventListener('click',()=>{hideWelcome();setPlaying(true)});
@@ -4928,7 +4930,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V87", "date": "09/10/2026", "cache": "rr3d-v", "nouveautes": ["Nouveau bouton « 🔗 Ouvrir un lien » (page Mes randos) : colle un lien Suunto ou un lien de fichier GPX/FIT et la trace s'ouvre directement, sans rien télécharger ni convertir.", "Rapport rando : nouveau bouton « 📄 PDF par mail ». Il fabrique un vrai PDF (pages A4 avec la carte) et ouvre le partage du téléphone : choisis Gmail et le PDF est déjà en pièce jointe.", "Rapport rando, carte : le parcours est de nouveau tout en rouge, et de petits carrés verts avec une tente marquent les endroits plats (à moins de 50 m du chemin) où l'on pourrait poser la tente.", "Rapport rando, carte : légende plus petite, placée dans un coin où elle ne gêne pas le parcours ; le vert marque maintenant les passages vraiment plats (0 à 2 %, au moins 80 m) avec un trait de la même largeur que le rouge."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V88", "date": "12/10/2026", "cache": "rr3d-v", "nouveautes": ["Page d'accueil : le bouton « Ouvrir un lien (Suunto…) » est maintenant juste sous « Importer ma trace ».", "Nouveau bouton « 🔗 Ouvrir un lien » (page Mes randos) : colle un lien Suunto ou un lien de fichier GPX/FIT et la trace s'ouvre directement, sans rien télécharger ni convertir.", "Rapport rando : nouveau bouton « 📄 PDF par mail ». Il fabrique un vrai PDF (pages A4 avec la carte) et ouvre le partage du téléphone : choisis Gmail et le PDF est déjà en pièce jointe.", "Rapport rando, carte : le parcours est de nouveau tout en rouge, et de petits carrés verts avec une tente marquent les endroits plats (à moins de 50 m du chemin) où l'on pourrait poser la tente."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
