@@ -1675,9 +1675,27 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     val date = file.lastModified()
                     when (file.extension.lowercase()) {
                         "jpg", "jpeg", "jpe", "jfif" -> {
-                            val exif = ExifInterface(file.absolutePath)
-                            exif.rotate(90)
-                            exif.saveAttributes()
+                            val before = ExifInterface(file.absolutePath).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+                            var ok = false
+                            try {
+                                val exif = ExifInterface(file.absolutePath)
+                                exif.rotate(90)
+                                exif.saveAttributes()
+                                val after = ExifInterface(file.absolutePath).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+                                ok = after != before
+                            } catch (e: Exception) { ok = false }
+                            if (!ok) {
+                                // L'orientation n'a pas pu être écrite : on tourne l'image elle-même (JPEG qualité 95).
+                                val bmp = BitmapFactory.decodeFile(file.absolutePath) ?: return@withContext "Impossible de lire cette photo."
+                                val upright = if (before == ExifInterface.ORIENTATION_NORMAL || before == ExifInterface.ORIENTATION_UNDEFINED) bmp else {
+                                    val deg = when (before) { ExifInterface.ORIENTATION_ROTATE_90 -> 90f; ExifInterface.ORIENTATION_ROTATE_180 -> 180f; ExifInterface.ORIENTATION_ROTATE_270 -> 270f; else -> 0f }
+                                    android.graphics.Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, android.graphics.Matrix().apply { postRotate(deg) }, true)
+                                }
+                                val out = android.graphics.Bitmap.createBitmap(upright, 0, 0, upright.width, upright.height, android.graphics.Matrix().apply { postRotate(90f) }, true)
+                                val tmp = File(file.parentFile, file.name + ".tourne")
+                                tmp.outputStream().use { out.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, it) }
+                                if (tmp.length() > 0 && file.delete() && tmp.renameTo(file)) Unit else { tmp.delete(); return@withContext "Impossible de tourner cette photo." }
+                            }
                         }
                         "png", "webp" -> {
                             val bmp = BitmapFactory.decodeFile(file.absolutePath) ?: return@withContext "Impossible de lire cette photo."
@@ -1693,12 +1711,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     Thumbs.forget(file)
                     MediaScannerConnection.scanFile(getApplication(), arrayOf(file.absolutePath), null, null)
                     "Photo tournée."
-                } catch (e: Exception) {
-                    "Impossible de tourner cette photo."
+                } catch (e: Throwable) {
+                    "Impossible de tourner cette photo : ${e.message ?: e.javaClass.simpleName}"
                 }
             }
             val viewer = _state.value as? UiState.Viewer ?: return@launch
-            _state.value = viewer.copy(message = message, rev = viewer.rev + 1)
+            // Le message change à chaque fois (espace insécable en plus), pour qu'il s'affiche de nouveau.
+            _state.value = viewer.copy(message = message + "\u200B".repeat(viewer.rev % 7 + 1), rev = viewer.rev + 1)
         }
     }
 
