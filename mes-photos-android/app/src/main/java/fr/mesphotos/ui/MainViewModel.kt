@@ -156,8 +156,6 @@ sealed interface UiState {
         val folders: List<FolderItem>,
         val files: List<File>,
         val message: String? = null,
-        /** Augmente quand une photo est tournée : force le rechargement de l'image. */
-        val rev: Int = 0,
         /** Nombre de fichiers qu'on vient de mettre à la corbeille et qu'on peut remettre d'un geste (0 = rien). */
         val undoTrash: Int = 0,
         /** Les raccourcis, montrés en haut de la page d'accueil des photos (à la racine seulement). */
@@ -204,6 +202,8 @@ sealed interface UiState {
         val message: String? = null,
         /** Vrai quand on regarde une photo du coffre-fort. */
         val fromVault: Boolean = false,
+        /** Augmente quand une photo est tournée : force le rechargement de l'image. */
+        val rev: Int = 0,
     ) : UiState
 
 }
