@@ -3460,91 +3460,70 @@ $('reportPdf').addEventListener('click',async()=>{
 
 // ---- carte à imprimer : pages A4 très détaillées (IGN, jusqu'au zoom 16) avec les emplacements de tente numérotés ----
 const pxLon=(x,z)=>x/(Math.pow(2,z)*256)*360-180,pxLat=(y,z)=>{const n=Math.PI-2*Math.PI*y/(Math.pow(2,z)*256);return Math.atan(Math.sinh(n))*180/Math.PI};
-const nfp=v=>nf0.format(v).replace(/[\u202f\u00a0]/g,' ');
+const nfp=v=>nf0.format(v).replace(/[  ]/g,' ');
+// UNE seule feuille A4 : carte IGN la plus détaillée possible qui contient tout le parcours + liste des tentes en bas
 async function printMapPDF(D,B,onProg){
   await Promise.all(PDF_LIBS.map(l=>loadLib(l[0],l[1])));
   const tr=D.tr,A=areaFor(tr),st=Math.max(1,Math.floor(tr.N/3000)),ll=[];
   for(let i=0;i<tr.N;i+=st){const [la,lo]=A.ll(tr.rx[i],tr.rz[i]);ll.push([la,lo,i])}
   {const [la,lo]=A.ll(tr.rx[tr.N-1],tr.rz[tr.N-1]);ll.push([la,lo,tr.N-1])}
   const spots=(B.spots||[]).filter(q=>q.la!=null).map((q,n)=>({la:q.la,lo:q.lo,i:q.i,n:n+1}));
-  const L=RMAP_LAYERS.find(l=>l.k===B.layer)||RMAP_LAYERS[0],OV=90,MAXP=6;
-  // choix du zoom (le plus détaillé possible) et de l'orientation : au plus 6 pages
+  const L=RMAP_LAYERS.find(l=>l.k===B.layer)||RMAP_LAYERS[0],ns=spots.length,GPS=ns>0&&ns<=12,FOOT=44,HEAD=64;
+  const listH=pw=>{if(!ns)return 0;const cols=GPS?2:(pw>1600?6:4),rows=Math.ceil(ns/cols);return 46+rows*27};
+  // zoom le plus fort pour lequel tout le parcours tient sur une feuille (portrait ou paysage)
   let plan=null;
-  for(let z=L.max;z>=11&&!plan;z--){
-    const xs=ll.map(q=>mercX(q[1],z)),ys=ll.map(q=>mercY(q[0],z)),M=60,
-      x0=Math.min(...xs)-M,x1=Math.max(...xs)+M,y0=Math.min(...ys)-M,y1=Math.max(...ys)+M,bw=x1-x0,bh=y1-y0;
-    let best=null;
-    for(const [pw,ph] of[[1488,2105],[2105,1488]]){
-      const cols=Math.max(1,Math.ceil((bw-OV)/(pw-OV))),rows=Math.max(1,Math.ceil((bh-OV)/(ph-OV)));
-      const tw=cols*pw-(cols-1)*OV,th=rows*ph-(rows-1)*OV,gx=(x0+x1)/2-tw/2,gy=(y0+y1)/2-th/2,pages=[];
-      for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const rx=gx+c*(pw-OV),ry=gy+r*(ph-OV);
-        if(xs.some((x,k)=>x>=rx&&x<=rx+pw&&ys[k]>=ry&&ys[k]<=ry+ph))pages.push({rx,ry,c,r})}
-      if(!best||pages.length<best.pages.length)best={z,pw,ph,cols,rows,pages}}
-    if(best.pages.length<=MAXP||z===11)plan=best}
-  const {z,pw,ph}=plan,pages=plan.pages,np=pages.length,mpp=156543.03*Math.cos(ll[0][0]*Math.PI/180)/Math.pow(2,z);
-  const cache=new Map();let nT=0;
-  const tile=(tx,ty)=>{const n=Math.pow(2,z);if(ty<0||ty>=n)return Promise.resolve(null);const u=L.url(z,((tx%n)+n)%n,ty);if(!cache.has(u))cache.set(u,rmapLoad(u).then(im=>{nT++;onProg&&onProg(nT);return im}));return cache.get(u)};
-  const kmS=z>=15?1:z===14?2:z===13?5:10,at=d=>{let b=ll[0],bd=1e18;for(const q of ll){const dd=Math.abs(tr.rd[q[2]]-d);if(dd<bd){bd=dd;b=q}}return b};
-  const mkPage=async(pg,idx)=>{
-    const {rx,ry}=pg,cv=document.createElement('canvas');cv.width=pw;cv.height=ph;const x=cv.getContext('2d');x.fillStyle='#eef0ea';x.fillRect(0,0,pw,ph);
-    const tx0=Math.floor(rx/256),tx1=Math.floor((rx+pw)/256),ty0=Math.floor(ry/256),ty1=Math.floor((ry+ph)/256),jobs=[];
-    for(let ty=ty0;ty<=ty1;ty++)for(let tx=tx0;tx<=tx1;tx++)jobs.push({tx,ty,p:tile(tx,ty)});
-    const ims=await Promise.all(jobs.map(j=>j.p));
-    if(ims.filter(Boolean).length<jobs.length*.5)throw new Error('tuiles');
-    jobs.forEach((j,k)=>{if(ims[k])x.drawImage(ims[k],j.tx*256-rx,j.ty*256-ry,256,256)});
-    const P=ll.map(q=>[mercX(q[1],z)-rx,mercY(q[0],z)-ry,q[2]]);
-    x.lineCap='round';x.lineJoin='round';
-    const path=()=>{x.beginPath();P.forEach((q,i)=>i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]))};
-    path();x.strokeStyle='rgba(255,255,255,.85)';x.lineWidth=7;x.stroke();path();x.strokeStyle='#d8131f';x.lineWidth=3.2;x.stroke();
-    const bub=(q,t,fill,fg,r)=>{x.beginPath();x.arc(q[0],q[1],r,0,7);x.fillStyle=fill;x.fill();x.lineWidth=2.2;x.strokeStyle='#fff';x.stroke();if(t){x.fillStyle=fg;x.font=`700 ${r*1.0}px Arial,Helvetica,sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(t,q[0],q[1]+1)}};
-    const inside=q=>q[0]>-30&&q[0]<pw+30&&q[1]>-30&&q[1]<ph+30,km=tr.total/1000;
-    for(let k=kmS;k<km-kmS*.4;k+=kmS){const q=at(k*1000),m=[mercX(q[1],z)-rx,mercY(q[0],z)-ry];if(inside(m))bub(m,String(k),'#fff','#1d2b2d',14)}
-    for(const s of spots){const m=[mercX(s.lo,z)-rx,mercY(s.la,z)-ry];if(!inside(m))continue;const h=10,cx=m[0],cy=m[1];
-      x.fillStyle='#17a34a';x.fillRect(cx-h,cy-h,2*h,2*h);x.lineWidth=2;x.strokeStyle='#fff';x.strokeRect(cx-h,cy-h,2*h,2*h);
-      x.beginPath();x.moveTo(cx-h*.62,cy+h*.5);x.lineTo(cx,cy-h*.58);x.lineTo(cx+h*.62,cy+h*.5);x.closePath();x.fillStyle='#fff';x.fill();
-      x.font='700 17px Arial,Helvetica,sans-serif';x.textAlign='left';x.textBaseline='middle';x.lineWidth=4;x.strokeStyle='#fff';x.strokeText(String(s.n),cx+h+4,cy);x.fillStyle='#0b6b30';x.fillText(String(s.n),cx+h+4,cy)}
-    const a=[mercX(ll[0][1],z)-rx,mercY(ll[0][0],z)-ry],b=[mercX(ll[ll.length-1][1],z)-rx,mercY(ll[ll.length-1][0],z)-ry],loop=Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200;
-    if(!loop&&inside(b))bub(b,'A','#1d2b2d','#fff',17);if(inside(a))bub(a,loop?'D/A':'D','#1c9a4e','#fff',loop?22:17);
-    // pages voisines (pour recoller)
-    x.font='700 20px Arial,Helvetica,sans-serif';x.fillStyle='rgba(255,255,255,.9)';
-    const nb=(c,r)=>{const j=pages.findIndex(p=>p.c===c&&p.r===r);return j<0?null:j+1};
-    const tag=(t,cx,cy)=>{x.font='700 20px Arial,Helvetica,sans-serif';const w=x.measureText(t).width+16;x.fillStyle='rgba(255,255,255,.92)';x.fillRect(cx-w/2,cy-15,w,30);x.fillStyle='#1d2b2d';x.textAlign='center';x.textBaseline='middle';x.fillText(t,cx,cy+1)};
-    {const r=nb(pg.c+1,pg.r);if(r)tag('page '+r+' →',pw-70,ph/2);const l=nb(pg.c-1,pg.r);if(l)tag('← page '+l,70,ph/2);const u=nb(pg.c,pg.r-1);if(u)tag('↑ page '+u,pw/2,24);const d=nb(pg.c,pg.r+1);if(d)tag('↓ page '+d,pw/2,ph-60)}
-    // légende, échelle, nord, source
-    x.fillStyle='rgba(255,255,255,.92)';x.fillRect(0,ph-40,pw,40);x.fillStyle='#1d2b2d';x.font='600 17px Arial,Helvetica,sans-serif';x.textAlign='left';x.textBaseline='middle';
-    let nm=tr.name||'Rando';if(nm.length>40)nm=nm.slice(0,38)+'…';
-    x.fillText(`${nm} · page ${idx+1}/${np} · Carte © IGN · rouge = parcours · carré vert = emplacement de tente possible`,14,ph-20);
-    const want=200,nice=[50,100,200,250,500,1000,2000,5000,10000].reduce((p,q)=>Math.abs(q/mpp-want)<Math.abs(p/mpp-want)?q:p),bw=nice/mpp;
-    x.fillStyle='rgba(255,255,255,.9)';x.fillRect(14,ph-100,bw+28,52);x.fillStyle='#1d2b2d';x.fillRect(28,ph-62,bw,6);x.font='700 19px Arial,Helvetica,sans-serif';x.textBaseline='alphabetic';x.fillText(nice>=1000?nice/1000+' km':nice+' m',28,ph-70);
-    x.fillStyle='rgba(255,255,255,.9)';x.fillRect(pw-62,12,48,66);x.fillStyle='#1d2b2d';x.beginPath();x.moveTo(pw-38,20);x.lineTo(pw-50,58);x.lineTo(pw-38,50);x.lineTo(pw-26,58);x.closePath();x.fill();x.font='700 16px Arial,Helvetica,sans-serif';x.textAlign='center';x.fillText('N',pw-38,74);
-    return cv.toDataURL('image/jpeg',.86)};
-  const imgs=[];for(let i=0;i<np;i++)imgs.push(await mkPage(pages[i],i));
-  // page 1 : vue d'ensemble avec le découpage
-  const ovUrl=reportMapOverlay(tr,B,[]),ov=await new Promise(r=>{const im=new Image();im.onload=()=>r(im);im.onerror=()=>r(null);im.src=ovUrl});
-  const {jsPDF}=window.jspdf,pdf=new jsPDF({unit:'pt',format:'a4',compress:true,orientation:'portrait'});
-  const W0=pdf.internal.pageSize.getWidth(),H0=pdf.internal.pageSize.getHeight(),M=28,safe=t=>{try{return t}catch(e){return ''}};
-  pdf.setFontSize(16);pdf.setTextColor(30);try{pdf.text(String(tr.name||'Rando').slice(0,60),M,M+12)}catch(e){pdf.text('Carte de rando',M,M+12)}
-  pdf.setFontSize(10);pdf.setTextColor(80);
-  pdf.text(`${fmtKm(tr.total).replace(/[\u202f\u00a0]/g,' ')} km · montees ${nfp(Math.round(beginnerData(D).up))} m · altitude ${nfp(Math.round(tr.eMin))} a ${nfp(Math.round(tr.eMax))} m · ${np} page${np>1?'s':''} de detail · ${spots.length} emplacement${spots.length>1?'s':''} de tente possible${spots.length>1?'s':''}`,M,M+30);
-  if(ov){const c=document.createElement('canvas');c.width=ov.naturalWidth;c.height=ov.naturalHeight;const g=c.getContext('2d');g.drawImage(ov,0,0);
-    if(np>1){g.lineWidth=Math.max(3,c.width/350);g.font=`700 ${Math.max(18,c.width/40)}px Arial,sans-serif`;g.textAlign='left';g.textBaseline='top';
-      pages.forEach((pg,i)=>{const px=(X,Y)=>[mercX(pxLon(X,z),B.z)-B.ox,mercY(pxLat(Y,z),B.z)-B.oy],p0=px(pg.rx,pg.ry),p1=px(pg.rx+pw,pg.ry+ph);
-        g.strokeStyle='#1d4ed8';g.strokeRect(p0[0],p0[1],p1[0]-p0[0],p1[1]-p0[1]);g.fillStyle='#1d4ed8';g.fillText(String(i+1),p0[0]+8,p0[1]+6)})}
-    const k=Math.min((W0-2*M)/c.width,(H0-M-80-60)/c.height);
-    pdf.addImage(c.toDataURL('image/jpeg',.9),'JPEG',M+((W0-2*M)-c.width*k)/2,M+42,c.width*k,c.height*k)}
-  pdf.setFontSize(9);pdf.setTextColor(90);
-  pdf.text(np>1?'Les cadres bleus numerotes de la vue d\'ensemble sont les pages de detail qui suivent.':'La page suivante est la carte detaillee.',M,H0-34);
-  pdf.text('Les emplacements de tente viennent d\'un modele d\'altitude : a verifier sur place (sol, eau, vent, autorisation).',M,H0-20);
-  imgs.forEach(u=>{pdf.addPage('a4',pw>ph?'landscape':'portrait');const w=pdf.internal.pageSize.getWidth(),h=pdf.internal.pageSize.getHeight();pdf.addImage(u,'JPEG',0,0,w,h)});
+  for(let z=L.max;z>=9&&!plan;z--){
+    const xs=ll.map(q=>mercX(q[1],z)),ys=ll.map(q=>mercY(q[0],z)),M=50,
+      x0=Math.min(...xs)-M,x1=Math.max(...xs)+M,y0=Math.min(...ys)-M,y1=Math.max(...ys)+M,bw=x1-x0,bh=y1-y0,opts=[];
+    for(const [pw,ph] of[[1488,2105],[2105,1488]]){const ah=ph-HEAD-FOOT-listH(pw);if(bw<=pw&&bh<=ah)opts.push({z,pw,ph,ah,slack:Math.min(pw/bw,ah/bh),x0,x1,y0,y1})}
+    if(opts.length)plan=opts.sort((a,b)=>b.slack-a.slack)[0];
+    else if(z===9)plan={z,pw:1488,ph:2105,ah:2105-HEAD-FOOT-listH(1488),slack:0,x0,x1,y0,y1}}
+  const {z,pw,ph,ah}=plan,mpp=156543.03*Math.cos(ll[0][0]*Math.PI/180)/Math.pow(2,z);
+  const rx=(plan.x0+plan.x1)/2-pw/2,ry=(plan.y0+plan.y1)/2-ah/2;   // coin haut-gauche de la zone carte (pixels monde)
+  const cv=document.createElement('canvas');cv.width=pw;cv.height=ph;const x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,pw,ph);
+  // carte
+  x.save();x.beginPath();x.rect(0,HEAD,pw,ah);x.clip();x.translate(0,HEAD);x.fillStyle='#eef0ea';x.fillRect(0,0,pw,ah);
+  const n=Math.pow(2,z),tx0=Math.floor(rx/256),tx1=Math.floor((rx+pw)/256),ty0=Math.floor(ry/256),ty1=Math.floor((ry+ah)/256),jobs=[];let nT=0;
+  for(let ty=ty0;ty<=ty1;ty++)for(let tx=tx0;tx<=tx1;tx++)if(ty>=0&&ty<n)jobs.push({tx,ty,p:rmapLoad(L.url(z,((tx%n)+n)%n,ty)).then(im=>{nT++;onProg&&onProg(nT);return im})});
+  const ims=await Promise.all(jobs.map(j=>j.p));
+  if(ims.filter(Boolean).length<jobs.length*.6)throw new Error('tuiles');
+  jobs.forEach((j,k)=>{if(ims[k])x.drawImage(ims[k],j.tx*256-rx,j.ty*256-ry,256,256)});
+  const P=ll.map(q=>[mercX(q[1],z)-rx,mercY(q[0],z)-ry,q[2]]);
+  x.lineCap='round';x.lineJoin='round';
+  const path=()=>{x.beginPath();P.forEach((q,i)=>i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]))};
+  path();x.strokeStyle='rgba(255,255,255,.85)';x.lineWidth=7;x.stroke();path();x.strokeStyle='#d8131f';x.lineWidth=3.2;x.stroke();
+  const bub=(q,t,fill,fg,r)=>{x.beginPath();x.arc(q[0],q[1],r,0,7);x.fillStyle=fill;x.fill();x.lineWidth=2.2;x.strokeStyle='#fff';x.stroke();if(t){x.fillStyle=fg;x.font=`700 ${r}px Arial,Helvetica,sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(t,q[0],q[1]+1)}};
+  const kmS=z>=15?1:z===14?2:z===13?5:z>=11?10:20,km=tr.total/1000,at=d=>{let b=ll[0],bd=1e18;for(const q of ll){const dd=Math.abs(tr.rd[q[2]]-d);if(dd<bd){bd=dd;b=q}}return b};
+  for(let k=kmS;k<km-kmS*.4;k+=kmS){const q=at(k*1000);bub([mercX(q[1],z)-rx,mercY(q[0],z)-ry],String(k),'#fff','#1d2b2d',14)}
+  for(const s of spots){const cx=mercX(s.lo,z)-rx,cy=mercY(s.la,z)-ry,h=10;
+    x.fillStyle='#17a34a';x.fillRect(cx-h,cy-h,2*h,2*h);x.lineWidth=2;x.strokeStyle='#fff';x.strokeRect(cx-h,cy-h,2*h,2*h);
+    x.beginPath();x.moveTo(cx-h*.62,cy+h*.5);x.lineTo(cx,cy-h*.58);x.lineTo(cx+h*.62,cy+h*.5);x.closePath();x.fillStyle='#fff';x.fill();
+    x.font='700 17px Arial,Helvetica,sans-serif';x.textAlign='left';x.textBaseline='middle';x.lineWidth=4;x.strokeStyle='#fff';x.strokeText(String(s.n),cx+h+4,cy);x.fillStyle='#0b6b30';x.fillText(String(s.n),cx+h+4,cy)}
+  const a=[mercX(ll[0][1],z)-rx,mercY(ll[0][0],z)-ry],b=[mercX(ll[ll.length-1][1],z)-rx,mercY(ll[ll.length-1][0],z)-ry],loop=Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200;
+  if(!loop)bub(b,'A','#1d2b2d','#fff',17);bub(a,loop?'D/A':'D','#1c9a4e','#fff',loop?22:17);
+  // échelle + nord
+  const nice=[50,100,200,250,500,1000,2000,5000,10000,20000,50000].reduce((p,q)=>Math.abs(q/mpp-200)<Math.abs(p/mpp-200)?q:p),bw=nice/mpp;
+  x.fillStyle='rgba(255,255,255,.9)';x.fillRect(14,ah-66,bw+28,52);x.fillStyle='#1d2b2d';x.fillRect(28,ah-28,bw,6);x.font='700 19px Arial,Helvetica,sans-serif';x.textAlign='left';x.textBaseline='alphabetic';x.fillText(nice>=1000?nice/1000+' km':nice+' m',28,ah-36);
+  x.fillStyle='rgba(255,255,255,.9)';x.fillRect(pw-62,12,48,66);x.fillStyle='#1d2b2d';x.beginPath();x.moveTo(pw-38,20);x.lineTo(pw-50,58);x.lineTo(pw-38,50);x.lineTo(pw-26,58);x.closePath();x.fill();x.font='700 16px Arial,Helvetica,sans-serif';x.textAlign='center';x.fillText('N',pw-38,74);
+  x.restore();
+  x.strokeStyle='#999';x.lineWidth=2;x.strokeRect(1,HEAD,pw-2,ah);
+  // titre
+  const sp=t=>String(t).replace(/[  ]/g,' ');
+  let nm=tr.name||'Rando';if(nm.length>46)nm=nm.slice(0,44)+'…';
+  x.fillStyle='#1d2b2d';x.textAlign='left';x.textBaseline='alphabetic';x.font='700 34px Arial,Helvetica,sans-serif';x.fillText(nm,6,30);
+  x.font='500 20px Arial,Helvetica,sans-serif';x.fillStyle='#444';
+  x.fillText(sp(`${fmtKm(tr.total)} km · montées ${nfp(Math.round(beginnerData(D).up))} m · altitude ${nfp(Math.round(tr.eMin))} à ${nfp(Math.round(tr.eMax))} m · ${ns?ns+' emplacement'+(ns>1?'s':'')+' de tente possible'+(ns>1?'s':''):'aucun emplacement de tente repéré'}`),6,56);
   // liste des emplacements
-  if(spots.length){
-    const per=54;for(let o=0;o<spots.length;o+=per*2){pdf.addPage('a4','portrait');pdf.setFontSize(14);pdf.setTextColor(30);pdf.text('Emplacements de tente possibles',M,M+10);
-      pdf.setFontSize(8.5);pdf.setTextColor(90);pdf.text('n° · km · altitude · coordonnees GPS (latitude, longitude)',M,M+26);pdf.setTextColor(20);pdf.setFontSize(9.5);
-      spots.slice(o,o+per*2).forEach((s,k)=>{const col=k<per?0:1,row=k%per,X=M+col*(W0-2*M)/2,Y=M+48+row*13.5;
-        pdf.text(`${s.n}`.padStart(2,' ')+`   km ${fmtKm(tr.rd[s.i])}   ${nfp(Math.round(tr.se[s.i]))} m   ${s.la.toFixed(5)}, ${s.lo.toFixed(5)}`,X,Y)})}}
-  const n=pdf.internal.getNumberOfPages();pdf.setFontSize(8);pdf.setTextColor(120);
-  for(let i=1;i<=n;i++){pdf.setPage(i);if(i===1||i>np+1){const h=pdf.internal.pageSize.getHeight();pdf.text(`page ${i}/${n}`,W0-M-40,h-12)}}
-  return {blob:pdf.output('blob'),np,z,spots:spots.length};
+  if(ns){const y0=HEAD+ah+8,cols=GPS?2:(pw>1600?6:4),rows=Math.ceil(ns/cols),cw=pw/cols;
+    x.fillStyle='#0b6b30';x.font='700 20px Arial,Helvetica,sans-serif';x.textBaseline='middle';x.fillText('Emplacements de tente possibles (n° · km · altitude'+(GPS?' · GPS':'')+')',6,y0+14);
+    x.font='500 19px Arial,Helvetica,sans-serif';x.fillStyle='#1d2b2d';
+    spots.forEach((s,k)=>{const c=Math.floor(k/rows),r=k%rows;x.fillText(sp(`${s.n} · km ${fmtKm(tr.rd[s.i])} · ${nfp(Math.round(tr.se[s.i]))} m`+(GPS?` · ${s.la.toFixed(5)}, ${s.lo.toFixed(5)}`:'')),6+c*cw,y0+46+r*27)})}
+  // pied de page
+  x.fillStyle='#555';x.font='500 16px Arial,Helvetica,sans-serif';x.textBaseline='middle';x.textAlign='left';
+  x.fillText('Carte © IGN · rouge = parcours · rond blanc = kilomètre · carré vert = tente possible (modèle d’altitude : à vérifier sur place)',6,ph-20);
+  const {jsPDF}=window.jspdf,pdf=new jsPDF({unit:'pt',format:'a4',compress:true,orientation:pw>ph?'landscape':'portrait'});
+  pdf.addImage(cv.toDataURL('image/jpeg',.88),'JPEG',0,0,pdf.internal.pageSize.getWidth(),pdf.internal.pageSize.getHeight());
+  return {blob:pdf.output('blob'),np:1,z,spots:ns,mpp};
 }
 let mapPrintBusy=false;
 $('reportMapPrint').addEventListener('click',async()=>{
@@ -3557,7 +3536,7 @@ $('reportMapPrint').addEventListener('click',async()=>{
     let done=false;
     if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({title:'Carte : '+tr.name,files:[f]});done=true}catch(e){if(e&&e.name==='AbortError')done=true}}
     if(!done){const ok=await saveFile(r.blob,fname,'application/pdf');if(ok)toast('Carte enregistrée dans tes téléchargements : ouvre-la et imprime-la (format A4).',7000)}
-    else toast(`Carte prête : ${r.np} page${r.np>1?'s':''} de détail (A4), ${r.spots} emplacement${r.spots>1?'s':''} de tente.`,6000);
+    else toast(`Carte prête : une seule feuille A4, ${r.spots} emplacement${r.spots>1?'s':''} de tente.`,6000);
   }catch(e){console.error(e);toast('Impossible de fabriquer la carte (il faut du réseau et la carte IGN chargée).',8000)}
   finally{mapPrintBusy=false;b.disabled=false;b.textContent=label}
 });
@@ -5073,7 +5052,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V99", "date": "12/10/2026", "cache": "rr3d-v", "nouveautes": ["Nouveau bouton « 🗺️ Carte à imprimer » dans le rapport : un PDF A4 avec la carte IGN au maximum de détails (zoom 16, jusqu'à 6 pages), le parcours en rouge, les kilomètres, les emplacements de tente numérotés, et une liste des emplacements avec altitude et coordonnées GPS.", "Carte du rapport : beaucoup plus d'endroits plats possibles pour la tente (2 × 3 m). On cherche plus près du chemin, avec des pentes un peu plus tolérantes, et les carrés verts sont moins espacés (jusqu'à 90 sur la carte).", "Rapport rando décrit kilomètre par kilomètre (au lieu de 8 morceaux) : une ligne par km avec sa pente moyenne, et un cadre rouge si un passage est bien plus raide (vraie pente, mètres à plus de 20 % et 30 %). « Pente maximale » ajoutée dans En bref.", "Rapport rando relu et corrigé : même durée partout (plus de 4 h 48 / 4 h 50), plus de « passage le plus dur » sur du plat, « jusqu'à 5 % » au lieu de « moins de 5 % » (quand le profil affichait +5 %), une seule journée annoncée comme telle, libellés « altitude » et « durée » ajoutés, « 1 partie » au singulier."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V100", "date": "12/10/2026", "cache": "rr3d-v", "nouveautes": ["« 🗺️ Carte à imprimer » tient maintenant sur UNE seule feuille A4 : tout le parcours, le plus détaillé possible, avec les tentes numérotées et leur liste (km, altitude) en bas de la feuille.", "Nouveau bouton « 🗺️ Carte à imprimer » dans le rapport : un PDF A4 avec la carte IGN au maximum de détails (zoom 16, jusqu'à 6 pages), le parcours en rouge, les kilomètres, les emplacements de tente numérotés, et une liste des emplacements avec altitude et coordonnées GPS.", "Carte du rapport : beaucoup plus d'endroits plats possibles pour la tente (2 × 3 m). On cherche plus près du chemin, avec des pentes un peu plus tolérantes, et les carrés verts sont moins espacés (jusqu'à 90 sur la carte).", "Rapport rando décrit kilomètre par kilomètre (au lieu de 8 morceaux) : une ligne par km avec sa pente moyenne, et un cadre rouge si un passage est bien plus raide (vraie pente, mètres à plus de 20 % et 30 %). « Pente maximale » ajoutée dans En bref."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
