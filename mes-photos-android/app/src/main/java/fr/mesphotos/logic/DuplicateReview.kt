@@ -23,7 +23,7 @@ object DuplicateReview {
         onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
         /** Si fourni : les photos qui se RESSEMBLENT (même image réenregistrée ou redimensionnée) sont aussi regroupées. */
         similarity: ((File) -> ImageInfo?)? = null,
-        /** Mode « large » : aussi les prises de vue d'une même scène faites à moins de 90 secondes d'écart, même cadrées différemment. */
+        /** Mode « large » : aussi les prises de vue d'une même scène faites à moins de 5 minutes d'écart, même cadrées différemment. */
         loose: Boolean = false,
     ): List<DupGroup> {
         // Deux fichiers de tailles différentes ne sont jamais identiques : on ne compare que ceux de même taille.
@@ -63,11 +63,13 @@ object DuplicateReview {
         }
         if (loose) {
             // Prises de vue rapprochées dans le temps (rafale, deux essais du même cadre) : tolérance plus grande, proportions libres.
-            val byTime = infos.sortedBy { it.first.lastModified() }
+            val byTime = infos.sortedBy { it.second.taken }
             for (i in byTime.indices) {
                 var j = i + 1
-                while (j < byTime.size && byTime[j].first.lastModified() - byTime[i].first.lastModified() <= 90_000L) {
-                    if (ImageHash.similar(byTime[i].second, byTime[j].second, maxBits = 18, checkRatio = false)) union(byTime[i].first, byTime[j].first)
+                while (j < byTime.size && byTime[j].second.taken - byTime[i].second.taken <= 300_000L) {
+                    val a = byTime[i].second
+                    val b = byTime[j].second
+                    if (ImageHash.similar(a, b, maxBits = 22, checkRatio = false) || ImageHash.colorMatch(a, b) >= 0.8) union(byTime[i].first, byTime[j].first)
                     j++
                 }
             }

@@ -8,7 +8,7 @@ import java.io.File
 
 /** Empreinte « visuelle » d'une photo : deux photos qui se ressemblent (même image réenregistrée, redimensionnée…) ont presque la même. */
 /** [quality] : netteté × bonne exposition (plus grand = meilleure photo) ; 0 si non calculée. */
-class ImageInfo(val hash: Long, val width: Int, val height: Int, val quality: Double = 0.0)
+class ImageInfo(val hash: Long, val width: Int, val height: Int, val quality: Double = 0.0, val taken: Long = 0L, val hist: FloatArray? = null)
 
 object ImageHash {
 
@@ -30,8 +30,9 @@ object ImageHash {
                 }
                 if (small !== bitmap) small.recycle()
                 val quality = qualityOf(bitmap)
+                val hist = histogramOf(bitmap)
                 bitmap.recycle()
-                ImageInfo(hash, bounds.outWidth, bounds.outHeight, quality)
+                ImageInfo(hash, bounds.outWidth, bounds.outHeight, quality, takenAt(file), hist)
             }
         }
     } catch (e: Exception) {
@@ -69,6 +70,50 @@ object ImageHash {
         return sharp * exposure
     }
 
+    /** Répartition des couleurs (64 cases) : reste proche d'une prise de vue à l'autre même si le cadrage change un peu. */
+    private fun histogramOf(source: Bitmap): FloatArray {
+        val b = Bitmap.createScaledBitmap(source, 48, 48, true)
+        val h = FloatArray(64)
+        for (y in 0 until 48) for (x in 0 until 48) {
+            val c = b.getPixel(x, y)
+            h[(Color.red(c) shr 6) * 16 + (Color.green(c) shr 6) * 4 + (Color.blue(c) shr 6)] += 1f / 2304f
+        }
+        if (b !== source) b.recycle()
+        return h
+    }
+
+    private val NAME_DATE = Regex("""(20\d{2})(\d{2})(\d{2})[_-]?(\d{2})(\d{2})(\d{2})""")
+
+    /** Heure de la prise de vue : date EXIF, sinon date lue dans le nom du fichier, sinon date du fichier. */
+    private fun takenAt(file: File): Long {
+        try {
+            @Suppress("DEPRECATION")
+            val d = android.media.ExifInterface(file.absolutePath).getAttribute(android.media.ExifInterface.TAG_DATETIME_ORIGINAL)
+            if (d != null) {
+                val t = java.text.SimpleDateFormat("yyyy:MM:dd HH:mm:ss", java.util.Locale.US).parse(d)?.time
+                if (t != null) return t
+            }
+        } catch (e: Exception) { }
+        NAME_DATE.find(file.name)?.let { m ->
+            try {
+                val v = m.groupValues.drop(1).map { it.toInt() }
+                val cal = java.util.Calendar.getInstance()
+                cal.clear(); cal.set(v[0], v[1] - 1, v[2], v[3], v[4], v[5])
+                return cal.timeInMillis
+            } catch (e: Exception) { }
+        }
+        return file.lastModified()
+    }
+
+    /** Ressemblance des couleurs de 0 à 1. */
+    fun colorMatch(a: ImageInfo, b: ImageInfo): Double {
+        val x = a.hist ?: return 0.0
+        val y = b.hist ?: return 0.0
+        var s = 0.0
+        for (i in x.indices) s += minOf(x[i], y[i])
+        return s
+    }
+
     private fun gray(c: Int): Double = 0.299 * Color.red(c) + 0.587 * Color.green(c) + 0.114 * Color.blue(c)
 
     /**
@@ -93,7 +138,7 @@ object ImageHash {
             runCatching {
                 if (store.isFile) store.forEachLine { line ->
                     val p = line.split('\t')
-                    if (p.size == 6 && p[5] == "v2") map[p[0]] = ImageInfo(p[1].toLong(), p[2].toInt(), p[3].toInt(), p[4].toDouble())
+                    if (p.size == 8 && p[7] == "v3") map[p[0]] = ImageInfo(p[1].toLong(), p[2].toInt(), p[3].toInt(), p[4].toDouble(), p[5].toLong(), p[6].split(',').map { it.toFloat() }.toFloatArray())
                 }
             }
         }
@@ -114,7 +159,7 @@ object ImageHash {
             if (!dirty) return
             runCatching {
                 val alive = keep.map { key(it) }.toHashSet()
-                store.writeText(map.filterKeys { it in alive }.entries.joinToString("\n") { (k, v) -> "$k\t${v.hash}\t${v.width}\t${v.height}\t${v.quality}\tv2" } + "\n")
+                store.writeText(map.filterKeys { it in alive }.entries.joinToString("\n") { (k, v) -> "$k\t${v.hash}\t${v.width}\t${v.height}\t${v.quality}\t${v.taken}\t${v.hist?.joinToString(",") ?: ""}\tv3" } + "\n")
             }
         }
     }
