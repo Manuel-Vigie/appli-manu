@@ -1907,9 +1907,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 _state.value = UiState.Working("Recherche des doublons…", 0, 0)
                 dupGroups = withContext(Dispatchers.IO) {
-                    DuplicateReview.find(Gallery.allMedia(current.outputDir), current.outputDir) { done, total ->
-                        if (done % 20 == 0 || done == total) _state.value = UiState.Working("Comparaison des fichiers…", done, total)
-                    }
+                    val all = Gallery.allMedia(current.outputDir)
+                    val cache = fr.mesphotos.gallery.ImageHash.Cache(File(getApplication<Application>().filesDir, "empreintes.tsv"))
+                    val found = DuplicateReview.find(
+                        all, current.outputDir,
+                        onProgress = { done, total -> if (done % 20 == 0 || done == total) _state.value = UiState.Working("Comparaison des photos…", done, total) },
+                        similarity = { cache.get(it) },
+                    )
+                    cache.save(all)
+                    found
                 }
                 showDupReview()
             } catch (e: Exception) {
