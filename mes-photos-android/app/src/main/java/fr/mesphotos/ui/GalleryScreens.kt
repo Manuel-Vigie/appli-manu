@@ -183,7 +183,7 @@ internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNot
                         ) {
                             Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Renommer", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text("Mettre dans un raccourci", fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

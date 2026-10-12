@@ -388,7 +388,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Les mots proposés avant la photo (« Immatriculation », « Véhicule », « Montagne »…), à compléter. */
-    fun tagChoices(): List<String> = tags.all()
+    fun tagChoices(): List<String> = (tags.all() + shortcuts.all().map { it.name }).distinctBy { Gallery.normalize(it) }
 
     /** Ajoute un mot à la liste ; retourne le mot gardé (null si vide). */
     fun addTag(typed: String): String? = tags.add(typed)

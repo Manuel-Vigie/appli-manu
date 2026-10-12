@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V62",
+  "version": "V63",
   "date": "12/10/2026",
   "nouveautes": [
+    "Mettre des photos dans un raccourci (ex. « Famille et amis ») : Choisir, touchez les photos, « Mettre dans un raccourci », puis touchez le raccourci voulu dans la liste. Elles vont dans le dossier à son nom.",
     "Renommer un raccourci : appui long sur le raccourci, puis changez son nom. Les mots qu'il cherche restent ceux d'avant (visibles dans la fenêtre) tant que vous ne les changez pas.",
     "Fond de la page d'accueil, plus simple : dans un album, touchez « Choisir », touchez UNE photo, puis le bouton « Mettre cette photo en fond ».",
-    "Photo ouverte en grand : la corbeille 🗑 est de nouveau bien visible (la barre du haut était trop pleine). Les autres actions sont dans le menu ⋮, où se trouve aussi « Mettre en fond de la page d'accueil ».",
-    "Tout en haut de « Mes photos », la petite icône photo permet de choisir UNE photo comme fond (au lieu d'un fond vert). Elle peut être retirée à tout moment."
+    "Photo ouverte en grand : la corbeille 🗑 est de nouveau bien visible (la barre du haut était trop pleine). Les autres actions sont dans le menu ⋮, où se trouve aussi « Mettre en fond de la page d'accueil »."
   ],
   "pastille": false,
   "fichiers": []

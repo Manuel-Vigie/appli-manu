@@ -250,9 +250,9 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
         }
         renaming?.let { pending ->
             TagDialog(
-                title = "Quel mot ajouter ?",
-                confirmText = "Renommer",
-                help = "Le mot est ajouté devant le nom de chaque photo choisie (« Immatriculation - IMG_….jpg »). Le reste du nom, donc la date, est gardé. Ensuite, vous verrez les photos renommées.",
+                title = "Dans quel raccourci mettre ces photos ?",
+                confirmText = "Mettre dans le raccourci",
+                help = "Touchez le raccourci voulu (ex. « Famille et amis ») ou écrivez un nouveau mot. Les photos vont dans le dossier « Journées / ce mot » et leur nom est complété. Le mot est ajouté devant le nom de chaque photo choisie (« Immatriculation - IMG_….jpg »). Le reste du nom, donc la date, est gardé. Ensuite, vous verrez les photos renommées.",
                 shortcutOption = true,
                 choices = viewModel.tagChoices(),
                 onAdd = viewModel::addTag,
