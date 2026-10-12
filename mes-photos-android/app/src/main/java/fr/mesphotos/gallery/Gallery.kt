@@ -8,7 +8,7 @@ import java.text.Normalizer
 import java.util.Locale
 
 /** Un sous-dossier affiché dans la galerie : son nom, le nombre de photos/vidéos qu'il contient, et une photo de couverture. */
-class FolderItem(val name: String, val count: Int, val cover: File?)
+class FolderItem(val name: String, val count: Int, val cover: File?, val albums: Int = 0)
 
 /** Contenu d'un dossier : ses sous-dossiers et les photos/vidéos qui sont directement dedans. */
 class Listing(val path: List<String>, val folders: List<FolderItem>, val files: List<File>)
@@ -26,11 +26,29 @@ object Gallery {
             .filter { it.isDirectory && !it.name.startsWith(".") && !(path.isEmpty() && it.name == Place.ASIDE_DIR) }
             .map { child ->
                 val media = media(child, 0)
-                FolderItem(child.name, media.size, media.firstOrNull { !PhotoFiles.isVideo(it) } ?: media.firstOrNull())
+                val albums = child.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }?.count { hasMedia(it, 0) } ?: 0
+                FolderItem(child.name, media.size, media.firstOrNull { !PhotoFiles.isVideo(it) } ?: media.firstOrNull(), albums)
             }
             .filter { it.count > 0 }
             .sortedWith(Comparator { a, b -> compareFolders(a.name, b.name) })
         return Listing(path, folders, files)
+    }
+
+    /** Vrai dès qu'un fichier photo/vidéo se trouve sous [dir]. */
+    private fun hasMedia(dir: File, depth: Int): Boolean {
+        if (depth > 12) return false
+        for (child in dir.listFiles() ?: return false) {
+            if (child.name.startsWith(".")) continue
+            if (child.isDirectory) { if (hasMedia(child, depth + 1)) return true }
+            else if (PhotoFiles.mimeOf(child) != null && child.length() > 0) return true
+        }
+        return false
+    }
+
+    /** « 10 - octobre » s'affiche « Octobre » : le numéro du mois sert au classement, pas à la lecture. */
+    fun displayName(folderName: String): String {
+        val m = Regex("""^\d{2} - (.+)$""").find(folderName) ?: return folderName
+        return m.groupValues[1].replaceFirstChar { it.uppercase() }
     }
 
     /** Tous les fichiers photo/vidéo sous [dir] (parcours limité en profondeur, dossiers cachés ignorés). */

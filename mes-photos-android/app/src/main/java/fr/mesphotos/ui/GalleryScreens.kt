@@ -609,13 +609,13 @@ private fun AlbumCard(
     selected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    title: String = folder.name,
+    title: String = Gallery.displayName(folder.name),
     unit: String = "photo",
     captionBelow: Boolean = false,
     illustration: androidx.compose.ui.graphics.vector.ImageVector? = null,
     illustrationColors: List<Color> = emptyList(),
 ) {
-    val countText = if (folder.count > 1) "${spaced(folder.count)} ${unit}s" else "1 $unit"
+    val countText = if (folder.albums > 0) (if (folder.albums > 1) "${folder.albums} albums" else "1 album") else if (folder.count > 1) "${spaced(folder.count)} ${unit}s" else "1 $unit"
     Column {
         val shape = RoundedCornerShape(18.dp)
         Box(
@@ -636,7 +636,7 @@ private fun AlbumCard(
             if (!captionBelow) Column(Modifier.align(Alignment.BottomStart).padding(horizontal = 12.dp, vertical = 10.dp)) {
                 Text(title, color = Color.White, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, maxLines = 2)
                 Text(
-                    if (folder.count > 1) "${spaced(folder.count)} ${unit}s" else "1 $unit",
+                    countText,
                     color = Color.White.copy(alpha = 0.85f),
                     fontSize = 13.sp,
                 )

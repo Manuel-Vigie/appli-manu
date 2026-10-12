@@ -937,7 +937,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
             val direct = under.filter { it.second.size == path.size }.map { it.first }.sortedBy { it.name.lowercase() }
             val groups = under.filter { it.second.size > path.size }.groupBy { it.second[path.size] }
-            val folders = groups.map { (name, list) -> FolderItem(name, list.size, list.first().first) }
+            val folders = groups.map { (name, list) -> FolderItem(name, list.size, list.first().first, list.mapNotNull { it.second.getOrNull(path.size + 1) }.distinct().size) }
                 .sortedWith(Comparator { a, b -> Gallery.compareFolders(a.name, b.name) })
             folders to direct
         }
