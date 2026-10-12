@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V92",
+  "version": "V93",
   "date": "12/10/2026",
   "nouveautes": [
+    "Rapport rando : un petit bonhomme sur une pente, de la couleur de la difficulté, est ajouté à chaque morceau de parcours (km → km), à chaque jour et à chaque point de passage (km). Il penche et monte selon la pente.",
     "Rapport rando : la vitesse d'un marcheur débutant est ajoutée (300 m de montée par heure, 400 m de descente par heure, 3 à 4 km/h à plat, et la vitesse pour chaque type de pente), avec le temps correspondant à ton parcours. Les vitesses et les temps sont en gras pour les distinguer des explications.",
     "Rapport rando : les pauses se calculent toutes seules, jour par jour, selon la durée de marche et la difficulté du jour (de 10 % du temps de marche pour un jour facile à 26 % pour un jour dur, plus un vrai repas le midi). Chaque jour affiche « dont X de pauses ». Tu peux toujours imposer ta valeur par jour.",
-    "Rapport rando : le temps de pause se règle maintenant PAR JOUR (ex. 120 min par jour). Le total est calculé tout seul (120 min × 3 jours = 6 h) et affiché à côté du champ et dans la case « Pauses ».",
-    "Rapport rando plus simple pour tout le monde : un résumé « En bref », des dessins qui montrent ce que représente une pente (3 %, 8 %, 12 %, 20 %, 32 %), des mots clairs à la place du jargon (D+, km-effort, tronçon), la montée comparée à des étages d'immeuble. Accueil : un petit espace sous « Importer ma trace »."
+    "Rapport rando : le temps de pause se règle maintenant PAR JOUR (ex. 120 min par jour). Le total est calculé tout seul (120 min × 3 jours = 6 h) et affiché à côté du champ et dans la case « Pauses »."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v92"
+    "cache": "rr3d-v93"
   },
   "fichiers": [
     "rando-3d.html",
