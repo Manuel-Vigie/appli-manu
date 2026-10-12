@@ -113,6 +113,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
     // Renommer plusieurs photos d'un coup : dossiers et fichiers choisis, en attente du mot à ajouter.
     var askStorage by remember { mutableStateOf(false) }
     var fondTick by remember { mutableStateOf(0) }
+    var renamingFolder by remember { mutableStateOf<String?>(null) }
     val fond = remember(fondTick) { Fond.file(context) }
     val pickFond = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) { Fond.save(context, uri); fondTick++ }
@@ -248,6 +249,14 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                 onDismiss = { viewModel.clearShared() },
             )
         }
+        renamingFolder?.let { old ->
+            FolderRenameDialog(
+                old = old,
+                choices = viewModel.tagChoices(),
+                onConfirm = { n -> renamingFolder = null; viewModel.renameFolder(old, n) },
+                onDismiss = { renamingFolder = null },
+            )
+        }
         renaming?.let { pending ->
             TagDialog(
                 title = "Dans quel raccourci mettre ces photos ?",
@@ -318,6 +327,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     background = fond,
                     onPickBackground = { pickFond.launch("image/*") },
                     onRemoveBackground = { Fond.remove(context); fondTick++ },
+                    onRenameFolder = { renamingFolder = it },
                     onSetBackground = { file ->
                         val ok = Fond.save(context, Uri.fromFile(file))
                         fondTick++

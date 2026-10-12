@@ -1721,6 +1721,33 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Renomme un dossier à toi sous « Journées » (ex. « Famille » → « Famille et amis ») : les photos restent dedans, rien n'est déplacé ailleurs. */
+    fun renameFolder(oldName: String, typed: String) {
+        val current = place ?: return
+        val base = browsePath
+        viewModelScope.launch {
+            val message = withContext(Dispatchers.IO) {
+                val parent = base.fold(current.outputDir) { acc, name -> File(acc, name) }
+                val src = File(parent, oldName)
+                val newName = Planner.sanitize(typed.trim())
+                when {
+                    typed.isBlank() -> "Le nom est vide : rien n'a changé."
+                    !src.isDirectory -> "Ce dossier est introuvable."
+                    newName == oldName -> "Le nom n'a pas changé."
+                    !Planner.isOwnFolder(listOf(Planner.PHOTOS, oldName)) || base != listOf(Planner.PHOTOS) -> "Seuls vos propres dossiers (sous « Journées ») peuvent être renommés."
+                    File(parent, newName).exists() -> "Un dossier « $newName » existe déjà : rien n'a changé. (Mettez-y les photos avec « Mettre dans un raccourci ».)"
+                    src.renameTo(File(parent, newName)) -> {
+                        MediaScannerConnection.scanFile(getApplication(), arrayOf(src.absolutePath, File(parent, newName).absolutePath), null, null)
+                        "Dossier renommé : « $newName ». Les photos sont toujours dedans."
+                    }
+                    else -> "Impossible de renommer ce dossier."
+                }
+            }
+            searchIndex = null
+            showBrowse(base, message = message)
+        }
+    }
+
     fun renameFile(file: File, typed: String) {
         viewModelScope.launch {
             val (target, message) = withContext(Dispatchers.IO) { doRename(file, typed) }

@@ -93,6 +93,7 @@ import fr.mesphotos.gallery.Thumbs
 import fr.mesphotos.logic.Shortcut
 import fr.mesphotos.logic.Shortcuts
 import fr.mesphotos.organize.TrashEntry
+import fr.mesphotos.logic.Planner
 import fr.mesphotos.storage.PhotoFiles
 import kotlinx.coroutines.delay
 import java.io.File
@@ -131,7 +132,7 @@ internal fun SelectionHeader(selectedCount: Int, allSelected: Boolean, onCancel:
 
 /** Barre du bas en mode « Choisir » : « À l'écart » (rangées à part) ou « Corbeille ». */
 @Composable
-internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNotThat: (() -> Unit)? = null, onVault: (() -> Unit)? = null, onRename: (() -> Unit)? = null, onBackground: (() -> Unit)? = null, backgroundEnabled: Boolean = false) {
+internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNotThat: (() -> Unit)? = null, onVault: (() -> Unit)? = null, onRename: (() -> Unit)? = null, onBackground: (() -> Unit)? = null, backgroundEnabled: Boolean = false, onRenameFolder: (() -> Unit)? = null) {
     Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp, tonalElevation = 2.dp) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).navigationBarsPadding(),
@@ -186,6 +187,17 @@ internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNot
                             Text("Mettre dans un raccourci", fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         }
                     }
+                }
+            }
+            if (onRenameFolder != null) {
+                FilledTonalButton(
+                    onClick = onRenameFolder,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(18.dp),
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Renommer ce dossier", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
             if (onBackground != null) {
@@ -260,6 +272,7 @@ fun BrowseScreen(
     onPickBackground: () -> Unit = {},
     onRemoveBackground: () -> Unit = {},
     onSetBackground: (File) -> Unit = {},
+    onRenameFolder: (String) -> Unit = {},
 ) {
     var askBackground by remember { mutableStateOf(false) }
     if (askBackground) {
@@ -435,6 +448,9 @@ fun BrowseScreen(
                 stopSelecting()
             },
             backgroundEnabled = selectedFolders.isEmpty() && selectedFiles.size == 1,
+            onRenameFolder = if (!state.virtual && state.path == listOf(Planner.PHOTOS) && selectedFiles.isEmpty() && selectedFolders.size == 1 && Planner.isOwnFolder(listOf(Planner.PHOTOS, selectedFolders.first()))) {
+                { val name = selectedFolders.first(); stopSelecting(); onRenameFolder(name) }
+            } else null,
         )
         else tabs()
     }

@@ -209,3 +209,30 @@ internal fun ShortcutDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
     )
 }
+
+/** Renommer un dossier : un nom libre, ou le nom d'un raccourci touché dans la liste. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun FolderRenameDialog(old: String, choices: List<String>, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+    var text by remember(old) { mutableStateOf(old) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Renommer le dossier") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = text, onValueChange = { text = it }, singleLine = true, label = { Text("Nom du dossier") }, modifier = Modifier.fillMaxWidth())
+                Text("Ou touchez le nom d'un raccourci :", style = MaterialTheme.typography.bodySmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    choices.forEach { c ->
+                        Box(
+                            Modifier.clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant).clickable { text = c }.padding(horizontal = 12.dp, vertical = 8.dp),
+                        ) { Text(c, style = MaterialTheme.typography.bodyMedium) }
+                    }
+                }
+                Text("Les photos restent dans le dossier, rien n'est déplacé ailleurs.", style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        confirmButton = { TextButton(enabled = text.isNotBlank(), onClick = { onConfirm(text) }) { Text("Renommer", fontWeight = FontWeight.Bold) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
+    )
+}
