@@ -170,6 +170,8 @@ sealed interface UiState {
     data class HealthView(val report: HealthReport) : UiState
     /** Le coffre-fort ouvert : ce qu'il contient (jamais montré ailleurs dans l'appli). */
     data class VaultView(val entries: List<VaultEntry>, val message: String? = null) : UiState
+    /** Tri rapide : les photos une par une ; un appui sur un nom (Manu, Famille, Ex…) la range dans le dossier de ce nom. */
+    data class QuickSort(val files: List<File>, val index: Int, val targets: List<String>, val canUndo: Boolean, val message: String? = null) : UiState
 
     /** La corbeille (ou « À l'écart ») : ce qui a été mis de côté, à remettre (ou, pour la corbeille, à supprimer pour de bon). */
     data class TrashView(val entries: List<TrashEntry>, val message: String? = null, val kind: MoveKind = MoveKind.TRASH) : UiState
@@ -358,6 +360,101 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         videoPath = null
         browsePath = emptyList()
         refresh(if (value == Places.INTERNAL) "L'appli travaille maintenant dans la mémoire du téléphone. Rien n'a été déplacé." else "L'appli travaille maintenant sur la carte SD. Rien n'a été déplacé.")
+    }
+
+    // ---- Tri rapide -----------------------------------------------------------------------------
+
+    private var quickOwn: List<String> = emptyList()
+    /** Dernière photo classée : où elle était, où elle est maintenant, et à quel rang on était. */
+    private var quickLast: Triple<File, File, Int>? = null
+
+    private fun quickTargets(): List<String> =
+        (quickOwn + shortcuts.all().map { it.name }).distinctBy { Gallery.normalize(it) }.sortedBy { Gallery.normalize(it) }
+
+    /** Ouvre le tri rapide : les photos déjà datées mais pas encore dans un dossier à vous, les plus récentes d'abord. */
+    fun openQuickSort() {
+        val current = place ?: return
+        viewModelScope.launch {
+            _state.value = UiState.Working("Préparation du tri rapide…", 0, 0)
+            val (files, own) = withContext(Dispatchers.IO) {
+                val found = PhotoFiles.list(current, includeSorted = true)
+                val candidates = found.filter { it.relative?.firstOrNull() == Planner.PHOTOS && !Planner.isOwnFolder(it.relative) && !PhotoFiles.isVideo(it.file) }
+                    .map { it.file }.sortedByDescending { it.lastModified() }
+                val journees = File(current.outputDir, Planner.PHOTOS)
+                val folders = journees.listFiles { f -> f.isDirectory && Planner.isOwnFolder(listOf(Planner.PHOTOS, f.name)) }?.map { it.name } ?: emptyList()
+                candidates to folders
+            }
+            quickOwn = own
+            quickLast = null
+            if (files.isEmpty()) { refresh("Aucune photo à trier : toutes sont déjà dans vos dossiers."); return@launch }
+            _state.value = UiState.QuickSort(files, 0, quickTargets(), canUndo = false)
+        }
+    }
+
+    private fun quickNext(s: UiState.QuickSort, index: Int, message: String?) {
+        if (index >= s.files.size) {
+            quickLast = null
+            refresh("Tri rapide terminé.")
+            return
+        }
+        _state.value = s.copy(index = index, targets = quickTargets(), canUndo = quickLast != null, message = message)
+    }
+
+    fun quickSkip() {
+        val s = _state.value as? UiState.QuickSort ?: return
+        quickNext(s, s.index + 1, null)
+    }
+
+    /** Range la photo en cours dans « Journées / [label] » et ajoute le mot devant son nom ; [isNew] : mot nouveau, qui devient aussi un raccourci. */
+    fun quickAssign(label: String, isNew: Boolean) {
+        val s = _state.value as? UiState.QuickSort ?: return
+        val file = s.files.getOrNull(s.index) ?: return
+        val current = place ?: return
+        val clean = label.trim()
+        if (clean.isEmpty()) return
+        viewModelScope.launch {
+            val target = withContext(Dispatchers.IO) {
+                val dir = File(File(current.outputDir, Planner.PHOTOS), Planner.sanitize(clean))
+                if (!file.isFile || (!dir.isDirectory && !dir.mkdirs())) return@withContext null
+                val hasWord = Gallery.matches(Gallery.normalize(file.name), Gallery.terms(clean))
+                val name = (if (hasWord) file.name else RenameNames.build(clean, file.name, keepOriginal = true)) ?: return@withContext null
+                val moved = RenameNames.unique(dir, name)
+                if (file.renameTo(moved) && moved.isFile && !file.exists()) {
+                    MediaScannerConnection.scanFile(getApplication(), arrayOf(file.absolutePath, moved.absolutePath), null, null)
+                    updateJournalPath(file, moved)
+                    moved
+                } else null
+            }
+            if (target == null) {
+                _state.value = s.copy(message = "Impossible de ranger cette photo : elle reste où elle est.")
+                return@launch
+            }
+            searchIndex = null
+            if (isNew && !hasShortcutNamed(clean)) shortcuts.put(clean, "", clean)
+            if (quickOwn.none { Gallery.normalize(it) == Gallery.normalize(clean) }) quickOwn = quickOwn + Planner.sanitize(clean)
+            quickLast = Triple(file, target, s.index)
+            quickNext(s, s.index + 1, "Rangée dans « ${Planner.sanitize(clean)} ».")
+        }
+    }
+
+    /** Remet la dernière photo classée à sa place d'avant (et son ancien nom) et la remontre. */
+    fun quickUndo() {
+        val s = _state.value as? UiState.QuickSort ?: return
+        val (orig, moved, index) = quickLast ?: return
+        viewModelScope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                if (moved.isFile && !orig.exists() && orig.parentFile?.isDirectory == true && moved.renameTo(orig)) {
+                    MediaScannerConnection.scanFile(getApplication(), arrayOf(moved.absolutePath, orig.absolutePath), null, null)
+                    updateJournalPath(moved, orig)
+                    true
+                } else false
+            }
+            searchIndex = null
+            if (ok) {
+                quickLast = null
+                quickNext(s, index, "Remise comme avant.")
+            } else _state.value = s.copy(message = "Impossible de remettre cette photo.")
+        }
     }
 
     fun onResume() {

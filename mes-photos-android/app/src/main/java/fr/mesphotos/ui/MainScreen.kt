@@ -287,6 +287,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onOpenVault = openVault,
                         onHealth = viewModel::startHealthCheck,
                         onStorage = { askStorage = true },
+                        onQuickSort = viewModel::openQuickSort,
                         onDuplicates = viewModel::findDuplicates,
                         onTakePhoto = { askLabel = true },
                         onCheckUpdate = { viewModel.checkUpdate(version) { updateTick++ } },
@@ -348,6 +349,13 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     categories = viewModel::shortcutCategories,
                     onSaveShortcut = { name, category, words -> viewModel.saveShortcut(name, category, words, null) },
                     onRestoreFromVault = { file -> viewModel.restoreFromVaultFile(file) },
+                )
+                is UiState.QuickSort -> QuickSortScreen(
+                    s,
+                    onAssign = viewModel::quickAssign,
+                    onSkip = viewModel::quickSkip,
+                    onUndo = viewModel::quickUndo,
+                    onClose = viewModel::backToStart,
                 )
                 is UiState.HealthView -> HealthScreen(s, onBack = viewModel::backToStart, onRepair = viewModel::repairHealth, onTrashUnusable = viewModel::trashUnusable)
                 is UiState.VaultView -> VaultScreen(
@@ -420,6 +428,7 @@ private fun HomeScreen(
     onOpenVault: () -> Unit,
     onHealth: () -> Unit,
     onStorage: () -> Unit,
+    onQuickSort: () -> Unit,
     onDuplicates: () -> Unit,
     onTakePhoto: () -> Unit,
     onCheckUpdate: () -> Unit,
@@ -475,6 +484,10 @@ private fun HomeScreen(
                     ToolGroup(
                         "Prendre une photo",
                         listOf(Tool(AppIcons.Camera, "Prendre une photo", "Enregistrée sur la carte, dans « Photos à trier »", onClick = onTakePhoto)),
+                    ),
+                    ToolGroup(
+                        "Tri rapide",
+                        listOf(Tool(Icons.Default.Star, "Tri rapide", "Une photo à la fois : touchez Manu, Famille, Ex…", onClick = onQuickSort)),
                     ),
                     ToolGroup(
                         "Doublons",
