@@ -316,6 +316,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onClose = viewModel::closeViewer,
                     onMove = { kind, file -> viewModel.moveSelection(kind, emptySet(), listOf(file)) },
                     onRename = viewModel::renameFile,
+                    onRotate = viewModel::rotateFile,
                     categories = viewModel::shortcutCategories,
                     onSaveShortcut = { name, category, words -> viewModel.saveShortcut(name, category, words, null) },
                     onRestoreFromVault = { file -> viewModel.restoreFromVaultFile(file) },

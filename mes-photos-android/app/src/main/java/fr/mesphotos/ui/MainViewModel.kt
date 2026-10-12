@@ -156,6 +156,8 @@ sealed interface UiState {
         val folders: List<FolderItem>,
         val files: List<File>,
         val message: String? = null,
+        /** Augmente quand une photo est tournée : force le rechargement de l'image. */
+        val rev: Int = 0,
         /** Nombre de fichiers qu'on vient de mettre à la corbeille et qu'on peut remettre d'un geste (0 = rien). */
         val undoTrash: Int = 0,
         /** Les raccourcis, montrés en haut de la page d'accueil des photos (à la racine seulement). */
@@ -1664,6 +1666,42 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Renomme [file] (dans la visionneuse). Le type du fichier est gardé ; rien d'autre ne change. */
+    /** Tourne la photo d'un quart de tour vers la droite (JPEG : seulement l'orientation, sans perte ; PNG/WebP : l'image). La date du fichier est gardée. */
+    fun rotateFile(file: File) {
+        viewModelScope.launch {
+            val message = withContext(Dispatchers.IO) {
+                try {
+                    if (!file.isFile) return@withContext "Cette photo est introuvable."
+                    val date = file.lastModified()
+                    when (file.extension.lowercase()) {
+                        "jpg", "jpeg", "jpe", "jfif" -> {
+                            val exif = ExifInterface(file.absolutePath)
+                            exif.rotate(90)
+                            exif.saveAttributes()
+                        }
+                        "png", "webp" -> {
+                            val bmp = BitmapFactory.decodeFile(file.absolutePath) ?: return@withContext "Impossible de lire cette photo."
+                            val matrix = android.graphics.Matrix().apply { postRotate(90f) }
+                            val out = android.graphics.Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, matrix, true)
+                            val tmp = File(file.parentFile, file.name + ".tourne")
+                            tmp.outputStream().use { out.compress(if (file.extension.lowercase() == "png") android.graphics.Bitmap.CompressFormat.PNG else android.graphics.Bitmap.CompressFormat.WEBP_LOSSLESS, 100, it) }
+                            if (tmp.length() > 0 && file.delete() && tmp.renameTo(file)) Unit else { tmp.delete(); return@withContext "Impossible de tourner cette photo." }
+                        }
+                        else -> return@withContext "On ne peut tourner que les photos JPEG, PNG et WebP."
+                    }
+                    file.setLastModified(date)
+                    Thumbs.forget(file)
+                    MediaScannerConnection.scanFile(getApplication(), arrayOf(file.absolutePath), null, null)
+                    "Photo tournée."
+                } catch (e: Exception) {
+                    "Impossible de tourner cette photo."
+                }
+            }
+            val viewer = _state.value as? UiState.Viewer ?: return@launch
+            _state.value = viewer.copy(message = message, rev = viewer.rev + 1)
+        }
+    }
+
     fun renameFile(file: File, typed: String) {
         viewModelScope.launch {
             val (target, message) = withContext(Dispatchers.IO) { doRename(file, typed) }

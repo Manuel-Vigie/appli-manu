@@ -30,6 +30,12 @@ object Thumbs {
     /** Quelques lectures à la fois : le défilement reste fluide et la mémoire du téléphone aussi. */
     private val gate = Semaphore(3)
 
+    /** Oublie les images gardées en mémoire pour ce fichier (après l'avoir tourné). */
+    fun forget(file: File) {
+        val prefix = file.absolutePath + "|"
+        cache.snapshot().keys.filter { it.startsWith(prefix) }.forEach { cache.remove(it) }
+    }
+
     suspend fun load(file: File, maxSize: Int): Bitmap? {
         val key = file.absolutePath + "|" + maxSize + "|" + file.lastModified()
         cache.get(key)?.let { return it }

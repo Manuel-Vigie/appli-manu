@@ -600,6 +600,7 @@ fun ViewerScreen(
     onClose: () -> Unit,
     onMove: (MoveKind, File) -> Unit,
     onRename: (File, String) -> Unit,
+    onRotate: (File) -> Unit = {},
     categories: () -> List<String>,
     onSaveShortcut: (name: String, category: String, words: String) -> Unit,
     onRestoreFromVault: (File) -> Unit = {},
@@ -616,9 +617,9 @@ fun ViewerScreen(
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         HorizontalPager(state = pager, modifier = Modifier.fillMaxSize(), beyondViewportPageCount = 1, userScrollEnabled = !zoomed) { page ->
             val file = state.files[page]
-            var bitmap by remember(file) { mutableStateOf<Bitmap?>(null) }
-            var finished by remember(file) { mutableStateOf(false) }
-            LaunchedEffect(file) {
+            var bitmap by remember(file, state.rev) { mutableStateOf<Bitmap?>(null) }
+            var finished by remember(file, state.rev) { mutableStateOf(false) }
+            LaunchedEffect(file, state.rev) {
                 bitmap = Thumbs.load(file, 1600)
                 if (bitmap == null) {
                     delay(600)
@@ -677,6 +678,9 @@ fun ViewerScreen(
                     }
                 }
                 if (current != null && !state.fromVault) {
+                    if (!PhotoFiles.isVideo(current)) IconButton(onClick = { onRotate(current) }) {
+                        Icon(AppIcons.Rotate, contentDescription = "Tourner la photo", tint = Color.White)
+                    }
                     IconButton(onClick = { renaming = true }) {
                         Icon(Icons.Default.Edit, contentDescription = "Renommer", tint = Color.White)
                     }
