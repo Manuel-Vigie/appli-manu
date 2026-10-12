@@ -112,6 +112,11 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
     var askLabel by remember { mutableStateOf(false) }
     // Renommer plusieurs photos d'un coup : dossiers et fichiers choisis, en attente du mot à ajouter.
     var askStorage by remember { mutableStateOf(false) }
+    var fondTick by remember { mutableStateOf(0) }
+    val fond = remember(fondTick) { Fond.file(context) }
+    val pickFond = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) { Fond.save(context, uri); fondTick++ }
+    }
     var renaming by remember { mutableStateOf<Pair<Set<String>, List<File>>?>(null) }
 
     // Coffre-fort : on demande le verrouillage du téléphone (code, schéma, empreinte…) avant de l'ouvrir.
@@ -310,6 +315,9 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onRemoveShortcut = viewModel::removeShortcut,
                     categories = viewModel::shortcutCategories,
                     tabs = tabs(0),
+                    background = fond,
+                    onPickBackground = { pickFond.launch("image/*") },
+                    onRemoveBackground = { Fond.remove(context); fondTick++ },
                 )
                 is UiState.Viewer -> ViewerScreen(
                     s,

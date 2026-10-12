@@ -243,7 +243,25 @@ fun BrowseScreen(
     onRemoveShortcut: (Shortcut) -> Unit,
     categories: () -> List<String>,
     tabs: @Composable () -> Unit,
+    background: File? = null,
+    onPickBackground: () -> Unit = {},
+    onRemoveBackground: () -> Unit = {},
 ) {
+    var askBackground by remember { mutableStateOf(false) }
+    if (askBackground) {
+        AlertDialog(
+            onDismissRequest = { askBackground = false },
+            title = { Text("Photo du haut de la page") },
+            text = { Text("Choisissez une de vos photos pour le fond de « Mes photos ». Seule une copie réduite est gardée dans l'appli : la photo d'origine ne bouge pas.") },
+            confirmButton = { TextButton(onClick = { askBackground = false; onPickBackground() }) { Text("Choisir une photo") } },
+            dismissButton = {
+                Row {
+                    if (background != null) TextButton(onClick = { askBackground = false; onRemoveBackground() }) { Text("Retirer") }
+                    TextButton(onClick = { askBackground = false }) { Text("Annuler") }
+                }
+            },
+        )
+    }
     var editing by remember { mutableStateOf<ShortcutItem?>(null) }
     var creating by remember { mutableStateOf(false) }
     // Le menu des raccourcis est fermé à chaque retour sur la page (il se referme derrière nous).
@@ -303,7 +321,8 @@ fun BrowseScreen(
                 subtitle = counts.joinToString("  ·  ").ifEmpty { null },
                 onBack = onUp,
             ) {
-                IconButton(onClick = onSearch) { Icon(Icons.Default.Search, contentDescription = "Rechercher") }
+                IconButton(onClick = onPickBackground) { Icon(AppIcons.Photos, contentDescription = "Choisir la photo du haut", tint = Color.White) }
+            IconButton(onClick = onSearch) { Icon(Icons.Default.Search, contentDescription = "Rechercher") }
                 if (itemCount > 0) TopAction("Choisir") { selecting = true }
             }
         }
@@ -334,6 +353,8 @@ fun BrowseScreen(
                         title = "Mes photos",
                         subtitle = counts.joinToString("  ·  ").ifEmpty { null },
                         covers = covers,
+                        background = background,
+                        onPickBackground = { askBackground = true },
                         onSearch = onSearch,
                         onChoose = if (itemCount > 0) ({ selecting = true }) else null,
                     )
@@ -444,7 +465,7 @@ fun BrowseScreen(
 /** Le grand bouton « Prendre une photo », tout en haut de la page d'accueil des photos. */
 /** Grande carte du haut de « Photos » : une mosaïque de vos photos avec le titre, la loupe et « Choisir ». */
 @Composable
-private fun PhotoHero(title: String, subtitle: String?, covers: List<File>, onSearch: () -> Unit, onChoose: (() -> Unit)?) {
+private fun PhotoHero(title: String, subtitle: String?, covers: List<File>, background: File?, onPickBackground: () -> Unit, onSearch: () -> Unit, onChoose: (() -> Unit)?) {
     val shape = RoundedCornerShape(28.dp)
     Box(
         Modifier
@@ -454,7 +475,8 @@ private fun PhotoHero(title: String, subtitle: String?, covers: List<File>, onSe
             .clip(shape)
             .background(Brush.linearGradient(heroColors())),
     ) {
-        if (covers.isNotEmpty()) {
+        if (background != null) Thumb(background, 1200, Modifier.matchParentSize())
+        else if (covers.isNotEmpty()) {
             Row(Modifier.matchParentSize(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 covers.forEach { Thumb(it, 500, Modifier.weight(1f).fillMaxSize()) }
             }
