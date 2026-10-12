@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V97",
+  "version": "V98",
   "date": "12/10/2026",
   "nouveautes": [
+    "Carte du rapport : beaucoup plus d'endroits plats possibles pour la tente (2 × 3 m). On cherche plus près du chemin, avec des pentes un peu plus tolérantes, et les carrés verts sont moins espacés (jusqu'à 90 sur la carte).",
     "Rapport rando décrit kilomètre par kilomètre (au lieu de 8 morceaux) : une ligne par km avec sa pente moyenne, et un cadre rouge si un passage est bien plus raide (vraie pente, mètres à plus de 20 % et 30 %). « Pente maximale » ajoutée dans En bref.",
     "Rapport rando relu et corrigé : même durée partout (plus de 4 h 48 / 4 h 50), plus de « passage le plus dur » sur du plat, « jusqu'à 5 % » au lieu de « moins de 5 % » (quand le profil affichait +5 %), une seule journée annoncée comme telle, libellés « altitude » et « durée » ajoutés, « 1 partie » au singulier.",
-    "Rapport rando, chaque morceau en phrases claires : « Tu descends de 380 m d'altitude sur 3,9 km. Tous les 100 m avancés, ça fait 10 m de descente, soit environ 3 étages d'immeuble. » Les phrases de descente parlent maintenant des genoux (plus du souffle). Mise en page resserrée sur téléphone.",
-    "Rapport rando beaucoup plus court : les explications sont regroupées dans « Le parcours, morceau par morceau » (bonhomme, mot, effort ressenti, passages les plus raides signalés sur chaque morceau, repères de vitesse d'un débutant en haut). Les longues sections d'explications ont disparu."
+    "Rapport rando, chaque morceau en phrases claires : « Tu descends de 380 m d'altitude sur 3,9 km. Tous les 100 m avancés, ça fait 10 m de descente, soit environ 3 étages d'immeuble. » Les phrases de descente parlent maintenant des genoux (plus du souffle). Mise en page resserrée sur téléphone."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v97"
+    "cache": "rr3d-v98"
   },
   "fichiers": [
     "rando-3d.html",

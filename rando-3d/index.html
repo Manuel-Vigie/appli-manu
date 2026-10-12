@@ -3092,15 +3092,15 @@ async function reportFlatSpots(tr,B){
   let img=null;try{img=B.cv.getContext('2d')}catch(e){}
   const isWater=(p)=>{if(!img)return false;try{const d=img.getImageData(Math.round(p[0])-2,Math.round(p[1])-2,5,5).data;let r=0,g=0,b=0;for(let j=0;j<100;j+=4){r+=d[j];g+=d[j+1];b+=d[j+2]}r/=25;g/=25;b/=25;return b>r+22&&b>g+4}catch(e){return false}};
   const cand=[];let prevD=-1e9;
-  for(let k=0;k<pts.length;k++){const p=pts[k],i=p[2];if(tr.rd[i]-prevD<25)continue;prevD=tr.rd[i];
+  for(let k=0;k<pts.length;k++){const p=pts[k],i=p[2];if(tr.rd[i]-prevD<15)continue;prevD=tr.rd[i];
     const a=pts[Math.max(0,k-3)],b=pts[Math.min(pts.length-1,k+3)];
     let tx=(b[1]-a[1])/mLo,ty=(b[0]-a[0])/mLa;const L=Math.hypot(tx,ty);if(L<1)continue;tx/=L;ty/=L;
     const nx=-ty,ny=tx;let best=null;
-    for(const o of[14,22,30,38,46])for(const sg of[1,-1]){
+    for(const o of[8,14,20,26,32,38,44,50])for(const sg of[1,-1]){
       const la=p[0]+ny*o*sg*mLa,lo=p[1]+nx*o*sg*mLo,e0=el(la,lo);if(!isFinite(e0))continue;
-      if(slope(la,lo,12)>3.5)continue;
+      if(slope(la,lo,9)>5)continue;
       let ok=true,flatAll=true;const ev=[e0];
-      for(const [ax,ay] of[[1,0],[-1,0],[0,1],[0,-1]]){const l2=la+ay*14*mLa,o2=lo+ax*14*mLo;if(!(slope(l2,o2,12)<=6)){ok=false;break}ev.push(el(l2,o2))}
+      for(const [ax,ay] of[[1,0],[-1,0],[0,1],[0,-1]]){const l2=la+ay*10*mLa,o2=lo+ax*10*mLo;if(!(slope(l2,o2,9)<=8)){ok=false;break}ev.push(el(l2,o2))}
       if(!ok)continue;
       if(Math.max(...ev)-Math.min(...ev)<.05)continue;   // altitude parfaitement constante : probablement un lac
       const pp=px(la,lo);if(isWater(pp))continue;
@@ -3108,8 +3108,8 @@ async function reportFlatSpots(tr,B){
       best={la,lo,pp,o};break}
     if(best)cand.push(best)}
   // on espace les carrés pour que la carte reste lisible
-  let gap=70,out=[];
-  for(;gap<=400;gap+=40){out=[];for(const c of cand){if(out.every(o=>Math.hypot((o.lo-c.lo)/mLo,(o.la-c.la)/mLa)>=gap))out.push(c)}if(out.length<=45)break}
+  let gap=40,out=[];
+  for(;gap<=400;gap+=30){out=[];for(const c of cand){if(out.every(o=>Math.hypot((o.lo-c.lo)/mLo,(o.la-c.la)/mLa)>=gap))out.push(c)}if(out.length<=90)break}
   return out.map(c=>c.pp);
 }
 function reportMapOverlay(tr,B,marks){
@@ -4969,7 +4969,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V97", "date": "12/10/2026", "cache": "rr3d-v", "nouveautes": ["Rapport rando décrit kilomètre par kilomètre (au lieu de 8 morceaux) : une ligne par km avec sa pente moyenne, et un cadre rouge si un passage est bien plus raide (vraie pente, mètres à plus de 20 % et 30 %). « Pente maximale » ajoutée dans En bref.", "Rapport rando relu et corrigé : même durée partout (plus de 4 h 48 / 4 h 50), plus de « passage le plus dur » sur du plat, « jusqu'à 5 % » au lieu de « moins de 5 % » (quand le profil affichait +5 %), une seule journée annoncée comme telle, libellés « altitude » et « durée » ajoutés, « 1 partie » au singulier.", "Rapport rando, chaque morceau en phrases claires : « Tu descends de 380 m d'altitude sur 3,9 km. Tous les 100 m avancés, ça fait 10 m de descente, soit environ 3 étages d'immeuble. » Les phrases de descente parlent maintenant des genoux (plus du souffle). Mise en page resserrée sur téléphone.", "Rapport rando beaucoup plus court : les explications sont regroupées dans « Le parcours, morceau par morceau » (bonhomme, mot, effort ressenti, passages les plus raides signalés sur chaque morceau, repères de vitesse d'un débutant en haut). Les longues sections d'explications ont disparu."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V98", "date": "12/10/2026", "cache": "rr3d-v", "nouveautes": ["Carte du rapport : beaucoup plus d'endroits plats possibles pour la tente (2 × 3 m). On cherche plus près du chemin, avec des pentes un peu plus tolérantes, et les carrés verts sont moins espacés (jusqu'à 90 sur la carte).", "Rapport rando décrit kilomètre par kilomètre (au lieu de 8 morceaux) : une ligne par km avec sa pente moyenne, et un cadre rouge si un passage est bien plus raide (vraie pente, mètres à plus de 20 % et 30 %). « Pente maximale » ajoutée dans En bref.", "Rapport rando relu et corrigé : même durée partout (plus de 4 h 48 / 4 h 50), plus de « passage le plus dur » sur du plat, « jusqu'à 5 % » au lieu de « moins de 5 % » (quand le profil affichait +5 %), une seule journée annoncée comme telle, libellés « altitude » et « durée » ajoutés, « 1 partie » au singulier.", "Rapport rando, chaque morceau en phrases claires : « Tu descends de 380 m d'altitude sur 3,9 km. Tous les 100 m avancés, ça fait 10 m de descente, soit environ 3 étages d'immeuble. » Les phrases de descente parlent maintenant des genoux (plus du souffle). Mise en page resserrée sur téléphone."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
