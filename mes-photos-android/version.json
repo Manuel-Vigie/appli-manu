@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V66",
+  "version": "V67",
   "date": "12/10/2026",
   "nouveautes": [
+    "En haut de « Mes photos », le nombre d'albums est maintenant celui de tous les albums qu'il y a dans l'Album photos (au lieu de « 1 album »).",
     "Nouveau « Tri rapide » (Outils) : une photo en grand, un gros bouton par nom (Manu, Famille, Ex…). Un appui range la photo dans le dossier de ce nom et affiche la suivante ; « Passer » et « Annuler » sont là aussi.",
     "Mettre des photos dans un raccourci/dossier existant (ex. « Famille ») ne crée plus un nouveau raccourci en double dans « Divers » : un raccourci n'est créé que si son nom n'existe pas encore.",
-    "Renommer un dossier à vous (ex. « Famille » → « Famille et amis ») : ouvrez « Journées », touchez « Choisir », touchez le dossier, puis « Renommer ce dossier ». Les noms de vos raccourcis sont proposés. Les photos restent dedans.",
-    "Mettre des photos dans un raccourci (ex. « Famille et amis ») : Choisir, touchez les photos, « Mettre dans un raccourci », puis touchez le raccourci voulu dans la liste. Elles vont dans le dossier à son nom."
+    "Renommer un dossier à vous (ex. « Famille » → « Famille et amis ») : ouvrez « Journées », touchez « Choisir », touchez le dossier, puis « Renommer ce dossier ». Les noms de vos raccourcis sont proposés. Les photos restent dedans."
   ],
   "pastille": false,
   "fichiers": []

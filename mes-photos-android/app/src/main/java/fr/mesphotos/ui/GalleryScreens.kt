@@ -322,7 +322,8 @@ fun BrowseScreen(
 
     val title = if (state.path.isEmpty()) "Photos" else state.path.last()
         val counts = ArrayList<String>()
-        if (state.folders.isNotEmpty()) counts += if (state.folders.size > 1) "${state.folders.size} albums" else "1 album"
+        val albumCount = if (state.path.isEmpty() && state.albumTotal > 0) state.albumTotal else state.folders.size
+        if (albumCount > 0) counts += if (albumCount > 1) "$albumCount albums" else "1 album"
         if (state.files.isNotEmpty()) counts += if (state.files.size > 1) "${spaced(state.files.size)} photos et vidéos" else "1 photo ou vidéo"
 
     Column(modifier = Modifier.fillMaxSize()) {

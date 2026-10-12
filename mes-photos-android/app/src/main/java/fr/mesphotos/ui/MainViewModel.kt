@@ -164,6 +164,8 @@ sealed interface UiState {
         val videos: FolderItem? = null,
         /** Vrai pour l'album « Vidéos » : un classement qui ne correspond pas à de vrais dossiers (on ne choisit que des vidéos, pas des dossiers). */
         val virtual: Boolean = false,
+        /** À la racine : nombre d'albums (dossiers) qu'il y a dans « Album photos » (0 = ne pas afficher). */
+        val albumTotal: Int = 0,
     ) : UiState
 
     /** Résultat de « Vérifier les photos ». */
@@ -888,8 +890,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val all = (searchIndex ?: buildSearchIndex(current)).map { it.file }.filter { PhotoFiles.isVideo(it) }
             if (all.isEmpty()) null else FolderItem("Vidéos", all.size, all.first())
         } else null
+        val albumTotal = if (path.isEmpty()) withContext(Dispatchers.IO) { Gallery.list(current.outputDir, listOf(Planner.PHOTOS)).folders.size } else 0
         _state.value = UiState.Browse(
-            path, listing.folders, listing.files, videos = videos,
+            path, listing.folders, listing.files, videos = videos, albumTotal = albumTotal,
             message = message ?: if (empty && path.isEmpty() && items.isEmpty()) "Rien à voir pour l'instant : rangez d'abord vos photos." else null,
             undoTrash = undoCount,
             shortcuts = items,
