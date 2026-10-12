@@ -149,7 +149,7 @@ internal fun ShortcutDialog(
     var name by remember { mutableStateOf(initial?.name ?: suggestedName) }
     var category by remember { mutableStateOf(initial?.category ?: suggestedCategory) }
     // Les mots ne sont montrés que s'ils diffèrent du nom : par défaut, le raccourci cherche son nom.
-    var words by remember { mutableStateOf(if (initial != null && initial.words != initial.name) initial.words else "") }
+    var words by remember { mutableStateOf(initial?.words ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -193,7 +193,7 @@ internal fun ShortcutDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    "Le raccourci montre toutes les photos dont le nom, l'album, la ville, le mois… contient ces mots, et leur nombre. Aucune photo n'est déplacée.",
+                    (if (initial != null) "Pour seulement changer le nom, modifiez la première case : les mots à chercher restent ceux d'avant.\n" else "") + "Le raccourci montre toutes les photos dont le nom, l'album, la ville, le mois… contient ces mots, et leur nombre. Aucune photo n'est déplacée.",
                     style = MaterialTheme.typography.bodySmall,
                 )
                 if (onRemove != null) {

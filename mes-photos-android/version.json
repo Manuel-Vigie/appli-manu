@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V61",
+  "version": "V62",
   "date": "12/10/2026",
   "nouveautes": [
+    "Renommer un raccourci : appui long sur le raccourci, puis changez son nom. Les mots qu'il cherche restent ceux d'avant (visibles dans la fenêtre) tant que vous ne les changez pas.",
     "Fond de la page d'accueil, plus simple : dans un album, touchez « Choisir », touchez UNE photo, puis le bouton « Mettre cette photo en fond ».",
     "Photo ouverte en grand : la corbeille 🗑 est de nouveau bien visible (la barre du haut était trop pleine). Les autres actions sont dans le menu ⋮, où se trouve aussi « Mettre en fond de la page d'accueil ».",
-    "Tout en haut de « Mes photos », la petite icône photo permet de choisir UNE photo comme fond (au lieu d'un fond vert). Elle peut être retirée à tout moment.",
-    "Bouton ↻ (tourner la photo) corrigé : si le fichier refuse la rotation sans perte, l'image est tournée directement ; en cas d'échec, la raison s'affiche."
+    "Tout en haut de « Mes photos », la petite icône photo permet de choisir UNE photo comme fond (au lieu d'un fond vert). Elle peut être retirée à tout moment."
   ],
   "pastille": false,
   "fichiers": []
