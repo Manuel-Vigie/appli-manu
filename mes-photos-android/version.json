@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V70",
+  "version": "V71",
   "date": "12/10/2026",
   "nouveautes": [
+    "Doublons : l'appli propose maintenant de garder la photo la plus nette et la mieux éclairée (puis la plus grande), pas la plus sombre. Vous pouvez toujours toucher une autre photo du groupe pour la garder à la place.",
     "Doublons : l'outil retrouve maintenant aussi les photos qui se ressemblent (même image enregistrée deux fois, réduite ou renvoyée par WhatsApp), pas seulement les copies identiques. Vous vérifiez avant que quoi que ce soit parte à la corbeille. La 1re recherche est longue, les suivantes plus rapides.",
     "Les mois s'affichent enfin sans numéro : « Octobre » au lieu de « 10 - octobre » (le numéro pouvait faire croire à un jour). Le nombre d'albums reste dessous.",
-    "Dans les albums : « 10 - octobre » s'affiche « Octobre », et sous le nom on voit le nombre d'albums qu'il contient (au lieu du nombre de photos). Pareil dans l'album vidéos. Un dossier sans sous-dossier garde son nombre de photos.",
-    "En haut de « Mes photos », le nombre d'albums est maintenant celui de tous les albums qu'il y a dans l'Album photos (au lieu de « 1 album »)."
+    "Dans les albums : « 10 - octobre » s'affiche « Octobre », et sous le nom on voit le nombre d'albums qu'il contient (au lieu du nombre de photos). Pareil dans l'album vidéos. Un dossier sans sous-dossier garde son nombre de photos."
   ],
   "pastille": false,
   "fichiers": []

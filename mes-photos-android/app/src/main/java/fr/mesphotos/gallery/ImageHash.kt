@@ -7,7 +7,8 @@ import fr.mesphotos.storage.PhotoFiles
 import java.io.File
 
 /** Empreinte « visuelle » d'une photo : deux photos qui se ressemblent (même image réenregistrée, redimensionnée…) ont presque la même. */
-class ImageInfo(val hash: Long, val width: Int, val height: Int)
+/** [quality] : netteté × bonne exposition (plus grand = meilleure photo) ; 0 si non calculée. */
+class ImageInfo(val hash: Long, val width: Int, val height: Int, val quality: Double = 0.0)
 
 object ImageHash {
 
@@ -17,7 +18,7 @@ object ImageHash {
         BitmapFactory.decodeFile(file.absolutePath, bounds)
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) null else {
             var sample = 1
-            while (bounds.outWidth / (sample * 2) >= 64 && bounds.outHeight / (sample * 2) >= 64) sample *= 2
+            while (bounds.outWidth / (sample * 2) >= 400 && bounds.outHeight / (sample * 2) >= 400) sample *= 2
             val bitmap = BitmapFactory.decodeFile(file.absolutePath, BitmapFactory.Options().apply { inSampleSize = sample })
             if (bitmap == null) null else {
                 val small = Bitmap.createScaledBitmap(bitmap, 9, 8, true)
@@ -28,14 +29,44 @@ object ImageHash {
                     bit++
                 }
                 if (small !== bitmap) small.recycle()
+                val quality = qualityOf(bitmap)
                 bitmap.recycle()
-                ImageInfo(hash, bounds.outWidth, bounds.outHeight)
+                ImageInfo(hash, bounds.outWidth, bounds.outHeight, quality)
             }
         }
     } catch (e: Exception) {
         null
     } catch (e: OutOfMemoryError) {
         null
+    }
+
+    /**
+     * Netteté (variance du laplacien sur une image réduite à 400 px de large, donc comparable d'une photo à l'autre)
+     * multipliée par une note d'exposition : une photo trop sombre ou trop claire vaut moins.
+     */
+    private fun qualityOf(source: Bitmap): Double {
+        val w = 400
+        val h = (source.height * w / source.width.toDouble()).toInt().coerceAtLeast(3)
+        val b = Bitmap.createScaledBitmap(source, w, h, true)
+        val px = IntArray(w * h)
+        b.getPixels(px, 0, w, 0, 0, w, h)
+        if (b !== source) b.recycle()
+        val g = DoubleArray(w * h) { gray(px[it]) }
+        var sum = 0.0
+        var sumSq = 0.0
+        var n = 0
+        for (y in 1 until h - 1) for (x in 1 until w - 1) {
+            val i = y * w + x
+            val lap = 4 * g[i] - g[i - 1] - g[i + 1] - g[i - w] - g[i + w]
+            sum += lap
+            sumSq += lap * lap
+            n++
+        }
+        if (n == 0) return 0.0
+        val sharp = sumSq / n - (sum / n) * (sum / n)
+        val mean = g.average()
+        val exposure = (1.0 - Math.abs(mean - 125.0) / 125.0).coerceIn(0.15, 1.0)
+        return sharp * exposure
     }
 
     private fun gray(c: Int): Double = 0.299 * Color.red(c) + 0.587 * Color.green(c) + 0.114 * Color.blue(c)
@@ -57,7 +88,7 @@ object ImageHash {
             runCatching {
                 if (store.isFile) store.forEachLine { line ->
                     val p = line.split('\t')
-                    if (p.size == 5) map[p[0]] = ImageInfo(p[1].toLong(), p[2].toInt(), p[3].toInt())
+                    if (p.size == 6 && p[5] == "v2") map[p[0]] = ImageInfo(p[1].toLong(), p[2].toInt(), p[3].toInt(), p[4].toDouble())
                 }
             }
         }
@@ -78,7 +109,7 @@ object ImageHash {
             if (!dirty) return
             runCatching {
                 val alive = keep.map { key(it) }.toHashSet()
-                store.writeText(map.filterKeys { it in alive }.entries.joinToString("\n") { (k, v) -> "$k\t${v.hash}\t${v.width}\t${v.height}\tv1" } + "\n")
+                store.writeText(map.filterKeys { it in alive }.entries.joinToString("\n") { (k, v) -> "$k\t${v.hash}\t${v.width}\t${v.height}\t${v.quality}\tv2" } + "\n")
             }
         }
     }

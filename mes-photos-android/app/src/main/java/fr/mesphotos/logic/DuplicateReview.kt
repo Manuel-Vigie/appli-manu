@@ -63,16 +63,23 @@ object DuplicateReview {
         val inGroup = HashSet<File>()
         exact.forEach { inGroup += it.files }
         (infos.map { it.first } + inGroup).distinct().forEach { clusters.getOrPut(root(it)) { ArrayList() } += it }
-        return clusters.values.filter { it.size > 1 }.map { DupGroup(it, best(it, root)) }
+        val byFile = infos.toMap()
+        return clusters.values.filter { it.size > 1 }.map { DupGroup(it, best(it, root, byFile)) }
     }
 
     /**
      * L'exemplaire le plus « original » : hors du dossier Doublons, dans un dossier de jour (pas « Date incertaine »),
      * sans « (2) » dans le nom, puis le nom le plus court, le plus ancien, et enfin l'ordre alphabétique des chemins.
      */
-    fun best(files: List<File>, root: File): File {
+    fun best(files: List<File>, root: File, infos: Map<File, ImageInfo> = emptyMap()): File {
         fun first(f: File): String = f.toRelativeString(root).substringBefore('/')
-        return files.sortedWith(
+        // Photos qui se ressemblent : on garde d'abord la plus nette et la mieux exposée (à 15 % près), puis la plus grande.
+        val bestQuality = files.maxOf { infos[it]?.quality ?: 0.0 }
+        val sharpEnough = if (bestQuality > 0.0) files.filter { (infos[it]?.quality ?: 0.0) >= bestQuality * 0.85 } else files
+        val pool = sharpEnough.ifEmpty { files }
+        val biggest = pool.maxOf { infos[it]?.let { i -> i.width.toLong() * i.height } ?: 0L }
+        val finalists = if (biggest > 0L) pool.filter { (infos[it]?.let { i -> i.width.toLong() * i.height } ?: 0L) * 100 >= biggest * 95 }.ifEmpty { pool } else pool
+        return finalists.sortedWith(
             compareBy<File>(
                 { if (first(it) == Planner.DUPLICATES) 1 else 0 },
                 { if (first(it) == Planner.PHOTOS && it.toRelativeString(root).split('/').getOrNull(1) in UNSURE_FOLDERS) 1 else 0 },

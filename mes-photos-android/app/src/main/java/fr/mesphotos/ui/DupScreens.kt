@@ -147,7 +147,7 @@ fun DupReviewScreen(
 private fun GroupCard(group: DupGroup, keepPath: String?, onKeep: (String) -> Unit, onOpen: (List<File>, Int) -> Unit) {
     Section {
         Text(
-            "${group.files.size} exemplaires identiques · ${sizeText(group.files.first())}",
+            "${group.files.size} exemplaires de la même photo · ${sizeText(group.files.first())}",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
