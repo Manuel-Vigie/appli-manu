@@ -1910,6 +1910,58 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Cherche les photos et vidéos qui sont sur la carte (ou le téléphone) MAIS PAS dans la galerie : dossiers cachés,
+     * « À l'écart », corbeille de l'appli ou d'Android, « Photos à trier », anciens dossiers… Lecture seule : rien n'est modifié.
+     */
+    fun findOutside(onDone: (String) -> Unit) {
+        val current = place
+        if (current == null) { onDone("Aucun stockage choisi."); return }
+        viewModelScope.launch {
+            val text = withContext(Dispatchers.IO) {
+                class Stat { var n = 0; var empty = 0; var min = Long.MAX_VALUE; var max = 0L }
+                val stats = LinkedHashMap<String, Stat>()
+                val out = current.outputDir
+                fun visible(dir: File): Boolean {
+                    val rel = runCatching { dir.toRelativeString(out) }.getOrNull() ?: return false
+                    if (rel.startsWith("..")) return false
+                    val parts = rel.split('/').filter { it.isNotEmpty() }
+                    return parts.none { it.startsWith(".") } && parts.firstOrNull() != Place.ASIDE_DIR
+                }
+                fun walk(dir: File, depth: Int) {
+                    if (depth > 12) return
+                    val kids = dir.listFiles() ?: return
+                    val vis = visible(dir)
+                    for (c in kids) {
+                        if (c.isDirectory) {
+                            if (depth == 0 && c.name == "Android") continue
+                            if (c.name == ".thumbnails") continue
+                            walk(c, depth + 1)
+                        } else if (PhotoFiles.mimeOf(c) != null && (!vis || c.name.startsWith("."))) {
+                            val st = stats.getOrPut(dir.toRelativeString(current.root).ifEmpty { "(racine)" }) { Stat() }
+                            st.n++
+                            if (c.length() == 0L) st.empty++
+                            val t = c.lastModified()
+                            if (t < st.min) st.min = t
+                            if (t > st.max) st.max = t
+                        }
+                    }
+                }
+                walk(current.root, 0)
+                val fmt = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.FRANCE)
+                if (stats.isEmpty()) "Aucune photo ni vidéo trouvée en dehors de la galerie sur ce stockage."
+                else {
+                    val total = stats.values.sumOf { it.n }
+                    val lines = stats.entries.sortedByDescending { it.value.n }.take(40).map { (path, st) ->
+                        "• $path\n   ${st.n} fichier(s), du ${fmt.format(st.min)} au ${fmt.format(st.max)}" + (if (st.empty > 0) " (${st.empty} vide(s))" else "")
+                    }
+                    "$total photo(s)/vidéo(s) se trouvent HORS de la galerie, dans ces dossiers (rien n'a été modifié) :\n\n" + lines.joinToString("\n\n")
+                }
+            }
+            onDone(text)
+        }
+    }
+
     fun renameFile(file: File, typed: String) {
         viewModelScope.launch {
             val (target, message) = withContext(Dispatchers.IO) { doRename(file, typed) }

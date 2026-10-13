@@ -12,6 +12,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -120,6 +122,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
         if (uri != null) { Fond.save(context, uri); fondTick++ }
     }
     var renaming by remember { mutableStateOf<Pair<Set<String>, List<File>>?>(null) }
+    var lostReport by remember { mutableStateOf<String?>(null) }
     var pickingSimilar by remember { mutableStateOf(false) }
     var redating by remember { mutableStateOf<Pair<Set<String>, List<File>>?>(null) }
 
@@ -260,6 +263,14 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                 onDismiss = { renamingFolder = null },
             )
         }
+        lostReport?.let { report ->
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { lostReport = null },
+                title = { Text("Photos hors de la galerie", fontWeight = FontWeight.Bold) },
+                text = { Text(report, fontSize = 15.sp, modifier = Modifier.verticalScroll(rememberScrollState())) },
+                confirmButton = { androidx.compose.material3.TextButton(onClick = { lostReport = null }) { Text("Fermer", fontWeight = FontWeight.Bold) } },
+            )
+        }
         if (pickingSimilar) FolderPickDialog(
             title = "Quel dossier traiter ?",
             load = viewModel::foldersAt,
@@ -306,6 +317,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onQuickSort = viewModel::openQuickSort,
                         onDuplicates = viewModel::findDuplicates,
                         onSimilar = { pickingSimilar = true },
+                        onFindOutside = { lostReport = "Recherche en cours… (patientez, puis rouvrez ce bouton si rien ne s'affiche)"; viewModel.findOutside { lostReport = it } },
                         onTakePhoto = { askLabel = true },
                         onCheckUpdate = { viewModel.checkUpdate(version) { updateTick++ } },
                         onDownload = { url ->
@@ -451,6 +463,7 @@ private fun HomeScreen(
     onQuickSort: () -> Unit,
     onDuplicates: () -> Unit,
     onSimilar: () -> Unit,
+    onFindOutside: () -> Unit,
     onTakePhoto: () -> Unit,
     onCheckUpdate: () -> Unit,
     onDownload: (String) -> Unit,
@@ -516,6 +529,10 @@ private fun HomeScreen(
                             Tool(AppIcons.Copy, "Doublons", "Comparer et garder une seule photo", onClick = onDuplicates),
                             Tool(AppIcons.Photos, "Photos presque pareilles", "Prises à quelques secondes d'écart (cadrage un peu différent)", onClick = onSimilar),
                         ),
+                    ),
+                    ToolGroup(
+                        "Photos introuvables",
+                        listOf(Tool(Icons.Default.Search, "Retrouver des photos absentes", "Cherche sur la carte, hors de la galerie (rien n'est modifié)", onClick = onFindOutside)),
                     ),
                     ToolGroup(
                         "Mises de côté",
