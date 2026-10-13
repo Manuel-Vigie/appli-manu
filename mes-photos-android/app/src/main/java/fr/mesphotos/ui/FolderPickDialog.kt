@@ -35,14 +35,14 @@ internal fun FolderPickDialog(
     onPick: (List<List<String>>) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var path by remember { mutableStateOf<List<String>>(emptyList()) }
+    var path by remember { mutableStateOf(listOf(fr.mesphotos.logic.Planner.PHOTOS)) }
     var folders by remember { mutableStateOf<List<FolderItem>?>(null) }
     var chosen by remember { mutableStateOf<List<List<String>>>(emptyList()) }
     LaunchedEffect(path) {
         folders = null
         folders = runCatching { load(path) }.getOrDefault(emptyList())
     }
-    val where = if (path.isEmpty()) "Toute la galerie" else path.joinToString(" / ") { Gallery.displayName(it) }
+    val where = path.drop(1).joinToString(" / ") { Gallery.displayName(it) }.ifEmpty { "toutes les années" }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title, fontWeight = FontWeight.Bold) },
@@ -50,10 +50,10 @@ internal fun FolderPickDialog(
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Je suis dans : $where", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 if (chosen.isNotEmpty()) Text("${chosen.size} dossier(s) coché(s)", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                Text("Cochez les dossiers à traiter (vous pouvez en cocher plusieurs, même dans des mois différents). Touchez le nom d'un dossier pour l'ouvrir.", fontSize = 14.sp)
+                Text("Cochez les dossiers à traiter (vous pouvez en cocher plusieurs, même dans des mois différents). Touchez le NOM ou la flèche › d'un dossier pour l'ouvrir (année, puis mois, puis jour).", fontSize = 14.sp)
                 val list = folders
                 LazyColumn(Modifier.heightIn(max = 320.dp)) {
-                    if (path.isNotEmpty()) item {
+                    if (path.size > 1) item {
                         Text("↑ Dossier précédent", fontSize = 16.sp, fontWeight = FontWeight.Bold,
                             modifier = Modifier.fillMaxWidth().clickable { path = path.dropLast(1) }.padding(vertical = 12.dp))
                     }
@@ -64,13 +64,13 @@ internal fun FolderPickDialog(
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(checked = full in chosen, onCheckedChange = { on -> chosen = if (on) chosen + listOf(full) else chosen - listOf(full) })
                             Text(Gallery.displayName(f.name), fontSize = 17.sp, modifier = Modifier.weight(1f).clickable { path = full }.padding(vertical = 12.dp))
-                            Text("${f.count}", fontSize = 15.sp, modifier = Modifier.clickable { path = full }.padding(vertical = 12.dp, horizontal = 8.dp))
+                            Text("${f.count}  ›", fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { path = full }.padding(vertical = 12.dp, horizontal = 8.dp))
                         }
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onPick(if (chosen.isNotEmpty()) chosen else listOf(path)) }) { Text(if (chosen.isNotEmpty()) "Traiter les cochés" else "Traiter ce dossier", fontWeight = FontWeight.Bold) } },
+        confirmButton = { TextButton(enabled = chosen.isNotEmpty() || path.size > 1, onClick = { onPick(if (chosen.isNotEmpty()) chosen else listOf(path)) }) { Text(if (chosen.isNotEmpty()) "Traiter les cochés" else if (path.size > 1) "Traiter ce dossier" else "Cochez un dossier", fontWeight = FontWeight.Bold) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
     )
 }
