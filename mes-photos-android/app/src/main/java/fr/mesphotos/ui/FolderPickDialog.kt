@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -18,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -30,11 +32,12 @@ import fr.mesphotos.gallery.Gallery
 internal fun FolderPickDialog(
     title: String,
     load: suspend (List<String>) -> List<FolderItem>,
-    onPick: (List<String>) -> Unit,
+    onPick: (List<List<String>>) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var path by remember { mutableStateOf<List<String>>(emptyList()) }
     var folders by remember { mutableStateOf<List<FolderItem>?>(null) }
+    var chosen by remember { mutableStateOf<List<List<String>>>(emptyList()) }
     LaunchedEffect(path) {
         folders = null
         folders = runCatching { load(path) }.getOrDefault(emptyList())
@@ -45,8 +48,9 @@ internal fun FolderPickDialog(
         title = { Text(title, fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Dossier choisi : $where", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text("Touchez un dossier pour l'ouvrir, puis « Traiter ce dossier ».", fontSize = 14.sp)
+                Text("Je suis dans : $where", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                if (chosen.isNotEmpty()) Text("${chosen.size} dossier(s) coché(s)", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text("Cochez les dossiers à traiter (vous pouvez en cocher plusieurs, même dans des mois différents). Touchez le nom d'un dossier pour l'ouvrir.", fontSize = 14.sp)
                 val list = folders
                 LazyColumn(Modifier.heightIn(max = 320.dp)) {
                     if (path.isNotEmpty()) item {
@@ -56,15 +60,17 @@ internal fun FolderPickDialog(
                     if (list == null) item { Text("Chargement…", fontSize = 15.sp, modifier = Modifier.padding(vertical = 12.dp)) }
                     else if (list.isEmpty()) item { Text("Pas d'autre dossier à l'intérieur.", fontSize = 15.sp, modifier = Modifier.padding(vertical = 12.dp)) }
                     else items(list, key = { it.name }) { f ->
-                        Row(Modifier.fillMaxWidth().clickable { path = path + f.name }.padding(vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(Gallery.displayName(f.name), fontSize = 17.sp)
-                            Text("${f.count}", fontSize = 15.sp)
+                        val full = path + f.name
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = full in chosen, onCheckedChange = { on -> chosen = if (on) chosen + listOf(full) else chosen - listOf(full) })
+                            Text(Gallery.displayName(f.name), fontSize = 17.sp, modifier = Modifier.weight(1f).clickable { path = full }.padding(vertical = 12.dp))
+                            Text("${f.count}", fontSize = 15.sp, modifier = Modifier.clickable { path = full }.padding(vertical = 12.dp, horizontal = 8.dp))
                         }
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onPick(path) }) { Text("Traiter ce dossier", fontWeight = FontWeight.Bold) } },
+        confirmButton = { TextButton(onClick = { onPick(if (chosen.isNotEmpty()) chosen else listOf(path)) }) { Text(if (chosen.isNotEmpty()) "Traiter les cochés" else "Traiter ce dossier", fontWeight = FontWeight.Bold) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
     )
 }

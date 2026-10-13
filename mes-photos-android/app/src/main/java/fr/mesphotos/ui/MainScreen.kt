@@ -263,7 +263,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
         if (pickingSimilar) FolderPickDialog(
             title = "Quel dossier traiter ?",
             load = viewModel::foldersAt,
-            onPick = { path -> pickingSimilar = false; viewModel.findSimilarPhotos(path) },
+            onPick = { paths -> pickingSimilar = false; viewModel.findSimilarPhotos(paths) },
             onDismiss = { pickingSimilar = false },
         )
         redating?.let { pending ->

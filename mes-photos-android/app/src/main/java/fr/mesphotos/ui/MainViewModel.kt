@@ -1962,7 +1962,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun findDuplicates() = runDuplicates(loose = false)
 
     /** Comme « Doublons », mais aussi les photos prises à quelques secondes d'écart et presque pareilles (cadrage un peu différent). */
-    fun findSimilarPhotos(path: List<String> = emptyList()) = runDuplicates(loose = true, path = path)
+    fun findSimilarPhotos(paths: List<List<String>> = listOf(emptyList())) = runDuplicates(loose = true, paths = paths)
 
     /** Les sous-dossiers de [path] (vide = toute la galerie), pour choisir le dossier à traiter. */
     suspend fun foldersAt(path: List<String>): List<fr.mesphotos.gallery.FolderItem> {
@@ -1970,14 +1970,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         return withContext(Dispatchers.IO) { Gallery.list(current.outputDir, path).folders }
     }
 
-    private fun runDuplicates(loose: Boolean, path: List<String> = emptyList()) {
+    private fun runDuplicates(loose: Boolean, paths: List<List<String>> = listOf(emptyList())) {
         val current = place ?: return
         viewModelScope.launch {
             try {
                 _state.value = UiState.Working("Recherche des doublons…", 0, 0)
                 dupGroups = withContext(Dispatchers.IO) {
                     val everything = Gallery.allMedia(current.outputDir)
-                    val all = if (path.isEmpty()) everything else Gallery.media(path.fold(current.outputDir) { acc, name -> File(acc, name) })
+                    val all = if (paths.any { it.isEmpty() }) everything else paths.flatMap { p -> Gallery.media(p.fold(current.outputDir) { acc, name -> File(acc, name) }) }.distinct()
                     val cache = fr.mesphotos.gallery.ImageHash.Cache(File(getApplication<Application>().filesDir, "empreintes.tsv"))
                     val found = DuplicateReview.find(
                         all, current.outputDir,
