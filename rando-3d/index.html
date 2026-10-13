@@ -3118,7 +3118,7 @@ function reportMapOverlay(tr,B,marks){
   x.lineCap='round';x.lineJoin='round';
   const path=()=>{x.beginPath();P.forEach((q,i)=>i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]))};
   path();x.strokeStyle='rgba(255,255,255,.95)';x.lineWidth=9*sc;x.stroke();
-  path();x.strokeStyle='#d8131f';x.lineWidth=4.6*sc;x.stroke();
+  path();x.strokeStyle='#0a1f5c';x.lineWidth=4.6*sc;x.stroke();
   // petits carrés verts avec une tente : endroits plats (≤ 50 m du chemin) trouvés dans le modèle d'altitude
   const spots=B.spots||[],nFlat=spots.length;
   const tent=(cx,cy,h)=>{x.fillStyle='#17a34a';x.fillRect(cx-h,cy-h,2*h,2*h);x.lineWidth=1.6*sc;x.strokeStyle='#fff';x.strokeRect(cx-h,cy-h,2*h,2*h);
@@ -3139,7 +3139,7 @@ function reportMapOverlay(tr,B,marks){
    const cands=[[m,m],[B.W-lw-m-44*sc,m],[B.W-lw-m,B.H-lh-m-26*sc],[m,B.H-lh-m-52*sc],[B.W/2-lw/2,m],[B.W/2-lw/2,B.H-lh-m]];
    let best=cands[0],bs=1e9;for(const c of cands){let n=0;for(const q of P)if(q[0]>c[0]-14*sc&&q[0]<c[0]+lw+14*sc&&q[1]>c[1]-14*sc&&q[1]<c[1]+lh+14*sc)n++;if(n<bs){bs=n;best=c;if(n===0)break}}
    const [lx,ly]=best;x.fillStyle='rgba(255,255,255,.88)';x.fillRect(lx,ly,lw,lh);
-   x.lineCap='round';x.lineWidth=3.6*sc;x.strokeStyle='#d8131f';x.beginPath();x.moveTo(lx+7*sc,ly+11*sc);x.lineTo(lx+27*sc,ly+11*sc);x.stroke();x.fillStyle='#1d2b2d';x.textAlign='left';x.textBaseline='middle';x.fillText('Parcours',lx+33*sc,ly+11*sc);
+   x.lineCap='round';x.lineWidth=3.6*sc;x.strokeStyle='#0a1f5c';x.beginPath();x.moveTo(lx+7*sc,ly+11*sc);x.lineTo(lx+27*sc,ly+11*sc);x.stroke();x.fillStyle='#1d2b2d';x.textAlign='left';x.textBaseline='middle';x.fillText('Parcours',lx+33*sc,ly+11*sc);
    if(nFlat){tent(lx+17*sc,ly+29*sc,6*sc);x.fillStyle='#1d2b2d';x.textAlign='left';x.textBaseline='middle';x.font=`600 ${fs}px Arial,Helvetica,sans-serif`;x.fillText('Endroit plat possible',lx+33*sc,ly+29*sc)}}
   // échelle, nord, source
   const mpp=156543.03*Math.cos(B.lat*Math.PI/180)/Math.pow(2,B.z),want=140*sc*mpp,nice=[50,100,200,500,1000,2000,5000,10000,20000].reduce((a,b)=>Math.abs(b-want)<Math.abs(a-want)?b:a),bw=nice/mpp;
@@ -3156,7 +3156,7 @@ function reportMapHTML(D,B0){
   const marks=B0&&B0.plan.trek&&B0.plan.days>1?B0.plan.rows.slice(0,-1).map(r=>({d:tr.rd[r.i1],t:'N'+r.k})):[],sig=marks.map(m=>m.t+':'+Math.round(m.d)).join(',');
   const url=B.cache[sig]||(B.cache[sig]=reportMapOverlay(tr,B,marks));
   if(!url)return '';
-  return `<section class="rp-map"><h2>Carte et parcours</h2><img src="${url}" alt="Carte IGN avec le parcours en rouge"><p class="rp-note" style="margin-top:6px">Parcours en rouge ; <b style="color:#17a34a">petits carrés verts avec une tente</b> : endroits qui semblent plats (pente faible d'après le modèle d'altitude, à moins de 50 m du chemin) où l'on peut peut-être poser la tente — c'est une aide, pas une garantie : à vérifier sur place (sol, eau, vent, autorisation)${marks.length?' ; bivouacs N1, N2… en orange':''}. D = départ${Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200?' et arrivée':', A = arrivée'} ; les ronds blancs numérotés sont les kilomètres.</p></section>`;
+  return `<section class="rp-map"><h2>Carte et parcours</h2><img src="${url}" alt="Carte IGN avec le parcours en bleu marine"><p class="rp-note" style="margin-top:6px">Parcours en bleu marine ; <b style="color:#17a34a">petits carrés verts avec une tente</b> : endroits qui semblent plats (pente faible d'après le modèle d'altitude, à moins de 50 m du chemin) où l'on peut peut-être poser la tente — c'est une aide, pas une garantie : à vérifier sur place (sol, eau, vent, autorisation)${marks.length?' ; bivouacs N1, N2… en orange':''}. D = départ${Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200?' et arrivée':', A = arrivée'} ; les ronds blancs numérotés sont les kilomètres.</p></section>`;
 }
 function reportProfileSVG(D){
   const tr=D.tr,narrow=innerWidth<640,W=narrow?560:1000,H=narrow?230:250,pl=narrow?62:66,pr=12,pt=14,pb=30,iw=W-pl-pr,ih=H-pt-pb;
@@ -3491,7 +3491,7 @@ async function printMapPDF(D,B,onProg){
   const P=ll.map(q=>[mercX(q[1],z)-rx,mercY(q[0],z)-ry,q[2]]);
   x.lineCap='round';x.lineJoin='round';
   const path=()=>{x.beginPath();P.forEach((q,i)=>i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]))};
-  path();x.strokeStyle='rgba(255,255,255,.85)';x.lineWidth=7;x.stroke();path();x.strokeStyle='#d8131f';x.lineWidth=3.2;x.stroke();
+  path();x.strokeStyle='rgba(255,255,255,.85)';x.lineWidth=7;x.stroke();path();x.strokeStyle='#0a1f5c';x.lineWidth=4;x.stroke();
   const bub=(q,t,fill,fg,r)=>{x.beginPath();x.arc(q[0],q[1],r,0,7);x.fillStyle=fill;x.fill();x.lineWidth=2.2;x.strokeStyle='#fff';x.stroke();if(t){x.fillStyle=fg;x.font=`700 ${r}px Arial,Helvetica,sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(t,q[0],q[1]+1)}};
   const kmS=z>=15?1:z===14?2:z===13?5:z>=11?10:20,km=tr.total/1000,at=d=>{let b=ll[0],bd=1e18;for(const q of ll){const dd=Math.abs(tr.rd[q[2]]-d);if(dd<bd){bd=dd;b=q}}return b};
   for(let k=kmS;k<km-kmS*.4;k+=kmS){const q=at(k*1000);bub([mercX(q[1],z)-rx,mercY(q[0],z)-ry],String(k),'#fff','#1d2b2d',14)}
@@ -3520,7 +3520,7 @@ async function printMapPDF(D,B,onProg){
     spots.forEach((s,k)=>{const c=Math.floor(k/rows),r=k%rows;x.fillText(sp(`${s.n} · km ${fmtKm(tr.rd[s.i])} · ${nfp(Math.round(tr.se[s.i]))} m`+(GPS?` · ${s.la.toFixed(5)}, ${s.lo.toFixed(5)}`:'')),6+c*cw,y0+46+r*27)})}
   // pied de page
   x.fillStyle='#555';x.font='500 16px Arial,Helvetica,sans-serif';x.textBaseline='middle';x.textAlign='left';
-  x.fillText('Carte © IGN · rouge = parcours · rond blanc = kilomètre · carré vert = tente possible (modèle d’altitude : à vérifier sur place)',6,ph-20);
+  x.fillText('Carte © IGN · bleu marine = parcours · rond blanc = kilomètre · carré vert = tente possible (modèle d’altitude : à vérifier sur place)',6,ph-20);
   const {jsPDF}=window.jspdf,pdf=new jsPDF({unit:'pt',format:'a4',compress:true,orientation:pw>ph?'landscape':'portrait'});
   pdf.addImage(cv.toDataURL('image/jpeg',.88),'JPEG',0,0,pdf.internal.pageSize.getWidth(),pdf.internal.pageSize.getHeight());
   return {blob:pdf.output('blob'),np:1,z,spots:ns,mpp};
@@ -5052,7 +5052,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V100", "date": "12/10/2026", "cache": "rr3d-v", "nouveautes": ["« 🗺️ Carte à imprimer » tient maintenant sur UNE seule feuille A4 : tout le parcours, le plus détaillé possible, avec les tentes numérotées et leur liste (km, altitude) en bas de la feuille.", "Nouveau bouton « 🗺️ Carte à imprimer » dans le rapport : un PDF A4 avec la carte IGN au maximum de détails (zoom 16, jusqu'à 6 pages), le parcours en rouge, les kilomètres, les emplacements de tente numérotés, et une liste des emplacements avec altitude et coordonnées GPS.", "Carte du rapport : beaucoup plus d'endroits plats possibles pour la tente (2 × 3 m). On cherche plus près du chemin, avec des pentes un peu plus tolérantes, et les carrés verts sont moins espacés (jusqu'à 90 sur la carte).", "Rapport rando décrit kilomètre par kilomètre (au lieu de 8 morceaux) : une ligne par km avec sa pente moyenne, et un cadre rouge si un passage est bien plus raide (vraie pente, mètres à plus de 20 % et 30 %). « Pente maximale » ajoutée dans En bref."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V101", "date": "13/10/2026", "cache": "rr3d-v", "nouveautes": ["Sur les cartes du rapport et sur la carte à imprimer, le parcours est maintenant en bleu marine (plus facile à distinguer des traits rouges de la carte IGN).", "« 🗺️ Carte à imprimer » tient maintenant sur UNE seule feuille A4 : tout le parcours, le plus détaillé possible, avec les tentes numérotées et leur liste (km, altitude) en bas de la feuille.", "Nouveau bouton « 🗺️ Carte à imprimer » dans le rapport : un PDF A4 avec la carte IGN au maximum de détails (zoom 16, jusqu'à 6 pages), le parcours en rouge, les kilomètres, les emplacements de tente numérotés, et une liste des emplacements avec altitude et coordonnées GPS.", "Carte du rapport : beaucoup plus d'endroits plats possibles pour la tente (2 × 3 m). On cherche plus près du chemin, avec des pentes un peu plus tolérantes, et les carrés verts sont moins espacés (jusqu'à 90 sur la carte)."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
