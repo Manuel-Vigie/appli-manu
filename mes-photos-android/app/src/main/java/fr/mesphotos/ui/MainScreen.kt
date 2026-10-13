@@ -120,6 +120,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
         if (uri != null) { Fond.save(context, uri); fondTick++ }
     }
     var renaming by remember { mutableStateOf<Pair<Set<String>, List<File>>?>(null) }
+    var pickingSimilar by remember { mutableStateOf(false) }
     var redating by remember { mutableStateOf<Pair<Set<String>, List<File>>?>(null) }
 
     // Coffre-fort : on demande le verrouillage du téléphone (code, schéma, empreinte…) avant de l'ouvrir.
@@ -259,6 +260,12 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                 onDismiss = { renamingFolder = null },
             )
         }
+        if (pickingSimilar) FolderPickDialog(
+            title = "Quel dossier traiter ?",
+            load = viewModel::foldersAt,
+            onPick = { path -> pickingSimilar = false; viewModel.findSimilarPhotos(path) },
+            onDismiss = { pickingSimilar = false },
+        )
         redating?.let { pending ->
             DateDialog(
                 count = pending.second.size,
@@ -298,7 +305,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onStorage = { askStorage = true },
                         onQuickSort = viewModel::openQuickSort,
                         onDuplicates = viewModel::findDuplicates,
-                        onSimilar = viewModel::findSimilarPhotos,
+                        onSimilar = { pickingSimilar = true },
                         onTakePhoto = { askLabel = true },
                         onCheckUpdate = { viewModel.checkUpdate(version) { updateTick++ } },
                         onDownload = { url ->
