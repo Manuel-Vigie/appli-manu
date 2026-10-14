@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V84",
+  "version": "V85",
   "date": "12/10/2026",
   "nouveautes": [
+    "Dans un dossier, les photos et vidéos sont maintenant classées dans l'ordre chronologique : heure de prise de vue, sinon date et heure du nom (captures d'écran comprises), sinon date du fichier. Plus de captures éparpillées.",
     "Doublons : le résultat de la dernière recherche est gardé. Dans Outils, « Revoir la dernière recherche » le rouvre sans tout relancer, même si vous avez quitté l'appli. Le travail déjà fait est aussi enregistré en route : une recherche coupée reprend beaucoup plus vite.",
     "Quand vous ouvrez une photo, l'appli affiche maintenant la date et l'heure de prise de vue (à la seconde) écrites dans la photo. S'il n'y en a pas, elle le dit.",
-    "Doublons : meilleure détection des photos presque identiques (même cadrage, une seconde d'écart, ciel ou eau qui bougent) : l'appli superpose maintenant les photos pour les comparer. La 1re recherche est longue.",
-    "Le bouton « Photos presque pareilles » est supprimé (il ne servait à rien). Le bouton « Doublons » reste, avec la comparaison de la date et de l'heure de prise de vue."
+    "Doublons : meilleure détection des photos presque identiques (même cadrage, une seconde d'écart, ciel ou eau qui bougent) : l'appli superpose maintenant les photos pour les comparer. La 1re recherche est longue."
   ],
   "pastille": false,
   "fichiers": []

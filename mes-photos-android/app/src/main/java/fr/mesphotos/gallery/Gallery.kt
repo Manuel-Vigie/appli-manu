@@ -21,7 +21,7 @@ object Gallery {
         val children = dir.listFiles() ?: emptyArray()
         val files = children
             .filter { it.isFile && !it.name.startsWith(".") && PhotoFiles.mimeOf(it) != null && it.length() > 0 }
-            .sortedWith(compareBy({ it.name.lowercase() }))
+            .sortedWith(compareBy<File>({ takenKey(it) }, { it.name.lowercase() }))
         val folders = children
             .filter { it.isDirectory && !it.name.startsWith(".") && !(path.isEmpty() && it.name == Place.ASIDE_DIR) }
             .map { child ->
@@ -32,6 +32,23 @@ object Gallery {
             .filter { it.count > 0 }
             .sortedWith(Comparator { a, b -> compareFolders(a.name, b.name) })
         return Listing(path, folders, files)
+    }
+
+    private val takenCache = HashMap<String, Long>()
+
+    /**
+     * Pour classer dans l'ordre chronologique : l'heure de prise de vue écrite dans la photo (EXIF), sinon la date et l'heure
+     * lues dans le nom du fichier (IMG_20261014_210530, Screenshot_20261014-210530…), sinon la date du fichier.
+     */
+    private fun takenKey(file: File): Long = synchronized(takenCache) {
+        takenCache.getOrPut(file.absolutePath + "|" + file.length() + "|" + file.lastModified()) {
+            val exif = if (PhotoFiles.isVideo(file)) null else try {
+                val e = androidx.exifinterface.media.ExifInterface(file.absolutePath)
+                (e.getAttribute(androidx.exifinterface.media.ExifInterface.TAG_DATETIME_ORIGINAL) ?: e.getAttribute(androidx.exifinterface.media.ExifInterface.TAG_DATETIME_DIGITIZED))
+                    ?.let { java.text.SimpleDateFormat("yyyy:MM:dd HH:mm:ss", java.util.Locale.US).parse(it.trim())?.time }
+            } catch (e: Exception) { null }
+            exif?.takeIf { it > 631_152_000_000L } ?: fr.mesphotos.scan.DateChoice.fromFileName(file.name) ?: file.lastModified()
+        }
     }
 
     /** Vrai dès qu'un fichier photo/vidéo se trouve sous [dir]. */
