@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V81",
+  "version": "V82",
   "date": "12/10/2026",
   "nouveautes": [
+    "Doublons : meilleure détection des photos presque identiques (même cadrage, une seconde d'écart, ciel ou eau qui bougent) : l'appli superpose maintenant les photos pour les comparer. La 1re recherche est longue.",
     "Le bouton « Photos presque pareilles » est supprimé (il ne servait à rien). Le bouton « Doublons » reste, avec la comparaison de la date et de l'heure de prise de vue.",
     "Doublons et « Photos presque pareilles » : deux photos qui ont la MÊME date et la MÊME heure (à la seconde) écrites dans la photo par l'appareil sont maintenant regroupées. La 1re recherche est longue.",
-    "« Photos presque pareilles » regarde maintenant la vraie date de prise de vue (dans la photo ou son nom), jamais le jour du transfert. Sans date lisible, la photo est comparée aux autres du dossier choisi. La 1re recherche est longue.",
-    "Nouveau « Retrouver des photos absentes » (Outils) : cherche sur la carte les photos et vidéos qui ne sont PAS dans la galerie (dossiers cachés, à l'écart, anciens dossiers…) et les liste avec leur date. Rien n'est modifié."
+    "« Photos presque pareilles » regarde maintenant la vraie date de prise de vue (dans la photo ou son nom), jamais le jour du transfert. Sans date lisible, la photo est comparée aux autres du dossier choisi. La 1re recherche est longue."
   ],
   "pastille": false,
   "fichiers": []

@@ -59,7 +59,7 @@ object DuplicateReview {
             if (i % 20 == 0) onProgress(i, images.size)
         }
         for (i in infos.indices) for (j in i + 1 until infos.size) {
-            if (ImageHash.similar(infos[i].second, infos[j].second)) union(infos[i].first, infos[j].first)
+            if (ImageHash.similar(infos[i].second, infos[j].second) || ImageHash.looksSame(infos[i].second, infos[j].second)) union(infos[i].first, infos[j].first)
         }
         // Même date ET même heure (à la seconde) écrites dans la photo par l'appareil : c'est la même prise de vue (copie, réduction, renvoi…).
         // Petite vérification d'image en plus, pour ne pas mélanger deux appareils qui auraient photographié à la même seconde.

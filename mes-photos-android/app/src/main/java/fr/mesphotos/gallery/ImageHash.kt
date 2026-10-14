@@ -8,7 +8,18 @@ import java.io.File
 
 /** Empreinte « visuelle » d'une photo : deux photos qui se ressemblent (même image réenregistrée, redimensionnée…) ont presque la même. */
 /** [quality] : netteté × bonne exposition (plus grand = meilleure photo) ; 0 si non calculée. */
-class ImageInfo(val hash: Long, val width: Int, val height: Int, val quality: Double = 0.0, val taken: Long = 0L, val hist: FloatArray? = null, val exif: Long = 0L)
+class ImageInfo(val hash: Long, val width: Int, val height: Int, val quality: Double = 0.0, val taken: Long = 0L, val hist: FloatArray? = null, val exif: Long = 0L, val thumb: ByteArray? = null) {
+    /** La miniature 16×16 recentrée (moyenne 0, écart 1) : sert à mesurer à quel point deux images se superposent. */
+    val norm: FloatArray? by lazy {
+        val t = thumb ?: return@lazy null
+        val v = FloatArray(t.size) { (t[it].toInt() and 0xFF).toFloat() }
+        val mean = v.average().toFloat()
+        var sq = 0f
+        for (i in v.indices) { v[i] -= mean; sq += v[i] * v[i] }
+        val sd = Math.sqrt((sq / v.size).toDouble()).toFloat()
+        if (sd < 1f) null else { for (i in v.indices) v[i] /= sd; v }
+    }
+}
 
 object ImageHash {
 
@@ -31,8 +42,9 @@ object ImageHash {
                 if (small !== bitmap) small.recycle()
                 val quality = qualityOf(bitmap)
                 val hist = histogramOf(bitmap)
+                val thumb = thumbOf(small16(bitmap))
                 bitmap.recycle()
-                ImageInfo(hash, bounds.outWidth, bounds.outHeight, quality, takenAt(file), hist, exifAt(file))
+                ImageInfo(hash, bounds.outWidth, bounds.outHeight, quality, takenAt(file), hist, exifAt(file), thumb)
             }
         }
     } catch (e: Exception) {
@@ -83,6 +95,32 @@ object ImageHash {
     }
 
     private val NAME_DATE = Regex("""(20\d{2})(\d{2})(\d{2})[_-]?(\d{2})(\d{2})(\d{2})""")
+
+    private fun small16(source: Bitmap): Bitmap = Bitmap.createScaledBitmap(source, 16, 16, true)
+
+    private fun thumbOf(b: Bitmap): ByteArray {
+        val out = ByteArray(256)
+        for (y in 0 until 16) for (x in 0 until 16) out[y * 16 + x] = gray(b.getPixel(x, y)).toInt().coerceIn(0, 255).toByte()
+        return out
+    }
+
+    /**
+     * Même cadrage, même scène (deux prises de vue presque identiques, une copie réduite…) : les miniatures se superposent
+     * presque parfaitement (corrélation) ET les couleurs sont les mêmes. Beaucoup plus fiable que l'empreinte seule, qui
+     * se trompe dès que le ciel ou l'eau bougent un peu.
+     */
+    fun looksSame(a: ImageInfo, b: ImageInfo): Boolean {
+        val x = a.norm ?: return false
+        val y = b.norm ?: return false
+        val ra = a.width.toDouble() / a.height
+        val rb = b.width.toDouble() / b.height
+        if (Math.abs(ra - rb) / ra > 0.03) return false
+        if (java.lang.Long.bitCount(a.hash xor b.hash) > 22) return false
+        if (colorMatch(a, b) < 0.75) return false
+        var dot = 0f
+        for (i in x.indices) dot += x[i] * y[i]
+        return dot / x.size >= 0.96f
+    }
 
     /** Date et heure (à la seconde) écrites DANS la photo par l'appareil (EXIF) ; 0 si absentes. Jamais le nom ni la date du fichier. */
     private fun exifAt(file: File): Long {
@@ -148,7 +186,7 @@ object ImageHash {
             runCatching {
                 if (store.isFile) store.forEachLine { line ->
                     val p = line.split('\t')
-                    if (p.size == 9 && p[8] == "v5") map[p[0]] = ImageInfo(p[1].toLong(), p[2].toInt(), p[3].toInt(), p[4].toDouble(), p[5].toLong(), p[6].split(',').map { it.toFloat() }.toFloatArray(), p[7].toLong())
+                    if (p.size == 10 && p[9] == "v6") map[p[0]] = ImageInfo(p[1].toLong(), p[2].toInt(), p[3].toInt(), p[4].toDouble(), p[5].toLong(), p[6].split(',').map { it.toFloat() }.toFloatArray(), p[7].toLong(), p[8].chunked(2).map { it.toInt(16).toByte() }.toByteArray())
                 }
             }
         }
@@ -169,7 +207,7 @@ object ImageHash {
             if (!dirty) return
             runCatching {
                 val alive = keep.map { key(it) }.toHashSet()
-                store.writeText(map.filterKeys { it in alive }.entries.joinToString("\n") { (k, v) -> "$k\t${v.hash}\t${v.width}\t${v.height}\t${v.quality}\t${v.taken}\t${v.hist?.joinToString(",") ?: ""}\t${v.exif}\tv5" } + "\n")
+                store.writeText(map.filterKeys { it in alive }.entries.joinToString("\n") { (k, v) -> "$k\t${v.hash}\t${v.width}\t${v.height}\t${v.quality}\t${v.taken}\t${v.hist?.joinToString(",") ?: ""}\t${v.exif}\t${v.thumb?.joinToString("") { "%02x".format(it) } ?: ""}\tv6" } + "\n")
             }
         }
     }
