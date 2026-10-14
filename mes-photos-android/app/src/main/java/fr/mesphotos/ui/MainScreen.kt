@@ -309,6 +309,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onStorage = { askStorage = true },
                         onQuickSort = viewModel::openQuickSort,
                         onDuplicates = viewModel::findDuplicates,
+                        onLastDuplicates = viewModel::showLastDuplicates,
                         onFindOutside = { lostReport = "Recherche en cours… (patientez, puis rouvrez ce bouton si rien ne s'affiche)"; viewModel.findOutside { lostReport = it } },
                         onTakePhoto = { askLabel = true },
                         onCheckUpdate = { viewModel.checkUpdate(version) { updateTick++ } },
@@ -454,6 +455,7 @@ private fun HomeScreen(
     onStorage: () -> Unit,
     onQuickSort: () -> Unit,
     onDuplicates: () -> Unit,
+    onLastDuplicates: () -> Unit,
     onFindOutside: () -> Unit,
     onTakePhoto: () -> Unit,
     onCheckUpdate: () -> Unit,
@@ -518,6 +520,7 @@ private fun HomeScreen(
                         "Doublons",
                         listOf(
                             Tool(AppIcons.Copy, "Doublons", "Comparer et garder une seule photo", onClick = onDuplicates),
+                            Tool(AppIcons.Copy, "Revoir la dernière recherche", "Le résultat est gardé, même si vous avez quitté l'appli", onClick = onLastDuplicates),
                         ),
                     ),
                     ToolGroup(

@@ -203,6 +203,15 @@ object ImageHash {
             return info
         }
 
+        /** Écrit tout de suite ce qui est déjà calculé (sans rien retirer) : si l'appli est coupée en cours de route, le travail n'est pas perdu. */
+        fun flush() {
+            if (!dirty) return
+            runCatching {
+                store.writeText(map.entries.joinToString("\n") { (k, v) -> "$k\t${v.hash}\t${v.width}\t${v.height}\t${v.quality}\t${v.taken}\t${v.hist?.joinToString(",") ?: ""}\t${v.exif}\t${v.thumb?.joinToString("") { "%02x".format(it) } ?: ""}\tv6" } + "\n")
+                dirty = false
+            }
+        }
+
         fun save(keep: Collection<File>) {
             if (!dirty) return
             runCatching {

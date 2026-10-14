@@ -2016,6 +2016,45 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Comme « Doublons », mais aussi les photos prises à quelques secondes d'écart et presque pareilles (cadrage un peu différent). */
     fun findSimilarPhotos(paths: List<List<String>> = listOf(emptyList())) = runDuplicates(loose = true, paths = paths)
 
+    private val lastDupFile get() = File(getApplication<Application>().filesDir, "doublons-resultat.tsv")
+
+    /** Garde le résultat de la dernière recherche de doublons : on peut le revoir plus tard, même si on a quitté l'appli. */
+    private fun saveLastDuplicates(groups: List<DupGroup>) {
+        runCatching {
+            lastDupFile.writeText(
+                "T\t${System.currentTimeMillis()}\n" + groups.joinToString("\n") { g ->
+                    "G\t${g.keep.absolutePath}\t" + g.files.joinToString("\t") { it.absolutePath }
+                } + "\n"
+            )
+        }
+    }
+
+    /** Revoit le résultat de la dernière recherche de doublons, sans la relancer (les photos déjà supprimées en sont retirées). */
+    fun showLastDuplicates() {
+        viewModelScope.launch {
+            val f = lastDupFile
+            val saved = withContext(Dispatchers.IO) {
+                if (!f.isFile) null else runCatching {
+                    val lines = f.readLines().filter { it.isNotBlank() }
+                    val whenMs = lines.firstOrNull { it.startsWith("T\t") }?.split('\t')?.getOrNull(1)?.toLongOrNull() ?: 0L
+                    val groups = lines.filter { it.startsWith("G\t") }.map { line ->
+                        val p = line.split('\t')
+                        val files = p.drop(2).map { File(it) }
+                        DupGroup(files, File(p[1]))
+                    }
+                    whenMs to groups
+                }.getOrNull()
+            }
+            if (saved == null) {
+                refresh("Aucune recherche de doublons enregistrée pour l'instant : lancez « Doublons » une première fois.", isError = false)
+                return@launch
+            }
+            dupGroups = saved.second
+            val day = java.text.SimpleDateFormat("d MMMM 'à' HH:mm", java.util.Locale.FRANCE).format(java.util.Date(saved.first))
+            showDupReview("Dernière recherche : le $day. Les photos déjà supprimées ne sont plus dans la liste.")
+        }
+    }
+
     /** Les sous-dossiers de [path] (vide = toute la galerie), pour choisir le dossier à traiter. */
     suspend fun foldersAt(path: List<String>): List<fr.mesphotos.gallery.FolderItem> {
         val current = place ?: return emptyList()
@@ -2028,16 +2067,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 _state.value = UiState.Working("Recherche des doublons…", 0, 0)
                 dupGroups = withContext(Dispatchers.IO) {
+                    var computed = 0
                     val everything = Gallery.allMedia(current.outputDir)
                     val all = if (paths.any { it.isEmpty() }) everything else paths.flatMap { p -> Gallery.media(p.fold(current.outputDir) { acc, name -> File(acc, name) }) }.distinct()
                     val cache = fr.mesphotos.gallery.ImageHash.Cache(File(getApplication<Application>().filesDir, "empreintes.tsv"))
                     val found = DuplicateReview.find(
                         all, current.outputDir,
                         onProgress = { done, total -> if (done % 20 == 0 || done == total) _state.value = UiState.Working("Comparaison des photos…", done, total) },
-                        similarity = { cache.get(it) },
+                        similarity = { f -> cache.get(f).also { if (++computed % 100 == 0) cache.flush() } },
                         loose = loose,
                     )
                     cache.save(everything)
+                    saveLastDuplicates(found)
                     found
                 }
                 showDupReview()
