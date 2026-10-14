@@ -123,7 +123,6 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
     }
     var renaming by remember { mutableStateOf<Pair<Set<String>, List<File>>?>(null) }
     var lostReport by remember { mutableStateOf<String?>(null) }
-    var pickingSimilar by remember { mutableStateOf(false) }
     var redating by remember { mutableStateOf<Pair<Set<String>, List<File>>?>(null) }
 
     // Coffre-fort : on demande le verrouillage du téléphone (code, schéma, empreinte…) avant de l'ouvrir.
@@ -271,12 +270,6 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                 confirmButton = { androidx.compose.material3.TextButton(onClick = { lostReport = null }) { Text("Fermer", fontWeight = FontWeight.Bold) } },
             )
         }
-        if (pickingSimilar) FolderPickDialog(
-            title = "Quel dossier traiter ?",
-            load = viewModel::foldersAt,
-            onPick = { paths -> pickingSimilar = false; viewModel.findSimilarPhotos(paths) },
-            onDismiss = { pickingSimilar = false },
-        )
         redating?.let { pending ->
             DateDialog(
                 count = pending.second.size,
@@ -316,7 +309,6 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                         onStorage = { askStorage = true },
                         onQuickSort = viewModel::openQuickSort,
                         onDuplicates = viewModel::findDuplicates,
-                        onSimilar = { pickingSimilar = true },
                         onFindOutside = { lostReport = "Recherche en cours… (patientez, puis rouvrez ce bouton si rien ne s'affiche)"; viewModel.findOutside { lostReport = it } },
                         onTakePhoto = { askLabel = true },
                         onCheckUpdate = { viewModel.checkUpdate(version) { updateTick++ } },
@@ -462,7 +454,6 @@ private fun HomeScreen(
     onStorage: () -> Unit,
     onQuickSort: () -> Unit,
     onDuplicates: () -> Unit,
-    onSimilar: () -> Unit,
     onFindOutside: () -> Unit,
     onTakePhoto: () -> Unit,
     onCheckUpdate: () -> Unit,
@@ -527,7 +518,6 @@ private fun HomeScreen(
                         "Doublons",
                         listOf(
                             Tool(AppIcons.Copy, "Doublons", "Comparer et garder une seule photo", onClick = onDuplicates),
-                            Tool(AppIcons.Photos, "Photos presque pareilles", "Prises à quelques secondes d'écart (cadrage un peu différent)", onClick = onSimilar),
                         ),
                     ),
                     ToolGroup(
