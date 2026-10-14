@@ -8,7 +8,7 @@ import java.io.File
 
 /** Empreinte « visuelle » d'une photo : deux photos qui se ressemblent (même image réenregistrée, redimensionnée…) ont presque la même. */
 /** [quality] : netteté × bonne exposition (plus grand = meilleure photo) ; 0 si non calculée. */
-class ImageInfo(val hash: Long, val width: Int, val height: Int, val quality: Double = 0.0, val taken: Long = 0L, val hist: FloatArray? = null)
+class ImageInfo(val hash: Long, val width: Int, val height: Int, val quality: Double = 0.0, val taken: Long = 0L, val hist: FloatArray? = null, val exif: Long = 0L)
 
 object ImageHash {
 
@@ -32,7 +32,7 @@ object ImageHash {
                 val quality = qualityOf(bitmap)
                 val hist = histogramOf(bitmap)
                 bitmap.recycle()
-                ImageInfo(hash, bounds.outWidth, bounds.outHeight, quality, takenAt(file), hist)
+                ImageInfo(hash, bounds.outWidth, bounds.outHeight, quality, takenAt(file), hist, exifAt(file))
             }
         }
     } catch (e: Exception) {
@@ -83,6 +83,16 @@ object ImageHash {
     }
 
     private val NAME_DATE = Regex("""(20\d{2})(\d{2})(\d{2})[_-]?(\d{2})(\d{2})(\d{2})""")
+
+    /** Date et heure (à la seconde) écrites DANS la photo par l'appareil (EXIF) ; 0 si absentes. Jamais le nom ni la date du fichier. */
+    private fun exifAt(file: File): Long {
+        try {
+            val e = android.media.ExifInterface(file.absolutePath)
+            val d = e.getAttribute(android.media.ExifInterface.TAG_DATETIME_ORIGINAL) ?: e.getAttribute(android.media.ExifInterface.TAG_DATETIME_DIGITIZED) ?: return 0L
+            val t = java.text.SimpleDateFormat("yyyy:MM:dd HH:mm:ss", java.util.Locale.US).parse(d)?.time ?: return 0L
+            return if (t > 631_152_000_000L) t else 0L
+        } catch (e: Exception) { return 0L }
+    }
 
     /** Heure de la prise de vue : date EXIF, sinon date lue dans le nom du fichier, sinon 0 (inconnue). */
     private fun takenAt(file: File): Long {
@@ -138,7 +148,7 @@ object ImageHash {
             runCatching {
                 if (store.isFile) store.forEachLine { line ->
                     val p = line.split('\t')
-                    if (p.size == 8 && p[7] == "v4") map[p[0]] = ImageInfo(p[1].toLong(), p[2].toInt(), p[3].toInt(), p[4].toDouble(), p[5].toLong(), p[6].split(',').map { it.toFloat() }.toFloatArray())
+                    if (p.size == 9 && p[8] == "v5") map[p[0]] = ImageInfo(p[1].toLong(), p[2].toInt(), p[3].toInt(), p[4].toDouble(), p[5].toLong(), p[6].split(',').map { it.toFloat() }.toFloatArray(), p[7].toLong())
                 }
             }
         }
@@ -159,7 +169,7 @@ object ImageHash {
             if (!dirty) return
             runCatching {
                 val alive = keep.map { key(it) }.toHashSet()
-                store.writeText(map.filterKeys { it in alive }.entries.joinToString("\n") { (k, v) -> "$k\t${v.hash}\t${v.width}\t${v.height}\t${v.quality}\t${v.taken}\t${v.hist?.joinToString(",") ?: ""}\tv4" } + "\n")
+                store.writeText(map.filterKeys { it in alive }.entries.joinToString("\n") { (k, v) -> "$k\t${v.hash}\t${v.width}\t${v.height}\t${v.quality}\t${v.taken}\t${v.hist?.joinToString(",") ?: ""}\t${v.exif}\tv5" } + "\n")
             }
         }
     }

@@ -61,6 +61,16 @@ object DuplicateReview {
         for (i in infos.indices) for (j in i + 1 until infos.size) {
             if (ImageHash.similar(infos[i].second, infos[j].second)) union(infos[i].first, infos[j].first)
         }
+        // Même date ET même heure (à la seconde) écrites dans la photo par l'appareil : c'est la même prise de vue (copie, réduction, renvoi…).
+        // Petite vérification d'image en plus, pour ne pas mélanger deux appareils qui auraient photographié à la même seconde.
+        for (same in infos.filter { it.second.exif > 0L }.groupBy { it.second.exif }.values) {
+            if (same.size < 2) continue
+            for (i in same.indices) for (j in i + 1 until same.size) {
+                val a = same[i].second
+                val b = same[j].second
+                if (ImageHash.similar(a, b, maxBits = 26, checkRatio = false) || ImageHash.colorMatch(a, b) >= 0.6) union(same[i].first, same[j].first)
+            }
+        }
         if (loose) {
             // Prises de vue rapprochées dans le temps (rafale, deux essais du même cadre) : tolérance plus grande, proportions libres.
             // Photos dont on connaît l'heure de PRISE DE VUE (EXIF ou nom du fichier) : à moins de 5 minutes d'écart.
