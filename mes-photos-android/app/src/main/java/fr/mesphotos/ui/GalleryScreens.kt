@@ -856,8 +856,19 @@ fun ViewerScreen(
     }
 }
 
-private fun dateText(file: File): String =
-    "Fichier du " + java.text.SimpleDateFormat("d MMMM yyyy", java.util.Locale.FRANCE).format(java.util.Date(file.lastModified()))
+private val dateTexts = HashMap<String, String>()
+
+/** La date écrite DANS la photo (prise de vue, à la seconde) ; sinon on le dit, avec la date du fichier (jour du transfert). */
+private fun dateText(file: File): String = dateTexts.getOrPut(file.absolutePath + "|" + file.lastModified()) {
+    val fileDay = java.text.SimpleDateFormat("d MMMM yyyy", java.util.Locale.FRANCE).format(java.util.Date(file.lastModified()))
+    val inside = if (PhotoFiles.isVideo(file)) null else try {
+        val exif = androidx.exifinterface.media.ExifInterface(file.absolutePath)
+        (exif.getAttribute(androidx.exifinterface.media.ExifInterface.TAG_DATETIME_ORIGINAL) ?: exif.getAttribute(androidx.exifinterface.media.ExifInterface.TAG_DATETIME_DIGITIZED))
+            ?.let { java.text.SimpleDateFormat("yyyy:MM:dd HH:mm:ss", java.util.Locale.US).parse(it.trim()) }
+    } catch (e: Exception) { null }
+    if (inside != null) "Prise de vue : " + java.text.SimpleDateFormat("d MMMM yyyy 'à' HH:mm:ss", java.util.Locale.FRANCE).format(inside)
+    else "Pas d'heure de prise de vue dans ce fichier · fichier du $fileDay"
+}
 
 private fun playVideo(context: Context, file: File) {
     try {
