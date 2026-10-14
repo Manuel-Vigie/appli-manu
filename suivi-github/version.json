@@ -1,0 +1,16 @@
+{
+ "nom": "Suivi GitHub",
+ "version": "V1",
+ "date": "14/10/2026",
+ "nouveautes": [
+  "Première version : place restante en pourcentage, ce qu'il faut nettoyer et ce qu'il faut réparer dans appli-manu et vigie-depo."
+ ],
+ "cache": "suivi-github-app-",
+ "sw": {
+  "fichier": "suivi-github-sw.js",
+  "cache": "suivi-github-app-v1"
+ },
+ "fichiers": [
+  "suivi-github.html"
+ ]
+}

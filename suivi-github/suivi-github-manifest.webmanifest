@@ -1,0 +1,18 @@
+{
+  "name": "Suivi GitHub",
+  "short_name": "Suivi GitHub",
+  "description": "Place restante sur GitHub, ce qu'il faut nettoyer et réparer dans mes applis.",
+  "lang": "fr",
+  "id": "./suivi-github.html",
+  "start_url": "./suivi-github.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f6f4",
+  "theme_color": "#1f7a55",
+  "icons": [
+    {"src": "suivi-github-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "suivi-github-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "suivi-github-icon-masque-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

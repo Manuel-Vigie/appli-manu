@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Suivi GitHub</title>
+<link rel="manifest" href="suivi-github-manifest.webmanifest">
+<meta name="theme-color" content="#1f7a55">
+<link rel="icon" href="suivi-github-icon-192.png">
+<link rel="apple-touch-icon" href="suivi-github-apple-touch-icon.png">
+<style>
+  :root {
+    --bg: #f4f6f4;
+    --panel: #ffffff;
+    --fg: #1a2420;
+    --muted: #62706a;
+    --line: #dbe2dd;
+    --accent: #1f7a55;
+    --ok: #1a7f4b;
+    --warn: #b26a00;
+    --crit: #c0392b;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1613; --panel: #18211d; --fg: #e6efe9; --muted: #92a39a; --line: #29362f;
+      --accent: #4cc38a; --ok: #4cc38a; --warn: #e8a33d; --crit: #ef7a6c;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 52px max(16px, env(safe-area-inset-left, 0px)) 40px max(16px, env(safe-area-inset-right, 0px));
+  }
+  main { max-width: 720px; margin: 0 auto; display: grid; gap: 16px; }
+  h1 { font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; }
+  h2 { font-size: .8rem; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-width: 0; }
+  .sub { color: var(--muted); font-size: .85rem; margin: 2px 0 0; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .top { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--muted); margin-top: 4px; }
+  button {
+    font: inherit; font-weight: 600; color: #fff; background: var(--accent); border: 0;
+    border-radius: 6px; padding: 9px 16px; cursor: pointer;
+  }
+  button.small { font-size: .78rem; padding: 4px 10px; background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  button:disabled { opacity: .6; cursor: default; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; display: inline-block; }
+  .dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.crit { background: var(--crit); }
+
+  .item { padding: 12px 0; border-top: 1px solid var(--line); min-width: 0; }
+  .item:first-child { border-top: 0; padding-top: 0; }
+  .head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .who { display: flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+  .meta { display: flex; gap: 4px 10px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); margin-top: 2px; }
+  .tag { border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; font-size: .75rem; color: var(--muted); }
+  .tag.warn { color: var(--warn); border-color: var(--warn); } .tag.crit { color: var(--crit); border-color: var(--crit); }
+
+  .gl { margin-top: 12px; }
+  .gl .lab { font-size: .8rem; color: var(--muted); }
+  .big { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .big small { font-size: .85rem; font-weight: 500; color: var(--muted); }
+  .gauge { display: flex; height: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; margin: 6px 0 4px; }
+  .gauge .u { background: var(--ok); } .gauge .u.warn { background: var(--warn); } .gauge .u.crit { background: var(--crit); }
+  .gauge .s { background: repeating-linear-gradient(45deg, var(--warn) 0 4px, transparent 4px 8px); }
+  .gnote { font-size: .8rem; color: var(--muted); }
+
+  .grp { border: 1px solid var(--line); border-radius: 6px; padding: 12px; margin-top: 10px; min-width: 0; }
+  .grp:first-of-type { margin-top: 0; }
+  .grp p { margin: 4px 0 0; font-size: .85rem; color: var(--muted); }
+  ul.files { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 3px; }
+  ul.files li { display: flex; justify-content: space-between; gap: 10px; font-size: .8rem; }
+  ul.files li span:first-child { overflow-wrap: anywhere; min-width: 0; }
+  .issue { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-top: 8px; font-size: .88rem; }
+  .issue span { min-width: 0; overflow-wrap: anywhere; }
+  .good { color: var(--ok); font-weight: 600; font-size: .88rem; }
+
+  details summary { cursor: pointer; font-size: .85rem; color: var(--muted); }
+  form { display: grid; gap: 10px; margin-top: 10px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  label { display: grid; gap: 4px; font-size: .8rem; color: var(--muted); flex: 1 1 200px; min-width: 0; }
+  input[type=password], textarea {
+    font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 8px 10px; width: 100%;
+  }
+  textarea { font-size: .8rem; min-height: 140px; resize: vertical; }
+  .check { display: flex; gap: 8px; align-items: center; flex-direction: row; }
+  .err { color: var(--crit); font-weight: 600; font-size: .9rem; }
+  .note { font-size: .78rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div>
+      <h1>Suivi GitHub</h1>
+      <p class="sub" id="stamp">Place restante, à nettoyer, à réparer.</p>
+      <div class="pill" id="status"><span class="dot"></span><span>Service GitHub : vérification…</span></div>
+    </div>
+    <button id="go" type="button">Actualiser</button>
+  </header>
+
+  <section class="panel">
+    <h2>Place restante</h2>
+    <div id="gauges"><p class="note">Chargement…</p></div>
+    <p class="note" id="limits">La limite de 1 Go est la taille maximale recommandée par GitHub pour un dépôt et pour un site publié. Un fichier de 50 Mo déclenche un avertissement, 100 Mo est refusé.</p>
+  </section>
+
+  <section class="panel">
+    <h2>À nettoyer</h2>
+    <div id="clean"><p class="note">Chargement…</p></div>
+  </section>
+
+  <section class="panel">
+    <h2>À réparer</h2>
+    <div id="repair"><p class="note">Chargement…</p></div>
+  </section>
+
+  <section class="panel">
+    <h2>À transmettre à Claude</h2>
+    <p class="note">Cette page ne modifie rien. Copiez cette demande et envoyez-la à Claude : il fera les changements, avec votre accord.</p>
+    <textarea id="ask" readonly aria-label="Demande pour Claude"></textarea>
+    <div class="row" style="margin-top:10px"><button id="copyall" type="button">Copier la demande</button></div>
+  </section>
+
+  <section class="panel">
+    <details>
+      <summary>Réglages : jeton pour le dépôt privé vigie-depo</summary>
+      <form id="form">
+        <label for="token">Jeton d'accès GitHub en lecture seule (Contents : Read-only)
+          <input id="token" type="password" autocomplete="off" placeholder="github_pat_…">
+        </label>
+        <label class="check" for="keep"><input id="keep" type="checkbox"> Mémoriser le jeton sur cet appareil</label>
+        <div class="row"><button type="submit">Enregistrer et actualiser</button></div>
+      </form>
+    </details>
+  </section>
+</main>
+
+<script>
+/*LOGIC*/
+var GO_KB = 1024 * 1024;           // 1 Go en Ko
+var GROS_KB = 5 * 1024;            // « gros fichier » : 5 Mo
+var DOUBLON_KB = 200;              // doublons exacts à partir de 200 Ko
+var DOUBLONS_VOULUS = ['rando-3d/index.html'];   // copie voulue (voir journal de Rando 3D)
+
+function fmt(kb) {
+  var n = function (x, d) { return x.toLocaleString('fr-FR', { maximumFractionDigits: d }); };
+  if (kb >= GO_KB) return n(kb / GO_KB, 2) + ' Go';
+  if (kb >= 1024) return n(kb / 1024, 1) + ' Mo';
+  return n(kb, 0) + ' Ko';
+}
+function pct(x) { return x.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' %'; }
+function lvl(usedPct) { return usedPct >= 80 ? 'crit' : usedPct >= 50 ? 'warn' : ''; }
+
+/* Fichiers connus comme inutilisés (vérifié dans le code et le journal) */
+var INUTILISES = [{
+  repo: 'appli-manu',
+  prefixes: ['mes-photos-android/app/src/main/assets/faces/', 'mes-photos-android/app/src/main/assets/nudenet/'],
+  titre: 'Modèles de reconnaissance de visages',
+  raison: 'Retirés de Mes Photos à la V41 (voir son journal). Plus aucune ligne de code ne les appelle, mais ils pèsent encore dans le dépôt.',
+  sur: true
+}];
+/* Copies anciennes à la racine, listées « À ranger » dans le README d'appli-manu */
+var A_RANGER = {
+  repo: 'appli-manu',
+  noms: ['index.html', 'manifest.webmanifest', 'sw.js', 'rando-3d-pwa.zip', 'carnet-de-rando.html', 'carnet-sw.js',
+         'carnet-manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png', 'favicon.png'],
+  debuts: ['carnet-icone-']
+};
+var RESTES = /\.(zip|rar|7z|apk|aab|bak|old|tmp|part|crdownload|oplusdownload|log)$|~$|(^|\/)(\.DS_Store|Thumbs\.db)$/i;
+
+function startsWithAny(s, list) { return list.some(function (p) { return s.indexOf(p) === 0; }); }
+
+function mkGroup(repo, id, titre, raison, sur, files, libere, consigne) {
+  var paths = files.map(function (f) { return f.path; });
+  return {
+    id: id, titre: titre, raison: raison, sur: sur, files: files, libere: libere,
+    ask: 'Dans le dépôt ' + repo + ', ' + consigne + ' : ' + paths.join(', ') +
+         '. Fais un seul commit et dis-moi ce que ça libère.'
+  };
+}
+
+function findClean(repo, files) {
+  var claimed = {}, groups = [];
+  function take(list) { list.forEach(function (f) { claimed[f.path] = true; }); }
+  function sum(list) { return list.reduce(function (s, f) { return s + f.kb; }, 0); }
+  function big(list) { return list.slice().sort(function (a, b) { return b.kb - a.kb; }); }
+
+  INUTILISES.forEach(function (r) {
+    if (r.repo !== repo) return;
+    var l = big(files.filter(function (f) { return startsWithAny(f.path, r.prefixes); }));
+    if (!l.length) return;
+    take(l);
+    groups.push(mkGroup(repo, 'inutilises', r.titre, r.raison, r.sur, l, sum(l), 'supprime ces fichiers qui ne servent plus'));
+  });
+
+  if (A_RANGER.repo === repo) {
+    var l2 = big(files.filter(function (f) {
+      return f.path.indexOf('/') === -1 && (A_RANGER.noms.indexOf(f.path) !== -1 || startsWithAny(f.path, A_RANGER.debuts));
+    }));
+    if (l2.length) {
+      take(l2);
+      groups.push(mkGroup(repo, 'aranger', 'Anciennes copies à la racine',
+        'Le README les range dans « À ranger » : copies de Rando 3D et du carnet de rando. À supprimer seulement avec votre accord. Attention : index.html est aussi la page de l\'adresse racine du site.',
+        false, l2, sum(l2), 'supprime ces anciennes copies de la racine, après avoir vérifié qu\'aucune appli ne les utilise'));
+    }
+  }
+
+  var l3 = big(files.filter(function (f) { return !claimed[f.path] && RESTES.test(f.path); }));
+  if (l3.length) {
+    take(l3);
+    groups.push(mkGroup(repo, 'restes', 'Archives et restes de téléchargement',
+      'Fichiers zip, apk, téléchargements interrompus ou temporaires. Ils ont l\'air de restes, à vérifier avant de les retirer.',
+      false, l3, sum(l3), 'supprime ces archives et restes'));
+  }
+
+  var bySha = {};
+  files.forEach(function (f) {
+    if (claimed[f.path] || f.kb < DOUBLON_KB || DOUBLONS_VOULUS.indexOf(f.path) !== -1 || !f.sha) return;
+    (bySha[f.sha] = bySha[f.sha] || []).push(f);
+  });
+  var dupFiles = [], dupLibere = 0;
+  Object.keys(bySha).forEach(function (k) {
+    var g = big(bySha[k]);
+    if (g.length < 2) return;
+    dupFiles = dupFiles.concat(g.slice(1));
+    dupLibere += sum(g.slice(1));
+  });
+  if (dupFiles.length) {
+    take(dupFiles);
+    groups.push(mkGroup(repo, 'doublons', 'Fichiers en double',
+      'Même contenu que un autre fichier du dépôt. Vérifiez lequel est utilisé avant de retirer la copie.',
+      false, big(dupFiles), dupLibere, 'supprime ces copies identiques à un autre fichier'));
+  }
+
+  var l4 = big(files.filter(function (f) { return !claimed[f.path] && f.kb >= GROS_KB; })).slice(0, 10);
+  if (l4.length) {
+    groups.push(mkGroup(repo, 'gros', 'Fichiers lourds (5 Mo et plus)',
+      'Les plus gros fichiers qui restent. À garder s\'ils servent : GitHub avertit à 50 Mo et refuse à 100 Mo.',
+      false, l4, sum(l4), 'retire ces fichiers lourds si je te le confirme'));
+  }
+  return groups;
+}
+
+/* Vérifications qui n'ont besoin que de la liste des fichiers */
+function checkTree(app, d, files) {
+  var out = [], byPath = {};
+  files.forEach(function (f) { byPath[f.path] = f; });
+  (d && d.fichiers || []).forEach(function (f) {
+    if (!byPath[app.dir + '/' + f]) {
+      out.push({ texte: 'Le fichier « ' + f + ' » cité dans version.json est absent du dépôt.',
+                 ask: 'Dans appli-manu, répare ' + app.nom + ' : le fichier ' + app.dir + '/' + f + ' est cité dans version.json mais absent du dépôt.' });
+    }
+  });
+  if (app.dir === 'rando-3d') {
+    var a = byPath['rando-3d/index.html'], b = byPath['rando-3d/rando-3d.html'];
+    if (a && b && a.sha !== b.sha) {
+      out.push({ texte: 'index.html et rando-3d.html ne sont plus identiques (ils doivent l\'être).',
+                 ask: 'Dans appli-manu, répare Rando 3D : recopie rando-3d/rando-3d.html dans rando-3d/index.html, les deux doivent rester identiques.' });
+    }
+  }
+  return out;
+}
+/*END*/
+
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var OWNER = 'Manuel-Vigie';
+  var REPOS = ['appli-manu', 'vigie-depo'];
+  var PAGES = 'https://manuel-vigie.github.io/appli-manu/';
+  var APPS = [
+    { nom: 'Carnet de rando',      dir: 'carnet-randonnee',   page: 'carnet-randonnee.html' },
+    { nom: 'Rando 3D',             dir: 'rando-3d',           page: 'rando-3d.html' },
+    { nom: 'Carnet de santé',      dir: 'carnet-sante',       page: 'carnet-sante.html' },
+    { nom: 'Mes Photos (Android)', dir: 'mes-photos-android', page: null }
+  ];
+  var asks = [];   // demandes pour Claude, rassemblées pour le bloc du bas
+
+  function store(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
+  function load(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function copyText(text, btn) {
+    var done = function (ok) {
+      var old = btn.dataset.label || btn.textContent;
+      btn.dataset.label = old;
+      btn.textContent = ok ? 'Copié' : 'Sélectionnez le texte du bas';
+      setTimeout(function () { btn.textContent = old; }, 1800);
+    };
+    function fallback() {
+      var ta = el('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta); done(ok);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, fallback);
+    } else { fallback(); }
+  }
+  function copyBtn(text, label) {
+    var b = el('button', 'small', label || 'Copier la demande');
+    b.type = 'button';
+    b.addEventListener('click', function () { copyText(text, b); });
+    return b;
+  }
+
+  /* ---------- État du service ---------- */
+  var LEVELS = { none: ['ok', 'Service GitHub : tout fonctionne'], minor: ['warn', 'Service GitHub : perturbations mineures'],
+                 major: ['crit', 'Service GitHub : panne importante'], critical: ['crit', 'Service GitHub : panne critique'] };
+  function loadStatus() {
+    return fetch('https://www.githubstatus.com/api/v2/status.json', { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (d) {
+        var lv = LEVELS[d.status.indicator] || ['warn', 'Service GitHub : ' + d.status.description];
+        $('status').replaceChildren(el('span', 'dot ' + lv[0]), el('span', null, lv[1]));
+      })
+      .catch(function () { $('status').replaceChildren(el('span', 'dot'), el('span', null, 'Service GitHub : état indisponible')); });
+  }
+
+  /* ---------- Dépôts ---------- */
+  function api(path, headers) {
+    return fetch('https://api.github.com' + path, { headers: headers }).then(function (r) {
+      var info = { remaining: r.headers.get('x-ratelimit-remaining'), limit: r.headers.get('x-ratelimit-limit') };
+      if (r.status === 401) throw { msg: 'Jeton refusé : vérifiez-le ou retirez-le.', info: info };
+      if (r.status === 403 || r.status === 429) throw { msg: 'Limite de requêtes GitHub atteinte. Réessayez plus tard ou ajoutez un jeton.', info: info };
+      if (r.status === 404) throw { msg: 'Introuvable', info: info, notFound: true };
+      if (!r.ok) throw { msg: 'Erreur GitHub (' + r.status + ').', info: info };
+      return r.json().then(function (j) { return { data: j, info: info }; });
+    });
+  }
+  function loadRepo(name, headers) {
+    return api('/repos/' + OWNER + '/' + name, headers).then(function (r) {
+      var info = r.data;
+      return api('/repos/' + OWNER + '/' + name + '/git/trees/' + encodeURIComponent(info.default_branch) + '?recursive=1', headers)
+        .then(function (t) {
+          var files = (t.data.tree || []).filter(function (e) { return e.type === 'blob'; })
+            .map(function (e) { return { path: e.path, kb: (e.size || 0) / 1024, sha: e.sha }; });
+          return { name: name, info: info, files: files, truncated: !!t.data.truncated, rate: t.info };
+        });
+    }).catch(function (e) {
+      return { name: name, error: e && e.msg ? e.msg : 'Connexion à GitHub impossible.', notFound: !!(e && e.notFound), rate: e && e.info };
+    });
+  }
+
+  /* ---------- Place restante ---------- */
+  function gaugeLine(label, usedKb, safeKb, note) {
+    var usedPct = usedKb / GO_KB * 100, safePct = Math.min(safeKb / GO_KB * 100, usedPct);
+    var box = el('div', 'gl');
+    box.appendChild(el('div', 'lab', label));
+    var big = el('div', 'big', pct(Math.max(0, 100 - usedPct)));
+    big.appendChild(el('small', null, ' restent'));
+    box.appendChild(big);
+    var g = el('div', 'gauge');
+    var u = el('div', 'u ' + lvl(usedPct)); u.style.width = Math.max(0, usedPct - safePct) + '%';
+    g.appendChild(u);
+    if (safePct > 0) { var s = el('div', 's'); s.style.width = safePct + '%'; g.appendChild(s); }
+    box.appendChild(g);
+    box.appendChild(el('div', 'gnote', note));
+    return box;
+  }
+
+  function renderGauges(results, cleanByRepo) {
+    var box = $('gauges'); box.replaceChildren();
+    results.forEach(function (r) {
+      var row = el('div', 'item');
+      var head = el('div', 'head');
+      head.appendChild(el('span', 'who', r.name));
+      if (r.info && r.info.private) head.appendChild(el('span', 'tag', 'privé'));
+      row.appendChild(head);
+      if (r.error) {
+        row.appendChild(el('p', 'err', r.notFound
+          ? 'Dépôt privé : ouvrez « Réglages » en bas et collez un jeton en lecture seule.'
+          : r.error));
+        box.appendChild(row); return;
+      }
+      var filesKb = r.files.reduce(function (s, f) { return s + f.kb; }, 0);
+      var safeKb = (cleanByRepo[r.name] || []).reduce(function (s, g) { return s + (g.sur ? g.libere : 0); }, 0);
+      var n1 = fmt(filesKb) + ' sur 1 Go';
+      if (safeKb > 0) n1 += ' · après nettoyage (rayé) : ' + fmt(filesKb - safeKb) + ', soit ' + pct((filesKb - safeKb) / GO_KB * 100) + ' utilisés';
+      row.appendChild(gaugeLine('Fichiers actuels (ce qui est publié)', filesKb, safeKb, n1));
+      row.appendChild(gaugeLine('Dépôt complet, historique compris', r.info.size, 0, fmt(r.info.size) + ' sur 1 Go'));
+      if (r.truncated) row.appendChild(el('p', 'note', 'Liste de fichiers tronquée par GitHub : les chiffres peuvent être un peu bas.'));
+      box.appendChild(row);
+    });
+  }
+
+  /* ---------- À nettoyer ---------- */
+  function renderClean(results, cleanByRepo) {
+    var box = $('clean'); box.replaceChildren();
+    var total = 0, any = false;
+    results.forEach(function (r) {
+      if (r.error) return;
+      var groups = cleanByRepo[r.name] || [];
+      var filesKb = r.files.reduce(function (s, f) { return s + f.kb; }, 0);
+      var block = el('div', 'item');
+      block.appendChild(el('div', 'who', r.name));
+      if (!groups.length) {
+        block.appendChild(el('p', 'good', 'Rien à nettoyer.'));
+        box.appendChild(block); return;
+      }
+      any = true;
+      groups.forEach(function (g) {
+        if (g.sur) total += g.libere;
+        asks.push(g.ask);
+        var card = el('div', 'grp');
+        var head = el('div', 'head');
+        head.appendChild(el('span', 'who', g.titre));
+        head.appendChild(el('span', 'num', fmt(g.libere) + ' · ' + pct(filesKb ? g.libere / filesKb * 100 : 0) + ' des fichiers'));
+        card.appendChild(head);
+        var meta = el('div', 'meta');
+        meta.appendChild(el('span', 'tag ' + (g.sur ? 'warn' : ''), g.sur ? 'inutile, vérifié' : 'à vérifier'));
+        card.appendChild(meta);
+        card.appendChild(el('p', null, g.raison));
+        var ul = el('ul', 'files');
+        g.files.slice(0, 8).forEach(function (f) {
+          var li = el('li'); li.appendChild(el('span', null, f.path)); li.appendChild(el('span', 'num', fmt(f.kb))); ul.appendChild(li);
+        });
+        if (g.files.length > 8) ul.appendChild(el('li', null, '… et ' + (g.files.length - 8) + ' autres'));
+        card.appendChild(ul);
+        var act = el('div', 'row'); act.style.marginTop = '10px';
+        act.appendChild(copyBtn(g.ask));
+        card.appendChild(act);
+        block.appendChild(card);
+      });
+      box.appendChild(block);
+    });
+    if (any) {
+      box.insertBefore(el('p', 'note', (total > 0 ? 'Gain sûr : ' + fmt(total) + ' sur les fichiers publiés. ' : '') +
+        'Supprimer des fichiers allège le site tout de suite ; la taille du dépôt complet (historique) ne baisse pas avec une simple suppression.'), box.firstChild);
+    }
+  }
+
+  /* ---------- À réparer ---------- */
+  function checkApp(app, appliManu) {
+    var row = el('div', 'item');
+    var head = el('div', 'head'), who = el('span', 'who'), dot = el('span', 'dot');
+    who.appendChild(dot); who.appendChild(el('span', null, app.nom));
+    head.appendChild(who); row.appendChild(head);
+    var meta = el('div', 'meta'); row.appendChild(meta);
+    var problems = [];
+    function finish() {
+      dot.className = 'dot ' + (problems.length ? 'crit' : 'ok');
+      if (!problems.length) { row.appendChild(el('p', 'good', 'En ordre.')); return; }
+      problems.forEach(function (p) {
+        asks.push(p.ask);
+        var line = el('div', 'issue');
+        line.appendChild(el('span', null, '⚠ ' + p.texte));
+        line.appendChild(copyBtn(p.ask));
+        row.appendChild(line);
+      });
+    }
+    var base = PAGES + app.dir + '/';
+    return fetch(base + 'version.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (d) {
+        meta.appendChild(el('span', 'num', (d.version || '?') + ' · ' + (d.date || 'date inconnue')));
+        if (appliManu && appliManu.files) checkTree(app, d, appliManu.files).forEach(function (p) { problems.push(p); });
+        var jobs = [];
+        if (app.page) {
+          jobs.push(fetch(base + app.page, { method: 'HEAD', cache: 'no-store' }).then(function (r) {
+            if (!r.ok) problems.push({ texte: 'La page ' + app.page + ' ne répond pas en ligne (erreur ' + r.status + ').',
+              ask: 'Dans appli-manu, répare ' + app.nom + ' : la page ' + app.dir + '/' + app.page + ' ne répond pas en ligne (erreur ' + r.status + ').' });
+          }).catch(function () {
+            problems.push({ texte: 'La page ' + app.page + ' est injoignable.',
+              ask: 'Dans appli-manu, répare ' + app.nom + ' : la page ' + app.dir + '/' + app.page + ' est injoignable.' });
+          }));
+        }
+        if (d.sw && d.sw.fichier && d.sw.cache) {
+          jobs.push(fetch(base + d.sw.fichier + '?t=' + Date.now(), { cache: 'no-store' })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+            .then(function (t) {
+              if (t.indexOf(d.sw.cache) === -1) problems.push({
+                texte: 'Le nom de cache de ' + d.sw.fichier + ' ne correspond pas à version.json (' + d.sw.cache + '). Le téléphone peut garder l\'ancienne version.',
+                ask: 'Dans appli-manu, répare ' + app.nom + ' : le nom de cache dans ' + app.dir + '/' + d.sw.fichier + ' doit être ' + d.sw.cache + ' (relance outils/poser-pastille.py ' + app.dir + ').' });
+            }).catch(function () {
+              problems.push({ texte: 'Le fichier ' + d.sw.fichier + ' (mode hors connexion) est introuvable.',
+                ask: 'Dans appli-manu, répare ' + app.nom + ' : le fichier ' + app.dir + '/' + d.sw.fichier + ' est introuvable alors que version.json le cite.' });
+            }));
+        }
+        return Promise.all(jobs);
+      })
+      .catch(function () {
+        problems.push({ texte: 'version.json est injoignable : l\'appli est peut-être hors ligne ou son dossier a bougé.',
+          ask: 'Dans appli-manu, répare ' + app.nom + ' : ' + app.dir + '/version.json est injoignable en ligne.' });
+      })
+      .then(finish)
+      .then(function () { return row; });
+  }
+
+  function renderRepair(appliManu) {
+    var box = $('repair'); box.replaceChildren();
+    return Promise.all(APPS.map(function (a) { return checkApp(a, appliManu); })).then(function (rows) {
+      rows.forEach(function (r) { box.appendChild(r); });
+      if (appliManu && appliManu.error) box.appendChild(el('p', 'note', 'Contrôle des fichiers du dépôt impossible : ' + appliManu.error));
+    });
+  }
+
+  /* ---------- Actualisation ---------- */
+  function refresh() {
+    var btn = $('go'), token = $('token').value.trim();
+    btn.disabled = true; btn.textContent = 'Chargement…';
+    store('gh-token', $('keep').checked && token ? token : null);
+    asks = [];
+    var headers = { Accept: 'application/vnd.github+json' };
+    if (token) headers.Authorization = 'Bearer ' + token;
+    loadStatus();
+    return Promise.all(REPOS.map(function (n) { return loadRepo(n, headers); })).then(function (results) {
+      var cleanByRepo = {};
+      results.forEach(function (r) { if (!r.error) cleanByRepo[r.name] = findClean(r.name, r.files); });
+      renderGauges(results, cleanByRepo);
+      renderClean(results, cleanByRepo);
+      var appliManu = results.filter(function (r) { return r.name === 'appli-manu'; })[0];
+      return renderRepair(appliManu).then(function () {
+        $('ask').value = asks.length ? asks.map(function (a, i) { return (i + 1) + '. ' + a; }).join('\n\n') : 'Rien à demander : tout est en ordre.';
+        var rate = results.map(function (r) { return r.rate; }).filter(Boolean).pop();
+        $('stamp').textContent = 'Mis à jour à ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) +
+          (rate && rate.remaining != null ? ' · requêtes GitHub restantes : ' + rate.remaining + '/' + rate.limit : '') + '.';
+      });
+    }).then(function () { btn.disabled = false; btn.textContent = 'Actualiser'; });
+  }
+
+  var saved = load('gh-token');
+  if (saved) { $('token').value = saved; $('keep').checked = true; }
+  $('go').addEventListener('click', refresh);
+  $('form').addEventListener('submit', function (ev) { ev.preventDefault(); refresh(); });
+  $('copyall').addEventListener('click', function () { copyText($('ask').value, $('copyall')); });
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    addEventListener('load', function () { navigator.serviceWorker.register('suivi-github-sw.js').catch(function () {}); });
+  }
+  refresh();
+})();
+</script>
+<!-- MAJ:debut — pastille de mise à jour commune à toutes les applis (modèle : outils/pastille-maj.html, ne pas modifier ici à la main) -->
+<style>
+#maj-pastille{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:2147483000;
+  display:flex;align-items:center;gap:5px;margin:0;padding:5px 9px;border-radius:99px;border:1px solid rgba(255,255,255,.25);
+  background:rgba(22,30,36,.86);color:#fff;font:700 11.5px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.02em;
+  box-shadow:0 4px 14px -6px rgba(0,0,0,.6);cursor:pointer;-webkit-tap-highlight-color:transparent;backdrop-filter:blur(6px)}
+#maj-pastille .maj-fl{font-size:13px}
+#maj-pastille.maj-nouvelle{background:#1d7a45;border-color:#7fd6a3;animation:maj-pulse 2s ease-in-out infinite}
+@keyframes maj-pulse{50%{box-shadow:0 0 0 5px rgba(29,122,69,.25)}}
+@media (prefers-reduced-motion:reduce){#maj-pastille.maj-nouvelle{animation:none}}
+#maj-panneau{position:fixed;inset:0;z-index:2147483001;display:flex;align-items:flex-start;justify-content:center;
+  padding:calc(52px + env(safe-area-inset-top,0px)) 16px 16px;background:rgba(0,0,0,.45);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#maj-panneau[hidden]{display:none}
+#maj-panneau .maj-boite{width:100%;max-width:360px;max-height:100%;overflow:auto;background:#fff;color:#16202a;border-radius:14px;padding:16px 16px 14px;box-shadow:0 20px 50px -10px rgba(0,0,0,.6)}
+#maj-panneau .maj-nom{font-weight:800;font-size:18px;margin:0 0 2px}
+#maj-panneau .maj-ver{color:#4b5a68;font-size:13.5px;margin:0}
+#maj-panneau .maj-dispo{margin:10px 0 0;padding:8px 10px;border-radius:9px;background:#e3f4ea;color:#14532d;font-weight:600;font-size:13.5px}
+#maj-panneau .maj-t{margin:12px 0 4px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6a7884}
+#maj-panneau ul{margin:0;padding:0 0 0 18px;font-size:13.5px;color:#26323d}
+#maj-panneau li{margin:3px 0}
+#maj-panneau .maj-actions{display:flex;gap:8px;margin-top:14px}
+#maj-panneau button{flex:1;min-height:44px;border-radius:10px;border:1px solid #c9d2da;background:#f3f6f8;color:#16202a;font:700 15px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;cursor:pointer}
+#maj-panneau button.maj-ok{background:#1f4f7a;border-color:#1f4f7a;color:#fff}
+#maj-panneau .maj-msg{margin:10px 0 0;font-size:13px;color:#8a3b12}
+#maj-panneau .maj-msg:empty{display:none}
+@media print{#maj-pastille,#maj-panneau{display:none!important}}
+
+</style>
+<script>
+window.MAJ_APPLI={"nom": "Suivi GitHub", "version": "V1", "date": "14/10/2026", "cache": "suivi-github-app-", "nouveautes": ["Première version : place restante en pourcentage, ce qu'il faut nettoyer et ce qu'il faut réparer dans appli-manu et vigie-depo."]};
+(function(){
+  "use strict";
+  var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
+  var enLigne=/^https?:$/.test(location.protocol), distante=null;
+  /* nettoie l'adresse après une actualisation (?maj=...) */
+  if(/[?&]maj=/.test(location.search)){ try{ history.replaceState(null,"",location.pathname+location.hash); }catch(e){} }
+
+  var b=document.createElement("button");
+  b.type="button"; b.id="maj-pastille"; b.title=A.nom+" — version et mise à jour";
+  b.innerHTML='<span class="maj-fl" aria-hidden="true">↻</span><span class="maj-txt"></span>';
+  var txt=b.querySelector(".maj-txt");
+  function court(d){ return String(d||"").slice(0,5); }
+  function majTexte(){
+    if(distante&&distante.version!==A.version){ b.classList.add("maj-nouvelle"); txt.textContent="Nouvelle version"; }
+    else { b.classList.remove("maj-nouvelle"); txt.textContent=A.version+" · "+court(A.date); }
+  }
+
+  var p=document.createElement("div");
+  p.id="maj-panneau"; p.hidden=true; p.setAttribute("role","dialog"); p.setAttribute("aria-modal","true"); p.setAttribute("aria-label","Mise à jour");
+  p.innerHTML='<div class="maj-boite"><p class="maj-nom"></p><p class="maj-ver"></p><p class="maj-dispo" hidden></p>'+
+    '<p class="maj-t">Dernières nouveautés</p><ul></ul>'+
+    '<div class="maj-actions"><button type="button" class="maj-ok">↻ Actualiser</button><button type="button" class="maj-fermer">Fermer</button></div>'+
+    '<p class="maj-msg" role="status"></p></div>';
+  var q=function(s){ return p.querySelector(s); };
+  q(".maj-nom").textContent=A.nom;
+  q(".maj-ver").textContent="Version "+A.version+" · mise à jour le "+A.date;
+  (A.nouveautes||[]).slice(0,4).forEach(function(n){ var li=document.createElement("li"); li.textContent=n; q("ul").appendChild(li); });
+
+  function ouvrir(){
+    var d=q(".maj-dispo");
+    if(distante&&distante.version!==A.version){ d.hidden=false; d.textContent="Nouvelle version en ligne : "+distante.version+(distante.date?" du "+distante.date:"")+". Touchez Actualiser."; }
+    else d.hidden=true;
+    q(".maj-msg").textContent=""; p.hidden=false; verifier(true);
+  }
+  function fermer(){ p.hidden=true; }
+  b.addEventListener("click",ouvrir);
+  q(".maj-fermer").addEventListener("click",fermer);
+  p.addEventListener("click",function(e){ if(e.target===p) fermer(); });
+  document.addEventListener("keydown",function(e){ if(e.key==="Escape"&&!p.hidden) fermer(); });
+
+  q(".maj-ok").addEventListener("click",function(){
+    var msg=q(".maj-msg");
+    if(!enLigne){ msg.textContent="Cette page est un fichier ouvert sur l'appareil : ouvrez plutôt l'adresse en ligne."; return; }
+    if(navigator.onLine===false){ msg.textContent="Pas de connexion internet : réessayez plus tard."; return; }
+    msg.textContent="Mise à jour en cours…";
+    var go=function(){ setTimeout(function(){ location.replace(location.pathname+"?maj="+Date.now()+location.hash); },300); };
+    Promise.resolve().then(function(){
+      if(!("serviceWorker" in navigator)) return;
+      return navigator.serviceWorker.getRegistrations().then(function(rs){ return Promise.all(rs.map(function(r){ return r.update().catch(function(){}); })); });
+    }).catch(function(){}).then(function(){
+      if(!("caches" in window)||!A.cache) return;
+      return caches.keys().then(function(ks){ return Promise.all(ks.filter(function(k){ return k.indexOf(A.cache)===0; }).map(function(k){ return caches.delete(k); })); });
+    }).catch(function(){}).then(go,go);
+  });
+
+  var dernier=0;
+  function verifier(force){
+    if(!enLigne||navigator.onLine===false) return;
+    var t=Date.now(); if(!force&&t-dernier<5*60*1000) return; dernier=t;
+    fetch("version.json",{cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(j){
+      if(j&&j.version){ distante=j; majTexte();
+        if(!p.hidden&&j.version!==A.version){ var d=q(".maj-dispo"); d.hidden=false; d.textContent="Nouvelle version en ligne : "+j.version+(j.date?" du "+j.date:"")+". Touchez Actualiser."; } }
+    }).catch(function(){});
+  }
+  function poser(){ document.body.appendChild(b); document.body.appendChild(p); majTexte(); setTimeout(function(){ verifier(true); },1500); }
+  if(document.body) poser(); else document.addEventListener("DOMContentLoaded",poser);
+  document.addEventListener("visibilitychange",function(){ if(!document.hidden) verifier(false); });
+})();
+</script>
+<!-- MAJ:fin -->
+</body>
+</html>
