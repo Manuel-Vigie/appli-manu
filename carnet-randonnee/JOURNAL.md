@@ -2,7 +2,7 @@
 
 ## Identité
 Appli de carnets de randonnée (albums photos, musique, pages). Fonctionne hors connexion (PWA).
-Version actuelle : **V63 · 11/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
+Version actuelle : **V64 · 14/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
 |---|---|
 | `carnet-randonnee.html` | L'appli entière |
 | `carnet-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V63'` |
+| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V64'` |
 | `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-icone-192.png`, `carnet-icone-512.png`, `carnet-icone-masque-512.png` | Icônes |
 
@@ -105,3 +105,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 06/10/2026 — V61 : la pastille ↻ devient verte « Nouvelle version » quand une mise à jour est en ligne (lecture de `version.json`). Cache carnet-app-V61.
 - 11/10/2026 — V62 : couvertures du plateau — titre, sous-titre et « Album N » centrés, taille du texte adaptée à la largeur de la couverture (les mots longs ne sortent plus du cadre). Cache carnet-app-V62.
 - 11/10/2026 — V63 : texte des couvertures du plateau plus gros (titre ≈ 30 px sur la couverture du devant). Cache carnet-app-V63.
+- 14/10/2026 — V64 : « Prendre depuis un dossier » (fiche d'une sortie, sous Photos et vidéos) : choix Photos / Vidéos / Les deux, un ou deux dossiers (sélecteur de dossier du navigateur), jours à cocher, puis ajout dans l'album rangé par date et heure. Pas de lien direct avec l'appli Android Mes Photos (appli native) : on passe par le sélecteur du téléphone. Cache carnet-app-V64.

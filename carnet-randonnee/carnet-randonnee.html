@@ -940,7 +940,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V63 · 11/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V64 · 14/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -1140,6 +1140,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <div class="note" id="note" role="status" aria-live="polite"></div>
 
 <input type="file" id="pioche-media" accept="image/*,video/*" multiple hidden>
+<input type="file" id="pioche-dossier" webkitdirectory multiple hidden>
 <input type="file" id="pioche-gpx" accept=".gpx,application/gpx+xml,text/xml" hidden>
 <input type="file" id="pioche-import" accept=".json,application/json" hidden>
 <input type="date" id="pioche-date" class="pioche-date">
@@ -5463,6 +5464,7 @@ function vueFiche(){
     if(e.dataTransfer&&e.dataTransfer.files) ajouterMedias(e.dataTransfer.files);
   });
   bm.appendChild(depot);
+  bm.appendChild(blocDossier(r));
 
   var vg=el("div","vignettes"); vg.style.marginTop=".7rem";
   (r.medias||[]).forEach(function(m,i){
@@ -5604,6 +5606,136 @@ function choisirFichiersPour(rando,position,uneSeule){
     input.setAttribute("multiple","");
   };
   input.click();
+}
+
+/* ---- Prendre les souvenirs d'un ou deux dossiers (ex. ceux de Mes Photos) ----
+   On choisit : Photos / Vidéos / Les deux, puis un dossier (un 2e si besoin),
+   puis les jours voulus. Tout arrive dans l'album, rangé par date et heure. */
+var dossierSel={type:"tout",fichiers:[],noms:[],jours:{}};
+function jourDuFichier(f){
+  var m=/(20\d\d)[-_.]?([01]\d)[-_.]?([0-3]\d)/.exec(f.name);
+  if(m) return m[1]+"-"+m[2]+"-"+m[3];
+  var d=new Date(f.lastModified||0);
+  function z(n){ return (n<10?"0":"")+n; }
+  return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate());
+}
+function genreDuFichier(f){
+  if(/^video\//.test(f.type)||/\.(mp4|mov|m4v|3gp|webm|mkv)$/i.test(f.name)) return "video";
+  if(/^image\//.test(f.type)||/\.(jpe?g|png|webp|heic|heif|gif|bmp)$/i.test(f.name)) return "photo";
+  return null;
+}
+function libelleJour(j){
+  var t=j.split("-");
+  var mois=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+  return parseInt(t[2],10)+" "+mois[parseInt(t[1],10)-1]+" "+t[0];
+}
+function fichiersRetenus(){
+  var g=dossierSel.type;
+  return dossierSel.fichiers.filter(function(f){
+    var k=genreDuFichier(f);
+    if(!k) return false;
+    if(g==="photos"&&k!=="photo") return false;
+    if(g==="videos"&&k!=="video") return false;
+    return dossierSel.jours[jourDuFichier(f)]!==false;
+  });
+}
+function blocDossier(r){
+  var bloc=el("div","bloc-dossier");
+  bloc.style.marginTop=".9rem";
+  bloc.appendChild(el("h4",null,"Prendre depuis un dossier"));
+  var aide=el("p","aide","Choisis ce que tu veux (photos, vidéos ou les deux), puis un dossier — et un deuxième si besoin. Tout est rangé par date et heure.");
+  aide.style.cssText="opacity:.8;font-size:.85rem;margin:.2rem 0 .6rem";
+  bloc.appendChild(aide);
+
+  var rg=el("div"); rg.style.cssText="display:flex;gap:.4rem;flex-wrap:wrap";
+  [["photos","Photos"],["videos","Vidéos"],["tout","Les deux"]].forEach(function(x){
+    var b=el("button","bouton"+(dossierSel.type===x[0]?" plein":""),x[1]);
+    b.addEventListener("click",function(){ dossierSel.type=x[0]; maj(); });
+    rg.appendChild(b);
+  });
+  bloc.appendChild(rg);
+
+  var zone=el("div"); zone.style.marginTop=".6rem"; bloc.appendChild(zone);
+
+  function maj(){
+    // reconstruit tout le bloc (boutons actifs + résumé)
+    var neuf=blocDossier(r);
+    bloc.parentNode.replaceChild(neuf,bloc);
+  }
+  function choisir(){
+    var input=document.getElementById("pioche-dossier");
+    input.value="";
+    input.onchange=function(){
+      var vus={};
+      dossierSel.fichiers.forEach(function(f){ vus[(f.webkitRelativePath||f.name)+"|"+f.size]=1; });
+      var nom="";
+      [].slice.call(input.files).forEach(function(f){
+        var cle=(f.webkitRelativePath||f.name)+"|"+f.size;
+        if(vus[cle]||!genreDuFichier(f)) return;
+        vus[cle]=1; dossierSel.fichiers.push(f);
+        if(!nom&&f.webkitRelativePath) nom=f.webkitRelativePath.split("/")[0];
+        var j=jourDuFichier(f); if(!(j in dossierSel.jours)) dossierSel.jours[j]=true;
+      });
+      if(nom&&dossierSel.noms.indexOf(nom)<0) dossierSel.noms.push(nom);
+      maj();
+    };
+    input.click();
+  }
+  var nbDossiers=dossierSel.noms.length;
+  var bc=el("button","bouton",nbDossiers? "📁 Choisir un autre dossier":"📁 Choisir un dossier");
+  bc.addEventListener("click",choisir);
+  zone.appendChild(bc);
+
+  if(dossierSel.fichiers.length){
+    var nomsTxt=dossierSel.noms.length?("Dossier"+(dossierSel.noms.length>1?"s":"")+" : "+dossierSel.noms.join(" + ")):"Fichiers choisis";
+    var info=el("p",null,nomsTxt); info.style.cssText="margin:.6rem 0 .3rem;font-size:.9rem";
+    zone.appendChild(info);
+
+    // les jours trouvés, à cocher
+    var jours={};
+    dossierSel.fichiers.forEach(function(f){
+      var k=genreDuFichier(f), g=dossierSel.type;
+      if(g==="photos"&&k!=="photo") return;
+      if(g==="videos"&&k!=="video") return;
+      var j=jourDuFichier(f); jours[j]=(jours[j]||{p:0,v:0});
+      if(k==="video") jours[j].v++; else jours[j].p++;
+    });
+    var cles=Object.keys(jours).sort();
+    var liste=el("div"); liste.style.cssText="display:flex;flex-direction:column;gap:.25rem;margin:.3rem 0 .6rem;max-height:14rem;overflow:auto";
+    cles.forEach(function(j){
+      var lab=document.createElement("label");
+      lab.style.cssText="display:flex;align-items:center;gap:.5rem;font-size:.92rem";
+      var cb=document.createElement("input"); cb.type="checkbox"; cb.checked=dossierSel.jours[j]!==false;
+      cb.addEventListener("change",function(){ dossierSel.jours[j]=cb.checked; majBouton(); });
+      lab.appendChild(cb);
+      var t=[];
+      if(jours[j].p) t.push(jours[j].p+" photo"+(jours[j].p>1?"s":""));
+      if(jours[j].v) t.push(jours[j].v+" vidéo"+(jours[j].v>1?"s":""));
+      lab.appendChild(document.createTextNode(libelleJour(j)+" — "+t.join(", ")));
+      liste.appendChild(lab);
+    });
+    zone.appendChild(liste);
+    if(cles.length===0) zone.appendChild(el("p",null,"Rien à prendre avec ce choix (essaie « Les deux »)."));
+
+    var ligne=el("div"); ligne.style.cssText="display:flex;gap:.5rem;flex-wrap:wrap";
+    var ok=el("button","bouton plein","");
+    function majBouton(){
+      var n=fichiersRetenus().length;
+      ok.textContent="Ajouter à l'album ("+n+")"; ok.disabled=(n===0);
+    }
+    ok.addEventListener("click",function(){
+      var choix=fichiersRetenus();
+      if(!choix.length) return;
+      dossierSel={type:dossierSel.type,fichiers:[],noms:[],jours:{}};
+      ajouterMedias(choix,r);
+    });
+    majBouton();
+    var vide=el("button","bouton","Tout effacer");
+    vide.addEventListener("click",function(){ dossierSel={type:dossierSel.type,fichiers:[],noms:[],jours:{}}; maj(); });
+    ligne.appendChild(ok); ligne.appendChild(vide);
+    zone.appendChild(ligne);
+  }
+  return bloc;
 }
 
 /* ---- Date et heure de prise de vue (pour ranger les photos dans l'ordre) ---- */
