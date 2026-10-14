@@ -940,7 +940,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V65 · 14/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V66 · 14/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -5608,6 +5608,106 @@ function choisirFichiersPour(rando,position,uneSeule){
   input.click();
 }
 
+/* ---- Garder seulement une cinquantaine (ou une centaine) de souvenirs variés ----
+   Les photos sont comparées entre elles (couleurs en miniature + moment de la prise de vue) ;
+   on garde celles qui se ressemblent le moins, réparties dans le temps. Les vidéos sont toutes gardées.
+   Le rangement par date et heure se fait ensuite à l'ajout (ajouterMedias). */
+var limiteSouvenirs=50;   // 0 = tout garder
+function estVideoFichier(f){ return /^video\//.test(f.type)||/\.(mp4|mov|m4v|3gp|webm|mkv)$/i.test(f.name||""); }
+function nbGardes(total,videos,limite){
+  if(!limite||total<=limite) return total;
+  return Math.min(total,Math.max(limite,videos));
+}
+function signaturePhoto(f){
+  var N=12;
+  function dessiner(src,fin){
+    var c=document.createElement("canvas"); c.width=N; c.height=N;
+    var g=c.getContext("2d"); g.drawImage(src,0,0,N,N);
+    var d=g.getImageData(0,0,N,N).data, v=[];
+    for(var i=0;i<d.length;i+=4){ v.push(d[i]/255,d[i+1]/255,d[i+2]/255); }
+    if(fin) fin();
+    return v;
+  }
+  if(window.createImageBitmap){
+    return createImageBitmap(f,{resizeWidth:N,resizeHeight:N,resizeQuality:"low"})
+      .catch(function(){ return createImageBitmap(f); })
+      .then(function(b){ return dessiner(b,function(){ if(b.close) b.close(); }); })
+      .catch(function(){ return null; });
+  }
+  return new Promise(function(res){
+    var u=URL.createObjectURL(f), im=new Image();
+    im.onload=function(){ var v=null; try{ v=dessiner(im); }catch(e){} URL.revokeObjectURL(u); res(v); };
+    im.onerror=function(){ URL.revokeObjectURL(u); res(null); };
+    im.src=u;
+  });
+}
+function choisirVariees(files,limite){
+  var videos=files.filter(estVideoFichier), photos=files.filter(function(f){ return !estVideoFichier(f); });
+  var places=Math.max(0,(limite||0)-videos.length);
+  if(!limite||files.length<=limite||photos.length<=places) return Promise.resolve(files);
+  var items=photos.map(function(f){ return {f:f,t:0,v:null}; });
+  var fait=0;
+  function lot(debut){
+    var part=items.slice(debut,debut+6);
+    if(!part.length) return Promise.resolve();
+    return Promise.all(part.map(function(it){
+      return Promise.all([lirePrise(it.f),signaturePhoto(it.f)]).then(function(r){ it.t=r[0]||0; it.v=r[1]; });
+    })).then(function(){
+      fait+=part.length; note("Choix des photos variées… "+fait+" sur "+items.length);
+      return lot(debut+6);
+    });
+  }
+  return lot(0).then(function(){
+    var tmin=Infinity,tmax=-Infinity;
+    items.forEach(function(it){ if(it.t<tmin) tmin=it.t; if(it.t>tmax) tmax=it.t; });
+    var T=(tmax-tmin)||1;
+    function dist(a,b){
+      var dt=Math.abs(a.t-b.t)/T, dc=0.5;
+      if(a.v&&b.v){
+        var s=0; for(var i=0;i<a.v.length;i++){ var x=a.v[i]-b.v[i]; s+=x*x; }
+        dc=Math.sqrt(s/a.v.length)*2;
+      }
+      return dc+0.4*dt;
+    }
+    // départ : la photo la plus « différente de la moyenne »
+    var dim=0, moy=null;
+    items.forEach(function(it){ if(it.v){ if(!moy){ moy=it.v.map(function(){return 0;}); } for(var i=0;i<it.v.length;i++) moy[i]+=it.v[i]; dim++; } });
+    var depart=0, pire=-1;
+    items.forEach(function(it,k){
+      var d=0;
+      if(it.v&&moy){ var s=0; for(var i=0;i<it.v.length;i++){ var x=it.v[i]-moy[i]/dim; s+=x*x; } d=s; }
+      if(d>pire){ pire=d; depart=k; }
+    });
+    var choisis=[depart], mini=items.map(function(it){ return dist(it,items[depart]); });
+    mini[depart]=-1;
+    while(choisis.length<places){
+      var best=-1, bi=-1;
+      for(var k=0;k<items.length;k++){ if(mini[k]>best){ best=mini[k]; bi=k; } }
+      if(bi<0) break;
+      choisis.push(bi); mini[bi]=-1;
+      for(var j=0;j<items.length;j++){ if(mini[j]>=0){ var d=dist(items[j],items[bi]); if(d<mini[j]) mini[j]=d; } }
+    }
+    var gardes=choisis.map(function(k){ return items[k]; }).sort(function(a,b){ return a.t-b.t; }).map(function(it){ return it.f; });
+    return videos.concat(gardes);
+  });
+}
+/* Trois boutons « 50 / 100 / Tout » */
+function ligneLimite(apres){
+  var ligne=el("div"); ligne.style.cssText="display:flex;gap:.4rem;flex-wrap:wrap;margin:.3rem 0";
+  [[50,"50"],[100,"100"],[0,"Tout"]].forEach(function(x){
+    var b=el("button","bouton"+(limiteSouvenirs===x[0]?" plein":""),x[1]);
+    b.style.cssText="flex:0 0 auto;width:auto;min-width:4rem;padding:.55rem .9rem";
+    b.addEventListener("click",function(){
+      limiteSouvenirs=x[0];
+      [].slice.call(ligne.children).forEach(function(c){ c.classList.remove("plein"); });
+      b.classList.add("plein");
+      if(apres) apres();
+    });
+    ligne.appendChild(b);
+  });
+  return ligne;
+}
+
 /* ---- Réception depuis « Mes Photos » (menu Partager d'Android) ----
    Le programme de cache (carnet-sw.js) garde les fichiers reçus dans le cache
    « carnet-partage » puis rouvre le carnet avec ?partage=N. */
@@ -5656,20 +5756,26 @@ function proposerPartage(files){
   sa.addEventListener("change",remplirSorties); remplirSorties();
   boite.appendChild(el("p",null,"Album")); boite.appendChild(sa);
   boite.appendChild(el("p",null,"Sortie")); boite.appendChild(ss);
+  if(files.length>50){
+    boite.appendChild(el("p",null,"Combien en garder au maximum ? Le carnet choisit des photos qui ne se ressemblent pas trop, dans l'ordre du temps (toutes les vidéos sont gardées)."));
+    boite.appendChild(ligneLimite());
+  }
   var ok=el("button","bouton plein","Ajouter à l'album"), non=el("button","bouton","Annuler");
   ok.style.marginTop=".6rem"; non.style.marginTop=".4rem";
   ok.addEventListener("click",function(){
-    ok.disabled=true;
-    var ai=parseInt(sa.value,10);
-    choisirAlbum(ai);
-    var r;
-    if(ss.value==="neuf"){
-      r={ id:uid(), titre:"Photos de Mes Photos", date:new Date().toISOString().slice(0,10),
-          lieu:"", distance:"", denivele:"", duree:"", alt_max:null, recit:"", medias:[], trace:null };
-      carnet.randos.push(r); sauver();
-    }else r=carnet.randos[parseInt(ss.value,10)];
-    if(ecran.parentNode) ecran.parentNode.removeChild(ecran);
-    Promise.resolve(ajouterMedias(files,r)).then(viderPartage,viderPartage);
+    ok.disabled=true; ok.textContent="Un instant…";
+    var ai=parseInt(sa.value,10), neuf=(ss.value==="neuf"), si=parseInt(ss.value,10);
+    choisirVariees(files,limiteSouvenirs).then(function(gardes){
+      choisirAlbum(ai);
+      var r;
+      if(neuf){
+        r={ id:uid(), titre:"Photos de Mes Photos", date:new Date().toISOString().slice(0,10),
+            lieu:"", distance:"", denivele:"", duree:"", alt_max:null, recit:"", medias:[], trace:null };
+        carnet.randos.push(r); sauver();
+      }else r=carnet.randos[si];
+      if(ecran.parentNode) ecran.parentNode.removeChild(ecran);
+      return ajouterMedias(gardes,r);
+    }).then(viderPartage,viderPartage);
   });
   non.addEventListener("click",function(){ viderPartage(); if(ecran.parentNode) ecran.parentNode.removeChild(ecran); });
   boite.appendChild(ok); boite.appendChild(non);
@@ -5722,8 +5828,12 @@ function blocDossier(r){
     rg.appendChild(b);
   });
   bloc.appendChild(rg);
+  var lib=el("p",null,"Garder au maximum :"); lib.style.cssText="margin:.6rem 0 .1rem;font-size:.85rem;opacity:.85";
+  bloc.appendChild(lib);
+  bloc.appendChild(ligneLimite(function(){ if(typeof majBoutonDossier==="function") majBoutonDossier(); }));
 
   var zone=el("div"); zone.style.marginTop=".6rem"; bloc.appendChild(zone);
+  var majBoutonDossier=null;
 
   function maj(){
     // reconstruit tout le bloc (boutons actifs + résumé)
@@ -5788,14 +5898,19 @@ function blocDossier(r){
     var ligne=el("div"); ligne.style.cssText="display:flex;gap:.5rem;flex-wrap:wrap";
     var ok=el("button","bouton plein","");
     function majBouton(){
-      var n=fichiersRetenus().length;
-      ok.textContent="Ajouter à l'album ("+n+")"; ok.disabled=(n===0);
+      var ch=fichiersRetenus(), n=ch.length, v=ch.filter(estVideoFichier).length;
+      var g=nbGardes(n,v,limiteSouvenirs);
+      ok.textContent="Ajouter à l'album ("+(g<n?(g+" sur "+n):n)+")"; ok.disabled=(n===0);
     }
+    majBoutonDossier=majBouton;
     ok.addEventListener("click",function(){
       var choix=fichiersRetenus();
       if(!choix.length) return;
-      dossierSel={type:dossierSel.type,fichiers:[],noms:[],jours:{}};
-      ajouterMedias(choix,r);
+      ok.disabled=true; ok.textContent="Un instant…";
+      choisirVariees(choix,limiteSouvenirs).then(function(gardes){
+        dossierSel={type:dossierSel.type,fichiers:[],noms:[],jours:{}};
+        return ajouterMedias(gardes,r);
+      });
     });
     majBouton();
     var vide=el("button","bouton","Tout effacer");
