@@ -940,7 +940,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V64 · 14/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V65 · 14/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -5608,6 +5608,74 @@ function choisirFichiersPour(rando,position,uneSeule){
   input.click();
 }
 
+/* ---- Réception depuis « Mes Photos » (menu Partager d'Android) ----
+   Le programme de cache (carnet-sw.js) garde les fichiers reçus dans le cache
+   « carnet-partage » puis rouvre le carnet avec ?partage=N. */
+function recevoirPartage(){
+  try{ history.replaceState(null,"",location.pathname); }catch(e){}
+  if(!window.caches) return;
+  caches.open("carnet-partage").then(function(c){
+    return c.keys().then(function(reqs){
+      return Promise.all(reqs.map(function(rq){
+        return c.match(rq).then(function(rep){
+          if(!rep) return null;
+          return rep.blob().then(function(b){
+            var n=/\/partage-fichier\/(\d+)\//.exec(rq.url);
+            var nom="souvenir"; try{ nom=decodeURIComponent(rep.headers.get("X-Nom")||nom); }catch(e){}
+            var f; try{ f=new File([b],nom,{type:b.type||rep.headers.get("Content-Type")||"",lastModified:parseInt(rep.headers.get("X-Modif"),10)||Date.now()}); }catch(e){ f=b; f.name=nom; }
+            return { i:n?parseInt(n[1],10):0, f:f };
+          });
+        });
+      }));
+    });
+  }).then(function(items){
+    items=(items||[]).filter(Boolean).sort(function(a,b){ return a.i-b.i; });
+    if(!items.length){ note("Aucun souvenir reçu."); return; }
+    proposerPartage(items.map(function(x){ return x.f; }));
+  }).catch(function(){ note("Impossible de lire les souvenirs reçus."); });
+}
+function viderPartage(){ if(window.caches) caches.delete("carnet-partage").catch(function(){}); }
+function proposerPartage(files){
+  var nbV=files.filter(function(f){ return /^video\//.test(f.type); }).length, nbP=files.length-nbV;
+  var ecran=el("div","mdp-ecran ouvert"); ecran.style.zIndex="900";
+  var boite=el("div","mdp-boite"); ecran.appendChild(boite);
+  boite.appendChild(el("h2",null,files.length+" souvenir"+(files.length>1?"s":"")+" reçu"+(files.length>1?"s":"")));
+  var t=[]; if(nbP) t.push(nbP+" photo"+(nbP>1?"s":"")); if(nbV) t.push(nbV+" vidéo"+(nbV>1?"s":""));
+  boite.appendChild(el("p",null,t.join(" et ")+" de Mes Photos. Ils seront rangés par date et heure. Où les mettre ?"));
+  function liste(){ var s=document.createElement("select"); s.style.cssText="width:100%;padding:.7rem;margin:.3rem 0;border-radius:.6rem;background:#0d120d;color:#F0E9D7;border:1px solid #ffffff44;font:1rem var(--sans)"; return s; }
+  var sa=liste(); biblio.albums.forEach(function(a,i){ var o=document.createElement("option"); o.value=i; o.textContent=a.titre||("Album "+(i+1)); sa.appendChild(o); });
+  sa.value=biblio.courant;
+  var ss=liste();
+  function remplirSorties(){
+    ss.innerHTML="";
+    var al=biblio.albums[parseInt(sa.value,10)];
+    (al.randos||[]).forEach(function(r,i){ var o=document.createElement("option"); o.value=i; o.textContent=(r.titre||"Sortie "+(i+1))+(r.date?" ("+r.date+")":""); ss.appendChild(o); });
+    var n=document.createElement("option"); n.value="neuf"; n.textContent="➕ Nouvelle sortie"; ss.appendChild(n);
+    ss.value=(al.randos&&al.randos.length)?String(al.randos.length-1):"neuf";
+  }
+  sa.addEventListener("change",remplirSorties); remplirSorties();
+  boite.appendChild(el("p",null,"Album")); boite.appendChild(sa);
+  boite.appendChild(el("p",null,"Sortie")); boite.appendChild(ss);
+  var ok=el("button","bouton plein","Ajouter à l'album"), non=el("button","bouton","Annuler");
+  ok.style.marginTop=".6rem"; non.style.marginTop=".4rem";
+  ok.addEventListener("click",function(){
+    ok.disabled=true;
+    var ai=parseInt(sa.value,10);
+    choisirAlbum(ai);
+    var r;
+    if(ss.value==="neuf"){
+      r={ id:uid(), titre:"Photos de Mes Photos", date:new Date().toISOString().slice(0,10),
+          lieu:"", distance:"", denivele:"", duree:"", alt_max:null, recit:"", medias:[], trace:null };
+      carnet.randos.push(r); sauver();
+    }else r=carnet.randos[parseInt(ss.value,10)];
+    if(ecran.parentNode) ecran.parentNode.removeChild(ecran);
+    Promise.resolve(ajouterMedias(files,r)).then(viderPartage,viderPartage);
+  });
+  non.addEventListener("click",function(){ viderPartage(); if(ecran.parentNode) ecran.parentNode.removeChild(ecran); });
+  boite.appendChild(ok); boite.appendChild(non);
+  document.body.appendChild(ecran);
+}
+
 /* ---- Prendre les souvenirs d'un ou deux dossiers (ex. ceux de Mes Photos) ----
    On choisit : Photos / Vidéos / Les deux, puis un dossier (un 2e si besoin),
    puis les jours voulus. Tout arrive dans l'album, rangé par date et heure. */
@@ -5867,7 +5935,7 @@ function ajouterMedias(fichiers,cible,position){
   r.medias.splice.apply(r.medias,[ou,0].concat(nouvelles));
 
   note(nb>1?("Import de "+nb+" souvenirs…"):"Import du souvenir…");
-  Promise.all(taches).then(function(){
+  return Promise.all(taches).then(function(){
     // plusieurs photos ajoutées d'un coup : rangées par heure de prise de vue
     if(nouvelles.length>1) trierFiches(r,nouvelles);
     var rates=r.medias.filter(function(m){ return m.echec; });
@@ -6802,6 +6870,7 @@ ouvrirBase().then(function(){
   restaurerDossier();
   if(ouvrirEtagere) ouvrirBibliotheque();
   if(memoire) note("Ce navigateur n'autorise pas l'enregistrement local. Télécharge le fichier et ouvre-le depuis ton disque.");
+  if(/[?&]partage=/.test(location.search)) recevoirPartage();
 });
 
 })();

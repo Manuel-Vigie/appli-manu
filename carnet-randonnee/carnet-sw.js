@@ -1,6 +1,6 @@
 // Carnet de rando V10 — mise en cache pour usage hors connexion
 // Pour forcer une mise à jour chez tout le monde : changer ce nom (V9-b, V10…)
-const SHELL = 'carnet-app-V64';
+const SHELL = 'carnet-app-V65';
 const LIBS = 'carnet-libs';
 const TILES = 'carnet-tuiles';
 const MAX_TILES = 3000;
@@ -21,8 +21,33 @@ self.addEventListener('activate', e => {
 const isLib = u => /fonts\.(googleapis|gstatic)\.com/.test(u.host);
 const isTile = u => /tile\.openstreetmap\.org/.test(u.host);
 
+// Réception de photos/vidéos envoyées par « Mes Photos » (menu Partager d'Android) :
+// on les garde dans le cache « carnet-partage » (ne commence pas par « carnet-app- », donc jamais effacé par erreur)
+// puis on rouvre le carnet, qui propose de les ranger.
+async function recevoirPartage(req) {
+  const nb = await (async () => {
+    try {
+      const fd = await req.formData();
+      const files = fd.getAll('medias').filter(f => f && typeof f !== 'string');
+      await caches.delete('carnet-partage');
+      const cache = await caches.open('carnet-partage');
+      let i = 0;
+      for (const f of files) {
+        await cache.put(new Request(new URL('./partage-fichier/' + (i++) + '/' + encodeURIComponent(f.name || 'souvenir'), self.registration.scope).href),
+          new Response(f, {headers: {'Content-Type': f.type || 'application/octet-stream', 'X-Nom': encodeURIComponent(f.name || 'souvenir'), 'X-Modif': String(f.lastModified || 0)}}));
+      }
+      return files.length;
+    } catch (_) { return 0; }
+  })();
+  return Response.redirect(new URL('./carnet-randonnee.html?partage=' + nb, self.registration.scope).href, 303);
+}
+
 self.addEventListener('fetch', e => {
   const req = e.request;
+  if (req.method === 'POST' && new URL(req.url).pathname.endsWith('/partage-recu')) {
+    e.respondWith(recevoirPartage(req));
+    return;
+  }
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (req.mode === 'navigate' && url.origin === location.origin) {
