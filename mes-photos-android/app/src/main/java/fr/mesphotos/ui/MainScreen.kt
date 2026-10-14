@@ -160,6 +160,26 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
         onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
     }
 
+    // Envoie des photos / vidéos au carnet de rando (appli installée depuis son adresse web) par le menu Partager d'Android.
+    val sendToCarnet: (List<File>) -> Unit = { list ->
+        if (list.isEmpty()) {
+            android.widget.Toast.makeText(context, "Rien à envoyer avec ce choix.", android.widget.Toast.LENGTH_LONG).show()
+        } else {
+            try {
+                val uris = ArrayList<Uri>(list.map { FileProvider.getUriForFile(context, context.packageName + ".files", it) })
+                val send = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+                    type = "*/*"
+                    putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+                    putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(send, "Envoyer au carnet de rando"))
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(context, "Impossible d'ouvrir le menu Partager.", android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     val takePhoto: (String) -> Unit = { label ->
         val file = viewModel.newShotFile(label)
         if (file == null) {
@@ -352,6 +372,7 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     onPickBackground = { pickFond.launch("image/*") },
                     onRemoveBackground = { Fond.remove(context); fondTick++ },
                     onRenameFolder = { renamingFolder = it },
+                    onCarnet = { folders, files, kind -> viewModel.prepareCarnet(folders, files, kind, sendToCarnet) },
                     onSetBackground = { file ->
                         val ok = Fond.save(context, Uri.fromFile(file))
                         fondTick++

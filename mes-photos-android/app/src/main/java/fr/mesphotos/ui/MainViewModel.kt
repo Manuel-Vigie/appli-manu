@@ -1237,6 +1237,30 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // Les photos y sont copiées (copie contrôlée) dans la mémoire privée de l'appli, puis retirées de la carte.
     // L'accès demande le verrouillage du téléphone (voir MainScreen) ; il se referme dès qu'on quitte l'appli.
 
+    /**
+     * Prépare l'envoi au carnet de rando : photos [files] + contenu des dossiers [folderNames], filtrés selon [kind]
+     * ("photos", "videos" ou "tout"), classés par heure de prise de vue. Rien n'est déplacé ni modifié.
+     */
+    fun prepareCarnet(folderNames: Set<String>, files: List<File>, kind: String, onReady: (List<File>) -> Unit) {
+        val current = place ?: return
+        val base = browsePath
+        viewModelScope.launch {
+            val list = withContext(Dispatchers.IO) {
+                val parent = base.fold(current.outputDir) { acc, name -> File(acc, name) }
+                val all = LinkedHashSet<File>(files)
+                folderNames.forEach { name -> all += Gallery.media(File(parent, name)) }
+                all.filter { f ->
+                    when (kind) {
+                        "photos" -> !PhotoFiles.isVideo(f)
+                        "videos" -> PhotoFiles.isVideo(f)
+                        else -> true
+                    }
+                }.sortedWith(compareBy<File>({ Gallery.takenKey(it) }, { it.name.lowercase() }))
+            }
+            onReady(list)
+        }
+    }
+
     /** Met les photos [files] et le contenu des dossiers [folderNames] au coffre-fort. */
     private fun moveToVault(folderNames: Set<String>, files: List<File>) {
         val current = place ?: return

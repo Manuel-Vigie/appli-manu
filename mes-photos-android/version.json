@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V85",
-  "date": "12/10/2026",
+  "version": "V86",
+  "date": "14/10/2026",
   "nouveautes": [
+    "Nouveau bouton « Envoyer au carnet de rando » dans le mode « Choisir » : on choisit un ou plusieurs dossiers (ou jours), puis Photos, Vidéos ou Les deux ; tout part rangé par date et heure vers le carnet de rando.",
     "Dans un dossier, les photos et vidéos sont maintenant classées dans l'ordre chronologique : heure de prise de vue, sinon date et heure du nom (captures d'écran comprises), sinon date du fichier. Plus de captures éparpillées.",
     "Doublons : le résultat de la dernière recherche est gardé. Dans Outils, « Revoir la dernière recherche » le rouvre sans tout relancer, même si vous avez quitté l'appli. Le travail déjà fait est aussi enregistré en route : une recherche coupée reprend beaucoup plus vite.",
-    "Quand vous ouvrez une photo, l'appli affiche maintenant la date et l'heure de prise de vue (à la seconde) écrites dans la photo. S'il n'y en a pas, elle le dit.",
-    "Doublons : meilleure détection des photos presque identiques (même cadrage, une seconde d'écart, ciel ou eau qui bougent) : l'appli superpose maintenant les photos pour les comparer. La 1re recherche est longue."
+    "Quand vous ouvrez une photo, l'appli affiche maintenant la date et l'heure de prise de vue (à la seconde) écrites dans la photo. S'il n'y en a pas, elle le dit."
   ],
   "pastille": false,
   "fichiers": []

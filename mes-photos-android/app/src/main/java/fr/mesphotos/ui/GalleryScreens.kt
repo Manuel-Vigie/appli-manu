@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -133,7 +134,7 @@ internal fun SelectionHeader(selectedCount: Int, allSelected: Boolean, onCancel:
 
 /** Barre du bas en mode « Choisir » : « À l'écart » (rangées à part) ou « Corbeille ». */
 @Composable
-internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNotThat: (() -> Unit)? = null, onVault: (() -> Unit)? = null, onRename: (() -> Unit)? = null, onBackground: (() -> Unit)? = null, backgroundEnabled: Boolean = false, onRenameFolder: (() -> Unit)? = null, onDate: (() -> Unit)? = null) {
+internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNotThat: (() -> Unit)? = null, onVault: (() -> Unit)? = null, onRename: (() -> Unit)? = null, onBackground: (() -> Unit)? = null, backgroundEnabled: Boolean = false, onRenameFolder: (() -> Unit)? = null, onDate: (() -> Unit)? = null, onCarnet: (() -> Unit)? = null) {
     Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp, tonalElevation = 2.dp) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).navigationBarsPadding(),
@@ -188,6 +189,18 @@ internal fun MoveBar(count: Int, onAside: () -> Unit, onTrash: () -> Unit, onNot
                             Text("Mettre dans un raccourci", fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         }
                     }
+                }
+            }
+            if (onCarnet != null) {
+                FilledTonalButton(
+                    onClick = onCarnet,
+                    enabled = count > 0,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(18.dp),
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Envoyer au carnet de rando", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
             if (onDate != null) {
@@ -287,6 +300,7 @@ fun BrowseScreen(
     onRemoveBackground: () -> Unit = {},
     onSetBackground: (File) -> Unit = {},
     onRenameFolder: (String) -> Unit = {},
+    onCarnet: (Set<String>, List<File>, String) -> Unit = { _, _, _ -> },
 ) {
     var askBackground by remember { mutableStateOf(false) }
     if (askBackground) {
@@ -311,6 +325,8 @@ fun BrowseScreen(
     var selectedFolders by remember(state) { mutableStateOf(emptySet<String>()) }
     var selectedFiles by remember(state) { mutableStateOf(emptySet<String>()) }
     var confirm by remember(state) { mutableStateOf<MoveKind?>(null) }
+    var carnetAsk by remember(state) { mutableStateOf(false) }
+    var carnetKind by remember { mutableStateOf("tout") }
     val selectedCount = selectedFolders.size + selectedFiles.size
     val itemCount = state.folders.size + state.files.size
 
@@ -459,6 +475,7 @@ fun BrowseScreen(
             onVault = { confirm = MoveKind.VAULT },
             onRename = { onRename(selectedFolders, state.files.filter { it.absolutePath in selectedFiles }) },
             onDate = { onDate(selectedFolders, state.files.filter { it.absolutePath in selectedFiles }) },
+            onCarnet = { carnetAsk = true },
             onBackground = {
                 state.files.firstOrNull { it.absolutePath in selectedFiles }?.let(onSetBackground)
                 stopSelecting()
@@ -482,6 +499,32 @@ fun BrowseScreen(
                 onMove(kind, selectedFolders, state.files.filter { it.absolutePath in selectedFiles })
             },
             onDismiss = { confirm = null },
+        )
+    }
+
+    if (carnetAsk) {
+        AlertDialog(
+            onDismissRequest = { carnetAsk = false },
+            title = { Text("Envoyer au carnet de rando") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Que voulez-vous envoyer ?")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("photos" to "Photos", "videos" to "Vidéos", "tout" to "Les deux").forEach { (key, label) ->
+                            FilterChip(selected = carnetKind == key, onClick = { carnetKind = key }, label = { Text(label) })
+                        }
+                    }
+                    Text("Tout part rangé par date et heure de prise de vue. Ensuite, dans la liste du téléphone, touchez « Carnet de rando » (il faut l'avoir installé).")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    carnetAsk = false
+                    onCarnet(selectedFolders, state.files.filter { it.absolutePath in selectedFiles }, carnetKind)
+                    stopSelecting()
+                }) { Text("Envoyer", fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = { TextButton(onClick = { carnetAsk = false }) { Text("Annuler") } },
         )
     }
 

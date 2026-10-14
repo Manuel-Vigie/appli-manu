@@ -40,7 +40,7 @@ object Gallery {
      * Pour classer dans l'ordre chronologique : l'heure de prise de vue écrite dans la photo (EXIF), sinon la date et l'heure
      * lues dans le nom du fichier (IMG_20261014_210530, Screenshot_20261014-210530…), sinon la date du fichier.
      */
-    private fun takenKey(file: File): Long = synchronized(takenCache) {
+    fun takenKey(file: File): Long = synchronized(takenCache) {
         takenCache.getOrPut(file.absolutePath + "|" + file.length() + "|" + file.lastModified()) {
             val exif = if (PhotoFiles.isVideo(file)) null else try {
                 val e = androidx.exifinterface.media.ExifInterface(file.absolutePath)
