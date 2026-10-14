@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V78",
+  "version": "V79",
   "date": "12/10/2026",
   "nouveautes": [
+    "« Photos presque pareilles » regarde maintenant la vraie date de prise de vue (dans la photo ou son nom), jamais le jour du transfert. Sans date lisible, la photo est comparée aux autres du dossier choisi. La 1re recherche est longue.",
     "Nouveau « Retrouver des photos absentes » (Outils) : cherche sur la carte les photos et vidéos qui ne sont PAS dans la galerie (dossiers cachés, à l'écart, anciens dossiers…) et les liste avec leur date. Rien n'est modifié.",
     "« Photos presque pareilles » : la liste commence directement par les années (plus de « Journées » qui traitait tout). Il faut cocher ou ouvrir un dossier avant de pouvoir lancer.",
-    "« Photos presque pareilles » : vous cochez les dossiers à contrôler (plusieurs possibles, même dans des mois différents). Seuls ceux-là sont traités.",
-    "« Photos presque pareilles » : vous choisissez le dossier à traiter (toute la galerie, une année, un mois ou un jour). Beaucoup plus rapide sur un seul jour."
+    "« Photos presque pareilles » : vous cochez les dossiers à contrôler (plusieurs possibles, même dans des mois différents). Seuls ceux-là sont traités."
   ],
   "pastille": false,
   "fichiers": []

@@ -63,15 +63,22 @@ object DuplicateReview {
         }
         if (loose) {
             // Prises de vue rapprochées dans le temps (rafale, deux essais du même cadre) : tolérance plus grande, proportions libres.
-            val byTime = infos.sortedBy { it.second.taken }
-            for (i in byTime.indices) {
+            // Photos dont on connaît l'heure de PRISE DE VUE (EXIF ou nom du fichier) : à moins de 5 minutes d'écart.
+            val dated = infos.filter { it.second.taken > 0L }.sortedBy { it.second.taken }
+            for (i in dated.indices) {
                 var j = i + 1
-                while (j < byTime.size && byTime[j].second.taken - byTime[i].second.taken <= 300_000L) {
-                    val a = byTime[i].second
-                    val b = byTime[j].second
-                    if (ImageHash.similar(a, b, maxBits = 22, checkRatio = false) || ImageHash.colorMatch(a, b) >= 0.8) union(byTime[i].first, byTime[j].first)
+                while (j < dated.size && dated[j].second.taken - dated[i].second.taken <= 300_000L) {
+                    val a = dated[i].second
+                    val b = dated[j].second
+                    if (ImageHash.similar(a, b, maxBits = 22, checkRatio = false) || ImageHash.colorMatch(a, b) >= 0.8) union(dated[i].first, dated[j].first)
                     j++
                 }
+            }
+            // Sans date de prise de vue lisible (la date du fichier n'est que le jour du transfert) : on compare avec toutes les autres, plus strictement.
+            val undated = infos.filter { it.second.taken <= 0L }
+            for (u in undated) for (o in infos) {
+                if (u.first == o.first) continue
+                if (ImageHash.similar(u.second, o.second, maxBits = 14, checkRatio = false) || ImageHash.colorMatch(u.second, o.second) >= 0.9) union(u.first, o.first)
             }
         }
         val clusters = LinkedHashMap<File, MutableList<File>>()

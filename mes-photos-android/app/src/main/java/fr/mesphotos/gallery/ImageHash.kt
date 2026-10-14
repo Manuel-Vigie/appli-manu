@@ -84,14 +84,14 @@ object ImageHash {
 
     private val NAME_DATE = Regex("""(20\d{2})(\d{2})(\d{2})[_-]?(\d{2})(\d{2})(\d{2})""")
 
-    /** Heure de la prise de vue : date EXIF, sinon date lue dans le nom du fichier, sinon date du fichier. */
+    /** Heure de la prise de vue : date EXIF, sinon date lue dans le nom du fichier, sinon 0 (inconnue). */
     private fun takenAt(file: File): Long {
         try {
             @Suppress("DEPRECATION")
             val d = android.media.ExifInterface(file.absolutePath).getAttribute(android.media.ExifInterface.TAG_DATETIME_ORIGINAL)
             if (d != null) {
                 val t = java.text.SimpleDateFormat("yyyy:MM:dd HH:mm:ss", java.util.Locale.US).parse(d)?.time
-                if (t != null) return t
+                if (t != null && t > 631_152_000_000L) return t
             }
         } catch (e: Exception) { }
         NAME_DATE.find(file.name)?.let { m ->
@@ -102,7 +102,7 @@ object ImageHash {
                 return cal.timeInMillis
             } catch (e: Exception) { }
         }
-        return file.lastModified()
+        return 0L // pas de date de prise de vue lisible : on n'utilise JAMAIS la date du fichier (c'est le jour du transfert)
     }
 
     /** Ressemblance des couleurs de 0 à 1. */
@@ -138,7 +138,7 @@ object ImageHash {
             runCatching {
                 if (store.isFile) store.forEachLine { line ->
                     val p = line.split('\t')
-                    if (p.size == 8 && p[7] == "v3") map[p[0]] = ImageInfo(p[1].toLong(), p[2].toInt(), p[3].toInt(), p[4].toDouble(), p[5].toLong(), p[6].split(',').map { it.toFloat() }.toFloatArray())
+                    if (p.size == 8 && p[7] == "v4") map[p[0]] = ImageInfo(p[1].toLong(), p[2].toInt(), p[3].toInt(), p[4].toDouble(), p[5].toLong(), p[6].split(',').map { it.toFloat() }.toFloatArray())
                 }
             }
         }
@@ -159,7 +159,7 @@ object ImageHash {
             if (!dirty) return
             runCatching {
                 val alive = keep.map { key(it) }.toHashSet()
-                store.writeText(map.filterKeys { it in alive }.entries.joinToString("\n") { (k, v) -> "$k\t${v.hash}\t${v.width}\t${v.height}\t${v.quality}\t${v.taken}\t${v.hist?.joinToString(",") ?: ""}\tv3" } + "\n")
+                store.writeText(map.filterKeys { it in alive }.entries.joinToString("\n") { (k, v) -> "$k\t${v.hash}\t${v.width}\t${v.height}\t${v.quality}\t${v.taken}\t${v.hist?.joinToString(",") ?: ""}\tv4" } + "\n")
             }
         }
     }
