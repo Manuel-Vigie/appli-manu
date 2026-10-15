@@ -2,7 +2,7 @@
 
 ## Identité
 Appli de carnets de randonnée (albums photos, musique, pages). Fonctionne hors connexion (PWA).
-Version actuelle : **V76 · 15/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
+Version actuelle : **V77 · 15/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
 |---|---|
 | `carnet-randonnee.html` | L'appli entière |
 | `carnet-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V76'` |
+| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V77'` |
 | `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-icone-192.png`, `carnet-icone-512.png`, `carnet-icone-masque-512.png` | Icônes |
 
@@ -118,3 +118,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 15/10/2026 — V74 : panneau détaché « Réglages de la photo » (`#rp`, `ouvrirReglagePhoto()`, `fermerReglagePhoto()`, `rpRetrouver()`), ouvert en touchant une photo en mode Retoucher (sans glissement) ou par appui long. Plein écran semi-opaque : la page derrière ne reçoit plus aucun geste (elle tournait toute seule). Dedans : aperçu au ratio de l'emplacement (glisser = cadrage `m.cadre.x/y`), curseurs Zoom (`cadre.z`), Gauche↔droite, Haut↕bas, Inclinaison (`pos.rot`), légende, photos par page (1–4/auto, `reglerParPage`), Reculer/Avancer (`deplacerSouvenir`), Remplacer, Replacer (efface `pos` et `cadre`), Supprimer (`#ar-suppr`). Photo seule sur sa page (`dataset.entier`) : le cadrage est grisé avec explication. L'ancien glisser-sur-la-page en mode Retoucher est supprimé (il déplaçait la photo par accident). Testé (ouverture, curseurs, glisser, légende, avancer, par page, supprimer, appui long). Non testé sur téléphone.
 - 15/10/2026 — V75 : « Reclasser cet album » revu après le constat « le tri chronologique ne marche pas bien ». `datePriseDetail()` donne la date ET sa source (EXIF « photo », « nom », « video » via `mvhd`, « ancienne », aucune) ; l'EXIF est cherché dans le premier Mo (avant : 256 Ko) et les octets de remplissage FF FF sont tolérés. Deux temps : lecture de toutes les dates, puis (si besoin) question « mettre les photos dans la sortie du bon jour ? » — une photo dont le jour correspond à la `date` d'UNE autre sortie de l'album peut y être déplacée —, puis tri par date croissante dans chaque sortie. Fenêtre de bilan (`afficherBilan`) : nombre de dates lues par source et noms des fichiers sans date lisible. Limites : le tri ignore toujours les étapes ; une photo sans EXIF ni date dans le nom garde son ancienne date (souvent celle de l'import). Testé avec des JPEG EXIF, un nom daté, un fichier sans date, deux sorties. Non testé sur le téléphone de Manuel.
 - 15/10/2026 — V76 : à la demande de Manuel, « Reclasser cet album par date » peut SUPPRIMER de l'album les médias sans date. Dans `reclasserToutParDate`, après le bilan : `proposerSuppression()` pose deux questions séparées (aucune date du tout ; seulement l'ancienne date notée à l'ajout), avec liste des noms, puis une confirmation finale ; « Annuler » garde tout. Suppression = retrait de `r.medias`, `effacer("media",id)`, libération de l'URL. Le bilan indique le nombre supprimé. Testé avec Playwright (4 photos, 2 supprimées, ordre final correct). Non testé sur le téléphone de Manuel.
+- 15/10/2026 — V77 : bouton `#biblio-voirdates` / `voirDatesAlbum()` (diagnostic, ne modifie rien) : liste les médias de l'album dans l'ordre actuel avec date lue et source. Ajouté car Manuel signale que les photos du col de la Cayolle passent après celles de Valberg (ordre attendu : Pont de Paule, Cayolle, Valberg, lac de Castillon, Colmars, Allos, gorges du Verdon, Moustiers, rive gauche) ; cause non établie (dates absentes ou fausses ?). Conseil donné : ne pas lancer la suppression des photos sans date avant d'avoir regardé cette liste. Testé en local.

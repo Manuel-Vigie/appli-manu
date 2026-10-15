@@ -977,7 +977,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V76 · 15/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V77 · 15/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -1074,6 +1074,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   </div>
   <div class="biblio-sauv">
     <button class="bouton" id="biblio-reclasser">🕐 Reclasser cet album par date</button>
+    <button class="bouton" id="biblio-voirdates">🔎 Voir l'ordre et les dates de cet album</button>
   </div>
   <p class="biblio-aide">Fais tourner le plateau du doigt, puis touche l'album du devant pour l'ouvrir.</p>
 </div>
@@ -6445,6 +6446,44 @@ function reclasserToutParDate(idx){
   }).catch(function(){ note("Le reclassement a échoué. Recharge l'appli (rien n'est enregistré à moitié) et dis-le à Claude.",12000); });
 }
 document.getElementById("biblio-reclasser").addEventListener("click",function(){ reclasserToutParDate(plateau.i); });
+
+/* Diagnostic : ne change rien. Liste les photos dans l'ordre actuel de l'album, avec la date lue et d'où elle vient. */
+function voirDatesAlbum(idx){
+  var al=biblio.albums[(typeof idx==="number")?idx:biblio.courant];
+  if(!al) return;
+  var tous=[]; (al.randos||[]).forEach(function(r){ (r.medias||[]).forEach(function(m){ tous.push({r:r,m:m}); }); });
+  if(!tous.length){ note("Cet album n'a pas de photo."); return; }
+  var suite=Promise.resolve(), fait=0;
+  tous.forEach(function(x){
+    suite=suite.then(function(){
+      return lire("media",x.m.id).then(function(b){ return b?datePriseDetail(b,x.m):{t:0,src:null}; }).then(function(d){
+        x.t=d.t; x.src=d.src; fait++; if(fait%10===0) note("Lecture… "+fait+" sur "+tous.length,60000);
+      });
+    });
+  });
+  return suite.then(function(){
+    function z(n){ return (n<10?"0":"")+n; }
+    var SRC={photo:"dans la photo",nom:"dans le nom",video:"vidéo",ancienne:"ancienne date (peu fiable)"};
+    var lignes=[], k=0, prec=null;
+    tous.forEach(function(x){
+      k++;
+      var ent=(x.r!==prec)?("\n== Sortie « "+(x.r.titre||x.r.nom||"sans titre")+" » ==\n"):""; prec=x.r;
+      var d=x.t?new Date(x.t):null;
+      var quand=d?(z(d.getDate())+"/"+z(d.getMonth()+1)+" "+z(d.getHours())+"h"+z(d.getMinutes())):"SANS DATE";
+      lignes.push(ent+k+". "+(x.m.nom||"?")+" → "+quand+(x.src?(" ("+SRC[x.src]+")"):""));
+    });
+    var ecran=el("div","mdp-ecran ouvert"); ecran.style.zIndex="900";
+    var boite=el("div","mdp-boite"); ecran.appendChild(boite);
+    boite.appendChild(el("h2",null,"Ordre et dates de l'album"));
+    var pre=el("pre",null,lignes.join("\n")); pre.style.cssText="text-align:left;white-space:pre-wrap;word-break:break-all;font-size:.72rem;max-height:60vh;overflow:auto;margin:.5rem 0";
+    boite.appendChild(pre);
+    var ok=el("button","bouton plein","OK"); boite.appendChild(ok);
+    ok.addEventListener("click",function(){ if(ecran.parentNode) ecran.parentNode.removeChild(ecran); });
+    document.body.appendChild(ecran);
+    note("",1);
+  });
+}
+document.getElementById("biblio-voirdates").addEventListener("click",function(){ voirDatesAlbum(plateau.i); });
 
 function ajouterMedias(fichiers,cible,position){
   var r=cible||randoEnCours;
