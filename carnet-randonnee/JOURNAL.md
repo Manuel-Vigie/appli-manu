@@ -2,7 +2,7 @@
 
 ## Identité
 Appli de carnets de randonnée (albums photos, musique, pages). Fonctionne hors connexion (PWA).
-Version actuelle : **V79 · 15/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
+Version actuelle : **V80 · 15/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
 |---|---|
 | `carnet-randonnee.html` | L'appli entière |
 | `carnet-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V79'` |
+| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V80'` |
 | `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-icone-192.png`, `carnet-icone-512.png`, `carnet-icone-masque-512.png` | Icônes |
 
@@ -121,3 +121,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 15/10/2026 — V77 : bouton `#biblio-voirdates` / `voirDatesAlbum()` (diagnostic, ne modifie rien) : liste les médias de l'album dans l'ordre actuel avec date lue et source. Ajouté car Manuel signale que les photos du col de la Cayolle passent après celles de Valberg (ordre attendu : Pont de Paule, Cayolle, Valberg, lac de Castillon, Colmars, Allos, gorges du Verdon, Moustiers, rive gauche) ; cause non établie (dates absentes ou fausses ?). Conseil donné : ne pas lancer la suppression des photos sans date avant d'avoir regardé cette liste. Testé en local.
 - 15/10/2026 — V78 : cause trouvée du mélange Cayolle/Valberg : les photos reçues par WhatsApp (`IMG-AAAAMMJJ-WA0001`) n'ont plus d'EXIF et leur nom donne le jour de RÉCEPTION, sans heure. `datePriseDetail` leur donne la source `whatsapp` (t=0). Dans `reclasserToutParDate` ces médias (et ceux sans date / « ancienne ») ne sont plus triés ni déplacés de sortie ni proposés à la suppression (seuls « aucune date » le sont) : ils restent juste derrière la photo qui les précédait (ancrage). Nouveau `deplacerGroupe()` / bouton `#biblio-deplacer` : trois questions (premier n°, dernier n°, après le n°) selon la numérotation de « 🔎 Voir l'ordre », avec confirmation, sans suppression. Testé en local (4 photos dont une WhatsApp).
 - 15/10/2026 — V79 : `deplacerGroupe()` refait en écran visuel (trop compliqué avec les numéros) : grille de miniatures (`miniature()`, chargées à la demande), étape 1 on touche les photos à déplacer (bouton « Ajouter jusqu'à une photo » = plage), étape 2 on touche la photo après laquelle les mettre (ou « Tout au début »), confirmation, `sauver()`. Rien n'est supprimé. Testé en local à 360 px (4 photos).
+- 15/10/2026 — V80 : `intercalerWhatsApp()` / bouton `#biblio-intercaler`. Les photos WhatsApp (sans heure, faisant tout le trajet comme celles de Manuel) sont intercalées parmi les photos datées : deux suites ordonnées (datées par heure ; WhatsApp par jour+numéro WA), alignement monotone par programmation dynamique, score = ressemblance de couleurs (miniature 8×8, `descripteurImage`) + léger a priori de proportionnalité. Contrôle de sécurité (nombre de médias identique) et confirmation avant application. APPROXIMATIF : testé seulement sur images synthétiques (les copies retombent à la bonne place) ; jamais sur les vraies photos de Manuel. Si le résultat est mauvais, piste suivante : demander quelques repères (photos clés) à Manuel.
