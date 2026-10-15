@@ -503,8 +503,8 @@ body.partage .pied{padding:.18rem .5rem;padding-bottom:max(.18rem,env(safe-area-
 body.partage .pied .fleche{width:1.95rem;height:1.95rem}
 body.partage .compteur{font-size:.72rem}
 body.partage:not(.partage-bib) .marque{display:none}
-body.partage #biblio-suppr,body.partage #biblio-nouveau,body.partage #biblio-envoyer,body.partage .biblio-neuf,
-body[data-lecture] #biblio-suppr,body[data-lecture] #biblio-nouveau,body[data-lecture] #biblio-envoyer,body[data-lecture] .biblio-neuf,
+body.partage #biblio-suppr,body.partage #biblio-vider,body.partage #biblio-nouveau,body.partage #biblio-envoyer,body.partage .biblio-neuf,
+body[data-lecture] #biblio-suppr,body[data-lecture] #biblio-vider,body[data-lecture] #biblio-nouveau,body[data-lecture] #biblio-envoyer,body[data-lecture] .biblio-neuf,
 body[data-lecture] .pastille-maj,body[data-lecture] .pastille-classer,body[data-lecture] #btn-retouche,body[data-lecture] #btn-atelier{display:none!important}
 .envoi{position:fixed;inset:0;z-index:400;background:#000a;display:none;align-items:center;justify-content:center;padding:1rem}
 .envoi.ouvert{display:flex}
@@ -977,7 +977,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V82 · 15/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V83 · 15/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -1073,6 +1073,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     <button class="bouton" id="biblio-quitter">⏻ Quitter l'application</button>
   </div>
   <div class="biblio-sauv">
+    <button class="bouton danger" id="biblio-vider">🧹 Vider les photos de cet album</button>
   </div>
   <p class="biblio-aide">Fais tourner le plateau du doigt, puis touche l'album du devant pour l'ouvrir.</p>
 </div>
@@ -3431,6 +3432,34 @@ function supprimerAlbumCourant(idx){
   note(seul?"Carnet vierge. À toi de jouer.":"Album supprimé.");
 }
 
+
+/* Vide les photos et vidéos d'UN album : titres, sorties, textes, traces et musique restent. */
+function viderPhotosAlbum(idx){
+  var k=(typeof idx==="number")?idx:biblio.courant;
+  var a=biblio.albums[k];
+  if(!a) return;
+  var nb=0;
+  (a.randos||[]).forEach(function(r){ nb+=(r.medias||[]).length; });
+  if(!nb){ note("Cet album n'a aucune photo à retirer."); return; }
+  var nom="« "+(a.titre||"cet album")+" »";
+  if(!confirm("Retirer les "+nb+" photos et vidéos de l'album "+nom+" ?\n\nLes titres, les sorties, les textes et les parcours restent ; seules les photos et vidéos sont enlevées, sans retour possible.\n\nSi vous n'avez pas fait de sauvegarde (💾), faites-la d'abord : touchez Annuler."))return;
+  if(!confirm("Dernière vérification : vider définitivement les "+nb+" photos et vidéos de l'album "+nom+" ?")) return;
+  (a.randos||[]).forEach(function(r){
+    (r.medias||[]).forEach(function(m){
+      effacer("media",m.id);
+      if(urls[m.id]){
+        if(String(urls[m.id]).indexOf("blob:")===0) URL.revokeObjectURL(urls[m.id]);
+        delete urls[m.id];
+      }
+    });
+    r.medias=[];
+  });
+  sauver();
+  if(a===carnet){ feuillet=0; pageCourante=0; try{ rafraichir(true); }catch(e){} }
+  if(document.body.classList.contains("biblio-ouverte")) rendreBibliotheque();
+  note("Album vidé : "+nb+" photos et vidéos retirées. Vous pouvez en ajouter de nouvelles.",9000);
+}
+document.getElementById("biblio-vider").addEventListener("click",function(){ viderPhotosAlbum(plateau.i); });
 document.getElementById("biblio-suppr").addEventListener("click",function(){ supprimerAlbumCourant(plateau.i); });
 document.getElementById("biblio-sauver").addEventListener("click",function(){ exporter(true); });
 document.getElementById("biblio-restaurer").addEventListener("click",function(){ document.getElementById("pioche-import").click(); });
