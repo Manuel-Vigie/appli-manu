@@ -2,7 +2,7 @@
 
 ## Identité
 Appli de carnets de randonnée (albums photos, musique, pages). Fonctionne hors connexion (PWA).
-Version actuelle : **V69 · 15/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
+Version actuelle : **V70 · 15/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
 |---|---|
 | `carnet-randonnee.html` | L'appli entière |
 | `carnet-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V69'` |
+| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V70'` |
 | `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-icone-192.png`, `carnet-icone-512.png`, `carnet-icone-masque-512.png` | Icônes |
 
@@ -111,3 +111,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 15/10/2026 — V67 : le bloc « Prendre des photos et vidéos du téléphone » (fiche d'une sortie) a un bouton « Choisir des photos » (sélecteur du téléphone, accept selon Photos / Vidéos / Les deux ; sur Android, onglet Albums = dossier d'un jour) en plus du bouton dossier (ordinateur). Raison : l'appli installée n'apparaissait pas dans le menu Partager de Mes Photos (le partage vers le carnet ne marche qu'après mise à jour ou réinstallation de l'appli installée). Cache carnet-app-V67.
 - 15/10/2026 — V68 : boutons « 💾 Sauvegarder toute la bibliothèque » et « 📥 Restaurer » directement sur l'écran des albums (plateau), sous l'étiquette de l'album ; testés à 320, 360 et 412 px. Cache carnet-app-V68.
 - 15/10/2026 — V69 : prépare l'appli Android « Carnet de rando » (dossier `carnet-android/`, voir son journal), pour le cas où Chrome refuse d'installer le carnet (cas de Manuel : « installer » ne crée qu'un raccourci). Dans cette appli, `window.CarnetAndroid` existe : `recevoirPartage()` lit alors les fichiers reçus par `fetch("__recu/<n>/<nom>")` (servis par l'appli) au lieu du cache « carnet-partage » ; `viderPartage()` prévient l'appli ; `carnet-sw.js` laisse passer les adresses `/__recu/`. Rien ne change dans Chrome. Non testé sur téléphone.
+- 15/10/2026 — V70 : sauvegarde / restauration par lignes (`exporter()`, `ligneDuFichier()`, import `#pioche-import`). Format version 3 : 1re ligne = albums et textes, puis UNE ligne JSON par photo ou vidéo (`{id,type,data}`), chaque ligne mise de côté dans un Blob aussitôt (avant : un seul énorme texte, qui plantait sur un téléphone avec beaucoup de photos). Compte « n sur N » affiché, messages d'échec gardés 12 s (`note(txt,ms)`). L'ancien format (tout dans une ligne, `medias`) se restaure toujours ; testé aller-retour à 360 px. Non testé sur le téléphone de Manuel.

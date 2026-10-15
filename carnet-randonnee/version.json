@@ -1,17 +1,17 @@
 {
   "nom": "Carnet de rando",
-  "version": "V69",
+  "version": "V70",
   "date": "15/10/2026",
   "nouveautes": [
+    "Sauvegarde et restauration refaites pour les gros carnets : une photo à la fois (plus de blocage de mémoire), avec le compte « 12 sur 340 » à l'écran. Les anciennes sauvegardes se restaurent toujours.",
     "Le carnet existe aussi en vraie appli Android (« Carnet de rando », fichier à installer) qui reçoit les photos de Mes Photos par Partager, même quand Chrome refuse d'installer le carnet.",
     "Sur l'écran des albums : boutons « Sauvegarder toute la bibliothèque » et « Restaurer », sans avoir à chercher dans les Réglages.",
-    "Dans la fiche d'une sortie : « Prendre des photos et vidéos du téléphone » avec un bouton « Choisir des photos » qui marche sans passer par Partager (Photos, Vidéos ou les deux, jours à cocher, 50 ou 100 variées, rangées par date).",
-    "Quand tu envoies beaucoup de photos, le carnet en garde 50 (ou 100 au choix, ou toutes) : des photos qui ne se ressemblent pas trop, dans l'ordre du temps. Les vidéos sont toutes gardées."
+    "Dans la fiche d'une sortie : « Prendre des photos et vidéos du téléphone » avec un bouton « Choisir des photos » qui marche sans passer par Partager (Photos, Vidéos ou les deux, jours à cocher, 50 ou 100 variées, rangées par date)."
   ],
   "cache": "carnet-app-",
   "sw": {
     "fichier": "carnet-sw.js",
-    "cache": "carnet-app-V69"
+    "cache": "carnet-app-V70"
   },
   "fichiers": [
     "carnet-randonnee.html"

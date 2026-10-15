@@ -23,6 +23,10 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.app.AlertDialog
+import android.webkit.JsPromptResult
+import android.webkit.JsResult
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.Toast
 import android.app.Activity
@@ -107,6 +111,32 @@ class MainActivity : Activity() {
             }
         }
         web.webChromeClient = object : WebChromeClient() {
+            // Fenêtres du carnet (« Remplacer la bibliothèque ? », « Supprimer ? », légendes…) : sans ceci, Android les refuse en silence.
+            override fun onJsAlert(view: WebView?, url: String?, message: String?, result: JsResult): Boolean {
+                AlertDialog.Builder(this@MainActivity).setMessage(message)
+                    .setPositiveButton("OK") { _, _ -> result.confirm() }
+                    .setOnCancelListener { result.confirm() }.show()
+                return true
+            }
+
+            override fun onJsConfirm(view: WebView?, url: String?, message: String?, result: JsResult): Boolean {
+                AlertDialog.Builder(this@MainActivity).setMessage(message)
+                    .setPositiveButton("OK") { _, _ -> result.confirm() }
+                    .setNegativeButton("Annuler") { _, _ -> result.cancel() }
+                    .setOnCancelListener { result.cancel() }.show()
+                return true
+            }
+
+            override fun onJsPrompt(view: WebView?, url: String?, message: String?, defaut: String?, result: JsPromptResult): Boolean {
+                val champ = EditText(this@MainActivity)
+                champ.setText(defaut ?: "")
+                AlertDialog.Builder(this@MainActivity).setMessage(message).setView(champ)
+                    .setPositiveButton("OK") { _, _ -> result.confirm(champ.text.toString()) }
+                    .setNegativeButton("Annuler") { _, _ -> result.cancel() }
+                    .setOnCancelListener { result.cancel() }.show()
+                return true
+            }
+
             override fun onShowFileChooser(w: WebView?, cb: ValueCallback<Array<Uri>>, p: FileChooserParams): Boolean {
                 chooserCb?.onReceiveValue(null)
                 chooserCb = cb

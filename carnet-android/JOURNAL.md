@@ -2,7 +2,7 @@
 
 ## Identité
 Petite appli Android (Kotlin, une seule activité) qui ouvre le carnet en ligne (`carnet-randonnee/carnet-randonnee.html`, GitHub Pages) dans une fenêtre web, mais installée pour de bon sur le téléphone. Créée parce que, sur le téléphone de Manuel (Oppo), « Installer l'application » dans Chrome ou Edge ne créait qu'un raccourci : le carnet n'apparaissait donc pas dans « Partager ».
-Version actuelle : **V1 · 15/10/2026** (`versionName 1.0.0`, `versionCode 1`).
+Version actuelle : **V2 · 15/10/2026** (`versionName 1.0.1`, `versionCode 2`).
 
 ## Ce qu'elle fait
 - Charge `https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html` : toujours la dernière version du carnet, hors connexion grâce au service worker du carnet.
@@ -20,3 +20,4 @@ Version actuelle : **V1 · 15/10/2026** (`versionName 1.0.0`, `versionCode 1`).
 
 ## Historique
 - V1 (15/10/2026) : création.
+- V2 / 1.0.1 (15/10/2026) : fenêtres du carnet (`alert`, `confirm`, `prompt`) affichées par l'appli (`onJsAlert/Confirm/Prompt`) ; sans elles, Android les refuse en silence et par exemple « Remplacer la bibliothèque ? » de la restauration n'aboutissait jamais.

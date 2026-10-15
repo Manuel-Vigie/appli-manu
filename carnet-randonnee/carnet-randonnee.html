@@ -942,7 +942,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V69 · 15/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V70 · 15/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -4865,11 +4865,11 @@ window.addEventListener("resize",function(){
    9. Messages
    ===================================================================== */
 var minuterieNote=null;
-function note(txt){
+function note(txt,ms){
   var n=document.getElementById("note");
   n.textContent=txt; n.classList.add("visible");
   clearTimeout(minuterieNote);
-  minuterieNote=setTimeout(function(){ n.classList.remove("visible"); },3200);
+  minuterieNote=setTimeout(function(){ n.classList.remove("visible"); },ms||3200);
 }
 
 /* Pastille « mise à jour » : force le navigateur à revérifier la
@@ -6133,45 +6133,42 @@ function blobEnData(blob){
   });
 }
 function exporter(avecMedias){
-  note("Préparation de la sauvegarde…");
-  var paquet={ format:"carnet-de-rando", version:2,
-               bibliotheque:{albums:JSON.parse(JSON.stringify(biblio.albums)),courant:biblio.courant},
-               medias:{} };
-  paquet.bibliotheque.albums.forEach(function(a){
+  note("Préparation de la sauvegarde…",60000);
+  /* Fichier en lignes : 1re ligne = albums et textes, puis UNE ligne par photo ou vidéo.
+     Chaque ligne est mise de côté dans un Blob tout de suite : jamais un énorme texte en mémoire. */
+  var entete={ format:"carnet-de-rando", version:3,
+               bibliotheque:{albums:JSON.parse(JSON.stringify(biblio.albums)),courant:biblio.courant} };
+  entete.bibliotheque.albums.forEach(function(a){
     a.randos.forEach(function(r){ delete r._page; });
   });
-  var suite=Promise.resolve();
-  if(avecMedias){
-    var toutes=[];
-    biblio.albums.forEach(function(a){ a.randos.forEach(function(r){ toutes.push(r); }); });
-    biblio.albums.forEach(function(a){
-      if(a.musique&&a.musique.id) suite=suite.then(function(){
-        return lire("media",a.musique.id).then(function(b){
-          if(!b) return;
-          return blobEnData(b).then(function(d){ if(d) paquet.medias[a.musique.id]={ data:d, type:b.type||"" }; });
-        });
-      });
-    });
-    toutes.forEach(function(r){
-      (r.medias||[]).forEach(function(m){
-        suite=suite.then(function(){
-          return lire("media",m.id).then(function(b){
-            if(!b) return;
-            return blobEnData(b).then(function(d){ if(d) paquet.medias[m.id]={ data:d, type:b.type||"" }; });
-          });
+  var morceaux=[new Blob([JSON.stringify(entete)+"\n"])];
+  var suite=Promise.resolve(), ids=[], total=0, fait=0;
+  function ajouterMedia(id){
+    ids.push(id); total++;
+    suite=suite.then(function(){
+      return lire("media",id).then(function(b){
+        if(!b) return;
+        return blobEnData(b).then(function(d){
+          if(d) morceaux.push(new Blob([JSON.stringify({ id:id, type:b.type||"", data:d })+"\n"]));
+          fait++; if(fait%5===0||fait===total) note("Préparation de la sauvegarde… "+fait+" sur "+total,60000);
         });
       });
     });
   }
+  if(avecMedias){
+    biblio.albums.forEach(function(a){
+      if(a.musique&&a.musique.id) ajouterMedia(a.musique.id);
+      a.randos.forEach(function(r){ (r.medias||[]).forEach(function(m){ ajouterMedia(m.id); }); });
+    });
+  }
   suite.then(function(){
-    var texte=JSON.stringify(paquet);
-    var blob=new Blob([texte],{type:"application/json"});
+    var blob=new Blob(morceaux,{type:"application/json"});
     var nb=biblio.albums.length;
     var nom="CarnetRando - Bibliotheque complete ("+nb+" album"+(nb>1?"s":"")+(avecMedias?"":", texte seul")+") "+new Date().toISOString().slice(0,10)+".json";
     telechargerBlob(blob,nom);
     ecrire("meta","derniereSauvegarde",Date.now());
   }).catch(function(){
-    note("La sauvegarde a échoué (mémoire du téléphone insuffisante ?). Essaie « texte seul », ou dis-le à Claude.");
+    note("La sauvegarde a échoué (mémoire du téléphone insuffisante ?). Essaie « texte seul », ou dis-le à Claude.",12000);
   });
 }
 
@@ -6839,14 +6836,29 @@ function montrerFichierPret(lien,nom,taille){
   document.body.appendChild(boite);
 }
 
+/* Lit une « ligne » d'un gros fichier à partir de la position debut, par tranches (jamais tout en mémoire). */
+function ligneDuFichier(f,debut){
+  var pos=debut, PAS=4*1048576;
+  return new Promise(function(res,rej){
+    (function suite(){
+      if(pos>=f.size){ f.slice(debut,f.size).text().then(function(t){ res({texte:t,suivant:f.size}); },rej); return; }
+      f.slice(pos,pos+PAS).arrayBuffer().then(function(ab){
+        var i=new Uint8Array(ab).indexOf(10);
+        if(i>=0){ f.slice(debut,pos+i).text().then(function(t){ res({texte:t,suivant:pos+i+1}); },rej); }
+        else { pos+=PAS; suite(); }
+      },rej);
+    })();
+  });
+}
 document.getElementById("pioche-import").addEventListener("change",function(){
   var f=this.files[0]; if(!f) return;
-  var l=new FileReader();
-  l.onload=function(){
+  this.value="";
+  note("Lecture de la sauvegarde…",60000);
+  ligneDuFichier(f,0).then(function(L){
     var p;
-    try{ p=JSON.parse(l.result); }catch(e){ note("Ce fichier n'est pas une sauvegarde valide."); return; }
-    if(!p||p.format!=="carnet-de-rando"){ note("Ce fichier n'est pas une sauvegarde de carnet."); return; }
-    if(!confirm("Remplacer la bibliothèque actuelle par cette sauvegarde ?")) return;
+    try{ p=JSON.parse(L.texte); }catch(e){ note("Ce fichier n'est pas une sauvegarde valide.",6000); return; }
+    if(!p||p.format!=="carnet-de-rando"){ note("Ce fichier n'est pas une sauvegarde de carnet.",6000); return; }
+    if(!confirm("Remplacer la bibliothèque actuelle par cette sauvegarde ?")){ note("Restauration annulée."); return; }
     if(p.bibliotheque&&p.bibliotheque.albums){
       biblio=p.bibliotheque;
     }else if(p.carnet){
@@ -6856,22 +6868,39 @@ document.getElementById("pioche-import").addEventListener("change",function(){
     }
     if(biblio.courant>=biblio.albums.length) biblio.courant=0;
     carnet=biblio.albums[biblio.courant];
-    var taches=[];
-    Object.keys(p.medias||{}).forEach(function(id){
-      taches.push(fetch(p.medias[id].data).then(function(r){return r.blob()}).then(function(b){ return ecrire("media",id,b); }));
-    });
-    Promise.all(taches).then(function(){
+    var suite=Promise.resolve(), n=0;
+    if(p.medias){
+      /* ancien format : tout dans la 1re ligne */
+      Object.keys(p.medias).forEach(function(id){
+        suite=suite.then(function(){ return fetch(p.medias[id].data).then(function(r){return r.blob()}).then(function(b){ return ecrire("media",id,b); }); });
+      });
+    }else{
+      /* format par lignes : une photo ou vidéo par ligne */
+      var lire1=function(pos){
+        if(pos>=f.size) return Promise.resolve();
+        return ligneDuFichier(f,pos).then(function(M){
+          var t=M.texte.replace(/\r$/,"");
+          var suiteLigne=Promise.resolve();
+          if(t){
+            var o; try{ o=JSON.parse(t); }catch(e){ o=null; }
+            if(o&&o.id&&o.data) suiteLigne=fetch(o.data).then(function(r){return r.blob()}).then(function(b){ return ecrire("media",o.id,b); })
+              .then(function(){ n++; if(n%5===0) note("Restauration… "+n+" photos et vidéos",60000); });
+          }
+          return suiteLigne.then(function(){ return lire1(M.suivant); });
+        });
+      };
+      suite=lire1(L.suivant);
+    }
+    return suite.then(function(){
       Object.keys(urls).forEach(function(k){ URL.revokeObjectURL(urls[k]); delete urls[k]; });
       sauver();
       document.getElementById("titre-barre").textContent=carnet.titre||"Carnet de rando";
       feuillet=0; pageCourante=0;
       rafraichir(true);
       vueListe();
-      note("Carnet restauré.");
+      note("Carnet restauré.",6000);
     });
-  };
-  l.readAsText(f);
-  this.value="";
+  }).catch(function(){ note("La restauration a échoué (fichier trop gros pour la mémoire ?). Dis-le à Claude.",12000); });
 });
 
 /* =====================================================================
