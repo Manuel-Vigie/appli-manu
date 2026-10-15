@@ -1,17 +1,17 @@
 {
   "nom": "Carnet de rando",
-  "version": "V74",
+  "version": "V75",
   "date": "15/10/2026",
   "nouveautes": [
+    "« Reclasser cet album par date » relit plus finement les dates (photo, nom du fichier, vidéo), range chaque photo dans la sortie de son jour quand elle est dans une autre (avec votre accord), puis trie par heure. Il affiche un bilan : combien de dates lues et quelles photos n'en ont pas.",
     "Retoucher : toucher une photo (ou appui long) ouvre un panneau détaché avec tous les réglages : aperçu à glisser, zoom, haut/bas, gauche/droite, inclinaison, légende, nombre de photos par page, reculer / avancer, remplacer, replacer, supprimer. La page derrière ne bouge plus.",
     "Retoucher : un appui long sur une photo passe en mode Retoucher (plus de menu Android qui gêne), et un nouveau bouton « 🔄 Remplacer cette photo par une autre » change la photo en gardant sa place et sa légende. Le bouton « horizontal » est monté dans la barre du haut, plus sur l'album. Appli Android : bouton « ⏻ Quitter l'application » sur l'écran des albums.",
-    "« 🕐 Reclasser cet album par date » ne touche plus qu'un seul album : celui du devant sur le plateau. La musique s'arrête quand on quitte l'appli, et le bouton Retour ne fait plus défiler d'anciens écrans.",
-    "Nouveau bouton « 🕐 Reclasser par jour et heure » sur l'écran des albums : toutes les photos et vidéos de tous les albums sont remises dans l'ordre du temps (date et heure de prise de vue, lues dans la photo, le nom ou la vidéo)."
+    "« 🕐 Reclasser cet album par date » ne touche plus qu'un seul album : celui du devant sur le plateau. La musique s'arrête quand on quitte l'appli, et le bouton Retour ne fait plus défiler d'anciens écrans."
   ],
   "cache": "carnet-app-",
   "sw": {
     "fichier": "carnet-sw.js",
-    "cache": "carnet-app-V74"
+    "cache": "carnet-app-V75"
   },
   "fichiers": [
     "carnet-randonnee.html"

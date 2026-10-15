@@ -977,7 +977,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V74 · 15/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V75 · 15/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -6214,6 +6214,7 @@ function exifDate(buf){
     if(v.getUint16(0)!==0xFFD8) return null;
     var o=2;
     while(o+4<v.byteLength){
+      if(v.getUint8(o)===0xFF&&v.getUint8(o+1)===0xFF){ o++; continue; }   // octets de remplissage
       var mk=v.getUint16(o), len=v.getUint16(o+2);
       if(mk===0xFFE1 && v.getUint32(o+4)===0x45786966){
         var t=o+10, le=(v.getUint16(t)===0x4949);
@@ -6263,7 +6264,7 @@ function lirePrise(f,nom){
       var l=new FileReader();
       l.onload=function(){ var d=exifDate(l.result); res(d!==null?d:secours()); };
       l.onerror=function(){ res(secours()); };
-      l.readAsArrayBuffer(f.slice(0,262144));
+      l.readAsArrayBuffer(f.slice(0,1048576));
     }catch(e){ res(secours()); }
   });
 }
@@ -6319,33 +6320,88 @@ function dateVideo(b){
   }
   return chercher(tete).then(function(d){ return d!==null?d:chercher(queue); });
 }
-function datePriseSouvenir(b,m){
-  return lirePrise(b,m.nom).then(function(t){
-    if(t) return t;
-    if(/^video\//i.test(m.type||b.type||"")||/\.(mp4|mov|m4v|3gp)$/i.test(m.nom||"")) return dateVideo(b);
-    return null;
+/* Date et heure d'un souvenir, avec la SOURCE : « photo » (EXIF), « nom » (dans le nom du fichier),
+   « video » (date de tournage), « ancienne » (date déjà notée, sans autre indice), ou rien. */
+function datePriseDetail(b,m){
+  var nom=m.nom||"";
+  var aReprendre=function(){
+    var d=dateDuNom(nom);
+    if(d!==null) return Promise.resolve({t:d,src:"nom"});
+    if(/^video\//i.test(b.type||"")||m.type==="video"||/\.(mp4|mov|m4v|3gp)$/i.test(nom)){
+      return dateVideo(b).then(function(v){
+        if(v) return {t:v,src:"video"};
+        return m.prise?{t:m.prise,src:"ancienne"}:{t:0,src:null};
+      });
+    }
+    return Promise.resolve(m.prise?{t:m.prise,src:"ancienne"}:{t:0,src:null});
+  };
+  if(!/^image\/jpe?g$/i.test(b.type||"")&&!/\.jpe?g$/i.test(nom)) return aReprendre();
+  return new Promise(function(res){
+    try{
+      var l=new FileReader();
+      l.onload=function(){ var d=exifDate(l.result); if(d!==null) res({t:d,src:"photo"}); else aReprendre().then(res); };
+      l.onerror=function(){ aReprendre().then(res); };
+      l.readAsArrayBuffer(b.slice(0,1048576));
+    }catch(e){ aReprendre().then(res); }
   });
+}
+function jourLocal(t){
+  var d=new Date(t); function z(n){ return (n<10?"0":"")+n; }
+  return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate());
+}
+function afficherBilan(titre,lignes){
+  var ecran=el("div","mdp-ecran ouvert"); ecran.style.zIndex="900";
+  var boite=el("div","mdp-boite"); ecran.appendChild(boite);
+  boite.appendChild(el("h2",null,titre));
+  lignes.forEach(function(t){ var p=el("p",null,t); p.style.textAlign="left"; boite.appendChild(p); });
+  var ok=el("button","bouton plein","OK"); boite.appendChild(ok);
+  ok.addEventListener("click",function(){ if(ecran.parentNode) ecran.parentNode.removeChild(ecran); });
+  document.body.appendChild(ecran);
 }
 function reclasserToutParDate(idx){
   var cibleAlbum=biblio.albums[(typeof idx==="number")?idx:biblio.courant];
   if(!cibleAlbum) return;
   var tous=[]; (cibleAlbum.randos||[]).forEach(function(r){ (r.medias||[]).forEach(function(m){ tous.push({r:r,m:m}); }); });
   if(!tous.length){ note("Cet album n'a encore aucune photo à reclasser."); return; }
-  if(!confirm("Reclasser les "+tous.length+" photos et vidéos de l'album « "+(cibleAlbum.titre||"sans titre")+" » par jour et heure de prise de vue (la plus ancienne en premier) ?\n\nSeul cet album est touché. L'ordre actuel sera remplacé, sans tenir compte des étapes. Les photos sans date lisible vont à la fin de leur sortie.")) return;
-  var fait=0, sansDate=0;
-  var suite=Promise.resolve();
+  if(!confirm("Lire la date et l'heure des "+tous.length+" photos et vidéos de l'album « "+(cibleAlbum.titre||"sans titre")+" » pour les reclasser (la plus ancienne en premier) ?\n\nSeul cet album est touché. Rien n'est changé avant votre accord.")) return;
+  var fait=0, suite=Promise.resolve();
   tous.forEach(function(x){
     suite=suite.then(function(){
       return lire("media",x.m.id).then(function(b){
-        if(!b) return;
-        return datePriseSouvenir(b,x.m).then(function(t){ if(t) x.m.prise=t; });
-      }).then(function(){
+        if(!b) return {t:0,src:null};
+        return datePriseDetail(b,x.m);
+      }).then(function(d){
+        x.t=d.t; x.src=d.src;
         fait++; if(fait%10===0||fait===tous.length) note("Lecture des dates… "+fait+" sur "+tous.length,60000);
       });
     });
   });
   return suite.then(function(){
-    [cibleAlbum].forEach(function(a){ (a.randos||[]).forEach(function(r){
+    var nb={photo:0,nom:0,video:0,ancienne:0,aucune:0}, sans=[];
+    tous.forEach(function(x){ if(x.src) nb[x.src]++; else nb.aucune++; if(!x.src||x.src==="ancienne") sans.push(x.m.nom||x.m.id); });
+    // photos rangées dans une sortie d'un autre jour que le leur, alors qu'une sortie porte bien leur jour
+    var deplacements=[];
+    var sorties=cibleAlbum.randos||[];
+    tous.forEach(function(x){
+      if(!x.t||x.src==="ancienne") return;
+      var jour=jourLocal(x.t);
+      if(x.r.date===jour) return;
+      var cand=sorties.filter(function(s){ return s.date===jour; });
+      if(cand.length===1&&cand[0]!==x.r) deplacements.push({x:x,vers:cand[0]});
+    });
+    var resume="Dates lues : "+nb.photo+" dans la photo, "+nb.nom+" dans le nom du fichier, "+nb.video+" dans la vidéo, "+nb.ancienne+" sans date lisible (ancienne date gardée), "+nb.aucune+" sans aucune date.";
+    var deplacer=false;
+    if(deplacements.length){
+      deplacer=confirm(resume+"\n\n"+deplacements.length+" photo(s) ou vidéo(s) sont dans une sortie qui n'est pas celle de leur jour.\n\nOK : les mettre dans la sortie du bon jour, puis tout classer par heure.\nAnnuler : les laisser où elles sont et classer chaque sortie.");
+    }
+    tous.forEach(function(x){ if(x.t&&x.src!=="ancienne") x.m.prise=x.t; });
+    if(deplacer){
+      deplacements.forEach(function(d){
+        var i=d.x.r.medias.indexOf(d.x.m);
+        if(i>=0){ d.x.r.medias.splice(i,1); d.vers.medias=d.vers.medias||[]; d.vers.medias.push(d.x.m); }
+      });
+    }
+    sorties.forEach(function(r){
       var L=(r.medias||[]).map(function(m,i){ return {m:m,i:i}; });
       L.sort(function(p,q){
         var a1=p.m.prise||0, b1=q.m.prise||0;
@@ -6353,17 +6409,17 @@ function reclasserToutParDate(idx){
         if(!a1) return 1; if(!b1) return -1;
         return (a1-b1)||(p.i-q.i);
       });
-      sansDate+=L.filter(function(x){ return !x.m.prise; }).length;
       r.medias=L.map(function(x){ return x.m; });
-    }); });
+    });
     sauver();
     if(cibleAlbum===carnet){ try{ rafraichir(true); }catch(e){} }
-    note("Album reclassé par jour et heure."+(sansDate?" "+sansDate+" sans date lisible, mises à la fin.":""),9000);
+    note("Album reclassé par jour et heure.",9000);
+    var bilan=[resume];
+    if(deplacer) bilan.push(deplacements.length+" photo(s) ou vidéo(s) mises dans la sortie du bon jour.");
+    if(sans.length) bilan.push("Sans date lisible dans la photo ni dans le nom (placées selon leur ancienne date, ou à la fin) : "+sans.slice(0,8).join(", ")+(sans.length>8?" … et "+(sans.length-8)+" autres":"")+".");
+    if(nb.nom&&!nb.photo) bilan.push("Aucune date n'a été lue dans les photos elles-mêmes : seulement dans leurs noms. Si l'ordre vous paraît faux, dites-le à Claude.");
+    afficherBilan("Reclassement terminé",bilan);
   }).catch(function(){ note("Le reclassement a échoué. Recharge l'appli (rien n'est enregistré à moitié) et dis-le à Claude.",12000); });
-}
-if(window.CarnetAndroid&&CarnetAndroid.quitter){
-  document.getElementById("biblio-quitter-ligne").hidden=false;
-  document.getElementById("biblio-quitter").addEventListener("click",function(){ try{ CarnetAndroid.quitter(); }catch(e){} });
 }
 document.getElementById("biblio-reclasser").addEventListener("click",function(){ reclasserToutParDate(plateau.i); });
 
