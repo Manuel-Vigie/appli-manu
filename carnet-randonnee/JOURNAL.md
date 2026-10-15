@@ -2,7 +2,7 @@
 
 ## Identité
 Appli de carnets de randonnée (albums photos, musique, pages). Fonctionne hors connexion (PWA).
-Version actuelle : **V77 · 15/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
+Version actuelle : **V78 · 15/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
 |---|---|
 | `carnet-randonnee.html` | L'appli entière |
 | `carnet-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V77'` |
+| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V78'` |
 | `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-icone-192.png`, `carnet-icone-512.png`, `carnet-icone-masque-512.png` | Icônes |
 
@@ -119,3 +119,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 15/10/2026 — V75 : « Reclasser cet album » revu après le constat « le tri chronologique ne marche pas bien ». `datePriseDetail()` donne la date ET sa source (EXIF « photo », « nom », « video » via `mvhd`, « ancienne », aucune) ; l'EXIF est cherché dans le premier Mo (avant : 256 Ko) et les octets de remplissage FF FF sont tolérés. Deux temps : lecture de toutes les dates, puis (si besoin) question « mettre les photos dans la sortie du bon jour ? » — une photo dont le jour correspond à la `date` d'UNE autre sortie de l'album peut y être déplacée —, puis tri par date croissante dans chaque sortie. Fenêtre de bilan (`afficherBilan`) : nombre de dates lues par source et noms des fichiers sans date lisible. Limites : le tri ignore toujours les étapes ; une photo sans EXIF ni date dans le nom garde son ancienne date (souvent celle de l'import). Testé avec des JPEG EXIF, un nom daté, un fichier sans date, deux sorties. Non testé sur le téléphone de Manuel.
 - 15/10/2026 — V76 : à la demande de Manuel, « Reclasser cet album par date » peut SUPPRIMER de l'album les médias sans date. Dans `reclasserToutParDate`, après le bilan : `proposerSuppression()` pose deux questions séparées (aucune date du tout ; seulement l'ancienne date notée à l'ajout), avec liste des noms, puis une confirmation finale ; « Annuler » garde tout. Suppression = retrait de `r.medias`, `effacer("media",id)`, libération de l'URL. Le bilan indique le nombre supprimé. Testé avec Playwright (4 photos, 2 supprimées, ordre final correct). Non testé sur le téléphone de Manuel.
 - 15/10/2026 — V77 : bouton `#biblio-voirdates` / `voirDatesAlbum()` (diagnostic, ne modifie rien) : liste les médias de l'album dans l'ordre actuel avec date lue et source. Ajouté car Manuel signale que les photos du col de la Cayolle passent après celles de Valberg (ordre attendu : Pont de Paule, Cayolle, Valberg, lac de Castillon, Colmars, Allos, gorges du Verdon, Moustiers, rive gauche) ; cause non établie (dates absentes ou fausses ?). Conseil donné : ne pas lancer la suppression des photos sans date avant d'avoir regardé cette liste. Testé en local.
+- 15/10/2026 — V78 : cause trouvée du mélange Cayolle/Valberg : les photos reçues par WhatsApp (`IMG-AAAAMMJJ-WA0001`) n'ont plus d'EXIF et leur nom donne le jour de RÉCEPTION, sans heure. `datePriseDetail` leur donne la source `whatsapp` (t=0). Dans `reclasserToutParDate` ces médias (et ceux sans date / « ancienne ») ne sont plus triés ni déplacés de sortie ni proposés à la suppression (seuls « aucune date » le sont) : ils restent juste derrière la photo qui les précédait (ancrage). Nouveau `deplacerGroupe()` / bouton `#biblio-deplacer` : trois questions (premier n°, dernier n°, après le n°) selon la numérotation de « 🔎 Voir l'ordre », avec confirmation, sans suppression. Testé en local (4 photos dont une WhatsApp).
