@@ -1,6 +1,6 @@
 // Carnet de rando V10 — mise en cache pour usage hors connexion
 // Pour forcer une mise à jour chez tout le monde : changer ce nom (V9-b, V10…)
-const SHELL = 'carnet-app-V68';
+const SHELL = 'carnet-app-V69';
 const LIBS = 'carnet-libs';
 const TILES = 'carnet-tuiles';
 const MAX_TILES = 3000;
@@ -48,6 +48,8 @@ self.addEventListener('fetch', e => {
     e.respondWith(recevoirPartage(req));
     return;
   }
+  // Appli Android : les fichiers reçus sont servis par l'appli elle-même, le service worker n'y touche pas.
+  if (new URL(req.url).pathname.indexOf('/__recu/') >= 0) return;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (req.mode === 'navigate' && url.origin === location.origin) {

@@ -942,7 +942,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V68 · 15/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V69 · 15/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -5722,6 +5722,20 @@ function ligneLimite(apres){
    « carnet-partage » puis rouvre le carnet avec ?partage=N. */
 function recevoirPartage(){
   try{ history.replaceState(null,"",location.pathname); }catch(e){}
+  /* Appli Android « Carnet de rando » : les fichiers reçus sont servis par l'appli elle-même. */
+  if(window.CarnetAndroid){
+    var liste=[]; try{ liste=JSON.parse(CarnetAndroid.liste()); }catch(e){}
+    if(!liste.length){ note("Aucun souvenir reçu."); return; }
+    Promise.all(liste.map(function(m,i){
+      return fetch("__recu/"+i+"/"+encodeURIComponent(m.nom)).then(function(r){ return r.blob(); }).then(function(bl){
+        var t=m.type||bl.type||"", f;
+        try{ f=new File([bl],m.nom,{type:t,lastModified:m.modif||Date.now()}); }catch(e){ f=bl; f.name=m.nom; }
+        return f;
+      });
+    })).then(function(files){ proposerPartage(files); })
+      .catch(function(){ note("Impossible de lire les souvenirs reçus."); });
+    return;
+  }
   if(!window.caches) return;
   caches.open("carnet-partage").then(function(c){
     return c.keys().then(function(reqs){
@@ -5743,7 +5757,7 @@ function recevoirPartage(){
     proposerPartage(items.map(function(x){ return x.f; }));
   }).catch(function(){ note("Impossible de lire les souvenirs reçus."); });
 }
-function viderPartage(){ if(window.caches) caches.delete("carnet-partage").catch(function(){}); }
+function viderPartage(){ try{ if(window.CarnetAndroid) CarnetAndroid.vider(); }catch(e){} if(window.caches) caches.delete("carnet-partage").catch(function(){}); }
 function proposerPartage(files){
   var nbV=files.filter(function(f){ return /^video\//.test(f.type); }).length, nbP=files.length-nbV;
   var ecran=el("div","mdp-ecran ouvert"); ecran.style.zIndex="900";

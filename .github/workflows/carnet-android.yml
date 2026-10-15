@@ -1,0 +1,66 @@
+name: Carnet de rando (APK Android)
+
+# Se lance seulement quand le dossier carnet-android change.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "carnet-android/**"
+      - ".github/workflows/carnet-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: carnet-android
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Compiler l'APK
+        shell: bash
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --console=plain 2>&1 | tee /tmp/gradle.log
+          exit "${PIPESTATUS[0]}"
+
+      # En cas d'échec : écrit les erreurs de compilation en clair dans les annotations du lancement.
+      - name: Résumé des erreurs
+        if: failure()
+        shell: bash
+        run: |
+          grep -E '^e: |error:|FAILED' /tmp/gradle.log | head -20 | sed 's/^/::error title=Erreur de compilation::/' || true
+
+      - name: Préparer l'APK
+        id: apk
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk CarnetRando.apk
+          echo "version=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CarnetRando-apk
+          path: carnet-android/CarnetRando.apk
+
+      - name: Publier l'APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: carnet-rando-v${{ steps.apk.outputs.version }}
+          name: Carnet de rando (Android) ${{ steps.apk.outputs.version }}
+          body: |
+            Le carnet de rando en vraie appli Android. Il ouvre le carnet en ligne, reçoit les photos de Mes Photos par « Partager » et garde ses albums sur le téléphone.
+            Téléchargez CarnetRando.apk sur le téléphone, ouvrez-le et autorisez l'installation depuis cette source.
+            Une nouvelle version s'installe par-dessus l'ancienne.
+          files: carnet-android/CarnetRando.apk

@@ -168,7 +168,9 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
             try {
                 val uris = ArrayList<Uri>(list.map { FileProvider.getUriForFile(context, context.packageName + ".files", it) })
                 val send = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
-                    type = "*/*"
+                    // Type précis quand tout est du même genre : la liste « Partager » le reconnaît mieux.
+                    val nbVideos = list.count { fr.mesphotos.storage.PhotoFiles.isVideo(it) }
+                    type = when (nbVideos) { 0 -> "image/*"; list.size -> "video/*"; else -> "*/*" }
                     putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
                     putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
