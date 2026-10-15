@@ -977,7 +977,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V78 · 15/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V79 · 15/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -1074,7 +1074,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   </div>
   <div class="biblio-sauv">
     <button class="bouton" id="biblio-reclasser">🕐 Reclasser cet album par date</button>
-    <button class="bouton" id="biblio-deplacer">↕ Déplacer des photos de cet album</button>
+    <button class="bouton" id="biblio-deplacer">↕ Déplacer des photos de cet album (en les touchant)</button>
     <button class="bouton" id="biblio-voirdates">🔎 Voir l'ordre et les dates de cet album</button>
   </div>
   <p class="biblio-aide">Fais tourner le plateau du doigt, puis touche l'album du devant pour l'ouvrir.</p>
@@ -6497,32 +6497,97 @@ function voirDatesAlbum(idx){
   });
 }
 
-/* Déplace un groupe de photos (numéros de la liste « 🔎 ») juste après une autre photo. Ne supprime rien. */
+/* Déplacer des photos en les touchant : 1) on touche celles à déplacer, 2) on touche celle après laquelle les mettre. Ne supprime rien. */
 function deplacerGroupe(idx){
   var al=biblio.albums[(typeof idx==="number")?idx:biblio.courant];
   if(!al) return;
   var tous=[]; (al.randos||[]).forEach(function(r){ (r.medias||[]).forEach(function(m){ tous.push({r:r,m:m}); }); });
   if(tous.length<2){ note("Il faut au moins deux photos."); return; }
-  var a=prompt("Numéro de la PREMIÈRE photo à déplacer (numéros de la liste « 🔎 Voir l'ordre »), de 1 à "+tous.length+" :");
-  if(a===null) return;
-  var b=prompt("Numéro de la DERNIÈRE photo du groupe (même numéro si une seule) :",a);
-  if(b===null) return;
-  var c=prompt("Placer ce groupe juste APRÈS la photo numéro (0 = tout au début de l'album) :");
-  if(c===null) return;
-  a=parseInt(a,10); b=parseInt(b,10); c=parseInt(c,10);
-  if(!(a>=1&&b>=a&&b<=tous.length&&c>=0&&c<=tous.length)||(c>=a&&c<=b)){ note("Numéros incorrects : rien n'a été changé.",8000); return; }
-  var groupe=tous.slice(a-1,b), cible=c>0?tous[c-1]:null;
-  var noms=groupe.slice(0,4).map(function(x){ return x.m.nom||"?"; }).join(", ")+(groupe.length>4?" …":"");
-  if(!confirm("Déplacer "+groupe.length+" photo(s) ("+noms+") juste après "+(cible?("la photo n°"+c+" ("+(cible.m.nom||"?")+")"):"le début de l'album")+" ?")) return;
-  var cibleSortie=cible?cible.r:(al.randos||[])[0];
-  groupe.forEach(function(x){ var i=x.r.medias.indexOf(x.m); if(i>=0) x.r.medias.splice(i,1); });
-  cibleSortie.medias=cibleSortie.medias||[];
-  var pos=cible?cibleSortie.medias.indexOf(cible.m)+1:0;
-  var args=[pos,0].concat(groupe.map(function(x){ return x.m; }));
-  Array.prototype.splice.apply(cibleSortie.medias,args);
-  sauver();
-  if(al===carnet){ try{ rafraichir(true); }catch(e){} }
-  note(groupe.length+" photo(s) déplacée(s). Vous pouvez vérifier avec « 🔎 Voir l'ordre ».",9000);
+  var choisies=[], etape=1, dernier=-1, plage=false, cases=[];
+  var ecran=el("div","mdp-ecran ouvert"); ecran.style.cssText="z-index:900;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:0;";
+  var haut=el("div",null); haut.style.cssText="padding:.6rem .7rem;color:#fff;background:#141913;display:flex;flex-direction:column;gap:.4rem";
+  var consigne=el("div",null); consigne.style.cssText="font-weight:700;font-size:.95rem;line-height:1.3";
+  var ligne=el("div",null); ligne.style.cssText="display:flex;flex-wrap:wrap;gap:.4rem";
+  function bt(txt,fn){ var b=el("button","bouton",txt); b.style.cssText="flex:1 1 auto;padding:.45rem .5rem;font-size:.8rem"; b.addEventListener("click",fn); return b; }
+  haut.appendChild(consigne); haut.appendChild(ligne);
+  var zone=el("div",null); zone.style.cssText="flex:1;overflow:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:3px;padding:3px;align-content:start;-webkit-overflow-scrolling:touch";
+  ecran.appendChild(haut); ecran.appendChild(zone);
+  function fermer(){ if(ecran.parentNode) ecran.parentNode.removeChild(ecran); }
+  function dessiner(){
+    ligne.innerHTML="";
+    if(etape===1){
+      consigne.textContent="1) Touchez les photos à déplacer ("+choisies.length+" choisie"+(choisies.length>1?"s":"")+")";
+      ligne.appendChild(bt(plage?"Touchez la dernière du groupe…":"↔ Ajouter jusqu'à une photo",function(){ if(dernier<0){ note("Touchez d'abord la première photo du groupe."); return; } plage=!plage; dessiner(); }));
+      var suiv=bt("Suivant →",function(){ if(!choisies.length){ note("Touchez au moins une photo."); return; } etape=2; plage=false; dessiner(); });
+      suiv.classList.add("plein"); ligne.appendChild(suiv);
+      ligne.appendChild(bt("Fermer",fermer));
+    }else{
+      consigne.textContent="2) Touchez la photo APRÈS laquelle mettre les "+choisies.length+" photo(s)";
+      ligne.appendChild(bt("Tout au début de l'album",function(){ placer(-1); }));
+      ligne.appendChild(bt("← Retour",function(){ etape=1; dessiner(); }));
+      ligne.appendChild(bt("Fermer",fermer));
+    }
+    cases.forEach(function(c,k){
+      var on=choisies.indexOf(k)>=0;
+      c.style.outline=on?"4px solid #e8b04a":"none"; c.style.outlineOffset="-4px";
+      c.style.opacity=(etape===2&&on)?".35":"1";
+    });
+  }
+  function toucher(k){
+    if(etape===1){
+      if(plage&&dernier>=0){
+        var a=Math.min(dernier,k), b=Math.max(dernier,k);
+        for(var q=a;q<=b;q++) if(choisies.indexOf(q)<0) choisies.push(q);
+        plage=false; dernier=k;
+      }else{
+        var p=choisies.indexOf(k);
+        if(p>=0) choisies.splice(p,1); else{ choisies.push(k); dernier=k; }
+      }
+      dessiner();
+    }else{
+      if(choisies.indexOf(k)>=0){ note("Choisissez une photo qui n'est pas dans le groupe."); return; }
+      placer(k);
+    }
+  }
+  function placer(k){
+    var groupe=choisies.slice().sort(function(a,b){ return a-b; }).map(function(i){ return tous[i]; });
+    var cible=k>=0?tous[k]:null;
+    if(!confirm("Mettre ces "+groupe.length+" photo(s) "+(cible?("juste après la photo « "+(cible.m.nom||"choisie")+" »"):"tout au début de l'album")+" ?")) return;
+    var sortie=cible?cible.r:(al.randos||[])[0];
+    groupe.forEach(function(x){ var i=x.r.medias.indexOf(x.m); if(i>=0) x.r.medias.splice(i,1); });
+    sortie.medias=sortie.medias||[];
+    var pos=cible?sortie.medias.indexOf(cible.m)+1:0;
+    Array.prototype.splice.apply(sortie.medias,[pos,0].concat(groupe.map(function(x){ return x.m; })));
+    sauver();
+    if(al===carnet){ try{ rafraichir(true); }catch(e){} }
+    fermer();
+    note(groupe.length+" photo(s) déplacée(s).",9000);
+  }
+  var obs=("IntersectionObserver" in window)?new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(!e.isIntersecting) return;
+      var c=e.target; obs.unobserve(c);
+      var x=tous[+c.dataset.k];
+      miniature(x.m).then(function(u){ if(u){ c.style.backgroundImage="url("+u+")"; c.textContent=""; } });
+    });
+  },{root:zone,rootMargin:"300px"}):null;
+  var prec=null;
+  tous.forEach(function(x,k){
+    if(x.r!==prec){
+      prec=x.r;
+      var h=el("div",null,x.r.titre||"Sortie"); h.style.cssText="grid-column:1/-1;color:#e8dcc2;font-size:.78rem;padding:.4rem .2rem .1rem;font-weight:700";
+      zone.appendChild(h);
+    }
+    var c=el("div",null,x.m.type==="video"?"🎬":""); c.dataset.k=k;
+    c.style.cssText="aspect-ratio:1/1;background:#333 center/cover no-repeat;position:relative;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;-webkit-tap-highlight-color:transparent";
+    var n=el("span",null,String(k+1)); n.style.cssText="position:absolute;left:2px;top:2px;background:rgba(0,0,0,.6);color:#fff;font:600 .62rem system-ui;padding:0 .25rem;border-radius:.6rem";
+    c.appendChild(n);
+    c.addEventListener("click",function(){ toucher(k); });
+    zone.appendChild(c); cases.push(c);
+    if(obs) obs.observe(c); else miniature(x.m).then(function(u){ if(u) c.style.backgroundImage="url("+u+")"; });
+  });
+  dessiner();
+  document.body.appendChild(ecran);
 }
 document.getElementById("biblio-deplacer").addEventListener("click",function(){ deplacerGroupe(plateau.i); });
 document.getElementById("biblio-voirdates").addEventListener("click",function(){ voirDatesAlbum(plateau.i); });

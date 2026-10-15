@@ -1,17 +1,17 @@
 {
   "nom": "Carnet de rando",
-  "version": "V78",
+  "version": "V79",
   "date": "15/10/2026",
   "nouveautes": [
+    "« ↕ Déplacer des photos de cet album » devient visuel : on voit les photos en petites images, on touche celles à déplacer (ou « Ajouter jusqu'à une photo » pour un groupe), puis on touche la photo après laquelle les mettre. Plus de numéros à taper. Rien n'est supprimé.",
     "Photos reçues par WhatsApp : elles n'ont pas d'heure (le nom donne le jour de réception), le reclassement ne les déplace plus au mauvais endroit : elles restent derrière la photo qui les précédait. Nouveau bouton « ↕ Déplacer des photos de cet album » : on donne les numéros du groupe (liste « 🔎 ») et la photo après laquelle le placer. Rien n'est supprimé.",
     "Nouveau bouton « 🔎 Voir l'ordre et les dates de cet album » : il ne change rien, il liste chaque photo dans l'ordre actuel avec la date et l'heure lues et leur origine. Cela permet de repérer pourquoi certaines photos sont mal placées.",
-    "« Reclasser cet album par date » propose maintenant de supprimer les photos et vidéos sans aucune date ni heure (celles qu'on ne peut pas classer), et celles qui n'ont qu'une ancienne date peu fiable. Deux questions séparées, avec la liste des noms et une dernière confirmation : « Annuler » les garde. Pensez à faire une sauvegarde avant.",
-    "« Reclasser cet album par date » relit plus finement les dates (photo, nom du fichier, vidéo), range chaque photo dans la sortie de son jour quand elle est dans une autre (avec votre accord), puis trie par heure. Il affiche un bilan : combien de dates lues et quelles photos n'en ont pas."
+    "« Reclasser cet album par date » propose maintenant de supprimer les photos et vidéos sans aucune date ni heure (celles qu'on ne peut pas classer), et celles qui n'ont qu'une ancienne date peu fiable. Deux questions séparées, avec la liste des noms et une dernière confirmation : « Annuler » les garde. Pensez à faire une sauvegarde avant."
   ],
   "cache": "carnet-app-",
   "sw": {
     "fichier": "carnet-sw.js",
-    "cache": "carnet-app-V78"
+    "cache": "carnet-app-V79"
   },
   "fichiers": [
     "carnet-randonnee.html"
