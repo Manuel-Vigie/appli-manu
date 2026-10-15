@@ -942,7 +942,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V70 · 15/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V71 · 15/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -1033,6 +1033,9 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <div class="biblio-sauv">
     <button class="bouton" id="biblio-sauver">💾 Sauvegarder toute la bibliothèque</button>
     <button class="bouton" id="biblio-restaurer">📥 Restaurer</button>
+  </div>
+  <div class="biblio-sauv">
+    <button class="bouton" id="biblio-reclasser">🕐 Reclasser par jour et heure</button>
   </div>
   <p class="biblio-aide">Fais tourner le plateau du doigt, puis touche l'album du devant pour l'ouvrir.</p>
 </div>
@@ -6048,6 +6051,70 @@ function trierSortieParHeure(r){
     });
   })).then(function(){ trierFiches(r,r.medias.slice()); });
 }
+
+/* ---- Reclasser TOUTES les photos et vidéos de la bibliothèque par jour et heure ---- */
+/* Date de tournage d'une vidéo MP4 / MOV (boîte « mvhd », en secondes depuis 1904, heure universelle). */
+function dateVideo(b){
+  var tete=b.slice(0,524288), queue=b.size>1572864?b.slice(b.size-1048576):(b.size>524288?b.slice(524288):null);
+  function chercher(blob){
+    if(!blob) return Promise.resolve(null);
+    return blob.arrayBuffer().then(function(ab){
+      var u=new Uint8Array(ab);
+      for(var i=0;i+24<u.length;i++){
+        if(u[i]===0x6d&&u[i+1]===0x76&&u[i+2]===0x68&&u[i+3]===0x64){
+          var v=u[i+4], sec;
+          if(v===1) sec=((u[i+8]*16777216+(u[i+9]<<16|u[i+10]<<8|u[i+11]))*4294967296)+(u[i+12]*16777216+(u[i+13]<<16|u[i+14]<<8|u[i+15]));
+          else sec=u[i+8]*16777216+(u[i+9]<<16|u[i+10]<<8|u[i+11]);
+          var ms=(sec-2082844800)*1000;
+          return (ms>631152000000&&ms<Date.now()+86400000)?ms:null;
+        }
+      }
+      return null;
+    }).catch(function(){ return null; });
+  }
+  return chercher(tete).then(function(d){ return d!==null?d:chercher(queue); });
+}
+function datePriseSouvenir(b,m){
+  return lirePrise(b,m.nom).then(function(t){
+    if(t) return t;
+    if(/^video\//i.test(m.type||b.type||"")||/\.(mp4|mov|m4v|3gp)$/i.test(m.nom||"")) return dateVideo(b);
+    return null;
+  });
+}
+function reclasserToutParDate(){
+  var tous=[]; biblio.albums.forEach(function(a){ (a.randos||[]).forEach(function(r){ (r.medias||[]).forEach(function(m){ tous.push({r:r,m:m}); }); }); });
+  if(!tous.length){ note("Il n'y a encore aucune photo à reclasser."); return; }
+  if(!confirm("Reclasser les "+tous.length+" photos et vidéos de tous les albums par jour et heure de prise de vue (la plus ancienne en premier) ?\n\nL'ordre actuel sera remplacé, sans tenir compte des étapes. Les photos sans date lisible vont à la fin de leur sortie.")) return;
+  var fait=0, sansDate=0;
+  var suite=Promise.resolve();
+  tous.forEach(function(x){
+    suite=suite.then(function(){
+      return lire("media",x.m.id).then(function(b){
+        if(!b) return;
+        return datePriseSouvenir(b,x.m).then(function(t){ if(t) x.m.prise=t; });
+      }).then(function(){
+        fait++; if(fait%10===0||fait===tous.length) note("Lecture des dates… "+fait+" sur "+tous.length,60000);
+      });
+    });
+  });
+  return suite.then(function(){
+    biblio.albums.forEach(function(a){ (a.randos||[]).forEach(function(r){
+      var L=(r.medias||[]).map(function(m,i){ return {m:m,i:i}; });
+      L.sort(function(p,q){
+        var a1=p.m.prise||0, b1=q.m.prise||0;
+        if(!a1&&!b1) return p.i-q.i;
+        if(!a1) return 1; if(!b1) return -1;
+        return (a1-b1)||(p.i-q.i);
+      });
+      sansDate+=L.filter(function(x){ return !x.m.prise; }).length;
+      r.medias=L.map(function(x){ return x.m; });
+    }); });
+    sauver();
+    try{ rafraichir(true); }catch(e){}
+    note("Photos reclassées par jour et heure."+(sansDate?" "+sansDate+" sans date lisible, mises à la fin.":""),9000);
+  }).catch(function(){ note("Le reclassement a échoué. Recharge l'appli (rien n'est enregistré à moitié) et dis-le à Claude.",12000); });
+}
+document.getElementById("biblio-reclasser").addEventListener("click",function(){ reclasserToutParDate(); });
 
 function ajouterMedias(fichiers,cible,position){
   var r=cible||randoEnCours;
