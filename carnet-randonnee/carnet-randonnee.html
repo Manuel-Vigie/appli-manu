@@ -942,7 +942,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V71 · 15/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V72 · 15/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -1035,7 +1035,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     <button class="bouton" id="biblio-restaurer">📥 Restaurer</button>
   </div>
   <div class="biblio-sauv">
-    <button class="bouton" id="biblio-reclasser">🕐 Reclasser par jour et heure</button>
+    <button class="bouton" id="biblio-reclasser">🕐 Reclasser cet album par date</button>
   </div>
   <p class="biblio-aide">Fais tourner le plateau du doigt, puis touche l'album du devant pour l'ouvrir.</p>
 </div>
@@ -3362,7 +3362,7 @@ function choisirAlbum(i){
   carnet=biblio.albums[i];
   if(!partage) Object.keys(urls).forEach(function(k){ URL.revokeObjectURL(urls[k]); delete urls[k]; });
   feuillet=0; pageCourante=0;
-  if(location.hash && !partage) { try{ location.hash="a="+carnet.id; }catch(e){} }
+  if(location.hash && !partage) { try{ history.replaceState(null,"",location.pathname+location.search+"#a="+carnet.id); }catch(e){} }
   majIdentite();
   sauver();
   rendreBibliotheque();
@@ -4318,9 +4318,19 @@ document.addEventListener("pointerup",function(e){
 },{capture:true});
 
 // l'écran peut se rendormir quand on quitte l'onglet, on le reprend au retour
+var musiqueMiseEnPause=false;
+/* On quitte l'appli : la musique s'arrête ; elle repart au retour. */
+function sonEnPause(){
+  try{ if(lecteurMorceau&&!lecteurMorceau.paused){ lecteurMorceau.pause(); musiqueMiseEnPause=true; } }catch(e){}
+}
+function sonReprise(){
+  try{ if(musiqueMiseEnPause&&lecteurMorceau){ var pr=lecteurMorceau.play(); if(pr&&pr.catch) pr.catch(function(){}); } }catch(e){}
+  musiqueMiseEnPause=false;
+}
+window.__sonPause=sonEnPause; window.__sonReprise=sonReprise;
 document.addEventListener("visibilitychange",function(){
-  if(document.hidden) laisserEcranSeteindre();
-  else if(lectureCommencee) garderEcranAllume();
+  if(document.hidden){ laisserEcranSeteindre(); sonEnPause(); }
+  else{ if(lectureCommencee) garderEcranAllume(); sonReprise(); }
 });
 
 var lectureCommencee=false;
@@ -5149,7 +5159,7 @@ function sectionCarnet(){
   racc.style.marginTop=".8rem";
   racc.addEventListener("click",function(){
     if(!carnet.id) carnet.id=uid();
-    try{ location.hash="a="+carnet.id; }catch(e){}
+    try{ history.replaceState(null,"",location.pathname+location.search+"#a="+carnet.id); }catch(e){}
     sauver();
     var nom=carnet.titre||"cet album";
     if(invitInstall){
@@ -6081,10 +6091,12 @@ function datePriseSouvenir(b,m){
     return null;
   });
 }
-function reclasserToutParDate(){
-  var tous=[]; biblio.albums.forEach(function(a){ (a.randos||[]).forEach(function(r){ (r.medias||[]).forEach(function(m){ tous.push({r:r,m:m}); }); }); });
-  if(!tous.length){ note("Il n'y a encore aucune photo à reclasser."); return; }
-  if(!confirm("Reclasser les "+tous.length+" photos et vidéos de tous les albums par jour et heure de prise de vue (la plus ancienne en premier) ?\n\nL'ordre actuel sera remplacé, sans tenir compte des étapes. Les photos sans date lisible vont à la fin de leur sortie.")) return;
+function reclasserToutParDate(idx){
+  var cibleAlbum=biblio.albums[(typeof idx==="number")?idx:biblio.courant];
+  if(!cibleAlbum) return;
+  var tous=[]; (cibleAlbum.randos||[]).forEach(function(r){ (r.medias||[]).forEach(function(m){ tous.push({r:r,m:m}); }); });
+  if(!tous.length){ note("Cet album n'a encore aucune photo à reclasser."); return; }
+  if(!confirm("Reclasser les "+tous.length+" photos et vidéos de l'album « "+(cibleAlbum.titre||"sans titre")+" » par jour et heure de prise de vue (la plus ancienne en premier) ?\n\nSeul cet album est touché. L'ordre actuel sera remplacé, sans tenir compte des étapes. Les photos sans date lisible vont à la fin de leur sortie.")) return;
   var fait=0, sansDate=0;
   var suite=Promise.resolve();
   tous.forEach(function(x){
@@ -6098,7 +6110,7 @@ function reclasserToutParDate(){
     });
   });
   return suite.then(function(){
-    biblio.albums.forEach(function(a){ (a.randos||[]).forEach(function(r){
+    [cibleAlbum].forEach(function(a){ (a.randos||[]).forEach(function(r){
       var L=(r.medias||[]).map(function(m,i){ return {m:m,i:i}; });
       L.sort(function(p,q){
         var a1=p.m.prise||0, b1=q.m.prise||0;
@@ -6110,11 +6122,11 @@ function reclasserToutParDate(){
       r.medias=L.map(function(x){ return x.m; });
     }); });
     sauver();
-    try{ rafraichir(true); }catch(e){}
-    note("Photos reclassées par jour et heure."+(sansDate?" "+sansDate+" sans date lisible, mises à la fin.":""),9000);
+    if(cibleAlbum===carnet){ try{ rafraichir(true); }catch(e){} }
+    note("Album reclassé par jour et heure."+(sansDate?" "+sansDate+" sans date lisible, mises à la fin.":""),9000);
   }).catch(function(){ note("Le reclassement a échoué. Recharge l'appli (rien n'est enregistré à moitié) et dis-le à Claude.",12000); });
 }
-document.getElementById("biblio-reclasser").addEventListener("click",function(){ reclasserToutParDate(); });
+document.getElementById("biblio-reclasser").addEventListener("click",function(){ reclasserToutParDate(plateau.i); });
 
 function ajouterMedias(fichiers,cible,position){
   var r=cible||randoEnCours;

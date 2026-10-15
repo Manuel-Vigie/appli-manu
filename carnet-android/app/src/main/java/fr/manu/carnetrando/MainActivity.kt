@@ -176,6 +176,26 @@ class MainActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
     }
 
+    // Quand on quitte l'appli, le son s'arrête (la musique du carnet ne continue pas en fond) ; il repart au retour.
+    override fun onPause() {
+        super.onPause()
+        web.evaluateJavascript("if(window.__sonPause)window.__sonPause();document.querySelectorAll('video').forEach(function(e){try{e.pause()}catch(x){}})", null)
+        web.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        web.onResume()
+        web.evaluateJavascript("if(window.__sonReprise)window.__sonReprise()", null)
+    }
+
+    override fun onDestroy() {
+        // Fermeture complète : la fenêtre web est détruite, donc plus aucun son.
+        web.loadUrl("about:blank")
+        web.destroy()
+        super.onDestroy()
+    }
+
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (web.canGoBack()) web.goBack() else {
