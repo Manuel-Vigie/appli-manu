@@ -474,6 +474,8 @@ body.biblio-ouverte .barre,body.biblio-ouverte .pied{visibility:hidden}
   border-radius:4px;background:#ffffff0a;color:#D9E2D6;font-size:1.6rem;
   display:grid;place-items:center;cursor:pointer;
 }
+.biblio-sauv{display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap;padding:.3rem .8rem 0}
+.biblio-sauv .bouton{padding:.55rem .8rem;font-size:.85rem}
 .biblio-aide{
   text-align:center;color:#ffffff85;font-size:.78rem;margin:0;
   padding:.7rem;padding-bottom:max(.9rem,env(safe-area-inset-bottom));
@@ -940,7 +942,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V67 · 15/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V68 · 15/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -1027,6 +1029,10 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     <div class="plateau" id="plateau"></div>
     <button class="fleche biblio-nav g cache" id="biblio-prec" aria-label="Carnets précédents">‹</button>
     <button class="fleche biblio-nav d cache" id="biblio-suiv" aria-label="Carnets suivants">›</button>
+  </div>
+  <div class="biblio-sauv">
+    <button class="bouton" id="biblio-sauver">💾 Sauvegarder toute la bibliothèque</button>
+    <button class="bouton" id="biblio-restaurer">📥 Restaurer</button>
   </div>
   <p class="biblio-aide">Fais tourner le plateau du doigt, puis touche l'album du devant pour l'ouvrir.</p>
 </div>
@@ -3340,6 +3346,8 @@ function supprimerAlbumCourant(idx){
 }
 
 document.getElementById("biblio-suppr").addEventListener("click",function(){ supprimerAlbumCourant(plateau.i); });
+document.getElementById("biblio-sauver").addEventListener("click",function(){ exporter(true); });
+document.getElementById("biblio-restaurer").addEventListener("click",function(){ document.getElementById("pioche-import").click(); });
 
 function choisirAlbum(i){
   if(i<0||i>=biblio.albums.length) return;
