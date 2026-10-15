@@ -940,7 +940,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V66 · 14/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V67 · 15/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -1141,6 +1141,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 
 <input type="file" id="pioche-media" accept="image/*,video/*" multiple hidden>
 <input type="file" id="pioche-dossier" webkitdirectory multiple hidden>
+<input type="file" id="pioche-choix" multiple hidden>
 <input type="file" id="pioche-gpx" accept=".gpx,application/gpx+xml,text/xml" hidden>
 <input type="file" id="pioche-import" accept=".json,application/json" hidden>
 <input type="date" id="pioche-date" class="pioche-date">
@@ -5816,8 +5817,8 @@ function fichiersRetenus(){
 function blocDossier(r){
   var bloc=el("div","bloc-dossier");
   bloc.style.marginTop=".9rem";
-  bloc.appendChild(el("h4",null,"Prendre depuis un dossier"));
-  var aide=el("p","aide","Choisis ce que tu veux (photos, vidéos ou les deux), puis un dossier — et un deuxième si besoin. Tout est rangé par date et heure.");
+  bloc.appendChild(el("h4",null,"Prendre des photos et vidéos du téléphone"));
+  var aide=el("p","aide","Choisis ce que tu veux (photos, vidéos ou les deux), puis les photos ou le dossier d'un jour. Tout est rangé par date et heure, et le carnet en garde 50 ou 100 qui ne se ressemblent pas trop.");
   aide.style.cssText="opacity:.8;font-size:.85rem;margin:.2rem 0 .6rem";
   bloc.appendChild(aide);
 
@@ -5840,8 +5841,9 @@ function blocDossier(r){
     var neuf=blocDossier(r);
     bloc.parentNode.replaceChild(neuf,bloc);
   }
-  function choisir(){
-    var input=document.getElementById("pioche-dossier");
+  function choisir(dossier){
+    var input=document.getElementById(dossier?"pioche-dossier":"pioche-choix");
+    if(!dossier) input.accept=(dossierSel.type==="photos")?"image/*":(dossierSel.type==="videos")?"video/*":"image/*,video/*";
     input.value="";
     input.onchange=function(){
       var vus={};
@@ -5860,9 +5862,23 @@ function blocDossier(r){
     input.click();
   }
   var nbDossiers=dossierSel.noms.length;
-  var bc=el("button","bouton",nbDossiers? "📁 Choisir un autre dossier":"📁 Choisir un dossier");
-  bc.addEventListener("click",choisir);
-  zone.appendChild(bc);
+  var surAndroid=/Android/i.test(navigator.userAgent);
+  var ligneBoutons=el("div"); ligneBoutons.style.cssText="display:flex;gap:.5rem;flex-wrap:wrap";
+  var quoi=(dossierSel.type==="photos")?"des photos":(dossierSel.type==="videos")?"des vidéos":"des photos et vidéos";
+  var bp=el("button","bouton plein",dossierSel.fichiers.length?("🖼 En choisir d'autres"):("🖼 Choisir "+quoi));
+  bp.addEventListener("click",function(){ choisir(false); });
+  ligneBoutons.appendChild(bp);
+  if(!surAndroid){
+    var bc=el("button","bouton",nbDossiers? "📁 Choisir un autre dossier":"📁 Choisir un dossier");
+    bc.addEventListener("click",function(){ choisir(true); });
+    ligneBoutons.appendChild(bc);
+  }
+  zone.appendChild(ligneBoutons);
+  if(surAndroid&&!dossierSel.fichiers.length){
+    var astuce=el("p",null,"Dans la liste du téléphone, ouvre l'onglet « Albums » pour prendre le dossier d'un jour, puis sélectionne les photos (tu peux en choisir jusqu'à 100 d'un coup).");
+    astuce.style.cssText="margin:.5rem 0 0;font-size:.82rem;opacity:.8";
+    zone.appendChild(astuce);
+  }
 
   if(dossierSel.fichiers.length){
     var nomsTxt=dossierSel.noms.length?("Dossier"+(dossierSel.noms.length>1?"s":"")+" : "+dossierSel.noms.join(" + ")):"Fichiers choisis";

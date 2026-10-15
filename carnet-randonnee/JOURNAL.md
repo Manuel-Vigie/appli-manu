@@ -2,7 +2,7 @@
 
 ## Identité
 Appli de carnets de randonnée (albums photos, musique, pages). Fonctionne hors connexion (PWA).
-Version actuelle : **V66 · 14/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
+Version actuelle : **V67 · 15/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
 |---|---|
 | `carnet-randonnee.html` | L'appli entière |
 | `carnet-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V66'` |
+| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V67'` |
 | `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-icone-192.png`, `carnet-icone-512.png`, `carnet-icone-masque-512.png` | Icônes |
 
@@ -108,3 +108,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 14/10/2026 — V64 : « Prendre depuis un dossier » (fiche d'une sortie, sous Photos et vidéos) : choix Photos / Vidéos / Les deux, un ou deux dossiers (sélecteur de dossier du navigateur), jours à cocher, puis ajout dans l'album rangé par date et heure. Pas de lien direct avec l'appli Android Mes Photos (appli native) : on passe par le sélecteur du téléphone. Cache carnet-app-V64.
 - 14/10/2026 — V65 : le carnet reçoit des photos/vidéos par le menu Partager d'Android (`share_target` dans carnet-manifest.webmanifest, réception dans carnet-sw.js : cache temporaire « carnet-partage », puis page ouverte avec ?partage=N). Une fenêtre demande l'album et la sortie, puis ajouterMedias range par date et heure et vide le cache. Envoi depuis l'appli Mes Photos V86 (« Envoyer au carnet de rando »). Si « Carnet de rando » n'apparaît pas dans le menu Partager : désinstaller puis réinstaller l'appli depuis Chrome (Android enregistre le partage à l'installation). Cache carnet-app-V65.
 - 14/10/2026 — V66 : choix automatique de 50 / 100 / toutes les photos (variable limiteSouvenirs, défaut 50) à la réception depuis Mes Photos et dans « Prendre depuis un dossier ». choisirVariees : miniature 12×12 couleurs + moment de prise de vue, échantillonnage « le plus différent d'abord » (distance couleur + 0,4 × écart de temps), résultat remis dans l'ordre du temps ; toutes les vidéos gardées (elles comptent dans la limite). Cache carnet-app-V66.
+- 15/10/2026 — V67 : le bloc « Prendre des photos et vidéos du téléphone » (fiche d'une sortie) a un bouton « Choisir des photos » (sélecteur du téléphone, accept selon Photos / Vidéos / Les deux ; sur Android, onglet Albums = dossier d'un jour) en plus du bouton dossier (ordinateur). Raison : l'appli installée n'apparaissait pas dans le menu Partager de Mes Photos (le partage vers le carnet ne marche qu'après mise à jour ou réinstallation de l'appli installée). Cache carnet-app-V67.
