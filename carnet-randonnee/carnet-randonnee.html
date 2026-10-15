@@ -977,7 +977,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V81 · 15/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V82 · 15/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -1073,7 +1073,6 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     <button class="bouton" id="biblio-quitter">⏻ Quitter l'application</button>
   </div>
   <div class="biblio-sauv">
-    <button class="bouton" id="biblio-reclasser">🕐 Reclasser cet album par date</button>
   </div>
   <p class="biblio-aide">Fais tourner le plateau du doigt, puis touche l'album du devant pour l'ouvrir.</p>
 </div>
@@ -6298,165 +6297,6 @@ function trierSortieParHeure(r){
   })).then(function(){ trierFiches(r,r.medias.slice()); });
 }
 
-/* ---- Reclasser TOUTES les photos et vidéos de la bibliothèque par jour et heure ---- */
-/* Date de tournage d'une vidéo MP4 / MOV (boîte « mvhd », en secondes depuis 1904, heure universelle). */
-function dateVideo(b){
-  var tete=b.slice(0,524288), queue=b.size>1572864?b.slice(b.size-1048576):(b.size>524288?b.slice(524288):null);
-  function chercher(blob){
-    if(!blob) return Promise.resolve(null);
-    return blob.arrayBuffer().then(function(ab){
-      var u=new Uint8Array(ab);
-      for(var i=0;i+24<u.length;i++){
-        if(u[i]===0x6d&&u[i+1]===0x76&&u[i+2]===0x68&&u[i+3]===0x64){
-          var v=u[i+4], sec;
-          if(v===1) sec=((u[i+8]*16777216+(u[i+9]<<16|u[i+10]<<8|u[i+11]))*4294967296)+(u[i+12]*16777216+(u[i+13]<<16|u[i+14]<<8|u[i+15]));
-          else sec=u[i+8]*16777216+(u[i+9]<<16|u[i+10]<<8|u[i+11]);
-          var ms=(sec-2082844800)*1000;
-          return (ms>631152000000&&ms<Date.now()+86400000)?ms:null;
-        }
-      }
-      return null;
-    }).catch(function(){ return null; });
-  }
-  return chercher(tete).then(function(d){ return d!==null?d:chercher(queue); });
-}
-/* Date et heure d'un souvenir, avec la SOURCE : « photo » (EXIF), « nom » (dans le nom du fichier),
-   « video » (date de tournage), « ancienne » (date déjà notée, sans autre indice), ou rien. */
-function datePriseDetail(b,m){
-  var nom=m.nom||"";
-  var wa=/(^|[^a-z])WA\d{3,5}|whatsapp/i.test(nom);
-  var aReprendre=function(){
-    var d=dateDuNom(nom);
-    /* WhatsApp : le nom porte le jour de RÉCEPTION, sans heure, et la photo n'a plus d'EXIF → pas de date fiable */
-    if(d!==null&&!wa) return Promise.resolve({t:d,src:"nom"});
-    if(/^video\//i.test(b.type||"")||m.type==="video"||/\.(mp4|mov|m4v|3gp)$/i.test(nom)){
-      return dateVideo(b).then(function(v){
-        if(v) return {t:v,src:"video"};
-        if(wa) return {t:0,src:"whatsapp"};
-        return m.prise?{t:m.prise,src:"ancienne"}:{t:0,src:null};
-      });
-    }
-    if(wa) return Promise.resolve({t:0,src:"whatsapp"});
-    return Promise.resolve(m.prise?{t:m.prise,src:"ancienne"}:{t:0,src:null});
-  };
-  if(!/^image\/jpe?g$/i.test(b.type||"")&&!/\.jpe?g$/i.test(nom)) return aReprendre();
-  return new Promise(function(res){
-    try{
-      var l=new FileReader();
-      l.onload=function(){ var d=exifDate(l.result); if(d!==null) res({t:d,src:"photo"}); else aReprendre().then(res); };
-      l.onerror=function(){ aReprendre().then(res); };
-      l.readAsArrayBuffer(b.slice(0,1048576));
-    }catch(e){ aReprendre().then(res); }
-  });
-}
-function jourLocal(t){
-  var d=new Date(t); function z(n){ return (n<10?"0":"")+n; }
-  return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate());
-}
-function afficherBilan(titre,lignes){
-  var ecran=el("div","mdp-ecran ouvert"); ecran.style.zIndex="900";
-  var boite=el("div","mdp-boite"); ecran.appendChild(boite);
-  boite.appendChild(el("h2",null,titre));
-  lignes.forEach(function(t){ var p=el("p",null,t); p.style.textAlign="left"; boite.appendChild(p); });
-  var ok=el("button","bouton plein","OK"); boite.appendChild(ok);
-  ok.addEventListener("click",function(){ if(ecran.parentNode) ecran.parentNode.removeChild(ecran); });
-  document.body.appendChild(ecran);
-}
-function reclasserToutParDate(idx){
-  var cibleAlbum=biblio.albums[(typeof idx==="number")?idx:biblio.courant];
-  if(!cibleAlbum) return;
-  var tous=[]; (cibleAlbum.randos||[]).forEach(function(r){ (r.medias||[]).forEach(function(m){ tous.push({r:r,m:m}); }); });
-  if(!tous.length){ note("Cet album n'a encore aucune photo à reclasser."); return; }
-  if(!confirm("Lire la date et l'heure des "+tous.length+" photos et vidéos de l'album « "+(cibleAlbum.titre||"sans titre")+" » pour les reclasser (la plus ancienne en premier) ?\n\nSeul cet album est touché. Rien n'est changé avant votre accord.")) return;
-  var fait=0, suite=Promise.resolve();
-  tous.forEach(function(x){
-    suite=suite.then(function(){
-      return lire("media",x.m.id).then(function(b){
-        if(!b) return {t:0,src:null};
-        return datePriseDetail(b,x.m);
-      }).then(function(d){
-        x.t=d.t; x.src=d.src;
-        fait++; if(fait%10===0||fait===tous.length) note("Lecture des dates… "+fait+" sur "+tous.length,60000);
-      });
-    });
-  });
-  return suite.then(function(){
-    var nb={photo:0,nom:0,video:0,ancienne:0,whatsapp:0,aucune:0}, sans=[];
-    tous.forEach(function(x){ if(x.src) nb[x.src]++; else nb.aucune++; if(!x.src||x.src==="ancienne") sans.push(x.m.nom||x.m.id); });
-    // photos rangées dans une sortie d'un autre jour que le leur, alors qu'une sortie porte bien leur jour
-    var deplacements=[];
-    var sorties=cibleAlbum.randos||[];
-    tous.forEach(function(x){
-      if(!x.t||x.src==="ancienne"||x.src==="whatsapp") return;
-      var jour=jourLocal(x.t);
-      if(x.r.date===jour) return;
-      var cand=sorties.filter(function(s){ return s.date===jour; });
-      if(cand.length===1&&cand[0]!==x.r) deplacements.push({x:x,vers:cand[0]});
-    });
-    var resume="Dates lues : "+nb.photo+" dans la photo, "+nb.nom+" dans le nom du fichier, "+nb.video+" dans la vidéo, "+nb.whatsapp+" reçues par WhatsApp (sans heure : elles restent à leur place), "+nb.ancienne+" sans date lisible (ancienne date gardée), "+nb.aucune+" sans aucune date.";
-    var deplacer=false;
-    if(deplacements.length){
-      deplacer=confirm(resume+"\n\n"+deplacements.length+" photo(s) ou vidéo(s) sont dans une sortie qui n'est pas celle de leur jour.\n\nOK : les mettre dans la sortie du bon jour, puis tout classer par heure.\nAnnuler : les laisser où elles sont et classer chaque sortie.");
-    }
-    /* Photos qu'on ne peut pas classer : on propose de les enlever (jamais sans accord, jamais sans liste). */
-    var aSupprimer=[];
-    function proposerSuppression(groupe,explication){
-      if(!groupe.length) return;
-      var noms=groupe.slice(0,12).map(function(x){ return x.m.nom||x.m.id; }).join("\n");
-      if(!confirm(groupe.length+" photo(s) ou vidéo(s) "+explication+" :\n\n"+noms+(groupe.length>12?"\n… et "+(groupe.length-12)+" autres":"")+"\n\nLes SUPPRIMER de l'album ?\n\nOK : supprimer (définitif, pensez à avoir fait une sauvegarde).\nAnnuler : les garder.")) return;
-      if(!confirm("Dernière vérification : supprimer définitivement ces "+groupe.length+" fichier(s) de l'album « "+(cibleAlbum.titre||"sans titre")+" » ?")) return;
-      groupe.forEach(function(x){ aSupprimer.push(x); });
-    }
-    proposerSuppression(tous.filter(function(x){ return !x.src; }),"n'ont aucune date ni heure (ni dans la photo, ni dans le nom, ni dans la vidéo)");
-    proposerSuppression(tous.filter(function(x){ return x.src==="ancienne"; }),"n'ont pas de date lisible : seulement l'ancienne date notée à l'ajout, peu fiable");
-    tous.forEach(function(x){ if(x.t&&x.src!=="ancienne"&&x.src!=="whatsapp") x.m.prise=x.t; });
-    var sansHeure=[]; tous.forEach(function(x){ if(!x.t||x.src==="ancienne"||x.src==="whatsapp") sansHeure.push(x.m); });
-    if(deplacer){
-      deplacements.forEach(function(d){
-        var i=d.x.r.medias.indexOf(d.x.m);
-        if(i>=0){ d.x.r.medias.splice(i,1); d.vers.medias=d.vers.medias||[]; d.vers.medias.push(d.x.m); }
-      });
-    }
-    aSupprimer.forEach(function(x){
-      sorties.forEach(function(r){
-        var i=(r.medias||[]).indexOf(x.m);
-        if(i>=0){
-          r.medias.splice(i,1);
-          effacer("media",x.m.id);
-          if(urls[x.m.id]){ if(String(urls[x.m.id]).indexOf("blob:")===0) URL.revokeObjectURL(urls[x.m.id]); delete urls[x.m.id]; }
-        }
-      });
-    });
-    sorties.forEach(function(r){
-      /* Les photos sans heure fiable (WhatsApp, sans date…) restent juste derrière la photo qui les précédait ;
-         les autres sont triées par heure. */
-      var cur=(r.medias||[]).slice(), debut=[], ancre=null, suivants=[], datees=[];
-      cur.forEach(function(m,i){
-        if(sansHeure.indexOf(m)<0){ datees.push({m:m,i:i}); ancre=m; suivants.push({m:m,apres:[]}); }
-        else if(ancre===null) debut.push(m);
-        else suivants[suivants.length-1].apres.push(m);
-      });
-      datees.sort(function(p,q){ return ((p.m.prise||0)-(q.m.prise||0))||(p.i-q.i); });
-      var res=debut.slice();
-      datees.forEach(function(d){
-        res.push(d.m);
-        suivants.forEach(function(s){ if(s.m===d.m) s.apres.forEach(function(a){ res.push(a); }); });
-      });
-      r.medias=res;
-    });
-    sauver();
-    if(cibleAlbum===carnet){ try{ rafraichir(true); }catch(e){} }
-    note("Album reclassé par jour et heure.",9000);
-    var bilan=[resume];
-    if(deplacer) bilan.push(deplacements.length+" photo(s) ou vidéo(s) mises dans la sortie du bon jour.");
-    if(aSupprimer.length) bilan.push(aSupprimer.length+" photo(s) ou vidéo(s) sans date supprimées de l'album.");
-    var restantes=tous.filter(function(x){ return (!x.src||x.src==="ancienne"||x.src==="whatsapp")&&aSupprimer.indexOf(x)<0; }).map(function(x){ return x.m.nom||x.m.id; });
-    if(restantes.length) bilan.push("Sans heure fiable (restées juste derrière la photo qui les précédait ; vous pouvez les déplacer avec « ↕ Déplacer des photos ») : "+restantes.slice(0,8).join(", ")+(restantes.length>8?" … et "+(restantes.length-8)+" autres":"")+".");
-    if(nb.nom&&!nb.photo) bilan.push("Aucune date n'a été lue dans les photos elles-mêmes : seulement dans leurs noms. Si l'ordre vous paraît faux, dites-le à Claude.");
-    afficherBilan("Reclassement terminé",bilan);
-  }).catch(function(){ note("Le reclassement a échoué. Recharge l'appli (rien n'est enregistré à moitié) et dis-le à Claude.",12000); });
-}
-document.getElementById("biblio-reclasser").addEventListener("click",function(){ reclasserToutParDate(plateau.i); });
 
 
 function ajouterMedias(fichiers,cible,position){

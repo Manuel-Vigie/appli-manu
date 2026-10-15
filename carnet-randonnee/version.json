@@ -1,17 +1,17 @@
 {
   "nom": "Carnet de rando",
-  "version": "V81",
+  "version": "V82",
   "date": "15/10/2026",
   "nouveautes": [
+    "Retrait du dernier bouton de tri « 🕐 Reclasser cet album par date » : il ne reste plus aucun bouton de classement automatique des photos. Le mode Retoucher et son panneau de réglages ne changent pas.",
     "Les trois boutons de rangement des photos (« Voir l'ordre et les dates », « Déplacer des photos », « Intercaler les photos WhatsApp ») sont retirés. Reste « 🕐 Reclasser cet album par date ».",
     "Nouveau bouton « 🧩 Intercaler les photos WhatsApp tout seul » : les photos reçues par WhatsApp (sans heure) sont rangées automatiquement parmi vos photos, d'après leur ressemblance (couleurs) en gardant leur ordre. Classement approximatif, avec confirmation avant d'appliquer ; rien n'est supprimé.",
-    "« ↕ Déplacer des photos de cet album » devient visuel : on voit les photos en petites images, on touche celles à déplacer (ou « Ajouter jusqu'à une photo » pour un groupe), puis on touche la photo après laquelle les mettre. Plus de numéros à taper. Rien n'est supprimé.",
-    "Photos reçues par WhatsApp : elles n'ont pas d'heure (le nom donne le jour de réception), le reclassement ne les déplace plus au mauvais endroit : elles restent derrière la photo qui les précédait. Nouveau bouton « ↕ Déplacer des photos de cet album » : on donne les numéros du groupe (liste « 🔎 ») et la photo après laquelle le placer. Rien n'est supprimé."
+    "« ↕ Déplacer des photos de cet album » devient visuel : on voit les photos en petites images, on touche celles à déplacer (ou « Ajouter jusqu'à une photo » pour un groupe), puis on touche la photo après laquelle les mettre. Plus de numéros à taper. Rien n'est supprimé."
   ],
   "cache": "carnet-app-",
   "sw": {
     "fichier": "carnet-sw.js",
-    "cache": "carnet-app-V81"
+    "cache": "carnet-app-V82"
   },
   "fichiers": [
     "carnet-randonnee.html"

@@ -2,7 +2,7 @@
 
 ## Identité
 Appli de carnets de randonnée (albums photos, musique, pages). Fonctionne hors connexion (PWA).
-Version actuelle : **V81 · 15/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
+Version actuelle : **V82 · 15/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
 |---|---|
 | `carnet-randonnee.html` | L'appli entière |
 | `carnet-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V81'` |
+| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V82'` |
 | `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-icone-192.png`, `carnet-icone-512.png`, `carnet-icone-masque-512.png` | Icônes |
 
@@ -123,3 +123,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 15/10/2026 — V79 : `deplacerGroupe()` refait en écran visuel (trop compliqué avec les numéros) : grille de miniatures (`miniature()`, chargées à la demande), étape 1 on touche les photos à déplacer (bouton « Ajouter jusqu'à une photo » = plage), étape 2 on touche la photo après laquelle les mettre (ou « Tout au début »), confirmation, `sauver()`. Rien n'est supprimé. Testé en local à 360 px (4 photos).
 - 15/10/2026 — V80 : `intercalerWhatsApp()` / bouton `#biblio-intercaler`. Les photos WhatsApp (sans heure, faisant tout le trajet comme celles de Manuel) sont intercalées parmi les photos datées : deux suites ordonnées (datées par heure ; WhatsApp par jour+numéro WA), alignement monotone par programmation dynamique, score = ressemblance de couleurs (miniature 8×8, `descripteurImage`) + léger a priori de proportionnalité. Contrôle de sécurité (nombre de médias identique) et confirmation avant application. APPROXIMATIF : testé seulement sur images synthétiques (les copies retombent à la bonne place) ; jamais sur les vraies photos de Manuel. Si le résultat est mauvais, piste suivante : demander quelques repères (photos clés) à Manuel.
 - 15/10/2026 — V81 : à la demande de Manuel, retrait des boutons `#biblio-voirdates`, `#biblio-deplacer`, `#biblio-intercaler` et de leur code (`voirDatesAlbum`, `deplacerGroupe`, `intercalerWhatsApp`, `descripteurImage`…) : inutiles pour lui, le vrai problème étant que les photos WhatsApp n'ont plus d'EXIF (piste : les renvoyer « en tant que Document »). Gardé : `#biblio-reclasser` et la source `whatsapp` de `datePriseDetail` (les photos WhatsApp restent à leur place au reclassement).
+- 15/10/2026 — V82 : Manuel ne veut plus aucun bouton de tri (le problème vient des photos WhatsApp sans date, pas de l'appli). Retrait de `#biblio-reclasser` et de tout le bloc « Reclasser TOUTES » (`reclasserToutParDate`, `datePriseDetail`, `dateVideo`, `jourLocal`, `afficherBilan`). Le tri à l'import (`lirePrise`, `exifDate`, `dateDuNom`), Retoucher et le panneau de réglages sont conservés. Piste si besoin plus tard : renvoyer les photos WhatsApp « en tant que Document » (elles gardent date et heure).
