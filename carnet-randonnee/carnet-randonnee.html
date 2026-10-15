@@ -882,6 +882,25 @@ body.partage .coupe-video{display:none}
 .tourne-ecran svg{width:1.45rem;height:1.45rem}
 .tourne-ecran.actif{background:#2E5D46;border-color:#8FCBA6}
 body.video-ouverte .tourne-ecran{top:max(.8rem,env(safe-area-inset-top))}
+/* Panneau détaché « Réglages de la photo » : tout est dedans, la page derrière ne bouge plus */
+.rp{position:fixed;inset:0;z-index:850;display:flex;align-items:flex-end;justify-content:center;background:#000000a6;touch-action:none;overscroll-behavior:contain}
+.rp[hidden]{display:none}
+.rp-boite{width:100%;max-width:30rem;max-height:96dvh;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain;background:#1b241b;color:#F0E9D7;font-family:var(--sans);border-radius:1.1rem 1.1rem 0 0;border:1px solid #ffffff22;padding:.7rem .8rem calc(.9rem + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:.55rem}
+.rp-tete{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.rp-tete strong{font-size:.95rem}
+.rp-cadre{position:relative;width:100%;max-height:34dvh;margin:0 auto;border-radius:.6rem;overflow:hidden;background:#0d120d;border:1px solid #ffffff33;touch-action:none;cursor:grab;aspect-ratio:1.3}
+.rp-cadre img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;-webkit-user-drag:none;user-select:none;pointer-events:none}
+.rp-aide{margin:0;font-size:.78rem;color:#b9c7b5;text-align:center}
+.rp-reglage{display:grid;grid-template-columns:5.6rem 1fr;align-items:center;gap:.5rem;font-size:.84rem}
+.rp-reglage input[type=range]{width:100%;height:2.1rem;accent-color:#8FCBA6}
+.rp-reglage.inactif{opacity:.4;pointer-events:none}
+.rp-boite input[type=text]{width:100%;padding:.6rem .7rem;border-radius:.6rem;border:1px solid #ffffff44;background:#0d120d;color:#F0E9D7;font:.9rem var(--sans)}
+.rp-lignes{display:flex;flex-wrap:wrap;gap:.4rem}
+.rp-lignes .bouton{flex:1 1 auto;padding:.55rem .6rem;font-size:.82rem}
+.rp-lignes .bouton.actif{background:#2E5D46;border-color:#8FCBA6}
+.rp-nb{display:flex;align-items:center;gap:.35rem;font-size:.8rem}
+.rp-nb .bouton{flex:1;padding:.5rem 0}
+body.cinema .rp{display:none}
 /* Appui long sur une photo : pas de menu « enregistrer l'image », pas de sélection de texte */
 .case,.case *{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .case img{-webkit-user-drag:none}
@@ -958,7 +977,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V73 · 15/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V74 · 15/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -1174,6 +1193,28 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <input type="file" id="pioche-dossier" webkitdirectory multiple hidden>
 <input type="file" id="pioche-choix" multiple hidden>
 <input type="file" id="pioche-remplace" accept="image/*,video/*" hidden>
+<div class="rp" id="rp" hidden>
+  <div class="rp-boite" role="dialog" aria-label="Réglages de la photo">
+    <div class="rp-tete"><strong id="rp-titre">Réglages de la photo</strong><button class="bouton plein" id="rp-ok">Terminé</button></div>
+    <div class="rp-cadre" id="rp-cadre"><img id="rp-img" alt="" draggable="false"></div>
+    <p class="rp-aide" id="rp-aide">Glisse la photo pour choisir la partie visible.</p>
+    <label class="rp-reglage" id="rp-l-zoom">Zoom<input type="range" id="rp-zoom" min="1" max="3" step="0.02"></label>
+    <label class="rp-reglage" id="rp-l-x">Gauche ↔ droite<input type="range" id="rp-x" min="0" max="100" step="1"></label>
+    <label class="rp-reglage" id="rp-l-y">Haut ↕ bas<input type="range" id="rp-y" min="0" max="100" step="1"></label>
+    <label class="rp-reglage" id="rp-l-rot">Inclinaison<input type="range" id="rp-rot" min="-14" max="14" step="0.5"></label>
+    <input type="text" id="rp-legende" placeholder="Écrire une légende…" autocomplete="off">
+    <div class="rp-nb"><span>Photos sur cette page</span>
+      <button class="bouton" data-rpn="1">1</button><button class="bouton" data-rpn="2">2</button><button class="bouton" data-rpn="3">3</button><button class="bouton" data-rpn="4">4</button><button class="bouton" data-rpn="0">auto</button>
+    </div>
+    <div class="rp-lignes">
+      <button class="bouton" id="rp-avant">‹ Reculer</button>
+      <button class="bouton" id="rp-apres">Avancer ›</button>
+      <button class="bouton" id="rp-remplacer">🔄 Remplacer</button>
+      <button class="bouton" id="rp-reset">↺ Replacer</button>
+      <button class="bouton" id="rp-suppr" style="color:#ff9d9d">🗑 Supprimer</button>
+    </div>
+  </div>
+</div>
 <input type="file" id="pioche-gpx" accept=".gpx,application/gpx+xml,text/xml" hidden>
 <input type="file" id="pioche-import" accept=".json,application/json" hidden>
 <input type="date" id="pioche-date" class="pioche-date">
@@ -2918,8 +2959,9 @@ document.addEventListener("keydown",function(e){
     if(c&&c._media&&!partage&&!cinema){
       presse=setTimeout(function(){
         presse=null; actif=false; decide=false;
+        var mm=c._media;
         entrerArrangement();
-        selectionner(c);
+        setTimeout(function(){ var nc=caseDe(mm); if(nc){ selectionner(nc); ouvrirReglagePhoto(nc); } },90);
         if(navigator.vibrate){ try{ navigator.vibrate(18); }catch(err){} }
       },500);
     }
@@ -2930,10 +2972,16 @@ document.addEventListener("keydown",function(e){
     var c=e.target&&e.target.closest&&e.target.closest(".case");
     if(!c) return;
     e.preventDefault();
+    if(arranger&&!cls.on&&!etiq.on&&c._media&&!partage&&!cinema&&!rp.ouvert){
+      annulerPression(); actif=false; decide=false;
+      selectionner(c); ouvrirReglagePhoto(c);
+      return;
+    }
     if(!arranger&&!cls.on&&c._media&&!partage&&!cinema){
       annulerPression(); actif=false; decide=false;
+      var mm=c._media;
       entrerArrangement();
-      selectionner(c);
+      setTimeout(function(){ var nc=caseDe(mm); if(nc){ selectionner(nc); ouvrirReglagePhoto(nc); } },90);
       if(navigator.vibrate){ try{ navigator.vibrate(18); }catch(err){} }
     }
   });
@@ -4250,7 +4298,7 @@ document.getElementById("pioche-remplace").addEventListener("change",function(){
       delete m.poster; delete m.w; delete m.h; delete m.echec;
       if(info){ if(info.w) m.w=info.w; if(info.h) m.h=info.h; if(info.poster) m.poster=info.poster; }
       if(urls[m.id]){ if(String(urls[m.id]).indexOf("blob:")===0) URL.revokeObjectURL(urls[m.id]); delete urls[m.id]; }
-      sauver(); redessinerEnGardant(m); note("Photo remplacée.");
+      sauver(); redessinerEnGardant(m); note("Photo remplacée."); if(rp.ouvert) rpRetrouver(m);
     });
   }).catch(function(){ if(ancienne) ecrire("media",m.id,ancienne); note("Le remplacement a échoué : l'ancienne photo est gardée.",6000); });
 });
@@ -4291,9 +4339,10 @@ document.getElementById("btn-retouche").addEventListener("click",function(){
   else entrerArrangement();
 });
 
-/* Déplacement au doigt, uniquement dans ce mode. */
+/* Toucher une photo en mode Retoucher : un panneau détaché s'ouvre avec tous les réglages.
+   Plus rien ne bouge sur la page derrière : on règle la photo dans le panneau. */
 (function(){
-  var actif=false,x0=0,y0=0,dep=null,base=200,hbase=200,cible=null;
+  var actif=false,x0=0,y0=0,cible=null;
   document.getElementById("scene").addEventListener("pointerdown",function(e){
     if(!arranger&&!cls.on) return;
     var c=e.target.closest&&e.target.closest(".case");
@@ -4303,33 +4352,155 @@ document.getElementById("btn-retouche").addEventListener("click",function(){
       return;
     }
     e.preventDefault();
-    cible=c;
-    if(cls.on) choisirClasser(c._media); else selectionner(c);
-    if(etiq.on){ cible=null; return; }
-    base=c._base||c.offsetWidth||200;
-    hbase=c._baseH||c.offsetHeight||200;
-    var k=cadreDe(c._media);
-    dep={x:k.x,y:k.y};
-    x0=e.clientX; y0=e.clientY; actif=true;
+    if(cls.on){ choisirClasser(c._media); return; }
+    selectionner(c);
+    if(etiq.on) return;
+    cible=c; x0=e.clientX; y0=e.clientY; actif=true;
   });
   window.addEventListener("pointermove",function(e){
-    if(!actif||!cible) return;
-    var k=cadreDe(cible._media);
-    // tirer la photo vers la droite montre sa partie gauche
-    k.x=Math.max(0,Math.min(100,dep.x-((e.clientX-x0)/base)*110));
-    k.y=Math.max(0,Math.min(100,dep.y-((e.clientY-y0)/hbase)*110));
-    appliquerCadre(cible._media,cible);
-    if(!cls.on) majInfoArrangement();
-    if(e.cancelable) e.preventDefault();
-  },{passive:false});
-  function fin(){
     if(!actif) return;
-    actif=false; cible=null;
-    sauver();
-  }
-  window.addEventListener("pointerup",fin);
-  window.addEventListener("pointercancel",fin);
+    if(Math.abs(e.clientX-x0)>14||Math.abs(e.clientY-y0)>14) actif=false;   // un glissement n'ouvre rien
+  });
+  window.addEventListener("pointerup",function(){
+    if(!actif) return;
+    actif=false;
+    var c=cible; cible=null;
+    if(c) setTimeout(function(){ ouvrirReglagePhoto(c); },30);
+  });
+  window.addEventListener("pointercancel",function(){ actif=false; cible=null; });
 })();
+
+/* ---- Panneau « Réglages de la photo » ---- */
+var rp={m:null,c:null,ouvert:false,redessiner:false,minuterie:null};
+function rpEl(id){ return document.getElementById(id); }
+function caseDe(m){
+  var t=null;
+  [].forEach.call(livre.querySelectorAll(".case"),function(c){ if(c._media===m) t=c; });
+  return t;
+}
+function rpStyle(){
+  var im=rpEl("rp-img"), k=rp.m&&rp.m.cadre;
+  if(!k){ im.style.objectPosition=""; im.style.transformOrigin=""; im.style.transform=""; return; }
+  var x=Math.max(0,Math.min(100,k.x)), y=Math.max(0,Math.min(100,k.y)), z=Math.max(1,Math.min(3,k.z||1));
+  im.style.objectPosition=x+"% "+y+"%"; im.style.transformOrigin=x+"% "+y+"%";
+  im.style.transform=(z>1)?("scale("+z.toFixed(3)+")"):"";
+}
+function rpEnregistrer(){ clearTimeout(rp.minuterie); rp.minuterie=setTimeout(function(){ sauver(); },300); }
+function rpSync(){
+  var m=rp.m; if(!m) return;
+  var k=cadreDe(m), p=positionDe(m);
+  rpEl("rp-zoom").value=k.z; rpEl("rp-x").value=k.x; rpEl("rp-y").value=k.y; rpEl("rp-rot").value=p.rot||0;
+  rpEl("rp-legende").value=m.legende||"";
+  var im=rp.c&&rp.c.querySelector(".trou img");
+  var entier=!!(im&&im.dataset.entier==="1");
+  ["rp-l-zoom","rp-l-x","rp-l-y"].forEach(function(i){ rpEl(i).classList.toggle("inactif",entier); });
+  rpEl("rp-aide").textContent=entier
+    ?"Cette photo est seule sur sa page : elle est montrée entière. Choisis 2 photos ou plus sur cette page pour la recadrer."
+    :"Glisse la photo pour choisir la partie visible, ou utilise les curseurs.";
+  var ou=situerSouvenir(m);
+  rpEl("rp-titre").textContent=ou?("Photo "+(ou.rang+1)+" sur "+ou.rando.medias.length):"Réglages de la photo";
+  rpEl("rp-avant").disabled=!ou||ou.rang===0;
+  rpEl("rp-apres").disabled=!ou||ou.rang===ou.rando.medias.length-1;
+  var bloc=blocDe(m), n=bloc?bloc.items.length:0, tete=bloc?bloc.items[0]:m;
+  [].forEach.call(document.querySelectorAll("[data-rpn]"),function(b){
+    var v=+b.dataset.rpn; b.classList.toggle("actif",v?(tete.parPage===v):!tete.parPage);
+  });
+  rpStyle();
+}
+function rpCharger(){
+  var m=rp.m, im=rpEl("rp-img"), c=rp.c;
+  var trou=(c&&c.querySelector(".trou"))||c, r=trou?trou.getBoundingClientRect():null;
+  var ratio=(r&&r.height>5)?r.width/r.height:1.3; ratio=Math.max(.55,Math.min(2,ratio));
+  rpEl("rp-cadre").style.aspectRatio=ratio.toFixed(3);
+  im.removeAttribute("src");
+  if(m.type==="video"){ if(m.poster) im.src=m.poster; return; }
+  urlMedia(m.id).then(function(u){ if(u&&rp.m===m) im.src=u; });
+}
+function ouvrirReglagePhoto(c){
+  if(!c||!c._media||partage) return;
+  rp.c=c; rp.m=c._media; rp.ouvert=true; rp.redessiner=false;
+  choisi=c;
+  rpEl("rp").hidden=false; document.body.classList.add("rp-ouvert");
+  rpCharger(); rpSync();
+}
+function fermerReglagePhoto(){
+  if(!rp.ouvert) return;
+  rp.ouvert=false; rpEl("rp").hidden=true; document.body.classList.remove("rp-ouvert");
+  clearTimeout(rp.minuterie); sauver();
+  var m=rp.m;
+  if(rp.redessiner&&m){ rp.redessiner=false; redessinerEnGardant(m); }
+}
+/* Après un changement qui redessine le livre : on retrouve la photo dans la nouvelle page. */
+function rpRetrouver(m){
+  setTimeout(function(){
+    if(!rp.ouvert) return;
+    var c=caseDe(m);
+    if(!c){ fermerReglagePhoto(); return; }
+    rp.c=c; rp.m=m; choisi=c; c.classList.add("actif");
+    rpCharger(); rpSync();
+  },220);
+}
+function rpAppliquer(){
+  var m=rp.m; if(!m) return;
+  rpStyle();
+  if(rp.c&&rp.c._media===m){ appliquerCadre(m,rp.c); appliquerPosition(rp.c); }
+  rpEnregistrer();
+}
+rpEl("rp-zoom").addEventListener("input",function(){ cadreDe(rp.m).z=+this.value; rpAppliquer(); });
+rpEl("rp-x").addEventListener("input",function(){ cadreDe(rp.m).x=+this.value; rpAppliquer(); });
+rpEl("rp-y").addEventListener("input",function(){ cadreDe(rp.m).y=+this.value; rpAppliquer(); });
+rpEl("rp-rot").addEventListener("input",function(){ positionDe(rp.m).rot=+this.value; rpAppliquer(); });
+rpEl("rp-legende").addEventListener("input",function(){
+  var m=rp.m; if(!m) return;
+  m.legende=this.value;
+  var leg=rp.c&&rp.c.querySelector(".sous-case");
+  if(leg) leg.textContent=m.legende; else if(m.legende) rp.redessiner=true;
+  rpEnregistrer();
+});
+rpEl("rp-ok").addEventListener("click",fermerReglagePhoto);
+rpEl("rp").addEventListener("pointerdown",function(e){ if(e.target===this) fermerReglagePhoto(); });
+/* glisser la photo dans l'aperçu */
+(function(){
+  var cad=rpEl("rp-cadre"), act=false, x0=0, y0=0, dep=null;
+  cad.addEventListener("pointerdown",function(e){
+    if(!rp.m) return;
+    var k=cadreDe(rp.m); dep={x:k.x,y:k.y}; x0=e.clientX; y0=e.clientY; act=true;
+    try{ cad.setPointerCapture(e.pointerId); }catch(err){}
+    e.preventDefault();
+  });
+  cad.addEventListener("pointermove",function(e){
+    if(!act) return;
+    var k=cadreDe(rp.m), w=cad.clientWidth||200, h=cad.clientHeight||150;
+    k.x=Math.max(0,Math.min(100,dep.x-((e.clientX-x0)/w)*110));
+    k.y=Math.max(0,Math.min(100,dep.y-((e.clientY-y0)/h)*110));
+    rpEl("rp-x").value=k.x; rpEl("rp-y").value=k.y;
+    rpAppliquer();
+    if(e.cancelable) e.preventDefault();
+  });
+  function fin(){ act=false; }
+  cad.addEventListener("pointerup",fin); cad.addEventListener("pointercancel",fin);
+})();
+[].forEach.call(document.querySelectorAll("[data-rpn]"),function(b){
+  b.addEventListener("click",function(){
+    if(!rp.m) return; choisi=rp.c; var m=rp.m;
+    reglerParPage(+b.dataset.rpn||null);
+    rpRetrouver(m);
+  });
+});
+rpEl("rp-avant").addEventListener("click",function(){ if(!rp.m) return; choisi=rp.c; var m=rp.m; deplacerSouvenir(-1); rpRetrouver(m); });
+rpEl("rp-apres").addEventListener("click",function(){ if(!rp.m) return; choisi=rp.c; var m=rp.m; deplacerSouvenir(1); rpRetrouver(m); });
+rpEl("rp-remplacer").addEventListener("click",function(){ if(!rp.m) return; choisi=rp.c; rpEl("pioche-remplace").click(); });
+rpEl("rp-reset").addEventListener("click",function(){
+  var m=rp.m; if(!m) return;
+  delete m.pos; delete m.cadre;
+  if(rp.c) { rp.c.style.transform=""; appliquerCadre(m,rp.c); }
+  sauver(); rpSync(); note("Cadrage d'origine rétabli.");
+});
+rpEl("rp-suppr").addEventListener("click",function(){
+  var m=rp.m; if(!m) return;
+  var c=rp.c; fermerReglagePhoto();
+  if(c){ choisi=c; rpEl("ar-suppr").click(); }
+});
 
 /* =====================================================================
    Garder l'écran allumé pendant la lecture

@@ -1,17 +1,17 @@
 {
   "nom": "Carnet de rando",
-  "version": "V73",
+  "version": "V74",
   "date": "15/10/2026",
   "nouveautes": [
+    "Retoucher : toucher une photo (ou appui long) ouvre un panneau détaché avec tous les réglages : aperçu à glisser, zoom, haut/bas, gauche/droite, inclinaison, légende, nombre de photos par page, reculer / avancer, remplacer, replacer, supprimer. La page derrière ne bouge plus.",
     "Retoucher : un appui long sur une photo passe en mode Retoucher (plus de menu Android qui gêne), et un nouveau bouton « 🔄 Remplacer cette photo par une autre » change la photo en gardant sa place et sa légende. Le bouton « horizontal » est monté dans la barre du haut, plus sur l'album. Appli Android : bouton « ⏻ Quitter l'application » sur l'écran des albums.",
     "« 🕐 Reclasser cet album par date » ne touche plus qu'un seul album : celui du devant sur le plateau. La musique s'arrête quand on quitte l'appli, et le bouton Retour ne fait plus défiler d'anciens écrans.",
-    "Nouveau bouton « 🕐 Reclasser par jour et heure » sur l'écran des albums : toutes les photos et vidéos de tous les albums sont remises dans l'ordre du temps (date et heure de prise de vue, lues dans la photo, le nom ou la vidéo).",
-    "Sauvegarde et restauration refaites pour les gros carnets : une photo à la fois (plus de blocage de mémoire), avec le compte « 12 sur 340 » à l'écran. Les anciennes sauvegardes se restaurent toujours."
+    "Nouveau bouton « 🕐 Reclasser par jour et heure » sur l'écran des albums : toutes les photos et vidéos de tous les albums sont remises dans l'ordre du temps (date et heure de prise de vue, lues dans la photo, le nom ou la vidéo)."
   ],
   "cache": "carnet-app-",
   "sw": {
     "fichier": "carnet-sw.js",
-    "cache": "carnet-app-V73"
+    "cache": "carnet-app-V74"
   },
   "fichiers": [
     "carnet-randonnee.html"
