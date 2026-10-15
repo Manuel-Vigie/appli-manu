@@ -882,6 +882,22 @@ body.partage .coupe-video{display:none}
 .tourne-ecran svg{width:1.45rem;height:1.45rem}
 .tourne-ecran.actif{background:#2E5D46;border-color:#8FCBA6}
 body.video-ouverte .tourne-ecran{top:max(.8rem,env(safe-area-inset-top))}
+/* Appui long sur une photo : pas de menu « enregistrer l'image », pas de sélection de texte */
+.case,.case *{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.case img{-webkit-user-drag:none}
+/* Téléphone : le bouton « horizontal » prend la place libre de la barre du haut, plus sur l'album */
+@media (max-width:720px){
+  .tourne-ecran{top:calc(.42rem + env(safe-area-inset-top));left:2.7rem;width:2rem;height:2rem}
+  .tourne-ecran svg{width:1.2rem;height:1.2rem}
+  body.video-ouverte .tourne-ecran{top:max(.8rem,env(safe-area-inset-top))}
+}
+/* Très petit téléphone (320 px) : barre du haut resserrée pour laisser la place au bouton rond */
+@media (max-width:340px){
+  body .barre{gap:.15rem;padding-left:.35rem;padding-right:.35rem}
+  body .barre .bouton{padding:.4rem .38rem;font-size:.74rem}
+  body .tourne-ecran{left:2.2rem;width:1.8rem;height:1.8rem;top:calc(.5rem + env(safe-area-inset-top))}
+  body .tourne-ecran svg{width:1.1rem;height:1.1rem}
+}
 @media (max-width:720px){
   .barre{gap:.35rem;padding:.45rem .45rem}
   .barre .bouton{padding:.4rem .55rem;font-size:.78rem}
@@ -942,7 +958,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V72 · 15/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V73 · 15/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -1034,6 +1050,9 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     <button class="bouton" id="biblio-sauver">💾 Sauvegarder toute la bibliothèque</button>
     <button class="bouton" id="biblio-restaurer">📥 Restaurer</button>
   </div>
+  <div class="biblio-sauv" id="biblio-quitter-ligne" hidden>
+    <button class="bouton" id="biblio-quitter">⏻ Quitter l'application</button>
+  </div>
   <div class="biblio-sauv">
     <button class="bouton" id="biblio-reclasser">🕐 Reclasser cet album par date</button>
   </div>
@@ -1101,6 +1120,9 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
       <button class="fleche" id="ar-n4">4</button>
       <button class="fleche" id="ar-nauto" title="Laisser le carnet décider">auto</button>
     </div>
+    <div class="ar-etapes" id="ar-remplace-ligne">
+      <button class="bouton" id="ar-remplacer" style="flex-basis:100%">🔄 Remplacer cette photo par une autre</button>
+    </div>
     <div class="ar-etapes" id="ar-deplace">
       <button class="bouton" id="ar-prendre" style="flex-basis:100%">✋ Déplacer cette photo ailleurs</button>
     </div>
@@ -1151,6 +1173,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <input type="file" id="pioche-media" accept="image/*,video/*" multiple hidden>
 <input type="file" id="pioche-dossier" webkitdirectory multiple hidden>
 <input type="file" id="pioche-choix" multiple hidden>
+<input type="file" id="pioche-remplace" accept="image/*,video/*" hidden>
 <input type="file" id="pioche-gpx" accept=".gpx,application/gpx+xml,text/xml" hidden>
 <input type="file" id="pioche-import" accept=".json,application/json" hidden>
 <input type="date" id="pioche-date" class="pioche-date">
@@ -2898,7 +2921,20 @@ document.addEventListener("keydown",function(e){
         entrerArrangement();
         selectionner(c);
         if(navigator.vibrate){ try{ navigator.vibrate(18); }catch(err){} }
-      },620);
+      },500);
+    }
+  });
+  /* Sur Android, l'appui long envoie « contextmenu » (et annule parfois le geste) :
+     on s'en sert aussi pour passer en mode Retoucher sur cette photo. */
+  scene.addEventListener("contextmenu",function(e){
+    var c=e.target&&e.target.closest&&e.target.closest(".case");
+    if(!c) return;
+    e.preventDefault();
+    if(!arranger&&!cls.on&&c._media&&!partage&&!cinema){
+      annulerPression(); actif=false; decide=false;
+      entrerArrangement();
+      selectionner(c);
+      if(navigator.vibrate){ try{ navigator.vibrate(18); }catch(err){} }
     }
   });
 
@@ -4191,6 +4227,34 @@ function majPorte(){
   document.getElementById("ar-deplace").hidden=!!porte;
   document.getElementById("ar-pose").hidden=!porte;
 }
+/* Remplace la photo choisie par une autre (même place, même légende, même cadrage). */
+document.getElementById("ar-remplacer").addEventListener("click",function(){
+  if(!choisi||!choisi._media){ note("Touche d'abord la photo à remplacer."); return; }
+  document.getElementById("pioche-remplace").click();
+});
+document.getElementById("pioche-remplace").addEventListener("change",function(){
+  var f=this.files[0]; this.value="";
+  if(!f||!choisi||!choisi._media) return;
+  var m=choisi._media, estVideo=/^video\//.test(f.type), estImage=/^image\//.test(f.type);
+  if(!estVideo&&!estImage){ note("Choisis une photo ou une vidéo."); return; }
+  note("Remplacement…",8000);
+  var ancienne=null;
+  lire("media",m.id).then(function(b){ ancienne=b; return Promise.all([lirePrise(f), ecrire("media",m.id,f).then(function(ok){ return ok?verifierMedia(m.id):false; })]); })
+  .then(function(res){
+    if(!res[1]){
+      if(ancienne) ecrire("media",m.id,ancienne);
+      note("Impossible d'enregistrer cette photo : l'ancienne est gardée.",6000); return;
+    }
+    return (estVideo?capturerPoster(f):mesurerImage(f)).then(function(info){
+      m.nom=f.name; m.type=estVideo?"video":"image"; m.prise=res[0];
+      delete m.poster; delete m.w; delete m.h; delete m.echec;
+      if(info){ if(info.w) m.w=info.w; if(info.h) m.h=info.h; if(info.poster) m.poster=info.poster; }
+      if(urls[m.id]){ if(String(urls[m.id]).indexOf("blob:")===0) URL.revokeObjectURL(urls[m.id]); delete urls[m.id]; }
+      sauver(); redessinerEnGardant(m); note("Photo remplacée.");
+    });
+  }).catch(function(){ if(ancienne) ecrire("media",m.id,ancienne); note("Le remplacement a échoué : l'ancienne photo est gardée.",6000); });
+});
+
 document.getElementById("ar-prendre").addEventListener("click",function(){
   if(!choisi||!choisi._media) return;
   porte=choisi._media; majPorte();
@@ -6125,6 +6189,10 @@ function reclasserToutParDate(idx){
     if(cibleAlbum===carnet){ try{ rafraichir(true); }catch(e){} }
     note("Album reclassé par jour et heure."+(sansDate?" "+sansDate+" sans date lisible, mises à la fin.":""),9000);
   }).catch(function(){ note("Le reclassement a échoué. Recharge l'appli (rien n'est enregistré à moitié) et dis-le à Claude.",12000); });
+}
+if(window.CarnetAndroid&&CarnetAndroid.quitter){
+  document.getElementById("biblio-quitter-ligne").hidden=false;
+  document.getElementById("biblio-quitter").addEventListener("click",function(){ try{ CarnetAndroid.quitter(); }catch(e){} });
 }
 document.getElementById("biblio-reclasser").addEventListener("click",function(){ reclasserToutParDate(plateau.i); });
 

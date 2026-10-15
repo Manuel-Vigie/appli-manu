@@ -94,6 +94,10 @@ class MainActivity : Activity() {
         s.allowContentAccess = false
         s.cacheMode = WebSettings.LOAD_DEFAULT
         web.addJavascriptInterface(Pont(), "CarnetAndroid")
+        // Appui long sur une photo (mode « Retoucher ») : Android ne doit pas ouvrir son menu de sélection.
+        web.setOnLongClickListener { true }
+        web.isLongClickable = false
+        web.isHapticFeedbackEnabled = false
 
         web.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest): WebResourceResponse? =
@@ -291,6 +295,12 @@ class MainActivity : Activity() {
                 for (r in recus) a.put(JSONObject().put("nom", r.nom).put("type", r.type).put("modif", r.modif))
             }
             return a.toString()
+        }
+
+        /** Bouton « Quitter l'application » du carnet : ferme tout, la musique s'arrête. */
+        @JavascriptInterface
+        fun quitter() {
+            runOnUiThread { finishAndRemoveTask() }
         }
 
         @JavascriptInterface

@@ -2,7 +2,7 @@
 
 ## Identité
 Appli de carnets de randonnée (albums photos, musique, pages). Fonctionne hors connexion (PWA).
-Version actuelle : **V72 · 15/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
+Version actuelle : **V73 · 15/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
 |---|---|
 | `carnet-randonnee.html` | L'appli entière |
 | `carnet-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V72'` |
+| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V73'` |
 | `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-icone-192.png`, `carnet-icone-512.png`, `carnet-icone-masque-512.png` | Icônes |
 
@@ -114,3 +114,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 15/10/2026 — V70 : sauvegarde / restauration par lignes (`exporter()`, `ligneDuFichier()`, import `#pioche-import`). Format version 3 : 1re ligne = albums et textes, puis UNE ligne JSON par photo ou vidéo (`{id,type,data}`), chaque ligne mise de côté dans un Blob aussitôt (avant : un seul énorme texte, qui plantait sur un téléphone avec beaucoup de photos). Compte « n sur N » affiché, messages d'échec gardés 12 s (`note(txt,ms)`). L'ancien format (tout dans une ligne, `medias`) se restaure toujours ; testé aller-retour à 360 px. Non testé sur le téléphone de Manuel.
 - 15/10/2026 — V71 : bouton « 🕐 Reclasser par jour et heure » sur l'écran des albums (`reclasserToutParDate()`). Pour TOUTES les photos et vidéos de tous les albums : relit la date de prise de vue dans le fichier enregistré (EXIF des JPEG, sinon date dans le nom, sinon pour les vidéos la date `mvhd` du MP4/MOV, `dateVideo()`), remplace `prise` quand une date est trouvée, puis trie chaque sortie par date croissante, SANS tenir compte des étapes (le tri « par étape » existant ne change pas). Sans date lisible : gardées avec leur ancienne date, ou à la fin. Confirmation avant. Testé (photos nommées, vidéo avec `mvhd`, 320/360/412 px). Non testé sur le téléphone de Manuel.
 - 15/10/2026 — V72 : (1) « Reclasser cet album par date » : un seul album, celui du devant sur le plateau (`reclasserToutParDate(plateau.i)`), avec son titre dans la confirmation ; les autres albums ne bougent pas (testé). (2) Plus d'entrées d'historique : `location.hash="a=…"` remplacé par `history.replaceState` (le bouton Retour d'Android faisait défiler des dizaines d'écrans avant de quitter). (3) La musique de l'album se met en pause quand la page est cachée et repart au retour (`sonEnPause()`, `sonReprise()`, aussi appelées par l'appli Android : `window.__sonPause` / `__sonReprise`). Non testé sur téléphone.
+- 15/10/2026 — V73 : (1) Appui long sur une photo (mode Retoucher) : l'événement Android `contextmenu` est maintenant utilisé (en plus du minuteur de 0,5 s) et bloqué (`-webkit-touch-callout`, `user-select:none`), car il annulait le geste. (2) Nouveau bouton « 🔄 Remplacer cette photo par une autre » (`#ar-remplacer`, input caché `#pioche-remplace`) : même emplacement, légende, cadrage ; l'ancien fichier est remis en place si l'écriture échoue ; testé. NB : le bloc `#ar-deplace` etc. est masqué par CSS (`!important`), le bouton est donc dans sa propre ligne. (3) Bouton rond « horizontal » (`#tourne-ecran`) monté dans la barre du haut, entre le bouton des albums et le plein écran (≤ 720 px), avec barre resserrée à ≤ 340 px ; le bouton « 🏷 Classer » n'est plus caché ; vérifié à 320/360/412 px. (4) `#biblio-quitter` : « ⏻ Quitter l'application », visible seulement dans l'appli Android (`CarnetAndroid.quitter()`). Non testé sur téléphone.
