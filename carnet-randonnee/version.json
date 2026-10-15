@@ -1,17 +1,17 @@
 {
   "nom": "Carnet de rando",
-  "version": "V75",
+  "version": "V76",
   "date": "15/10/2026",
   "nouveautes": [
+    "« Reclasser cet album par date » propose maintenant de supprimer les photos et vidéos sans aucune date ni heure (celles qu'on ne peut pas classer), et celles qui n'ont qu'une ancienne date peu fiable. Deux questions séparées, avec la liste des noms et une dernière confirmation : « Annuler » les garde. Pensez à faire une sauvegarde avant.",
     "« Reclasser cet album par date » relit plus finement les dates (photo, nom du fichier, vidéo), range chaque photo dans la sortie de son jour quand elle est dans une autre (avec votre accord), puis trie par heure. Il affiche un bilan : combien de dates lues et quelles photos n'en ont pas.",
     "Retoucher : toucher une photo (ou appui long) ouvre un panneau détaché avec tous les réglages : aperçu à glisser, zoom, haut/bas, gauche/droite, inclinaison, légende, nombre de photos par page, reculer / avancer, remplacer, replacer, supprimer. La page derrière ne bouge plus.",
-    "Retoucher : un appui long sur une photo passe en mode Retoucher (plus de menu Android qui gêne), et un nouveau bouton « 🔄 Remplacer cette photo par une autre » change la photo en gardant sa place et sa légende. Le bouton « horizontal » est monté dans la barre du haut, plus sur l'album. Appli Android : bouton « ⏻ Quitter l'application » sur l'écran des albums.",
-    "« 🕐 Reclasser cet album par date » ne touche plus qu'un seul album : celui du devant sur le plateau. La musique s'arrête quand on quitte l'appli, et le bouton Retour ne fait plus défiler d'anciens écrans."
+    "Retoucher : un appui long sur une photo passe en mode Retoucher (plus de menu Android qui gêne), et un nouveau bouton « 🔄 Remplacer cette photo par une autre » change la photo en gardant sa place et sa légende. Le bouton « horizontal » est monté dans la barre du haut, plus sur l'album. Appli Android : bouton « ⏻ Quitter l'application » sur l'écran des albums."
   ],
   "cache": "carnet-app-",
   "sw": {
     "fichier": "carnet-sw.js",
-    "cache": "carnet-app-V75"
+    "cache": "carnet-app-V76"
   },
   "fichiers": [
     "carnet-randonnee.html"
