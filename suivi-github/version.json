@@ -1,14 +1,15 @@
 {
  "nom": "Suivi GitHub",
- "version": "V1",
- "date": "14/10/2026",
+ "version": "V2",
+ "date": "15/10/2026",
  "nouveautes": [
+  "Page simplifiée : un gros pourcentage de place restante et un seul bouton « Nettoyer ».",
   "Première version : place restante en pourcentage, ce qu'il faut nettoyer et ce qu'il faut réparer dans appli-manu et vigie-depo."
  ],
  "cache": "suivi-github-app-",
  "sw": {
   "fichier": "suivi-github-sw.js",
-  "cache": "suivi-github-app-v1"
+  "cache": "suivi-github-app-v2"
  },
  "fichiers": [
   "suivi-github.html"
