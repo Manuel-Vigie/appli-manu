@@ -133,23 +133,14 @@
   var PRIVATE_REPO = 'vigie-depo';
   var GO_KB = 1024 * 1024;   // 1 Go exprimé en Ko
 
-  /* Ce que l'appli sait inutile (vérifié dans le code et les journaux) */
+  /* Seulement ce dont on est SÛR : vérifié dans le code, le build et les journaux.
+     Rien d'autre n'est proposé (ni vieilles copies, ni archives, ni gros fichiers). */
   var INUTILISES = [{
     repo: 'appli-manu',
     prefixes: ['mes-photos-android/app/src/main/assets/faces/', 'mes-photos-android/app/src/main/assets/nudenet/'],
     titre: 'Anciens modèles de reconnaissance de visages',
-    raison: 'Retirés de Mes Photos depuis la V41. Plus rien ne les utilise.'
+    raison: 'Retirés de Mes Photos depuis la V41. Aucune ligne de code ne les utilise.'
   }];
-  /* Vieilles copies à la racine, listées « À ranger » dans le README d'appli-manu */
-  var A_RANGER = {
-    repo: 'appli-manu',
-    noms: ['index.html', 'manifest.webmanifest', 'sw.js', 'rando-3d-pwa.zip', 'carnet-de-rando.html', 'carnet-sw.js',
-           'carnet-manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png', 'favicon.png'],
-    debuts: ['carnet-icone-'],
-    titre: 'Anciennes copies à la racine',
-    raison: 'Vieilles copies de Rando 3D et du carnet de rando. Après leur retrait, l\'adresse de base du site n\'affichera plus de page ; vos applis restent à leur adresse.'
-  };
-  var RESTES = /\.(zip|rar|7z|bak|old|tmp|part|crdownload|oplusdownload)$|~$|(^|\/)(\.DS_Store|Thumbs\.db)$/i;
 
   function store(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
   function load(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
@@ -173,23 +164,12 @@
 
   /* ---------- Ce qui ne sert à rien ---------- */
   function findClean(repo, files) {
-    var claimed = {}, groups = [];
-    function add(titre, raison, list) {
-      if (!list.length) return;
-      list.forEach(function (f) { claimed[f.path] = true; });
-      list = bySize(list);
-      groups.push({ titre: titre, raison: raison, files: list, kb: sum(list) });
-    }
+    var groups = [];
     INUTILISES.forEach(function (r) {
-      if (r.repo === repo) add(r.titre, r.raison, files.filter(function (f) { return startsWithAny(f.path, r.prefixes); }));
+      if (r.repo !== repo) return;
+      var list = bySize(files.filter(function (f) { return startsWithAny(f.path, r.prefixes); }));
+      if (list.length) groups.push({ titre: r.titre, raison: r.raison, files: list, kb: sum(list) });
     });
-    if (A_RANGER.repo === repo) {
-      add(A_RANGER.titre, A_RANGER.raison, files.filter(function (f) {
-        return f.path.indexOf('/') === -1 && (A_RANGER.noms.indexOf(f.path) !== -1 || startsWithAny(f.path, A_RANGER.debuts));
-      }));
-    }
-    add('Archives et téléchargements oubliés', 'Fichiers zip ou téléchargements interrompus qui ont l\'air de restes.',
-        files.filter(function (f) { return !claimed[f.path] && RESTES.test(f.path); }));
     return groups;
   }
 
@@ -380,7 +360,7 @@
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Suivi GitHub", "version": "V2", "date": "15/10/2026", "cache": "suivi-github-app-", "nouveautes": ["Page simplifiée : un gros pourcentage de place restante et un seul bouton « Nettoyer ».", "Première version : place restante en pourcentage, ce qu'il faut nettoyer et ce qu'il faut réparer dans appli-manu et vigie-depo."]};
+window.MAJ_APPLI={"nom": "Suivi GitHub", "version": "V3", "date": "15/10/2026", "cache": "suivi-github-app-", "nouveautes": ["Nettoyage réduit à ce qui est sûr : seulement les anciens modèles de reconnaissance de visages.", "Page simplifiée : un gros pourcentage de place restante et un seul bouton « Nettoyer ».", "Première version : place restante en pourcentage, ce qu'il faut nettoyer et ce qu'il faut réparer dans appli-manu et vigie-depo."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;

@@ -1,5 +1,5 @@
 // Suivi GitHub : met en cache SEULEMENT l'enveloppe de l'appli. Les données viennent toujours de GitHub en direct.
-const CACHE = 'suivi-github-app-v2';
+const CACHE = 'suivi-github-app-v3';
 const FILES = ['./suivi-github.html', './suivi-github-manifest.webmanifest',
   './suivi-github-icon-192.png', './suivi-github-icon-512.png', './suivi-github-icon-masque-512.png',
   './suivi-github-apple-touch-icon.png'];
