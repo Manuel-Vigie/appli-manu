@@ -59,6 +59,26 @@ class MainActivity : Activity() {
     private val recus = ArrayList<Recu>()
     // Compte rendu de la dernière réception (affiché par le carnet si rien n'a pu être lu).
     @Volatile private var diag: String = ""
+    private var pleinEcran = false
+
+    /** Plein écran : cache la barre du haut et la barre de navigation du bas (un glissement les fait réapparaître un instant). */
+    @Suppress("DEPRECATION")
+    private fun appliquerPleinEcran(on: Boolean) {
+        pleinEcran = on
+        if (Build.VERSION.SDK_INT >= 30) {
+            val c = window.insetsController ?: return
+            if (on) {
+                c.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+                c.systemBarsBehavior = android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                c.show(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+            }
+        } else {
+            window.decorView.systemUiVisibility = if (on)
+                (View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+            else View.SYSTEM_UI_FLAG_VISIBLE
+        }
+    }
     private val sorties = HashMap<Int, Pair<OutputStream, Pair<String, Uri?>>>()
     private var prochainId = 1
 
@@ -192,6 +212,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         web.onResume()
+        if (pleinEcran) appliquerPleinEcran(true)
         web.evaluateJavascript("if(window.__sonReprise)window.__sonReprise()", null)
     }
 
@@ -310,6 +331,12 @@ class MainActivity : Activity() {
                 for (r in recus) a.put(JSONObject().put("nom", r.nom).put("type", r.type).put("modif", r.modif))
             }
             return a.toString()
+        }
+
+        /** Bouton plein écran du carnet (⛶) : cache ou rend les barres d'Android. */
+        @JavascriptInterface
+        fun plein(on: Boolean) {
+            runOnUiThread { appliquerPleinEcran(on) }
         }
 
         /** Compte rendu de la dernière réception de photos (pour comprendre un échec). */

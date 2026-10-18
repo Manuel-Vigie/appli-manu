@@ -11,8 +11,8 @@ android {
         applicationId = "fr.manu.carnetrando"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.0.6"
+        versionCode = 8
+        versionName = "1.0.7"
     }
 
     // Même clé de signature publique que Mes Photos : une nouvelle version s'installe par-dessus l'ancienne.

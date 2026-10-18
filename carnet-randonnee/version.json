@@ -1,17 +1,17 @@
 {
   "nom": "Carnet de rando",
-  "version": "V86",
+  "version": "V87",
   "date": "18/10/2026",
   "nouveautes": [
+    "Appli Android : le bouton plein écran ⛶ cache vraiment la barre du haut et la bande du bas d'Android (il faut installer Carnet de rando 1.0.7).",
     "Quand on sort d'un album (ou qu'on ferme l'appli) et qu'on y revient, on retrouve la page où on s'était arrêté. Sur une photo ouverte en grand, nouveau bouton « ✂ Recadrer » : il ouvre directement les réglages de la photo (recadrage, zoom, légende…), et « Terminé » ramène à la même page, sans repasser par « Retoucher ».",
     "Photos reçues de Mes Photos : l'ajout à l'album se fait par petits lots de 12 (moins de mémoire sur les téléphones modestes), affiche « Ajout… x sur N », puis le nombre réellement ajouté. En cas d'échec, le message indique la raison et les photos reçues sont gardées pour réessayer.",
-    "Réception des photos de Mes Photos : si rien n'arrive, le message « Aucun souvenir reçu » reste affiché 20 secondes avec la raison trouvée par l'appli Android (pour comprendre pourquoi cela ne marche pas sur certains téléphones).",
-    "Nouveau bouton « 🧹 Vider les photos de cet album » sur l'écran des albums : il retire toutes les photos et vidéos de l'album du devant (titres, sorties, textes et parcours restent), après deux confirmations. Un seul album est touché."
+    "Réception des photos de Mes Photos : si rien n'arrive, le message « Aucun souvenir reçu » reste affiché 20 secondes avec la raison trouvée par l'appli Android (pour comprendre pourquoi cela ne marche pas sur certains téléphones)."
   ],
   "cache": "carnet-app-",
   "sw": {
     "fichier": "carnet-sw.js",
-    "cache": "carnet-app-V86"
+    "cache": "carnet-app-V87"
   },
   "fichiers": [
     "carnet-randonnee.html"

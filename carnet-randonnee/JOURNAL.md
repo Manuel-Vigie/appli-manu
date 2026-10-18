@@ -2,7 +2,7 @@
 
 ## Identité
 Appli de carnets de randonnée (albums photos, musique, pages). Fonctionne hors connexion (PWA).
-Version actuelle : **V86 · 18/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
+Version actuelle : **V87 · 18/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
 |---|---|
 | `carnet-randonnee.html` | L'appli entière |
 | `carnet-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V86'` |
+| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V87'` |
 | `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-icone-192.png`, `carnet-icone-512.png`, `carnet-icone-masque-512.png` | Icônes |
 
@@ -128,3 +128,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 18/10/2026 — V84 : Manuel signale que l'envoi depuis Mes Photos marche sur son téléphone mais pas sur un autre (Samsung ancien, vraie appli Android installée, carnet à jour V83) : le carnet affiche « Aucun souvenir reçu ». `recevoirPartage()` affiche maintenant ce message 20 s avec `CarnetAndroid.diag()` (compte rendu de la réception : annoncés / copiés / erreurs). Cause non encore établie.
 - 18/10/2026 — V85 : sur le Samsung S9+ de Najet, la vraie appli Android reçoit bien (« 192 photos reçues ») mais rien n'arrive dans l'album. `proposerPartage` : ajout par lots de 12 (`ajouterMedias` en série, position = fin de sortie), progression, bilan « N ajoutés sur M », `.catch` qui affiche l'erreur et GARDE les fichiers reçus (avant : `.then(viderPartage,viderPartage)` avalait toute erreur et les effaçait). Testé en local : 30 photos → 30 ajoutées. Cause réelle sur le S9+ non établie.
 - 18/10/2026 — V86 : (1) mémoire de la page lue par album : `memoriserVue()` (fin de `rendreLivre`) écrit `localStorage["carnet-vues"][id album] = {p: page, id: premier souvenir de la page}` ; `appliquerVueMemorisee()` la remet au démarrage et quand on change d'album ; `choisirAlbum` ne remet plus à 0 si on rouvre l'album déjà ouvert. (2) bouton « ✂ Recadrer » dans la photo plein écran (`ouvrirVideo`, photos seulement) : `recadrerDepuisLecture(m)` sort du plein écran ⛶ si besoin (en mode `cinema` le panneau `.rp` est caché par le CSS), entre en Retoucher, ouvre `ouvrirReglagePhoto` ; `rp.depuisLecture` fait quitter Retoucher à la fermeture du panneau. Testé en local (page 8 retrouvée après rechargement ; panneau ouvert puis fermé sur la même page).
+- 18/10/2026 — V87 : plein écran dans l'appli Android : `entrerPleinEcran` / `quitterPleinEcran` appellent `CarnetAndroid.plein(true/false)` (Android 1.0.7) pour cacher les barres du système ; sans effet dans Chrome. Non testé sur téléphone.
