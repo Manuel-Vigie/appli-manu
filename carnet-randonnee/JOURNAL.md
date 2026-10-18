@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
 |---|---|
 | `carnet-randonnee.html` | L'appli entière |
 | `carnet-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V89'` |
+| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V90'` |
 | `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-icone-192.png`, `carnet-icone-512.png`, `carnet-icone-masque-512.png` | Icônes |
 
