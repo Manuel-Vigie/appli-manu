@@ -658,7 +658,10 @@ body.cinema .commandes-cine{display:block}
 body.cinema .commandes-cine.visible{opacity:1}
 body.cinema .commandes-cine.visible .cine-haut,
 body.cinema .commandes-cine.visible .cine-bas{pointer-events:auto}
-.cine-haut{position:absolute;top:max(.7rem,env(safe-area-inset-top));right:.7rem;display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 1.4rem)}
+.cine-masque{display:none;position:fixed;z-index:420;top:max(.7rem,env(safe-area-inset-top));left:.7rem;width:2.2rem;height:2.2rem;border-radius:50%;padding:0;background:#0d120dc4;border:1px solid #ffffff44;color:#F0E9D7;font-size:1rem;line-height:1;cursor:pointer}
+body.cinema .cine-masque{display:block}
+.pied .bouton{padding:.3rem .55rem;font-size:.74rem;white-space:nowrap}
+.cine-haut{position:absolute;top:max(.7rem,env(safe-area-inset-top));right:.7rem;display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 3.6rem)}
 body:not(.partage) #cine-retour{display:none}
 body.partage #cine-fin{display:none}
 .cine-bas{
@@ -978,11 +981,13 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V92 · 18/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V93 · 18/10</span>
 </button>
 
+<button type="button" class="cine-masque" id="cine-masque" aria-label="Cacher les boutons">✕</button>
 <div class="commandes-cine" id="commandes-cine">
   <div class="cine-haut">
+    <button class="bouton" id="cine-vitesse">⏱ Rapide</button>
     <button class="bouton" id="cine-pause">▶ Lecture</button>
     <button class="bouton" id="cine-biblio">📚 Mes albums</button>
     <button class="bouton" id="cine-fin">Quitter</button>
@@ -1021,6 +1026,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   <button class="fleche" id="prec" aria-label="Page précédente">‹</button>
   <span class="compteur" id="compteur">—</span>
   <button class="fleche" id="suiv" aria-label="Page suivante">›</button>
+  <button class="bouton" id="vitesse" title="Vitesse du défilement automatique">⏱ Rapide</button>
 </nav>
 
 <div class="mdp-ecran" id="mdp-ecran">
@@ -5013,10 +5019,26 @@ function programmerCinema(reprise){
     jouerVideos(cases,0,jeton,avancer);
     return;
   }
-  minuterieCine=setTimeout(avancer,dureePage(pagesVisibles())*(autoSimple?0.42:0.65));
+  minuterieCine=setTimeout(avancer,Math.max(700,dureePage(pagesVisibles())*facteurVitesse()));
 }
 /* Défilement automatique sans plein écran : les pages se tournent toutes seules, une par une, depuis la page lue. */
 var autoSimple=false;
+/* Vitesse du défilement : 5 niveaux au choix, retenus d'une fois sur l'autre. */
+var VITESSES=[{n:"Lent",f:1},{n:"Normal",f:0.7},{n:"Rapide",f:0.45},{n:"Très rapide",f:0.28},{n:"Éclair",f:0.18}];
+var niveauVitesse=2;
+try{ var _nv=parseInt(localStorage.getItem("carnet-vitesse"),10); if(_nv>=0&&_nv<VITESSES.length) niveauVitesse=_nv; }catch(e){}
+function facteurVitesse(){ return VITESSES[niveauVitesse].f; }
+function majBoutonsVitesse(){
+  var txt="⏱ "+VITESSES[niveauVitesse].n;
+  ["vitesse","cine-vitesse"].forEach(function(i){ var b=document.getElementById(i); if(b) b.textContent=txt; });
+}
+function changerVitesse(){
+  niveauVitesse=(niveauVitesse+1)%VITESSES.length;
+  try{ localStorage.setItem("carnet-vitesse",String(niveauVitesse)); }catch(e){}
+  majBoutonsVitesse();
+  note("Vitesse : "+VITESSES[niveauVitesse].n,1800);
+  if(cinema&&!enPause) programmerCinema(true);   // la nouvelle vitesse s'applique tout de suite
+}
 function majBoutonAuto(){
   var b=document.getElementById("btn-auto");
   if(b){ b.textContent=autoSimple?"⏸":"▶"; b.classList.toggle("plein",autoSimple); }
@@ -5041,15 +5063,26 @@ function basculerAuto(){
   programmerCinema();
 }
 document.getElementById("btn-auto").addEventListener("click",basculerAuto);
+document.getElementById("vitesse").addEventListener("click",changerVitesse);
+document.getElementById("cine-vitesse").addEventListener("click",function(e){ e.stopPropagation(); changerVitesse(); montrerCommandes(); });
+majBoutonsVitesse();
 
-function montrerCommandes(duree){
-  var b=document.getElementById("commandes-cine");
-  b.classList.add("visible");
-  clearTimeout(minuterieBarre);
-  minuterieBarre=setTimeout(function(){
-    if(!videoOuverte) b.classList.remove("visible");
-  },duree||2600);
+/* Les boutons du plein écran restent affichés en permanence ; le petit bouton rond ⌃ en haut à gauche
+   les cache, et le même bouton les fait réapparaître. */
+var commandesMasquees=false;
+function montrerCommandes(){
+  if(commandesMasquees) return;
+  document.getElementById("commandes-cine").classList.add("visible");
 }
+function basculerCommandes(){
+  commandesMasquees=!commandesMasquees;
+  var b=document.getElementById("commandes-cine");
+  b.classList.toggle("visible",!commandesMasquees);
+  var m=document.getElementById("cine-masque");
+  m.textContent=commandesMasquees?"☰":"✕";
+  m.setAttribute("aria-label",commandesMasquees?"Afficher les boutons":"Cacher les boutons");
+}
+document.getElementById("cine-masque").addEventListener("click",function(e){ e.stopPropagation(); basculerCommandes(); });
 
 function majBoutonProjection(){
   var b=document.getElementById("cine-pause");
@@ -5070,6 +5103,7 @@ function entrerPleinEcran(){
     try{ var pr=demande.call(e); if(pr&&pr.catch) pr.catch(function(){}); }catch(err){}
   }
   pleinEcran=true; cinema=false; enPause=false;
+  if(commandesMasquees) basculerCommandes();
   try{ if(window.CarnetAndroid&&CarnetAndroid.plein) CarnetAndroid.plein(true); }catch(err){}
   document.body.classList.add("cinema");
   majBoutonProjection();
@@ -5247,10 +5281,7 @@ window.addEventListener("pointerdown",function(e){
   if(!pleinEcran) return;
   var b=document.getElementById("commandes-cine");
   if(e.target.closest&&e.target.closest(".commandes-cine")) return;
-  if(e.clientY>window.innerHeight*0.86){
-    if(b.classList.contains("visible")) b.classList.remove("visible");
-    else montrerCommandes();
-  }
+  if(e.clientY>window.innerHeight*0.93){ basculerCommandes(); }
 },{passive:true});
 window.addEventListener("keydown",function(){ if(pleinEcran) montrerCommandes(); },{passive:true});
 document.addEventListener("fullscreenchange",function(){
