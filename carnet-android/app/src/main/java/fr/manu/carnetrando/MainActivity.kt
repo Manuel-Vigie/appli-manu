@@ -230,7 +230,9 @@ class MainActivity : Activity() {
             }
         } catch (_: Exception) {}
         if (uris.isEmpty()) { web.loadUrl(PAGE); return }
-        Toast.makeText(this, "Réception de " + uris.size + " fichier(s)…", Toast.LENGTH_SHORT).show()
+        // Le carnet s'affiche tout de suite (plus d'écran noir pendant la copie) ; il se recharge quand les fichiers sont prêts.
+        if (web.url == null) web.loadUrl(PAGE)
+        Toast.makeText(this, "Réception de " + uris.size + " fichier(s)… patientez.", Toast.LENGTH_LONG).show()
         Thread {
             val dossier = File(filesDir, "recu")
             dossier.deleteRecursively()
@@ -247,8 +249,12 @@ class MainActivity : Activity() {
                     val dest = File(dossier, "$k.bin")
                     val flux = contentResolver.openInputStream(u)
                     if (flux == null) { erreurs.add("fichier illisible (aucun flux)"); continue }
-                    flux.use { ins -> dest.outputStream().use { out -> ins.copyTo(out) } }
+                    flux.use { ins -> dest.outputStream().use { out -> ins.copyTo(out, 262144) } }
                     liste.add(Recu(nom, type, dateDuNom(nom), dest))
+                    if (uris.size > 20 && (k + 1) % 25 == 0) {
+                        val fait = k + 1
+                        runOnUiThread { Toast.makeText(this, "Réception… $fait sur ${uris.size}", Toast.LENGTH_SHORT).show() }
+                    }
                 } catch (e: Throwable) {
                     erreurs.add(e.javaClass.simpleName + ": " + (e.message ?: "").take(80))
                 }
