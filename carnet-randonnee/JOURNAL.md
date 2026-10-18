@@ -2,7 +2,7 @@
 
 ## Identité
 Appli de carnets de randonnée (albums photos, musique, pages). Fonctionne hors connexion (PWA).
-Version actuelle : **V95 · 18/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
+Version actuelle : **V96 · 18/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
 |---|---|
 | `carnet-randonnee.html` | L'appli entière |
 | `carnet-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V95'` |
+| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V96'` |
 | `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-icone-192.png`, `carnet-icone-512.png`, `carnet-icone-masque-512.png` | Icônes |
 
@@ -138,3 +138,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 18/10/2026 — V93 : vitesse de défilement à 5 niveaux (`VITESSES`, `niveauVitesse`, mémorisé dans localStorage `carnet-vitesse`, défaut « Rapide » ×0,45 ; durée mini 700 ms) : boutons `#vitesse` (pied) et `#cine-vitesse` (plein écran), `changerVitesse()`. Plein écran : plus de masquage automatique des commandes ; bouton rond `#cine-masque` (✕/☰) = `basculerCommandes()` ; un appui tout en bas (7 %) fait pareil. Testé 320 et 360 px.
 - 18/10/2026 — V94 : la photo ne s'ouvrait pas pendant la lecture (`if(...||cinema) return` dans le clic de la photo). Nouveau `suspendreLecture()` : arrête le défilement automatique (ou met la projection en pause) puis ouvre la photo (avec ✂ Recadrer). `viderPhotosAlbum` : 2e confirmation remplacée par un `prompt` où il faut écrire VIDER. Syntaxe vérifiée, ouverture d'une photo non testée (pas de photo dans le carnet de test).
 - 18/10/2026 — V95 : transfert de vidéos (59 reçues puis plus rien) : `recevoirPartage` chargeait TOUS les fichiers en blobs d'un coup (mémoire saturée). Maintenant les vidéos sont des descripteurs `paresseux()` lus au moment de leur ajout, photos lues par paquets de 8 ; `proposerPartage` ajoute les photos par 12 et chaque vidéo seule (`ajouterMedias(...,silence=true)`), un échec n'arrête plus la suite, compteur « Ajout de la vidéo x sur N… » mis à jour à chaque souvenir. Testé avec un APK simulé (8 fichiers dont 3 vidéos réelles).
+- 18/10/2026 — V96 : `ecrire()` mémorise la cause d'un échec d'écriture IndexedDB (`dernierEchecEcriture`, ex. QuotaExceededError) ; le message final de `proposerPartage` l'affiche avec la place libre (`espaceDisque`). Hypothèse : le quota IndexedDB du WebView est trop petit pour toutes les vidéos.

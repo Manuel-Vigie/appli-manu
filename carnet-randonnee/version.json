@@ -1,17 +1,17 @@
 {
   "nom": "Carnet de rando",
-  "version": "V95",
+  "version": "V96",
   "date": "18/10/2026",
   "nouveautes": [
+    "Vidéos refusées par le téléphone : le message de fin indique maintenant la vraie raison et la place libre pour le carnet, pour comprendre pourquoi certaines vidéos n'entrent pas.",
     "Envoi de vidéos depuis Mes Photos : elles ne sont plus toutes chargées d'un coup (ça bloquait avec 59 vidéos). Elles entrent dans l'album une par une, avec un compteur en bas de l'écran (« Ajout de la vidéo 12 sur 59… ») et on les voit arriver au fur et à mesure.",
     "Lecture automatique : toucher une photo arrête la lecture et l'ouvre en grand, avec « ✂ Recadrer » pour la régler ; on relance ensuite avec ▶. « Vider les photos de cet album » demande maintenant d'écrire le mot VIDER pour éviter toute erreur.",
-    "Vitesse au choix : bouton « ⏱ Rapide » dans la barre du bas (et en plein écran) ; chaque appui change : Lent, Normal, Rapide, Très rapide, Éclair. Le choix est retenu. En plein écran, les boutons restent affichés en permanence ; le rond ✕ en haut à gauche les cache, et ☰ les fait réapparaître.",
-    "Le bouton rond « tourner l'écran » n'est plus posé sur la photo : il est maintenant dans la barre du bas (et dans les commandes du plein écran). Nouveau bouton ⏮ à côté : il ramène directement au début du livre, en lecture normale comme en plein écran."
+    "Vitesse au choix : bouton « ⏱ Rapide » dans la barre du bas (et en plein écran) ; chaque appui change : Lent, Normal, Rapide, Très rapide, Éclair. Le choix est retenu. En plein écran, les boutons restent affichés en permanence ; le rond ✕ en haut à gauche les cache, et ☰ les fait réapparaître."
   ],
   "cache": "carnet-app-",
   "sw": {
     "fichier": "carnet-sw.js",
-    "cache": "carnet-app-V95"
+    "cache": "carnet-app-V96"
   },
   "fichiers": [
     "carnet-randonnee.html"

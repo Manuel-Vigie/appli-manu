@@ -981,7 +981,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V95 · 18/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V96 · 18/10</span>
 </button>
 
 <button type="button" class="cine-masque" id="cine-masque" aria-label="Cacher les boutons">✕</button>
@@ -1265,6 +1265,7 @@ function lire(magasin,cle){
     }catch(e){res(undefined)}
   });
 }
+var dernierEchecEcriture="";
 function ecrire(magasin,cle,val){
   if(memoire||!DB){ bd_mem[magasin][cle]=val; return Promise.resolve(true); }
   return new Promise(function(res){
@@ -1272,9 +1273,9 @@ function ecrire(magasin,cle,val){
       var tr=DB.transaction(magasin,"readwrite");
       tr.objectStore(magasin).put(val,cle);
       tr.oncomplete=function(){ res(true); };
-      tr.onerror=function(e){ if(e&&e.preventDefault) e.preventDefault(); res(false); };
-      tr.onabort=function(e){ if(e&&e.preventDefault) e.preventDefault(); res(false); };
-    }catch(e){ res(false); }
+      tr.onerror=function(e){ try{ dernierEchecEcriture=(tr.error&&tr.error.name)||"erreur"; }catch(x){} if(e&&e.preventDefault) e.preventDefault(); res(false); };
+      tr.onabort=function(e){ try{ dernierEchecEcriture=(tr.error&&tr.error.name)||"annulé"; }catch(x){} if(e&&e.preventDefault) e.preventDefault(); res(false); };
+    }catch(e){ dernierEchecEcriture=(e&&e.name)||"erreur"; res(false); }
   });
 }
 
@@ -6295,7 +6296,12 @@ function proposerPartage(files){
       });
       return suite.then(function(){
         var reel=(r.medias||[]).length-avant;
-        if(reel<gardes.length) note(reel+" souvenir(s) ajouté(s) sur "+gardes.length+" envoyés. Les autres n'ont pas pu être enregistrés.",20000);
+        if(reel<gardes.length){
+          espaceDisque().then(function(e){
+            var place=e?(" Place libre pour le carnet : environ "+enMo(Math.max(0,e.total-e.utilise))+" Mo."):"";
+            note(reel+" souvenir(s) ajouté(s) sur "+gardes.length+". Les autres n'ont pas pu être enregistrés (raison : "+(dernierEchecEcriture||"inconnue")+")."+place,60000);
+          });
+        }
         else note(reel+" souvenirs ajoutés à l'album.",9000);
         viderPartage();
       });
