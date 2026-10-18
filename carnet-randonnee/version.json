@@ -1,17 +1,17 @@
 {
   "nom": "Carnet de rando",
-  "version": "V90",
+  "version": "V91",
   "date": "18/10/2026",
   "nouveautes": [
+    "Le bouton ⛶ (plein écran) était en partie caché par le petit bouton rond « tourner l'écran » : ce dernier est déplacé, un appui sur ⛶ lance maintenant le plein écran. En plein écran, le bouton « ▶ Lecture » est en haut à droite. Les pages défilent plus vite. Appli Android 1.0.9 : bande blanche du bas supprimée.",
     "Nouveau bouton ▶ en haut (à côté de ⛶) : les pages de l'album se tournent toutes seules, une par une, à un rythme assez vif, comme si on feuilletait l'album. Touchez ⏸ pour arrêter. Pas besoin du plein écran.",
     "Réglages d'une photo : l'aperçu a maintenant exactement la forme de l'emplacement dans l'album (portrait, paysage ou carré), au lieu de toujours s'afficher en paysage. On voit donc ce qui sera réellement visible en portrait et on peut recadrer correctement.",
-    "Plein écran dans l'appli Android : le plein écran du navigateur n'y est plus demandé (il pouvait annuler le plein écran) ; l'appli cache les barres. En plein écran, touchez l'écran : nouveau bouton « 📚 Mes albums » qui ramène directement à la bibliothèque. Le bouton Retour d'Android ferme d'abord le plein écran, les réglages, puis l'album (retour à la bibliothèque).",
-    "Appli Android : le bouton plein écran ⛶ cache vraiment la barre du haut et la bande du bas d'Android (il faut installer Carnet de rando 1.0.7)."
+    "Plein écran dans l'appli Android : le plein écran du navigateur n'y est plus demandé (il pouvait annuler le plein écran) ; l'appli cache les barres. En plein écran, touchez l'écran : nouveau bouton « 📚 Mes albums » qui ramène directement à la bibliothèque. Le bouton Retour d'Android ferme d'abord le plein écran, les réglages, puis l'album (retour à la bibliothèque)."
   ],
   "cache": "carnet-app-",
   "sw": {
     "fichier": "carnet-sw.js",
-    "cache": "carnet-app-V90"
+    "cache": "carnet-app-V91"
   },
   "fichiers": [
     "carnet-randonnee.html"

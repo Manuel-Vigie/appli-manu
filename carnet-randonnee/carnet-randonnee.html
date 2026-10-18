@@ -658,7 +658,7 @@ body.cinema .commandes-cine{display:block}
 body.cinema .commandes-cine.visible{opacity:1}
 body.cinema .commandes-cine.visible .cine-haut,
 body.cinema .commandes-cine.visible .cine-bas{pointer-events:auto}
-.cine-haut{position:absolute;top:max(.7rem,env(safe-area-inset-top));right:.7rem}
+.cine-haut{position:absolute;top:max(.7rem,env(safe-area-inset-top));right:.7rem;display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 1.4rem)}
 body:not(.partage) #cine-retour{display:none}
 body.partage #cine-fin{display:none}
 .cine-bas{
@@ -906,7 +906,7 @@ body.cinema .rp{display:none}
 .case img{-webkit-user-drag:none}
 /* Téléphone : le bouton « horizontal » prend la place libre de la barre du haut, plus sur l'album */
 @media (max-width:720px){
-  .tourne-ecran{top:calc(.42rem + env(safe-area-inset-top));left:2.7rem;width:2rem;height:2rem}
+  .tourne-ecran{top:calc(3.05rem + env(safe-area-inset-top));left:6.6rem;width:2rem;height:2rem}
   .tourne-ecran svg{width:1.2rem;height:1.2rem}
   body.video-ouverte .tourne-ecran{top:max(.8rem,env(safe-area-inset-top))}
 }
@@ -914,7 +914,7 @@ body.cinema .rp{display:none}
 @media (max-width:340px){
   body .barre{gap:.15rem;padding-left:.35rem;padding-right:.35rem}
   body .barre .bouton{padding:.4rem .38rem;font-size:.74rem}
-  body .tourne-ecran{left:2.2rem;width:1.8rem;height:1.8rem;top:calc(.5rem + env(safe-area-inset-top))}
+  body .tourne-ecran{left:6.2rem;width:1.8rem;height:1.8rem;top:calc(3rem + env(safe-area-inset-top))}
   body .tourne-ecran svg{width:1.1rem;height:1.1rem}
 }
 @media (max-width:720px){
@@ -978,11 +978,12 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V90 · 18/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V91 · 18/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
   <div class="cine-haut">
+    <button class="bouton" id="cine-pause">▶ Lecture</button>
     <button class="bouton" id="cine-biblio">📚 Mes albums</button>
     <button class="bouton" id="cine-fin">Quitter</button>
   </div>
@@ -990,7 +991,6 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     <button class="fleche" id="cine-prec" aria-label="Page précédente">‹</button>
     <span class="compteur" id="cine-compteur">—</span>
     <button class="fleche" id="cine-suiv" aria-label="Page suivante">›</button>
-    <button class="bouton" id="cine-pause">Projection</button>
     <button class="bouton" id="cine-musique">Musique</button>
     <button class="bouton" id="cine-retour">Réduire</button>
   </div>
@@ -5009,7 +5009,7 @@ function programmerCinema(reprise){
     jouerVideos(cases,0,jeton,avancer);
     return;
   }
-  minuterieCine=setTimeout(avancer,dureePage(pagesVisibles())*(autoSimple?0.6:1));
+  minuterieCine=setTimeout(avancer,dureePage(pagesVisibles())*(autoSimple?0.42:0.65));
 }
 /* Défilement automatique sans plein écran : les pages se tournent toutes seules, une par une, depuis la page lue. */
 var autoSimple=false;
@@ -5049,7 +5049,7 @@ function montrerCommandes(duree){
 
 function majBoutonProjection(){
   var b=document.getElementById("cine-pause");
-  b.textContent = !cinema ? "Projection" : (enPause ? "Reprendre" : "Pause");
+  b.textContent = !cinema ? "▶ Lecture" : (enPause ? "▶ Reprendre" : "⏸ Pause");
 }
 
 /* Le plein écran sert d'abord à lire : on garde la main sur les pages.

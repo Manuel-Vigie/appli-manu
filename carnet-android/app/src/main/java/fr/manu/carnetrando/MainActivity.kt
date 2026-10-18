@@ -13,6 +13,7 @@ import android.provider.OpenableColumns
 import android.util.Base64
 import android.view.View
 import android.view.WindowInsets
+import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.ServiceWorkerClient
 import android.webkit.ServiceWorkerController
@@ -65,7 +66,21 @@ class MainActivity : Activity() {
     @Suppress("DEPRECATION")
     private fun appliquerPleinEcran(on: Boolean) {
         pleinEcran = on
+        // La bande blanche du bas : le fond de la fenêtre et de la barre de navigation doit être sombre,
+        // et en plein écran la page occupe tout l'écran (même sous la barre de navigation).
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.parseColor("#0D120D")))
+        @Suppress("DEPRECATION")
+        window.navigationBarColor = Color.parseColor("#0D120D")
+        @Suppress("DEPRECATION")
+        window.statusBarColor = Color.parseColor("#0D120D")
+        if (Build.VERSION.SDK_INT >= 28) {
+            window.attributes = window.attributes.also {
+                it.layoutInDisplayCutoutMode = if (on) WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES else WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT
+            }
+        }
         if (Build.VERSION.SDK_INT >= 30) {
+            window.setDecorFitsSystemWindows(!on)
+            (window.decorView.parent as? View)?.requestLayout()
             val c = window.insetsController ?: return
             if (on) {
                 c.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
@@ -75,7 +90,7 @@ class MainActivity : Activity() {
             }
         } else {
             window.decorView.systemUiVisibility = if (on)
-                (View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+                (View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
             else View.SYSTEM_UI_FLAG_VISIBLE
         }
     }
@@ -96,11 +111,11 @@ class MainActivity : Activity() {
         racine.setOnApplyWindowInsetsListener { v, ins ->
             if (Build.VERSION.SDK_INT >= 30) {
                 val b = ins.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.ime())
-                v.setPadding(b.left, b.top, b.right, b.bottom)
+                if (pleinEcran) v.setPadding(0, 0, 0, 0) else v.setPadding(b.left, b.top, b.right, b.bottom)
                 WindowInsets.CONSUMED
             } else {
                 @Suppress("DEPRECATION")
-                v.setPadding(ins.systemWindowInsetLeft, ins.systemWindowInsetTop, ins.systemWindowInsetRight, ins.systemWindowInsetBottom)
+                if (pleinEcran) v.setPadding(0, 0, 0, 0) else v.setPadding(ins.systemWindowInsetLeft, ins.systemWindowInsetTop, ins.systemWindowInsetRight, ins.systemWindowInsetBottom)
                 @Suppress("DEPRECATION")
                 ins.consumeSystemWindowInsets()
             }

@@ -2,7 +2,7 @@
 
 ## Identité
 Appli de carnets de randonnée (albums photos, musique, pages). Fonctionne hors connexion (PWA).
-Version actuelle : **V90 · 18/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
+Version actuelle : **V91 · 18/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
 |---|---|
 | `carnet-randonnee.html` | L'appli entière |
 | `carnet-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V90'` |
+| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V91'` |
 | `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-icone-192.png`, `carnet-icone-512.png`, `carnet-icone-masque-512.png` | Icônes |
 
@@ -133,3 +133,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 18/10/2026 — V88 (suite) : cause réelle trouvée : la V87 ne contenait PAS l'appel `CarnetAndroid.plein(...)` côté page (modification oubliée à l'enregistrement) ; seul l'APK 1.0.7 l'avait prévu. Appels ajoutés dans `entrerPleinEcran` / `quitterPleinEcran` ; le message « Ce navigateur ne donne pas le plein écran » n'apparaît plus dans l'appli Android.
 - 18/10/2026 — V89 : panneau de réglages (`rpCharger`) : l'aperçu `#rp-cadre` est dimensionné en pixels à la forme EXACTE de l'emplacement (avant : `width:100%` + `max-height:34dvh` + aspect-ratio, qui retombait en paysage 1,3 pour un emplacement portrait ; et le panneau flex le comprimait). La forme est lue sur l'emplacement vivant (`.trou`), sinon sur `ratiosEmplacement[id]` mémorisée à chaque `rendreLivre` (non enregistrée dans les données), `flex-shrink:0`. Testé 360×740 (portrait 190×340) et 740×360.
 - 18/10/2026 — V90 : défilement automatique sans plein écran. Bouton `#btn-auto` (▶/⏸) dans la barre : réutilise la projection (`cinema`, `programmerCinema`) avec `autoSimple` (durées de page × 0,6), part de la page lue, s'arrête à la fin de l'album, à un nouvel appui, ou en ouvrant la bibliothèque / le plein écran / Retoucher. `plusGrandAuto=false` pour éviter le plein écran automatique au premier geste. Message clair si l'APK n'a pas `CarnetAndroid.plein` (trop ancien). Testé 360×740.
+- 18/10/2026 — V91 : CAUSE du plein écran « qui ne marche pas » : le bouton rond `#tourne-ecran` (fixed, left 2.7rem) recouvrait `#btn-cinema` (⛶) depuis l'ajout du bouton bibliothèque ; il est déplacé en 2e ligne (left 6.6rem). `#cine-pause` (▶ Lecture / ⏸ Pause) déplacé en haut à droite des commandes du plein écran. Défilement plus rapide : facteur 0,42 (bouton ▶) et 0,65 (plein écran). APK 1.0.9 : fond sombre + `setDecorFitsSystemWindows(false)` pour la bande blanche.
