@@ -977,7 +977,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V84 · 18/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V85 · 18/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -6073,8 +6073,27 @@ function proposerPartage(files){
         carnet.randos.push(r); sauver();
       }else r=carnet.randos[si];
       if(ecran.parentNode) ecran.parentNode.removeChild(ecran);
-      return ajouterMedias(gardes,r);
-    }).then(viderPartage,viderPartage);
+      /* Par petits lots (12) : sur un téléphone modeste, 100 à 200 photos écrites d'un coup saturent la mémoire. */
+      var lots=[]; for(var q=0;q<gardes.length;q+=12) lots.push(gardes.slice(q,q+12));
+      var avant=(r.medias||[]).length, fait=0;
+      var suite=Promise.resolve();
+      lots.forEach(function(lot){
+        suite=suite.then(function(){
+          note("Ajout des souvenirs… "+fait+" sur "+gardes.length,60000);
+          return ajouterMedias(lot,r,(r.medias||[]).length);
+        }).then(function(){ fait+=lot.length; });
+      });
+      return suite.then(function(){
+        var reel=(r.medias||[]).length-avant;
+        if(reel<gardes.length) note(reel+" souvenir(s) ajouté(s) sur "+gardes.length+" envoyés. Les autres n'ont pas pu être enregistrés.",20000);
+        else note(reel+" souvenirs ajoutés à l'album.",9000);
+        viderPartage();
+      });
+    }).catch(function(e){
+      /* Les fichiers reçus sont gardés : on peut réessayer sans refaire l'envoi. */
+      try{ if(ecran.parentNode) ecran.parentNode.removeChild(ecran); }catch(x){}
+      note("L'ajout a échoué : "+((e&&e.message)||e||"erreur inconnue")+". Les photos reçues sont gardées, vous pouvez réessayer.",25000);
+    });
   });
   non.addEventListener("click",function(){ viderPartage(); if(ecran.parentNode) ecran.parentNode.removeChild(ecran); });
   boite.appendChild(ok); boite.appendChild(non);
