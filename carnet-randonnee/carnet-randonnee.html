@@ -873,15 +873,15 @@ body.partage .coupe-video{display:none}
 
 /* bouton rond « tourner l'écran » : présent sur tous les écrans */
 .tourne-ecran{
-  position:fixed;top:calc(3.15rem + env(safe-area-inset-top));left:.6rem;z-index:650;
-  width:2.5rem;height:2.5rem;border-radius:50%;padding:0;
+  position:static;flex:0 0 auto;
+  width:2.15rem;height:2.15rem;border-radius:50%;padding:0;
   display:flex;align-items:center;justify-content:center;
   background:#0d120dd9;border:1px solid #ffffff44;color:#F0E9D7;cursor:pointer;
   -webkit-tap-highlight-color:transparent;
 }
 .tourne-ecran svg{width:1.45rem;height:1.45rem}
 .tourne-ecran.actif{background:#2E5D46;border-color:#8FCBA6}
-body.video-ouverte .tourne-ecran{top:max(.8rem,env(safe-area-inset-top))}
+body.video-ouverte .tourne-ecran{position:fixed;z-index:650;left:.6rem;top:max(.8rem,env(safe-area-inset-top))}
 /* Panneau détaché « Réglages de la photo » : tout est dedans, la page derrière ne bouge plus */
 .rp{position:fixed;inset:0;z-index:850;display:flex;align-items:flex-end;justify-content:center;background:#000000a6;touch-action:none;overscroll-behavior:contain}
 .rp[hidden]{display:none}
@@ -906,15 +906,15 @@ body.cinema .rp{display:none}
 .case img{-webkit-user-drag:none}
 /* Téléphone : le bouton « horizontal » prend la place libre de la barre du haut, plus sur l'album */
 @media (max-width:720px){
-  .tourne-ecran{top:calc(3.05rem + env(safe-area-inset-top));left:6.6rem;width:2rem;height:2rem}
+  .tourne-ecran{width:2.15rem;height:2.15rem}
   .tourne-ecran svg{width:1.2rem;height:1.2rem}
-  body.video-ouverte .tourne-ecran{top:max(.8rem,env(safe-area-inset-top))}
+  body.video-ouverte .tourne-ecran{position:fixed;z-index:650;left:.6rem;top:max(.8rem,env(safe-area-inset-top))}
 }
 /* Très petit téléphone (320 px) : barre du haut resserrée pour laisser la place au bouton rond */
 @media (max-width:340px){
   body .barre{gap:.15rem;padding-left:.35rem;padding-right:.35rem}
   body .barre .bouton{padding:.4rem .38rem;font-size:.74rem}
-  body .tourne-ecran{left:6.2rem;width:1.8rem;height:1.8rem;top:calc(3rem + env(safe-area-inset-top))}
+  body .tourne-ecran{width:2rem;height:2rem}
   body .tourne-ecran svg{width:1.1rem;height:1.1rem}
 }
 @media (max-width:720px){
@@ -978,7 +978,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V91 · 18/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V92 · 18/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -988,6 +988,8 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     <button class="bouton" id="cine-fin">Quitter</button>
   </div>
   <div class="cine-bas">
+    <button class="fleche" id="cine-tourne" aria-label="Tourner l'écran" title="Tourner l'écran">⟳</button>
+    <button class="fleche" id="cine-debut" aria-label="Revenir au début du livre" title="Début du livre">⏮</button>
     <button class="fleche" id="cine-prec" aria-label="Page précédente">‹</button>
     <span class="compteur" id="cine-compteur">—</span>
     <button class="fleche" id="cine-suiv" aria-label="Page suivante">›</button>
@@ -996,9 +998,6 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
   </div>
 </div>
 
-<button type="button" class="tourne-ecran" id="tourne-ecran" aria-label="Tourner l'écran (horizontal / vertical)" title="Tourner l'écran">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9.2" y="7.5" width="5.6" height="9" rx="1.2"/><path d="M4.5 11a7.8 7.8 0 0 1 13.6-4.2"/><path d="M18.6 3.4v3.6h-3.6"/><path d="M19.5 13a7.8 7.8 0 0 1-13.6 4.2"/><path d="M5.4 20.6V17h3.6"/></svg>
-</button>
 <main class="scene" id="scene">
   <div class="livre ferme-debut" id="livre">
     <div class="contreplat g"></div>
@@ -1015,6 +1014,10 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 </main>
 
 <nav class="pied">
+  <button type="button" class="tourne-ecran" id="tourne-ecran" aria-label="Tourner l'écran (horizontal / vertical)" title="Tourner l'écran">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9.2" y="7.5" width="5.6" height="9" rx="1.2"/><path d="M4.5 11a7.8 7.8 0 0 1 13.6-4.2"/><path d="M18.6 3.4v3.6h-3.6"/><path d="M19.5 13a7.8 7.8 0 0 1-13.6 4.2"/><path d="M5.4 20.6V17h3.6"/></svg>
+</button>
+  <button class="fleche" id="debut" aria-label="Revenir au début du livre" title="Début du livre">⏮</button>
   <button class="fleche" id="prec" aria-label="Page précédente">‹</button>
   <span class="compteur" id="compteur">—</span>
   <button class="fleche" id="suiv" aria-label="Page suivante">›</button>
@@ -2967,6 +2970,7 @@ function allerA(page){
    ===================================================================== */
 document.getElementById("suiv").addEventListener("click",function(){tourner(1)});
 document.getElementById("prec").addEventListener("click",function(){tourner(-1)});
+document.getElementById("debut").addEventListener("click",function(){ allerA(0); });
 document.getElementById("bord-d").addEventListener("click",function(){ if(!clicNeutralise) tourner(1); });
 document.getElementById("bord-g").addEventListener("click",function(){ if(!clicNeutralise) tourner(-1); });
 
@@ -5233,6 +5237,8 @@ function lancerMusiqueAuGeste(){
   demarrerMorceau().then(function(ok){ if(ok) majBoutonMusique(); });
 }
 document.getElementById("cine-prec").addEventListener("click",function(){ tourner(-1); montrerCommandes(); });
+document.getElementById("cine-debut").addEventListener("click",function(){ allerA(0); montrerCommandes(); });
+document.getElementById("cine-tourne").addEventListener("click",function(e){ e.stopPropagation(); basculerHorizontal(); montrerCommandes(); });
 document.getElementById("cine-suiv").addEventListener("click",function(){ tourner(1); montrerCommandes(); });
 
 /* En plein écran, la barre reste cachée : le livre est seul à l'écran.
