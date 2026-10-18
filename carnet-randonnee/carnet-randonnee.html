@@ -977,7 +977,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V88 · 18/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V89 · 18/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -2685,6 +2685,7 @@ function poser(feuille,t){
 }
 
 /* ---- Mémoire de la page lue, album par album (elle survit aussi à la fermeture de l'appli) ---- */
+var ratiosEmplacement={};   // id du souvenir -> largeur/hauteur de son emplacement (jamais enregistré)
 var vuesMemo={};
 try{ vuesMemo=JSON.parse(localStorage.getItem("carnet-vues")||"{}")||{}; }catch(e){ vuesMemo={}; }
 function pageActuelle(){ return mono?pageCourante:Math.max(0,feuillet*2); }
@@ -2774,6 +2775,13 @@ function rendreLivre(){
   cadrer();
   majCompteur();
   memoriserVue();
+  /* Forme réelle de chaque emplacement, retenue pour l'aperçu du panneau de réglages (la page peut être redessinée au moment du toucher). */
+  setTimeout(function(){
+    [].forEach.call(livre.querySelectorAll(".case"),function(c){
+      var tr=c.querySelector(".trou");
+      if(c._media&&tr&&tr.offsetWidth>5&&tr.offsetHeight>5) ratiosEmplacement[c._media.id]=tr.offsetWidth/tr.offsetHeight;
+    });
+  },120);
 }
 
 /* On ne construit le contenu que des feuilles proches : sans cela, toutes les
@@ -4483,9 +4491,18 @@ function rpSync(){
 }
 function rpCharger(){
   var m=rp.m, im=rpEl("rp-img"), c=rp.c;
-  var trou=(c&&c.querySelector(".trou"))||c, r=trou?trou.getBoundingClientRect():null;
-  var ratio=(r&&r.height>5)?r.width/r.height:1.3; ratio=Math.max(.55,Math.min(2,ratio));
-  rpEl("rp-cadre").style.aspectRatio=ratio.toFixed(3);
+  /* Aperçu à la forme EXACTE de l'emplacement dans l'album (portrait, paysage, carré…), en pixels :
+     avant, une largeur de 100 % plafonnée en hauteur déformait les emplacements en portrait. */
+  var trou=(c&&c.isConnected&&c.querySelector(".trou"))||null;
+  var ratio=(trou&&trou.offsetHeight>5&&trou.offsetWidth>5)?trou.offsetWidth/trou.offsetHeight:(ratiosEmplacement[m.id]||1.3);
+  ratio=Math.max(.35,Math.min(3,ratio));
+  var cad=rpEl("rp-cadre"), boite=document.querySelector("#rp .rp-boite");
+  var maxW=Math.max(120,(boite&&boite.clientWidth?boite.clientWidth:window.innerWidth)-34);
+  var maxH=Math.max(170,Math.round(window.innerHeight*0.46));
+  var w=maxW, h=w/ratio;
+  if(h>maxH){ h=maxH; w=h*ratio; }
+  cad.style.maxHeight="none"; cad.style.flexShrink="0"; cad.style.aspectRatio=ratio.toFixed(3);
+  cad.style.width=Math.round(w)+"px"; cad.style.height=Math.round(h)+"px";
   im.removeAttribute("src");
   if(m.type==="video"){ if(m.poster) im.src=m.poster; return; }
   urlMedia(m.id).then(function(u){ if(u&&rp.m===m) im.src=u; });
