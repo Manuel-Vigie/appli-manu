@@ -981,7 +981,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V96 · 18/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V97 · 18/10</span>
 </button>
 
 <button type="button" class="cine-masque" id="cine-masque" aria-label="Cacher les boutons">✕</button>
@@ -6232,6 +6232,28 @@ function recevoirPartage(){
     proposerPartage(items.map(function(x){ return x.f; }));
   }).catch(function(){ note("Impossible de lire les souvenirs reçus."); });
 }
+/* Suivi de l'import : un bandeau qui ne disparaît pas tout seul, et une trace gardée en mémoire du téléphone :
+   si l'appli se ferme en pleine opération (mémoire pleine), on le sait au redémarrage suivant. */
+function bandeauImport(txt,fait,total){
+  var b=document.getElementById("bandeau-import");
+  if(!txt){ if(b) b.remove(); return; }
+  if(!b){
+    b=document.createElement("div"); b.id="bandeau-import";
+    b.style.cssText="position:fixed;left:.6rem;right:.6rem;top:max(.6rem,env(safe-area-inset-top));z-index:2000;background:#0d120df2;color:#F0E9D7;border:1px solid #8FCBA6;border-radius:.8rem;padding:.55rem .8rem;font:.88rem var(--sans);box-shadow:0 8px 24px #000a";
+    b.innerHTML='<div class="bi-t"></div><div style="height:.4rem;border-radius:.3rem;background:#ffffff22;margin-top:.4rem;overflow:hidden"><div class="bi-b" style="height:100%;width:0;background:#8FCBA6;transition:width .3s"></div></div>';
+    document.body.appendChild(b);
+  }
+  b.querySelector(".bi-t").textContent=txt;
+  b.querySelector(".bi-b").style.width=(total?Math.round(100*fait/total):0)+"%";
+}
+function traceImport(o){ try{ if(o) localStorage.setItem("carnet-import-trace",JSON.stringify(o)); else localStorage.removeItem("carnet-import-trace"); }catch(e){} }
+function verifierImportInterrompu(){
+  try{
+    var s=localStorage.getItem("carnet-import-trace"); if(!s) return;
+    var o=JSON.parse(s); traceImport(null);
+    note("L'ajout précédent s'est arrêté brutalement à "+o.fait+" sur "+o.total+(o.nom?" (« "+o.nom+" », "+o.mo+" Mo)":"")+" : le téléphone a manqué de mémoire. Envoyez les vidéos par petits groupes de 5 à 10.",90000);
+  }catch(e){}
+}
 function viderPartage(){ try{ if(window.CarnetAndroid) CarnetAndroid.vider(); }catch(e){} if(window.caches) caches.delete("carnet-partage").catch(function(){}); }
 function proposerPartage(files){
   var nbV=files.filter(function(f){ return /^video\//.test(f.type); }).length, nbP=files.length-nbV;
@@ -6285,16 +6307,25 @@ function proposerPartage(files){
       lots.forEach(function(lot){
         suite=suite.then(function(){
           var v=lot.length===1&&(lot[0].paresseux||estVideoFichier(lot[0]));
-          note((v?"Ajout de la vidéo ":"Ajout des photos ")+(fait+1)+(lot.length>1?" à "+(fait+lot.length):"")+" sur "+gardes.length+"…",120000);
+          var f0=lot[0], mo=Math.round((f0.size||0)/1048576);
+          bandeauImport((v?"Vidéo ":"Photos ")+(fait+1)+(lot.length>1?" à "+(fait+lot.length):"")+" sur "+gardes.length+(v&&mo?" ("+mo+" Mo)":"")+" — ne quittez pas l'appli",fait,gardes.length);
+          traceImport({fait:fait,total:gardes.length,nom:f0.name,mo:mo});
           return Promise.all(lot.map(function(f){ return f.paresseux?f.paresseux():f; })).then(function(fichiers){
+            var mo2=Math.round((fichiers[0].size||0)/1048576);
+            if(v&&mo2){
+              bandeauImport("Vidéo "+(fait+1)+" sur "+gardes.length+" ("+mo2+" Mo) — ne quittez pas l'appli",fait,gardes.length);
+              traceImport({fait:fait,total:gardes.length,nom:fichiers[0].name,mo:mo2});
+            }
             return ajouterMedias(fichiers,r,(r.medias||[]).length,true);
           });
         }).catch(function(){ rates++; }).then(function(){
           fait+=lot.length;
-          note(fait+" sur "+gardes.length+" souvenirs ajoutés…",120000);
+          bandeauImport(fait+" sur "+gardes.length+" souvenirs ajoutés",fait,gardes.length);
+          traceImport({fait:fait,total:gardes.length,nom:"",mo:0});
         });
       });
       return suite.then(function(){
+        bandeauImport(null); traceImport(null);
         var reel=(r.medias||[]).length-avant;
         if(reel<gardes.length){
           espaceDisque().then(function(e){
@@ -6308,6 +6339,7 @@ function proposerPartage(files){
     }).catch(function(e){
       /* Les fichiers reçus sont gardés : on peut réessayer sans refaire l'envoi. */
       try{ if(ecran.parentNode) ecran.parentNode.removeChild(ecran); }catch(x){}
+      bandeauImport(null); traceImport(null);
       note("L'ajout a échoué : "+((e&&e.message)||e||"erreur inconnue")+". Les photos reçues sont gardées, vous pouvez réessayer.",25000);
     });
   });
@@ -7568,6 +7600,7 @@ ouvrirBase().then(function(){
   restaurerDossier();
   if(ouvrirEtagere) ouvrirBibliotheque();
   if(memoire) note("Ce navigateur n'autorise pas l'enregistrement local. Télécharge le fichier et ouvre-le depuis ton disque.");
+  verifierImportInterrompu();
   if(/[?&]partage=/.test(location.search)) recevoirPartage();
 });
 
