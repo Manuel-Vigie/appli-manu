@@ -1,17 +1,17 @@
 {
   "nom": "Carnet de rando",
-  "version": "V89",
+  "version": "V90",
   "date": "18/10/2026",
   "nouveautes": [
+    "Nouveau bouton ▶ en haut (à côté de ⛶) : les pages de l'album se tournent toutes seules, une par une, à un rythme assez vif, comme si on feuilletait l'album. Touchez ⏸ pour arrêter. Pas besoin du plein écran.",
     "Réglages d'une photo : l'aperçu a maintenant exactement la forme de l'emplacement dans l'album (portrait, paysage ou carré), au lieu de toujours s'afficher en paysage. On voit donc ce qui sera réellement visible en portrait et on peut recadrer correctement.",
     "Plein écran dans l'appli Android : le plein écran du navigateur n'y est plus demandé (il pouvait annuler le plein écran) ; l'appli cache les barres. En plein écran, touchez l'écran : nouveau bouton « 📚 Mes albums » qui ramène directement à la bibliothèque. Le bouton Retour d'Android ferme d'abord le plein écran, les réglages, puis l'album (retour à la bibliothèque).",
-    "Appli Android : le bouton plein écran ⛶ cache vraiment la barre du haut et la bande du bas d'Android (il faut installer Carnet de rando 1.0.7).",
-    "Quand on sort d'un album (ou qu'on ferme l'appli) et qu'on y revient, on retrouve la page où on s'était arrêté. Sur une photo ouverte en grand, nouveau bouton « ✂ Recadrer » : il ouvre directement les réglages de la photo (recadrage, zoom, légende…), et « Terminé » ramène à la même page, sans repasser par « Retoucher »."
+    "Appli Android : le bouton plein écran ⛶ cache vraiment la barre du haut et la bande du bas d'Android (il faut installer Carnet de rando 1.0.7)."
   ],
   "cache": "carnet-app-",
   "sw": {
     "fichier": "carnet-sw.js",
-    "cache": "carnet-app-V89"
+    "cache": "carnet-app-V90"
   },
   "fichiers": [
     "carnet-randonnee.html"

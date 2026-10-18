@@ -969,6 +969,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
     <span class="cache-tel" id="titre-barre">Carnet de rando</span>
   </button>
   <button class="bouton icone" id="btn-cinema" aria-label="Plein écran" title="Plein écran">⛶</button>
+  <button class="bouton icone" id="btn-auto" aria-label="Défilement automatique des pages" title="Défilement automatique">▶</button>
   <button class="bouton icone" id="btn-musique" aria-label="Musique" title="Musique">♪</button>
   <button class="bouton icone" id="btn-sommaire" aria-label="Sommaire" title="Sommaire">☰</button>
   <button class="bouton plein" id="btn-retouche">Retoucher</button>
@@ -977,7 +978,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V89 · 18/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V90 · 18/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -3544,6 +3545,7 @@ function nouvelAlbum(){
 }
 
 function ouvrirBibliotheque(){
+  arreterAuto(false);
   if(arranger) quitterArrangement();
   plateau.i=Math.max(0,Math.min(biblio.albums.length-1,biblio.courant)); plateau.ang=null;
   document.body.classList.add("biblio-ouverte");
@@ -3826,6 +3828,7 @@ function allerVersSouvenir(m){
 
 function entrerArrangement(){
   if(partage) return;
+  arreterAuto(false);
   arranger=true; replie=false;
   document.body.classList.add("arranger");
   dimensionner(); rendreLivre();
@@ -5006,8 +5009,34 @@ function programmerCinema(reprise){
     jouerVideos(cases,0,jeton,avancer);
     return;
   }
-  minuterieCine=setTimeout(avancer,dureePage(pagesVisibles()));
+  minuterieCine=setTimeout(avancer,dureePage(pagesVisibles())*(autoSimple?0.6:1));
 }
+/* Défilement automatique sans plein écran : les pages se tournent toutes seules, une par une, depuis la page lue. */
+var autoSimple=false;
+function majBoutonAuto(){
+  var b=document.getElementById("btn-auto");
+  if(b){ b.textContent=autoSimple?"⏸":"▶"; b.classList.toggle("plein",autoSimple); }
+}
+function arreterAuto(avecNote){
+  if(!autoSimple) return;
+  autoSimple=false; cinema=false; enPause=false; jetonCine++;
+  clearTimeout(minuterieCine);
+  try{ if(videoOuverte) fermerVideo(); }catch(e){}
+  majBoutonAuto(); majBoutonProjection();
+  if(avecNote) note("Défilement arrêté.");
+}
+function basculerAuto(){
+  if(autoSimple){ arreterAuto(true); return; }
+  if(cinema) return;                     // la projection en plein écran a déjà la main
+  plusGrandAuto=false; demarrerLecture();   // pas de plein écran automatique ici
+  if(arranger||cls.on) quitterArrangement();
+  autoSimple=true; cinema=true; enPause=false;
+  if(!peutAvancer()) allerA(0);          // au bout de l'album : on repart du début
+  majBoutonAuto(); majBoutonProjection();
+  note("Défilement automatique. Touchez ⏸ pour arrêter.",3500);
+  programmerCinema();
+}
+document.getElementById("btn-auto").addEventListener("click",basculerAuto);
 
 function montrerCommandes(duree){
   var b=document.getElementById("commandes-cine");
@@ -5027,6 +5056,8 @@ function majBoutonProjection(){
    La projection automatique se déclenche depuis la barre du bas. */
 function entrerPleinEcran(){
   if(pleinEcran) return;
+  arreterAuto(false);
+  if(window.CarnetAndroid&&!CarnetAndroid.plein) note("Votre appli Android est trop ancienne pour le plein écran : installez Carnet de rando 1.0.8 (ou plus récent).",9000);
   if(arranger) quitterArrangement();
   var e=document.documentElement;
   var demande=e.requestFullscreen||e.webkitRequestFullscreen||e.msRequestFullscreen;
@@ -5110,6 +5141,7 @@ function quitterPleinEcran(){
 
 function quitterCinema(){   // fin de la projection, on reste en plein écran
   if(!cinema) return;
+  if(autoSimple){ arreterAuto(false); note("Fin de l'album."); return; }
   cinema=false; enPause=false; jetonCine++;
   clearTimeout(minuterieCine);
   majBoutonProjection();
