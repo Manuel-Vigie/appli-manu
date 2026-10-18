@@ -1,12 +1,12 @@
 {
   "nom": "Mes Photos (Android)",
-  "version": "V87",
-  "date": "15/10/2026",
+  "version": "V88",
+  "date": "18/10/2026",
   "nouveautes": [
+    "« Envoyer au carnet de rando » : chaque fichier envoyé reçoit explicitement l'autorisation de lecture (nécessaire sur certains téléphones plus anciens).",
     "« Envoyer au carnet de rando » : le type d'envoi est maintenant précis (photos, vidéos), pour que la nouvelle appli Android « Carnet de rando » apparaisse bien dans la liste Partager.",
     "Nouveau bouton « Envoyer au carnet de rando » dans le mode « Choisir » : on choisit un ou plusieurs dossiers (ou jours), puis Photos, Vidéos ou Les deux ; tout part rangé par date et heure vers le carnet de rando.",
-    "Dans un dossier, les photos et vidéos sont maintenant classées dans l'ordre chronologique : heure de prise de vue, sinon date et heure du nom (captures d'écran comprises), sinon date du fichier. Plus de captures éparpillées.",
-    "Doublons : le résultat de la dernière recherche est gardé. Dans Outils, « Revoir la dernière recherche » le rouvre sans tout relancer, même si vous avez quitté l'appli. Le travail déjà fait est aussi enregistré en route : une recherche coupée reprend beaucoup plus vite."
+    "Dans un dossier, les photos et vidéos sont maintenant classées dans l'ordre chronologique : heure de prise de vue, sinon date et heure du nom (captures d'écran comprises), sinon date du fichier. Plus de captures éparpillées."
   ],
   "pastille": false,
   "fichiers": []

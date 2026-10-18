@@ -57,6 +57,8 @@ class MainActivity : Activity() {
     // Fichiers reçus par « Partager », copiés dans l'appli en attendant que le carnet les prenne.
     private class Recu(val nom: String, val type: String, val modif: Long, val fichier: File)
     private val recus = ArrayList<Recu>()
+    // Compte rendu de la dernière réception (affiché par le carnet si rien n'a pu être lu).
+    @Volatile private var diag: String = ""
     private val sorties = HashMap<Int, Pair<OutputStream, Pair<String, Uri?>>>()
     private var prochainId = 1
 
@@ -234,6 +236,7 @@ class MainActivity : Activity() {
             dossier.deleteRecursively()
             dossier.mkdirs()
             val liste = ArrayList<Recu>()
+            val erreurs = ArrayList<String>()
             for ((k, u) in uris.withIndex()) {
                 try {
                     var nom = "souvenir_$k"
@@ -242,14 +245,20 @@ class MainActivity : Activity() {
                     }
                     val type = contentResolver.getType(u) ?: ""
                     val dest = File(dossier, "$k.bin")
-                    contentResolver.openInputStream(u)?.use { ins -> dest.outputStream().use { out -> ins.copyTo(out) } } ?: continue
+                    val flux = contentResolver.openInputStream(u)
+                    if (flux == null) { erreurs.add("fichier illisible (aucun flux)"); continue }
+                    flux.use { ins -> dest.outputStream().use { out -> ins.copyTo(out) } }
                     liste.add(Recu(nom, type, dateDuNom(nom), dest))
-                } catch (_: Exception) {}
+                } catch (e: Throwable) {
+                    erreurs.add(e.javaClass.simpleName + ": " + (e.message ?: "").take(80))
+                }
             }
+            diag = "${uris.size} annoncé(s), ${liste.size} copié(s)" +
+                (if (erreurs.isNotEmpty()) " ; erreurs : " + erreurs.distinct().take(2).joinToString(" / ") else "")
             runOnUiThread {
                 synchronized(recus) { recus.clear(); recus.addAll(liste) }
                 if (liste.isEmpty()) {
-                    Toast.makeText(this, "Impossible de lire ces fichiers.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "Impossible de lire ces fichiers. " + diag, Toast.LENGTH_LONG).show()
                     if (web.url == null) web.loadUrl(PAGE)
                 } else {
                     web.loadUrl(PAGE + "?partage=" + liste.size)
@@ -296,6 +305,10 @@ class MainActivity : Activity() {
             }
             return a.toString()
         }
+
+        /** Compte rendu de la dernière réception de photos (pour comprendre un échec). */
+        @JavascriptInterface
+        fun diag(): String = diag
 
         /** Bouton « Quitter l'application » du carnet : ferme tout, la musique s'arrête. */
         @JavascriptInterface

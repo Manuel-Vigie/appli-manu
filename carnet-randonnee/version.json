@@ -1,17 +1,17 @@
 {
   "nom": "Carnet de rando",
-  "version": "V83",
-  "date": "15/10/2026",
+  "version": "V84",
+  "date": "18/10/2026",
   "nouveautes": [
+    "Réception des photos de Mes Photos : si rien n'arrive, le message « Aucun souvenir reçu » reste affiché 20 secondes avec la raison trouvée par l'appli Android (pour comprendre pourquoi cela ne marche pas sur certains téléphones).",
     "Nouveau bouton « 🧹 Vider les photos de cet album » sur l'écran des albums : il retire toutes les photos et vidéos de l'album du devant (titres, sorties, textes et parcours restent), après deux confirmations. Un seul album est touché.",
     "Retrait du dernier bouton de tri « 🕐 Reclasser cet album par date » : il ne reste plus aucun bouton de classement automatique des photos. Le mode Retoucher et son panneau de réglages ne changent pas.",
-    "Les trois boutons de rangement des photos (« Voir l'ordre et les dates », « Déplacer des photos », « Intercaler les photos WhatsApp ») sont retirés. Reste « 🕐 Reclasser cet album par date ».",
-    "Nouveau bouton « 🧩 Intercaler les photos WhatsApp tout seul » : les photos reçues par WhatsApp (sans heure) sont rangées automatiquement parmi vos photos, d'après leur ressemblance (couleurs) en gardant leur ordre. Classement approximatif, avec confirmation avant d'appliquer ; rien n'est supprimé."
+    "Les trois boutons de rangement des photos (« Voir l'ordre et les dates », « Déplacer des photos », « Intercaler les photos WhatsApp ») sont retirés. Reste « 🕐 Reclasser cet album par date »."
   ],
   "cache": "carnet-app-",
   "sw": {
     "fichier": "carnet-sw.js",
-    "cache": "carnet-app-V83"
+    "cache": "carnet-app-V84"
   },
   "fichiers": [
     "carnet-randonnee.html"

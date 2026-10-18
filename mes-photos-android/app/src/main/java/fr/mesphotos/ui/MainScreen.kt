@@ -173,6 +173,10 @@ fun MainScreen(viewModel: MainViewModel, onRequestAccess: () -> Unit) {
                     type = when (nbVideos) { 0 -> "image/*"; list.size -> "video/*"; else -> "*/*" }
                     putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
                     putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
+                    // Autorisation de lecture donnée explicitement à chaque fichier (certains téléphones plus anciens l'exigent).
+                    val cd = android.content.ClipData.newRawUri("souvenirs", uris[0])
+                    for (u in uris.drop(1)) cd.addItem(android.content.ClipData.Item(u))
+                    clipData = cd
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
                 context.startActivity(Intent.createChooser(send, "Envoyer au carnet de rando"))

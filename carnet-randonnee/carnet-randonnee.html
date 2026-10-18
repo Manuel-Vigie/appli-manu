@@ -977,7 +977,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V83 · 15/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V84 · 18/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -6001,7 +6001,7 @@ function recevoirPartage(){
   /* Appli Android « Carnet de rando » : les fichiers reçus sont servis par l'appli elle-même. */
   if(window.CarnetAndroid){
     var liste=[]; try{ liste=JSON.parse(CarnetAndroid.liste()); }catch(e){}
-    if(!liste.length){ note("Aucun souvenir reçu."); return; }
+    if(!liste.length){ var dg=""; try{ if(CarnetAndroid.diag) dg=CarnetAndroid.diag(); }catch(e){} note("Aucun souvenir reçu."+(dg?(" ("+dg+")"):""),20000); return; }
     Promise.all(liste.map(function(m,i){
       return fetch("__recu/"+i+"/"+encodeURIComponent(m.nom)).then(function(r){ return r.blob(); }).then(function(bl){
         var t=m.type||bl.type||"", f;
