@@ -981,7 +981,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V94 · 18/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V95 · 18/10</span>
 </button>
 
 <button type="button" class="cine-masque" id="cine-masque" aria-label="Cacher les boutons">✕</button>
@@ -6182,13 +6182,31 @@ function recevoirPartage(){
   if(window.CarnetAndroid){
     var liste=[]; try{ liste=JSON.parse(CarnetAndroid.liste()); }catch(e){}
     if(!liste.length){ var dg=""; try{ if(CarnetAndroid.diag) dg=CarnetAndroid.diag(); }catch(e){} note("Aucun souvenir reçu."+(dg?(" ("+dg+")"):""),20000); return; }
-    Promise.all(liste.map(function(m,i){
+    /* Les vidéos sont lourdes : on ne les charge PAS toutes d'avance (mémoire saturée = plus rien ne s'affiche).
+       Chacune est lue au moment de son ajout (voir materialiser). Les photos, plus légères, sont lues par paquets. */
+    var resultats=new Array(liste.length);
+    function lire1(m,i){
       return fetch("__recu/"+i+"/"+encodeURIComponent(m.nom)).then(function(r){ return r.blob(); }).then(function(bl){
         var t=m.type||bl.type||"", f;
         try{ f=new File([bl],m.nom,{type:t,lastModified:m.modif||Date.now()}); }catch(e){ f=bl; f.name=m.nom; }
         return f;
       });
-    })).then(function(files){ proposerPartage(files); })
+    }
+    var paquets=[]; for(var q0=0;q0<liste.length;q0+=8) paquets.push(q0);
+    var chaine=Promise.resolve();
+    paquets.forEach(function(q0){
+      chaine=chaine.then(function(){
+        return Promise.all(liste.slice(q0,q0+8).map(function(m,k){
+          var i=q0+k, t=m.type||"";
+          if(/^video\//.test(t)||/\.(mp4|mov|m4v|3gp|webm|mkv)$/i.test(m.nom||"")){
+            resultats[i]={name:m.nom,type:t||"video/mp4",lastModified:m.modif||Date.now(),paresseux:function(){ return lire1(m,i); }};
+            return null;
+          }
+          return lire1(m,i).then(function(f){ resultats[i]=f; });
+        }));
+      });
+    });
+    chaine.then(function(){ proposerPartage(resultats.filter(Boolean)); })
       .catch(function(){ note("Impossible de lire les souvenirs reçus."); });
     return;
   }
@@ -6254,14 +6272,26 @@ function proposerPartage(files){
       }else r=carnet.randos[si];
       if(ecran.parentNode) ecran.parentNode.removeChild(ecran);
       /* Par petits lots (12) : sur un téléphone modeste, 100 à 200 photos écrites d'un coup saturent la mémoire. */
-      var lots=[]; for(var q=0;q<gardes.length;q+=12) lots.push(gardes.slice(q,q+12));
-      var avant=(r.medias||[]).length, fait=0;
+      /* Les vidéos, lourdes, passent une par une ; on voit le compteur avancer à chaque souvenir ajouté. */
+      var lots=[], cour=[];
+      gardes.forEach(function(f){
+        if(f.paresseux||estVideoFichier(f)){ if(cour.length){ lots.push(cour); cour=[]; } lots.push([f]); }
+        else{ cour.push(f); if(cour.length>=12){ lots.push(cour); cour=[]; } }
+      });
+      if(cour.length) lots.push(cour);
+      var avant=(r.medias||[]).length, fait=0, rates=0;
       var suite=Promise.resolve();
       lots.forEach(function(lot){
         suite=suite.then(function(){
-          note("Ajout des souvenirs… "+fait+" sur "+gardes.length,60000);
-          return ajouterMedias(lot,r,(r.medias||[]).length);
-        }).then(function(){ fait+=lot.length; });
+          var v=lot.length===1&&(lot[0].paresseux||estVideoFichier(lot[0]));
+          note((v?"Ajout de la vidéo ":"Ajout des photos ")+(fait+1)+(lot.length>1?" à "+(fait+lot.length):"")+" sur "+gardes.length+"…",120000);
+          return Promise.all(lot.map(function(f){ return f.paresseux?f.paresseux():f; })).then(function(fichiers){
+            return ajouterMedias(fichiers,r,(r.medias||[]).length,true);
+          });
+        }).catch(function(){ rates++; }).then(function(){
+          fait+=lot.length;
+          note(fait+" sur "+gardes.length+" souvenirs ajoutés…",120000);
+        });
       });
       return suite.then(function(){
         var reel=(r.medias||[]).length-avant;
@@ -6527,7 +6557,7 @@ function trierSortieParHeure(r){
 
 
 
-function ajouterMedias(fichiers,cible,position){
+function ajouterMedias(fichiers,cible,position,silence){
   var r=cible||randoEnCours;
   if(!r) return;
   r.medias=r.medias||[];
@@ -6565,7 +6595,7 @@ function ajouterMedias(fichiers,cible,position){
   var ou=(typeof position==="number")?Math.max(0,Math.min(r.medias.length,position)):r.medias.length;
   r.medias.splice.apply(r.medias,[ou,0].concat(nouvelles));
 
-  note(nb>1?("Import de "+nb+" souvenirs…"):"Import du souvenir…");
+  if(!silence) note(nb>1?("Import de "+nb+" souvenirs…"):"Import du souvenir…");
   return Promise.all(taches).then(function(){
     // plusieurs photos ajoutées d'un coup : rangées par heure de prise de vue
     if(nouvelles.length>1) trierFiches(r,nouvelles);
@@ -6586,14 +6616,15 @@ function ajouterMedias(fichiers,cible,position){
         }
       }
     }
-    if(rates.length){
+    if(rates.length&&silence) note("Impossible d'enregistrer : "+rates.map(function(m){ return m.nom; }).slice(0,2).join(", "),6000);
+    else if(rates.length){
       var noms=rates.map(function(m){ return m.nom; }).slice(0,2).join(", ");
       espaceDisque().then(function(e){
         var place=e?(" Place restante : environ "+enMo(e.total-e.utilise)+" Mo."):"";
         note("Impossible d'enregistrer "+rates.length+" fichier"+(rates.length>1?"s":"")
              +" ("+noms+") : trop volumineux pour ce navigateur."+place);
       });
-    }else{
+    }else if(!silence){
       note(nb>1?(nb+" souvenirs ajoutés."):"Souvenir ajouté.");
     }
   });

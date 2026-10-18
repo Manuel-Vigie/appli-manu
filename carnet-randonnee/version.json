@@ -1,17 +1,17 @@
 {
   "nom": "Carnet de rando",
-  "version": "V94",
+  "version": "V95",
   "date": "18/10/2026",
   "nouveautes": [
+    "Envoi de vidéos depuis Mes Photos : elles ne sont plus toutes chargées d'un coup (ça bloquait avec 59 vidéos). Elles entrent dans l'album une par une, avec un compteur en bas de l'écran (« Ajout de la vidéo 12 sur 59… ») et on les voit arriver au fur et à mesure.",
     "Lecture automatique : toucher une photo arrête la lecture et l'ouvre en grand, avec « ✂ Recadrer » pour la régler ; on relance ensuite avec ▶. « Vider les photos de cet album » demande maintenant d'écrire le mot VIDER pour éviter toute erreur.",
     "Vitesse au choix : bouton « ⏱ Rapide » dans la barre du bas (et en plein écran) ; chaque appui change : Lent, Normal, Rapide, Très rapide, Éclair. Le choix est retenu. En plein écran, les boutons restent affichés en permanence ; le rond ✕ en haut à gauche les cache, et ☰ les fait réapparaître.",
-    "Le bouton rond « tourner l'écran » n'est plus posé sur la photo : il est maintenant dans la barre du bas (et dans les commandes du plein écran). Nouveau bouton ⏮ à côté : il ramène directement au début du livre, en lecture normale comme en plein écran.",
-    "Le bouton ⛶ (plein écran) était en partie caché par le petit bouton rond « tourner l'écran » : ce dernier est déplacé, un appui sur ⛶ lance maintenant le plein écran. En plein écran, le bouton « ▶ Lecture » est en haut à droite. Les pages défilent plus vite. Appli Android 1.0.9 : bande blanche du bas supprimée."
+    "Le bouton rond « tourner l'écran » n'est plus posé sur la photo : il est maintenant dans la barre du bas (et dans les commandes du plein écran). Nouveau bouton ⏮ à côté : il ramène directement au début du livre, en lecture normale comme en plein écran."
   ],
   "cache": "carnet-app-",
   "sw": {
     "fichier": "carnet-sw.js",
-    "cache": "carnet-app-V94"
+    "cache": "carnet-app-V95"
   },
   "fichiers": [
     "carnet-randonnee.html"
