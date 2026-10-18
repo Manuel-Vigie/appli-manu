@@ -225,9 +225,14 @@ class MainActivity : Activity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        if (web.canGoBack()) web.goBack() else {
-            @Suppress("DEPRECATION")
-            super.onBackPressed()
+        // Le carnet ferme d'abord ce qui est ouvert (plein écran, réglages, album…) ; sinon Android décide.
+        web.evaluateJavascript("(function(){try{return !!(window.__retour&&window.__retour())}catch(e){return false}})()") { r ->
+            if (r != "true") {
+                if (web.canGoBack()) web.goBack() else {
+                    @Suppress("DEPRECATION")
+                    super.onBackPressed()
+                }
+            }
         }
     }
 

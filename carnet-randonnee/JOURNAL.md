@@ -2,7 +2,7 @@
 
 ## Identité
 Appli de carnets de randonnée (albums photos, musique, pages). Fonctionne hors connexion (PWA).
-Version actuelle : **V87 · 18/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
+Version actuelle : **V88 · 18/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
 |---|---|
 | `carnet-randonnee.html` | L'appli entière |
 | `carnet-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V87'` |
+| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V88'` |
 | `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-icone-192.png`, `carnet-icone-512.png`, `carnet-icone-masque-512.png` | Icônes |
 
@@ -129,3 +129,5 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 18/10/2026 — V85 : sur le Samsung S9+ de Najet, la vraie appli Android reçoit bien (« 192 photos reçues ») mais rien n'arrive dans l'album. `proposerPartage` : ajout par lots de 12 (`ajouterMedias` en série, position = fin de sortie), progression, bilan « N ajoutés sur M », `.catch` qui affiche l'erreur et GARDE les fichiers reçus (avant : `.then(viderPartage,viderPartage)` avalait toute erreur et les effaçait). Testé en local : 30 photos → 30 ajoutées. Cause réelle sur le S9+ non établie.
 - 18/10/2026 — V86 : (1) mémoire de la page lue par album : `memoriserVue()` (fin de `rendreLivre`) écrit `localStorage["carnet-vues"][id album] = {p: page, id: premier souvenir de la page}` ; `appliquerVueMemorisee()` la remet au démarrage et quand on change d'album ; `choisirAlbum` ne remet plus à 0 si on rouvre l'album déjà ouvert. (2) bouton « ✂ Recadrer » dans la photo plein écran (`ouvrirVideo`, photos seulement) : `recadrerDepuisLecture(m)` sort du plein écran ⛶ si besoin (en mode `cinema` le panneau `.rp` est caché par le CSS), entre en Retoucher, ouvre `ouvrirReglagePhoto` ; `rp.depuisLecture` fait quitter Retoucher à la fermeture du panneau. Testé en local (page 8 retrouvée après rechargement ; panneau ouvert puis fermé sur la même page).
 - 18/10/2026 — V87 : plein écran dans l'appli Android : `entrerPleinEcran` / `quitterPleinEcran` appellent `CarnetAndroid.plein(true/false)` (Android 1.0.7) pour cacher les barres du système ; sans effet dans Chrome. Non testé sur téléphone.
+- 18/10/2026 — V88 : plein écran toujours absent sur l'appli Android de Manuel (barre du carnet et barre d'état visibles). Hypothèse : `requestFullscreen` du WebView puis `fullscreenchange` sans élément → `quitterPleinEcran()` aussitôt. Donc dans l'appli (`window.CarnetAndroid.plein` présent) : plus de `requestFullscreen`, et les écouteurs `fullscreenchange` sont ignorés. Nouveau bouton `#cine-biblio` « 📚 Mes albums » (commandes du plein écran) = quitter le plein écran puis `ouvrirBibliotheque()`. `window.__retour()` pour le bouton Retour d'Android (Android 1.0.8) : vidéo/photo → réglages → plein écran → Retoucher → bibliothèque. Non testé sur téléphone.
+- 18/10/2026 — V88 (suite) : cause réelle trouvée : la V87 ne contenait PAS l'appel `CarnetAndroid.plein(...)` côté page (modification oubliée à l'enregistrement) ; seul l'APK 1.0.7 l'avait prévu. Appels ajoutés dans `entrerPleinEcran` / `quitterPleinEcran` ; le message « Ce navigateur ne donne pas le plein écran » n'apparaît plus dans l'appli Android.

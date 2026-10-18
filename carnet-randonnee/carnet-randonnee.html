@@ -977,11 +977,12 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V87 · 18/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V88 · 18/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
   <div class="cine-haut">
+    <button class="bouton" id="cine-biblio">📚 Mes albums</button>
     <button class="bouton" id="cine-fin">Quitter</button>
   </div>
   <div class="cine-bas">
@@ -5012,16 +5013,18 @@ function entrerPleinEcran(){
   if(arranger) quitterArrangement();
   var e=document.documentElement;
   var demande=e.requestFullscreen||e.webkitRequestFullscreen||e.msRequestFullscreen;
-  if(demande){
+  /* Appli Android : c'est l'appli qui cache les barres (CarnetAndroid.plein) ; le plein écran du navigateur n'y marche pas. */
+  if(demande&&!(window.CarnetAndroid&&CarnetAndroid.plein)){
     try{ var pr=demande.call(e); if(pr&&pr.catch) pr.catch(function(){}); }catch(err){}
   }
   pleinEcran=true; cinema=false; enPause=false;
+  try{ if(window.CarnetAndroid&&CarnetAndroid.plein) CarnetAndroid.plein(true); }catch(err){}
   document.body.classList.add("cinema");
   majBoutonProjection();
   setTimeout(function(){
     dimensionner(); rendreLivre();
     montrerCommandes(4000);
-    if(!document.fullscreenElement&&!document.webkitFullscreenElement&&!dejaEnAppli()){
+    if(!document.fullscreenElement&&!document.webkitFullscreenElement&&!dejaEnAppli()&&!(window.CarnetAndroid&&CarnetAndroid.plein)){
       note("Ce navigateur ne donne pas le plein écran. Ouvre le fichier depuis Chrome ou Safari pour occuper tout l'écran.");
     }
   },400);
@@ -5075,6 +5078,7 @@ document.addEventListener("fullscreenchange",function(){
 function quitterPleinEcran(){
   if(!pleinEcran) return;
   pleinEcran=false; cinema=false; enPause=false; jetonCine++;
+  try{ if(window.CarnetAndroid&&CarnetAndroid.plein) CarnetAndroid.plein(false); }catch(err){}
   clearTimeout(minuterieCine); clearTimeout(minuterieBarre);
   fermerVideo();
   majBoutonMusique();
@@ -5115,6 +5119,11 @@ function basculerProjection(){
 }
 
 document.getElementById("btn-cinema").addEventListener("click",entrerPleinEcran);
+document.getElementById("cine-biblio").addEventListener("click",function(){
+  plusGrandAuto=false;
+  quitterPleinEcran();
+  setTimeout(function(){ ouvrirBibliotheque(); },380);
+});
 document.getElementById("cine-fin").addEventListener("click",function(){
   plusGrandAuto=false;
   quitterPleinEcran();
@@ -5124,6 +5133,15 @@ document.getElementById("cine-retour").addEventListener("click",function(){
   quitterPleinEcran();
 });
 document.getElementById("cine-pause").addEventListener("click",basculerProjection);
+/* Bouton « Retour » d'Android : ferme ce qui est ouvert, un cran à la fois ; dernier cran = bibliothèque. Faux = Android décide. */
+window.__retour=function(){
+  if(videoOuverte){ fermerVideo(); return true; }
+  if(rp.ouvert){ fermerReglagePhoto(); return true; }
+  if(pleinEcran){ plusGrandAuto=false; quitterPleinEcran(); return true; }
+  if(arranger){ quitterArrangement(); return true; }
+  if(!document.body.classList.contains("biblio-ouverte")&&biblio&&biblio.albums&&biblio.albums.length){ ouvrirBibliotheque(); return true; }
+  return false;
+};
 /* Un seul interrupteur, où qu'on appuie. */
 var musiqueCoupee=false;
 
@@ -5181,10 +5199,10 @@ window.addEventListener("pointerdown",function(e){
 },{passive:true});
 window.addEventListener("keydown",function(){ if(pleinEcran) montrerCommandes(); },{passive:true});
 document.addEventListener("fullscreenchange",function(){
-  if(pleinEcran && !document.fullscreenElement) quitterPleinEcran();
+  if(pleinEcran && !window.CarnetAndroid && !document.fullscreenElement) quitterPleinEcran();
 });
 document.addEventListener("webkitfullscreenchange",function(){
-  if(pleinEcran && !document.webkitFullscreenElement) quitterPleinEcran();
+  if(pleinEcran && !window.CarnetAndroid && !document.webkitFullscreenElement) quitterPleinEcran();
 });
 
 var tempo=null;
