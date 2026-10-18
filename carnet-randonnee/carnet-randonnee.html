@@ -977,7 +977,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V85 · 18/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V86 · 18/10</span>
 </button>
 
 <div class="commandes-cine" id="commandes-cine">
@@ -2212,6 +2212,15 @@ function ouvrirVideo(m,surFin){
     }
     if(m.legende) ov.appendChild(el("div","video-legende",m.legende));
     var coin=el("div","video-coin");
+    if(!partage&&!estVideo){
+      var rec=el("button","bouton","✂ Recadrer");
+      rec.addEventListener("click",function(e){
+        e.stopPropagation();
+        fermerVideo();
+        recadrerDepuisLecture(m);
+      });
+      coin.appendChild(rec);
+    }
     if(!partage){
       var sup=el("button","bouton danger","Supprimer");
       sup.addEventListener("click",function(e){
@@ -2674,6 +2683,35 @@ function poser(feuille,t){
   feuille.dataset.t=t;
 }
 
+/* ---- Mémoire de la page lue, album par album (elle survit aussi à la fermeture de l'appli) ---- */
+var vuesMemo={};
+try{ vuesMemo=JSON.parse(localStorage.getItem("carnet-vues")||"{}")||{}; }catch(e){ vuesMemo={}; }
+function pageActuelle(){ return mono?pageCourante:Math.max(0,feuillet*2); }
+function memoriserVue(){
+  if(!carnet||!carnet.id||!pages.length) return;
+  var a=pageActuelle(), id=null, i, cand=mono?[a]:[a,a-1];
+  for(i=0;i<cand.length&&!id;i++){
+    var p=pages[cand[i]];
+    if(p&&p.type==="album"&&p.bloc&&p.bloc.items&&p.bloc.items.length) id=p.bloc.items[0].id;
+  }
+  vuesMemo[carnet.id]={p:a,id:id};
+  try{ localStorage.setItem("carnet-vues",JSON.stringify(vuesMemo)); }catch(e){}
+}
+/* Remet l'album sur la page où on l'avait laissé (les pages doivent être construites). */
+function appliquerVueMemorisee(){
+  var v=carnet&&carnet.id&&vuesMemo[carnet.id];
+  if(!v||!pages.length) return false;
+  var cible=Math.max(0,Math.min(pages.length-1,v.p||0));
+  if(v.id){
+    for(var q=0;q<pages.length;q++){
+      var pg=pages[q];
+      if(pg.type==="album"&&pg.bloc.items.some(function(m){ return m.id===v.id; })){ cible=q; break; }
+    }
+  }
+  if(mono){ pageCourante=cible; }
+  else{ feuillet=Math.ceil(cible/2); }
+  return true;
+}
 function rendreLivre(){
   if(!pages.length||!carnet) return;   // rien à dessiner avant le chargement
   if(pageCourante<0||pageCourante>=pages.length) pageCourante=0;
@@ -2734,6 +2772,7 @@ function rendreLivre(){
   });
   cadrer();
   majCompteur();
+  memoriserVue();
 }
 
 /* On ne construit le contenu que des feuilles proches : sans cela, toutes les
@@ -3466,6 +3505,7 @@ document.getElementById("biblio-restaurer").addEventListener("click",function(){
 
 function choisirAlbum(i){
   if(i<0||i>=biblio.albums.length) return;
+  var memeAlbum=(biblio.albums[i]===carnet);
   if(biblio.albums[i]!==carnet){
     // un autre album : la musique de l'ancien s'arrête, celle du nouveau démarrera au premier geste
     try{ arreterMusique(); arreterMorceau(); musiqueTentee=false; majBoutonMusique(); }catch(err){}
@@ -3473,7 +3513,12 @@ function choisirAlbum(i){
   biblio.courant=i;
   carnet=biblio.albums[i];
   if(!partage) Object.keys(urls).forEach(function(k){ URL.revokeObjectURL(urls[k]); delete urls[k]; });
-  feuillet=0; pageCourante=0;
+  if(!memeAlbum){
+    // un autre album : on le rouvre à la page où on l'avait laissé (sinon au début)
+    feuillet=0; pageCourante=0;
+    construirePages();
+    appliquerVueMemorisee();
+  }
   if(location.hash && !partage) { try{ history.replaceState(null,"",location.pathname+location.search+"#a="+carnet.id); }catch(e){} }
   majIdentite();
   sauver();
@@ -4457,6 +4502,23 @@ function fermerReglagePhoto(){
   clearTimeout(rp.minuterie); sauver();
   var m=rp.m;
   if(rp.redessiner&&m){ rp.redessiner=false; redessinerEnGardant(m); }
+  /* Ouvert depuis la lecture (bouton « Recadrer ») : on referme le mode Retoucher et on reste sur la même page. */
+  if(rp.depuisLecture){ rp.depuisLecture=false; if(arranger) quitterArrangement(); }
+}
+/* Bouton « ✂ Recadrer » de la photo plein écran : ouvre directement le panneau de réglages de cette photo. */
+function recadrerDepuisLecture(m){
+  if(partage) return;
+  /* En plein écran (⛶) les barres et le panneau de réglages sont cachés : on en sort d'abord. */
+  if(pleinEcran){ try{ quitterPleinEcran(); }catch(e){} }
+  if(!arranger) entrerArrangement();
+  var essais=0;
+  setTimeout(function chercher0(){ chercher(); },400);
+  function chercher(){
+    var c=caseDe(m);
+    if(c){ selectionner(c); rp.depuisLecture=true; ouvrirReglagePhoto(c); return; }
+    if(++essais<14) setTimeout(chercher,150);
+    else { note("Photo introuvable sur cette page. Touchez « Retoucher », puis la photo."); if(arranger) quitterArrangement(); }
+  }
 }
 /* Après un changement qui redessine le livre : on retrouve la photo dans la nouvelle page. */
 function rpRetrouver(m){
@@ -7346,6 +7408,7 @@ ouvrirBase().then(function(){
   }
   pret=true;
   dimensionner();
+  appliquerVueMemorisee();
   rendreLivre();
   restaurerDossier();
   if(ouvrirEtagere) ouvrirBibliotheque();
