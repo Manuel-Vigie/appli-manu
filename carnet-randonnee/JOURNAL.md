@@ -2,7 +2,7 @@
 
 ## Identité
 Appli de carnets de randonnée (albums photos, musique, pages). Fonctionne hors connexion (PWA).
-Version actuelle : **V93 · 18/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
+Version actuelle : **V94 · 18/10/2026** (affichée dans la pastille ↻ en haut de l'appli ; elle devient verte « Nouvelle version » quand `version.json` en ligne annonce une autre version).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/carnet-randonnee/carnet-randonnee.html
 |---|---|
 | `carnet-randonnee.html` | L'appli entière |
 | `carnet-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V93'` |
+| `carnet-sw.js` | Mode hors connexion (cache). Contient `SHELL = 'carnet-app-V94'` |
 | `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `carnet-icone-192.png`, `carnet-icone-512.png`, `carnet-icone-masque-512.png` | Icônes |
 
@@ -136,3 +136,4 @@ Servir le dossier en local, ouvrir la page dans Chromium : aucune erreur d'insta
 - 18/10/2026 — V91 : CAUSE du plein écran « qui ne marche pas » : le bouton rond `#tourne-ecran` (fixed, left 2.7rem) recouvrait `#btn-cinema` (⛶) depuis l'ajout du bouton bibliothèque ; il est déplacé en 2e ligne (left 6.6rem). `#cine-pause` (▶ Lecture / ⏸ Pause) déplacé en haut à droite des commandes du plein écran. Défilement plus rapide : facteur 0,42 (bouton ▶) et 0,65 (plein écran). APK 1.0.9 : fond sombre + `setDecorFitsSystemWindows(false)` pour la bande blanche.
 - 18/10/2026 — V92 : `#tourne-ecran` n'est plus `position:fixed` sur la page (il masquait la photo en plein écran) : déplacé dans `.pied` (static), `fixed` seulement quand une vidéo/photo est ouverte. Nouveaux boutons ⏮ `#debut` (pied) et `#cine-debut` + `#cine-tourne` (commandes du plein écran) : `allerA(0)`. Testé 360×740.
 - 18/10/2026 — V93 : vitesse de défilement à 5 niveaux (`VITESSES`, `niveauVitesse`, mémorisé dans localStorage `carnet-vitesse`, défaut « Rapide » ×0,45 ; durée mini 700 ms) : boutons `#vitesse` (pied) et `#cine-vitesse` (plein écran), `changerVitesse()`. Plein écran : plus de masquage automatique des commandes ; bouton rond `#cine-masque` (✕/☰) = `basculerCommandes()` ; un appui tout en bas (7 %) fait pareil. Testé 320 et 360 px.
+- 18/10/2026 — V94 : la photo ne s'ouvrait pas pendant la lecture (`if(...||cinema) return` dans le clic de la photo). Nouveau `suspendreLecture()` : arrête le défilement automatique (ou met la projection en pause) puis ouvre la photo (avec ✂ Recadrer). `viderPhotosAlbum` : 2e confirmation remplacée par un `prompt` où il faut écrire VIDER. Syntaxe vérifiée, ouverture d'une photo non testée (pas de photo dans le carnet de test).

@@ -981,7 +981,7 @@ body.partage .pastille-maj,body.cinema .pastille-maj,body.arranger .pastille-maj
 <button class="pastille-installer" id="btn-installer" style="display:none">📲 Installer sur le bureau</button>
 <button class="pastille-maj pastille-classer" id="btn-classer">🏷 Classer</button>
 <button class="pastille-maj" id="btn-maj" title="Vérifier s'il y a une mise à jour">
-  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V93 · 18/10</span>
+  <span class="fleche-maj" aria-hidden="true">↻</span><span id="version-appli">V94 · 18/10</span>
 </button>
 
 <button type="button" class="cine-masque" id="cine-masque" aria-label="Cacher les boutons">✕</button>
@@ -2155,7 +2155,7 @@ function caseMedia(m,avecLegende){
     bouton.appendChild(el("span"));
     bouton.addEventListener("click",function(e){ e.stopPropagation(); ouvrirVideo(m); });
     c.appendChild(bouton);
-    trou.addEventListener("click",function(){ if(cls.on){ choisirClasser(m); return; } ouvrirVideo(m); });
+    trou.addEventListener("click",function(){ if(cls.on){ choisirClasser(m); return; } suspendreLecture(); ouvrirVideo(m); });
     c._media=m;
     if(m.poster){
       var ip=new Image();
@@ -2173,7 +2173,8 @@ function caseMedia(m,avecLegende){
     trou.style.cursor="zoom-in";
     trou.addEventListener("click",function(){
       if(cls.on){ choisirClasser(m); return; }
-      if(arranger||clicNeutralise||cinema) return;
+      if(arranger||clicNeutralise) return;
+      suspendreLecture();
       ouvrirVideo(m);
     });
     urlMedia(m.id).then(function(u){
@@ -2194,6 +2195,18 @@ function caseMedia(m,avecLegende){
 /* Une vidéo quitte l'album et occupe tout l'écran. Quand elle est finie,
    on revient à la planche de photos, exactement là où on l'avait laissée. */
 var videoOuverte=null;
+
+/* Toucher une photo pendant la lecture automatique : la lecture s'arrête, la photo s'ouvre
+   (avec « ✂ Recadrer », « Fermer »…). On relance ensuite avec ▶. */
+function suspendreLecture(){
+  if(typeof cinema==="undefined"||!cinema) return;
+  if(autoSimple){ arreterAuto(false); note("Lecture arrêtée. Touchez ▶ pour la reprendre.",3500); return; }
+  if(!enPause){
+    enPause=true; jetonCine++; clearTimeout(minuterieCine);
+    majBoutonProjection();
+    note("Lecture en pause. Touchez « ▶ Reprendre » pour continuer.",3500);
+  }
+}
 
 function ouvrirVideo(m,surFin){
   if(videoOuverte) return Promise.resolve(videoOuverte.video);
@@ -3502,7 +3515,8 @@ function viderPhotosAlbum(idx){
   if(!nb){ note("Cet album n'a aucune photo à retirer."); return; }
   var nom="« "+(a.titre||"cet album")+" »";
   if(!confirm("Retirer les "+nb+" photos et vidéos de l'album "+nom+" ?\n\nLes titres, les sorties, les textes et les parcours restent ; seules les photos et vidéos sont enlevées, sans retour possible.\n\nSi vous n'avez pas fait de sauvegarde (💾), faites-la d'abord : touchez Annuler."))return;
-  if(!confirm("Dernière vérification : vider définitivement les "+nb+" photos et vidéos de l'album "+nom+" ?")) return;
+  var mot=prompt("Sécurité : pour vider définitivement les "+nb+" photos et vidéos de l'album "+nom+", écrivez le mot VIDER (en majuscules) puis validez.\n\nPour ne rien effacer, touchez Annuler.");
+  if(mot===null||String(mot).trim().toUpperCase()!=="VIDER"){ note("Album non vidé : rien n'a été effacé."); return; }
   (a.randos||[]).forEach(function(r){
     (r.medias||[]).forEach(function(m){
       effacer("media",m.id);
