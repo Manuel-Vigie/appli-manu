@@ -1,17 +1,17 @@
 {
   "nom": "Carnet de Santé",
-  "version": "V4",
-  "date": "06/10/2026",
+  "version": "V5",
+  "date": "20/10/2026",
   "nouveautes": [
+    "Le carnet ne redemande plus le fichier chaque matin : seconde copie de secours et lecture plus patiente au démarrage.",
     "Dans ⚙ : bouton « Enregistrer une copie de mon carnet » (copie de secours dans Téléchargements).",
     "Photos : recadrage sur les 4 coins, redressement et aspect « document » avant l'ajout (réglable dans ⚙).",
-    "Pastille de mise à jour : version, date et bouton Actualiser (en bas, à côté de ⚙, quand le carnet est ouvert).",
-    "Coquille vide en ligne : vos données restent uniquement sur le téléphone."
+    "Pastille de mise à jour : version, date et bouton Actualiser (en bas, à côté de ⚙, quand le carnet est ouvert)."
   ],
   "cache": "carnet-sante-app-",
   "sw": {
     "fichier": "carnet-sante-sw.js",
-    "cache": "carnet-sante-app-v4"
+    "cache": "carnet-sante-app-v5"
   },
   "fichiers": [
     "carnet-sante.html"

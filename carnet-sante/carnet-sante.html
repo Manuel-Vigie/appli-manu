@@ -142,9 +142,34 @@
       });
     });
   }
-  function lire(){ return acces("readonly", function(s){ return s.get(CLE); }); }
-  function ecrire(v){ return acces("readwrite", function(s){ return s.put(v, CLE); }); }
-  function supprimer(){ return acces("readwrite", function(s){ return s.delete(CLE); }); }
+  /* seconde copie du fichier (Cache Storage) : si le coffre principal est illisible ou vidé, on la restaure */
+  var COPIE = "coffre-carnet-copie", COPIE_URL = "./__carnet_copie__";
+  function copieEcrire(v){
+    try { if (!window.caches) return Promise.resolve();
+      return caches.open(COPIE).then(function(c){ return c.put(COPIE_URL, new Response(JSON.stringify(v), {headers: {"Content-Type": "application/json"}})); }).catch(function(){}); }
+    catch(e){ return Promise.resolve(); }
+  }
+  function copieLire(){
+    try { if (!window.caches) return Promise.resolve(null);
+      return caches.open(COPIE).then(function(c){ return c.match(COPIE_URL); }).then(function(r){ return r ? r.json() : null; }).catch(function(){ return null; }); }
+    catch(e){ return Promise.resolve(null); }
+  }
+  function copieSupprimer(){ try { if (window.caches) return caches.delete(COPIE).catch(function(){}); } catch(e){} return Promise.resolve(); }
+  function lire1(){ return acces("readonly", function(s){ return s.get(CLE); }); }
+  function pause(ms){ return new Promise(function(ok){ setTimeout(ok, ms); }); }
+  /* lecture patiente : le coffre peut mettre un instant à répondre au réveil du téléphone */
+  function lire(){
+    var essais = 0;
+    function tenter(){
+      return lire1().then(function(d){ return d; }, function(e){
+        essais++; if (essais >= 4) throw e;
+        return pause(500 * essais).then(tenter);
+      });
+    }
+    return tenter();
+  }
+  function ecrire(v){ return acces("readwrite", function(s){ return s.put(v, CLE); }).then(function(x){ return copieEcrire(v).then(function(){ return x; }); }); }
+  function supprimer(){ return acces("readwrite", function(s){ return s.delete(CLE); }).then(function(){ return copieSupprimer(); }); }
 
   /* --- affichage --- */
   function montrer(vue){
@@ -185,6 +210,7 @@
     lire().then(function(d){
       $("info").textContent = d ? ("Fichier : " + d.nom + " — " + Math.round(d.taille/1024/102.4)/10 + " Mo — ajouté le " +
         new Date(d.date).toLocaleDateString("fr-FR")) : "";
+      if (d) $("info").textContent += " — Stockage protégé : " + (protege === true ? "oui" : protege === false ? "non (installez l'application pour mieux le protéger)" : "à vérifier") + ".";
       montrer("reglages");
     });
   });
@@ -231,11 +257,28 @@
   if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){
     addEventListener("load", function(){ navigator.serviceWorker.register("carnet-sante-sw.js").catch(function(){}); });
   }
-  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch(e){}
+  var protege = null;
+  function protegerStockage(){
+    try {
+      if (navigator.storage && navigator.storage.persist){
+        navigator.storage.persisted().then(function(p){ if (p){ protege = true; return; } return navigator.storage.persist().then(function(ok){ protege = !!ok; }); }).catch(function(){});
+      }
+    } catch(e){}
+  }
+  protegerStockage();
 
   /* --- démarrage --- */
-  lire().then(function(d){ if (d && d.html) ouvrir(d); else montrer("import"); })
-        .catch(function(){ montrer("import"); });
+  function depuisCopie(){
+    return copieLire().then(function(c){
+      if (c && c.html){ ecrire(c).catch(function(){}); ouvrir(c); return true; }
+      return false;
+    });
+  }
+  lire().then(function(d){
+        if (d && d.html){ copieEcrire(d); ouvrir(d); return; }
+        return depuisCopie().then(function(ok){ if (!ok) montrer("import"); });
+      })
+      .catch(function(){ depuisCopie().then(function(ok){ if (!ok) montrer("import"); }); });
 })();
 </script>
 
@@ -762,7 +805,7 @@
 #cadre:not([hidden])~#maj-pastille{top:auto;right:auto;left:calc(52px + env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));opacity:.8}
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Carnet de Santé", "version": "V4", "date": "06/10/2026", "cache": "carnet-sante-app-", "nouveautes": ["Dans ⚙ : bouton « Enregistrer une copie de mon carnet » (copie de secours dans Téléchargements).", "Photos : recadrage sur les 4 coins, redressement et aspect « document » avant l'ajout (réglable dans ⚙).", "Pastille de mise à jour : version, date et bouton Actualiser (en bas, à côté de ⚙, quand le carnet est ouvert).", "Coquille vide en ligne : vos données restent uniquement sur le téléphone."]};
+window.MAJ_APPLI={"nom": "Carnet de Santé", "version": "V5", "date": "20/10/2026", "cache": "carnet-sante-app-", "nouveautes": ["Le carnet ne redemande plus le fichier chaque matin : seconde copie de secours et lecture plus patiente au démarrage.", "Dans ⚙ : bouton « Enregistrer une copie de mon carnet » (copie de secours dans Téléchargements).", "Photos : recadrage sur les 4 coins, redressement et aspect « document » avant l'ajout (réglable dans ⚙).", "Pastille de mise à jour : version, date et bouton Actualiser (en bas, à côté de ⚙, quand le carnet est ouvert)."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
