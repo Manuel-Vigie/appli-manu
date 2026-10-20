@@ -69,6 +69,7 @@
       <label class="gros" for="fichier">Choisir mon fichier</label>
       <input type="file" id="fichier" accept=".html,.htm,text/html">
       <p class="erreur" id="erreur" role="alert" hidden></p>
+      <p class="petit" id="diag"></p>
     </div>
     <div id="vue-reglages" hidden>
       <p>Votre carnet est enregistré sur ce téléphone.</p>
@@ -181,6 +182,7 @@
     $("installer").hidden = !invit || vue === "carnet";
   }
   function ouvrir(donnees){
+    try { localStorage.setItem("carnet-vu", new Date().toISOString()); } catch(e){}
     if (urlCadre) URL.revokeObjectURL(urlCadre);
     urlCadre = URL.createObjectURL(new Blob([donnees.html], {type: "text/html"}));
     $("cadre").src = urlCadre;
@@ -267,6 +269,26 @@
   }
   protegerStockage();
 
+  /* --- info technique affichée quand le fichier est introuvable (aide à comprendre pourquoi) --- */
+  function diagnostic(){
+    var el = $("diag"); if (!el) return;
+    var morceaux = [];
+    try {
+      var vu = localStorage.getItem("carnet-vu");
+      morceaux.push("Dernière ouverture réussie : " + (vu ? new Date(vu).toLocaleString("fr-FR") : "aucune trace"));
+      var n = 0; for (var i = 0; i < localStorage.length; i++){ if (/^(imagerie|analyses|ordonnances|traitements|carte|prises|pharma|sauv)/.test(localStorage.key(i))) n++; }
+      morceaux.push("Données du carnet encore présentes : " + (n ? "oui (" + n + ")" : "non"));
+    } catch(e){ morceaux.push("Mémoire du navigateur illisible"); }
+    var fin = function(){ el.textContent = "Info technique : " + morceaux.join(" · "); };
+    try {
+      if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(function(p){
+        morceaux.push("Stockage protégé : " + (p ? "oui" : "non"));
+        return navigator.storage.estimate ? navigator.storage.estimate() : null;
+      }).then(function(e){ if (e) morceaux.push("Espace utilisé : " + Math.round((e.usage || 0) / 1048576) + " Mo"); fin(); }).catch(fin);
+      else fin();
+    } catch(e){ fin(); }
+  }
+
   /* --- démarrage --- */
   function depuisCopie(){
     return copieLire().then(function(c){
@@ -276,9 +298,9 @@
   }
   lire().then(function(d){
         if (d && d.html){ copieEcrire(d); ouvrir(d); return; }
-        return depuisCopie().then(function(ok){ if (!ok) montrer("import"); });
+        return depuisCopie().then(function(ok){ if (!ok){ montrer("import"); diagnostic(); } });
       })
-      .catch(function(){ depuisCopie().then(function(ok){ if (!ok) montrer("import"); }); });
+      .catch(function(){ depuisCopie().then(function(ok){ if (!ok){ montrer("import"); diagnostic(); } }); });
 })();
 </script>
 
@@ -805,7 +827,7 @@
 #cadre:not([hidden])~#maj-pastille{top:auto;right:auto;left:calc(52px + env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));opacity:.8}
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Carnet de Santé", "version": "V5", "date": "20/10/2026", "cache": "carnet-sante-app-", "nouveautes": ["Le carnet ne redemande plus le fichier chaque matin : seconde copie de secours et lecture plus patiente au démarrage.", "Dans ⚙ : bouton « Enregistrer une copie de mon carnet » (copie de secours dans Téléchargements).", "Photos : recadrage sur les 4 coins, redressement et aspect « document » avant l'ajout (réglable dans ⚙).", "Pastille de mise à jour : version, date et bouton Actualiser (en bas, à côté de ⚙, quand le carnet est ouvert)."]};
+window.MAJ_APPLI={"nom": "Carnet de Santé", "version": "V6", "date": "20/10/2026", "cache": "carnet-sante-app-", "nouveautes": ["Si le carnet redemande le fichier, un texte « Info technique » explique pourquoi (pour trouver la cause).", "Le carnet ne redemande plus le fichier chaque matin : seconde copie de secours et lecture plus patiente au démarrage.", "Dans ⚙ : bouton « Enregistrer une copie de mon carnet » (copie de secours dans Téléchargements).", "Photos : recadrage sur les 4 coins, redressement et aspect « document » avant l'ajout (réglable dans ⚙)."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
