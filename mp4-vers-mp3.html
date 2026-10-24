@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MP4 vers MP3</title>
+<style>
+  body{font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px 16px;background:#f5f5f7;color:#222}
+  h1{font-size:1.4rem;text-align:center}
+  .carte{background:#fff;border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+  input[type=file]{width:100%;margin:12px 0}
+  button{width:100%;padding:14px;font-size:1rem;border:0;border-radius:10px;background:#2563eb;color:#fff}
+  button:disabled{background:#9ca3af}
+  progress{width:100%;margin-top:14px;height:14px}
+  #etat{margin-top:10px;text-align:center;font-size:.95rem}
+  #lien{display:none;margin-top:14px;text-align:center;padding:14px;border-radius:10px;background:#16a34a;color:#fff;text-decoration:none}
+  audio{width:100%;margin-top:14px;display:none}
+</style>
+</head>
+<body>
+<h1>MP4 vers MP3</h1>
+<div class="carte">
+  <label>1. Choisis ta vidéo</label>
+  <input type="file" id="fichier" accept="video/*,audio/*">
+  <button id="bouton">2. Convertir en MP3</button>
+  <progress id="barre" value="0" max="100" hidden></progress>
+  <div id="etat"></div>
+  <audio id="lecteur" controls></audio>
+  <a id="lien">3. Télécharger le MP3</a>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+<script>
+const fichier = document.getElementById('fichier');
+const bouton = document.getElementById('bouton');
+const barre = document.getElementById('barre');
+const etat = document.getElementById('etat');
+const lien = document.getElementById('lien');
+const lecteur = document.getElementById('lecteur');
+
+function pcm16(f32){
+  const out = new Int16Array(f32.length);
+  for(let i=0;i<f32.length;i++){
+    const s = Math.max(-1, Math.min(1, f32[i]));
+    out[i] = s < 0 ? s*0x8000 : s*0x7FFF;
+  }
+  return out;
+}
+
+bouton.onclick = async () => {
+  const f = fichier.files[0];
+  if(!f){ etat.textContent = "Choisis d'abord un fichier."; return; }
+  bouton.disabled = true;
+  lien.style.display = 'none';
+  lecteur.style.display = 'none';
+  barre.hidden = false; barre.value = 0;
+  etat.textContent = "Lecture du fichier...";
+  try{
+    const donnees = await f.arrayBuffer();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    etat.textContent = "Extraction du son...";
+    const audio = await ctx.decodeAudioData(donnees);
+    const canaux = Math.min(audio.numberOfChannels, 2);
+    const encodeur = new lamejs.Mp3Encoder(canaux, audio.sampleRate, 192);
+    const gauche = pcm16(audio.getChannelData(0));
+    const droite = canaux === 2 ? pcm16(audio.getChannelData(1)) : null;
+    const morceaux = [];
+    const taille = 1152 * 10;
+    etat.textContent = "Conversion en MP3...";
+    for(let i=0;i<gauche.length;i+=taille){
+      const g = gauche.subarray(i, i+taille);
+      const buf = droite ? encodeur.encodeBuffer(g, droite.subarray(i, i+taille)) : encodeur.encodeBuffer(g);
+      if(buf.length) morceaux.push(buf);
+      if((i/taille) % 50 === 0){
+        barre.value = Math.round(i/gauche.length*100);
+        await new Promise(r => setTimeout(r));
+      }
+    }
+    const fin = encodeur.flush();
+    if(fin.length) morceaux.push(fin);
+    const blob = new Blob(morceaux, {type:'audio/mpeg'});
+    const url = URL.createObjectURL(blob);
+    const nom = f.name.replace(/\.[^.]+$/, '') + '.mp3';
+    lien.href = url; lien.download = nom; lien.style.display = 'block';
+    lecteur.src = url; lecteur.style.display = 'block';
+    barre.value = 100;
+    etat.textContent = "Terminé !";
+  }catch(e){
+    etat.textContent = "Erreur : impossible de lire ce fichier.";
+  }
+  bouton.disabled = false;
+};
+</script>
+</body>
+</html>
