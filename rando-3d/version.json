@@ -1,17 +1,17 @@
 {
   "nom": "Replay Rando 3D",
-  "version": "V101",
-  "date": "13/10/2026",
+  "version": "V102",
+  "date": "26/10/2026",
   "nouveautes": [
+    "Points d'eau ajoutés : ronds bleus E1, E2… sur la carte du rapport et sur la carte à imprimer, et une liste dans le rapport (kilomètre, type, distance du chemin, altitude). Ils viennent d'OpenStreetMap, à moins de 150 m du chemin : à vérifier, une source peut être à sec.",
     "Sur les cartes du rapport et sur la carte à imprimer, le parcours est maintenant en bleu marine (plus facile à distinguer des traits rouges de la carte IGN).",
     "« 🗺️ Carte à imprimer » tient maintenant sur UNE seule feuille A4 : tout le parcours, le plus détaillé possible, avec les tentes numérotées et leur liste (km, altitude) en bas de la feuille.",
-    "Nouveau bouton « 🗺️ Carte à imprimer » dans le rapport : un PDF A4 avec la carte IGN au maximum de détails (zoom 16, jusqu'à 6 pages), le parcours en rouge, les kilomètres, les emplacements de tente numérotés, et une liste des emplacements avec altitude et coordonnées GPS.",
-    "Carte du rapport : beaucoup plus d'endroits plats possibles pour la tente (2 × 3 m). On cherche plus près du chemin, avec des pentes un peu plus tolérantes, et les carrés verts sont moins espacés (jusqu'à 90 sur la carte)."
+    "Nouveau bouton « 🗺️ Carte à imprimer » dans le rapport : un PDF A4 avec la carte IGN au maximum de détails (zoom 16, jusqu'à 6 pages), le parcours en rouge, les kilomètres, les emplacements de tente numérotés, et une liste des emplacements avec altitude et coordonnées GPS."
   ],
   "cache": "rr3d-v",
   "sw": {
     "fichier": "sw.js",
-    "cache": "rr3d-v101"
+    "cache": "rr3d-v102"
   },
   "fichiers": [
     "rando-3d.html",

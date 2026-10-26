@@ -3112,7 +3112,38 @@ async function reportFlatSpots(tr,B){
   for(;gap<=400;gap+=30){out=[];for(const c of cand){if(out.every(o=>Math.hypot((o.lo-c.lo)/mLo,(o.la-c.la)/mLa)>=gap))out.push(c)}if(out.length<=90)break}
   return out.map(c=>Object.assign(c.pp,{la:c.la,lo:c.lo,i:c.i}));
 }
-function reportMapOverlay(tr,B,marks){
+// points d'eau (OpenStreetMap) à moins de 150 m du chemin ; renvoie {ok,list}
+const WATER_KINDS={drinking_water:'Eau potable',spring:'Source',water_tap:'Robinet',water_well:'Puits',water_point:'Point d’eau',fountain:'Fontaine'};
+async function reportWater(tr){
+  const A=areaFor(tr);let la0=90,la1=-90,lo0=180,lo1=-180;
+  for(let i=0;i<tr.N;i+=Math.max(1,Math.floor(tr.N/800))){const [la,lo]=A.ll(tr.rx[i],tr.rz[i]);la0=Math.min(la0,la);la1=Math.max(la1,la);lo0=Math.min(lo0,lo);lo1=Math.max(lo1,lo)}
+  if(la1-la0>1.6||lo1-lo0>1.6)return {ok:false,list:[]};
+  const m=.0022,bb=`${(la0-m).toFixed(5)},${(lo0-m).toFixed(5)},${(la1+m).toFixed(5)},${(lo1+m).toFixed(5)}`;
+  const q=`[out:json][timeout:25];(node["amenity"="drinking_water"](${bb});node["natural"="spring"](${bb});node["man_made"="water_tap"](${bb});node["man_made"="water_well"](${bb});node["amenity"="water_point"](${bb});node["amenity"="fountain"]["drinking_water"="yes"](${bb}););out body 900;`;
+  let j;try{j=await overpass(q)}catch(e){return {ok:false,list:[]}}
+  const out=[];
+  for(const e of (j.elements||[])){const t=e.tags||{};if(e.lat==null||t.drinking_water==='no'||t.access==='private'||t.access==='no')continue;
+    const [x,z]=tr.toXZ(e.lat,e.lon);let d=1e9,bi=0;for(let i=0;i<tr.N;i++){const dd=Math.hypot(tr.rx[i]-x,tr.rz[i]-z);if(dd<d){d=dd;bi=i}}
+    if(d>150)continue;
+    const k=t.amenity==='drinking_water'?'drinking_water':t.natural==='spring'?'spring':t.man_made==='water_tap'?'water_tap':t.man_made==='water_well'?'water_well':t.amenity==='water_point'?'water_point':'fountain';
+    out.push({la:e.lat,lo:e.lon,i:bi,d,kind:k,name:t.name||'',pot:t.drinking_water==='yes'||k==='drinking_water'||k==='water_tap'})}
+  out.sort((a,b)=>a.d-b.d);const keep=out.slice(0,40).sort((a,b)=>a.i-b.i);
+  // deux points presque au même endroit : on n'en garde qu'un
+  const list=[];for(const w of keep){if(list.some(o=>Math.hypot((o.la-w.la)*110540,(o.lo-w.lo)*111320*Math.cos(w.la*Math.PI/180))<25))continue;list.push(w)}
+  list.forEach((w,n)=>w.n=n+1);
+  return {ok:true,list};
+}
+const waterTxt=(tr,w)=>`${WATER_KINDS[w.kind]}${w.kind==='spring'&&w.pot?' potable':''}${w.name?' « '+w.name+' »':''}`;
+function reportWaterHTML(D){
+  const R=lastReport&&lastReport.D===D?lastReport:null,tr=D.tr;
+  if(!R||R.water===undefined)return `<section class="rp-water rp-noprint"><h2>Points d’eau</h2><p class="rp-note">Recherche des points d’eau (OpenStreetMap)…</p></section>`;
+  const W=R.water;
+  if(!W.ok)return `<section class="rp-water"><h2>Points d’eau</h2><p class="rp-note">Je n’ai pas pu chercher les points d’eau (pas d’internet ou serveur occupé). Rouvre le rapport avec du réseau. En attendant, pars avec assez d’eau pour tout le parcours.</p></section>`;
+  if(!W.list.length)return `<section class="rp-water"><h2>Points d’eau</h2><p class="rp-note"><b>Aucun point d’eau connu</b> à moins de 150 m du chemin (d’après OpenStreetMap). Emporte toute l’eau dont tu as besoin : compte environ 0,5 litre par heure de marche.</p></section>`;
+  return `<section class="rp-water"><h2>Points d’eau sur le parcours</h2><p class="rp-note">Sur la carte : ronds bleus <b style="color:#0b7fd1">E1, E2…</b> (à moins de 150 m du chemin). Données OpenStreetMap, faites par des bénévoles : une source peut être à sec ou non potable, une fontaine en panne. Pense à un filtre ou à des pastilles, et ne compte pas dessus à 100 %.</p>
+  <div class="rp-wl">${W.list.map(w=>`<div class="rp-wi"><b>E${w.n}</b><span><b>${escH(waterTxt(tr,w))}</b><br>km ${fmtKm(tr.rd[w.i])} · à ${nf0.format(Math.max(10,Math.round(w.d/10)*10))} m du chemin · altitude ${nf0.format(Math.round(tr.se[w.i]))} m</span></div>`).join('')}</div></section>`;
+}
+function reportMapOverlay(tr,B,marks,water){
   const cv=document.createElement('canvas');cv.width=B.W;cv.height=B.H;const x=cv.getContext('2d');x.drawImage(B.cv,0,0);
   const sc=Math.max(1,B.W/1100),P=B.pts;
   x.lineCap='round';x.lineJoin='round';
@@ -3131,16 +3162,22 @@ function reportMapOverlay(tr,B,marks){
   for(let k=ks;k<km-ks*.4;k+=ks)bubble(at(k*1000),String(k),'#fff','#1d2b2d',11*sc);
   (marks||[]).forEach((m,i)=>{const q=at(m.d);x.beginPath();const r=15*sc;x.roundRect?x.roundRect(q[0]-r*1.1,q[1]-r*.8,r*2.2,r*1.6,5*sc):x.rect(q[0]-r*1.1,q[1]-r*.8,r*2.2,r*1.6);x.fillStyle='#e8731a';x.fill();x.lineWidth=2*sc;x.strokeStyle='#fff';x.stroke();x.fillStyle='#fff';x.font=`700 ${r*.95}px Arial,Helvetica,sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(m.t,q[0],q[1]+.5*sc)});
   spots.forEach(q=>tent(q[0],q[1],8.5*sc));
+  const nWater=(water||[]).length;
+  const drop=(cx,cy,r)=>{x.beginPath();x.arc(cx,cy,r,0,7);x.fillStyle='#0b7fd1';x.fill();x.lineWidth=1.8*sc;x.strokeStyle='#fff';x.stroke();
+    x.beginPath();x.moveTo(cx,cy-r*.62);x.bezierCurveTo(cx+r*.5,cy-r*.05,cx+r*.42,cy+r*.5,cx,cy+r*.5);x.bezierCurveTo(cx-r*.42,cy+r*.5,cx-r*.5,cy-r*.05,cx,cy-r*.62);x.fillStyle='#fff';x.fill()};
+  (water||[]).forEach(w=>{const q=at(tr.rd[w.i]);const [la,lo]=[w.la,w.lo],cx=mercX(lo,B.z)-B.ox,cy=mercY(la,B.z)-B.oy;drop(cx,cy,9.5*sc);
+    x.font=`700 ${11*sc}px Arial,Helvetica,sans-serif`;x.textAlign='left';x.textBaseline='middle';x.lineWidth=3.2*sc;x.strokeStyle='#fff';x.strokeText('E'+w.n,cx+12*sc,cy);x.fillStyle='#0a5a9c';x.fillText('E'+w.n,cx+12*sc,cy)});
   const loop=Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200;
   bubble(P[P.length-1],loop?'':'A','#1d2b2d','#fff',loop?0:16*sc);
   bubble(P[0],loop?'D/A':'D','#1c9a4e','#fff',(loop?20:16)*sc);
   // légende (petite), placée dans le coin où elle ne gêne pas le parcours
-  {const fs=11*sc,lw=(nFlat?150:112)*sc,lh=(nFlat?40:22)*sc,m=10*sc;x.font=`600 ${fs}px Arial,Helvetica,sans-serif`;
+  {const fs=11*sc,lw=(nFlat||nWater?150:112)*sc,lh=(22+18*((nFlat?1:0)+(nWater?1:0)))*sc,m=10*sc;x.font=`600 ${fs}px Arial,Helvetica,sans-serif`;
    const cands=[[m,m],[B.W-lw-m-44*sc,m],[B.W-lw-m,B.H-lh-m-26*sc],[m,B.H-lh-m-52*sc],[B.W/2-lw/2,m],[B.W/2-lw/2,B.H-lh-m]];
    let best=cands[0],bs=1e9;for(const c of cands){let n=0;for(const q of P)if(q[0]>c[0]-14*sc&&q[0]<c[0]+lw+14*sc&&q[1]>c[1]-14*sc&&q[1]<c[1]+lh+14*sc)n++;if(n<bs){bs=n;best=c;if(n===0)break}}
    const [lx,ly]=best;x.fillStyle='rgba(255,255,255,.88)';x.fillRect(lx,ly,lw,lh);
    x.lineCap='round';x.lineWidth=3.6*sc;x.strokeStyle='#0a1f5c';x.beginPath();x.moveTo(lx+7*sc,ly+11*sc);x.lineTo(lx+27*sc,ly+11*sc);x.stroke();x.fillStyle='#1d2b2d';x.textAlign='left';x.textBaseline='middle';x.fillText('Parcours',lx+33*sc,ly+11*sc);
-   if(nFlat){tent(lx+17*sc,ly+29*sc,6*sc);x.fillStyle='#1d2b2d';x.textAlign='left';x.textBaseline='middle';x.font=`600 ${fs}px Arial,Helvetica,sans-serif`;x.fillText('Endroit plat possible',lx+33*sc,ly+29*sc)}}
+   if(nFlat){tent(lx+17*sc,ly+29*sc,6*sc);x.fillStyle='#1d2b2d';x.textAlign='left';x.textBaseline='middle';x.font=`600 ${fs}px Arial,Helvetica,sans-serif`;x.fillText('Endroit plat possible',lx+33*sc,ly+29*sc)}
+   if(nWater){const yy=ly+(nFlat?47:29)*sc;drop(lx+17*sc,yy,7*sc);x.fillStyle='#1d2b2d';x.textAlign='left';x.textBaseline='middle';x.font=`600 ${fs}px Arial,Helvetica,sans-serif`;x.fillText('Point d’eau',lx+33*sc,yy)}}
   // échelle, nord, source
   const mpp=156543.03*Math.cos(B.lat*Math.PI/180)/Math.pow(2,B.z),want=140*sc*mpp,nice=[50,100,200,500,1000,2000,5000,10000,20000].reduce((a,b)=>Math.abs(b-want)<Math.abs(a-want)?b:a),bw=nice/mpp;
   x.fillStyle='rgba(255,255,255,.85)';x.fillRect(12*sc,B.H-48*sc,bw+28*sc,36*sc);
@@ -3154,9 +3191,9 @@ function reportMapHTML(D,B0){
   if(!R||R.mapBase===undefined)return `<section class="rp-map rp-noprint"><h2>Carte et parcours</h2><p class="rp-note">Carte IGN en cours de chargement…</p></section>`;
   const B=R.mapBase;if(!B)return `<section class="rp-map rp-noprint"><h2>Carte et parcours</h2><p class="rp-note">La carte IGN n'a pas pu être chargée (pas d'internet, ou parcours hors de France). Rouvre le rapport avec du réseau pour l'obtenir.</p></section>`;
   const marks=B0&&B0.plan.trek&&B0.plan.days>1?B0.plan.rows.slice(0,-1).map(r=>({d:tr.rd[r.i1],t:'N'+r.k})):[],sig=marks.map(m=>m.t+':'+Math.round(m.d)).join(',');
-  const url=B.cache[sig]||(B.cache[sig]=reportMapOverlay(tr,B,marks));
+  const WL=R.water&&R.water.ok?R.water.list:[],sig2=sig+'|w'+WL.map(w=>w.n).join('.'),url=B.cache[sig2]||(B.cache[sig2]=reportMapOverlay(tr,B,marks,WL));
   if(!url)return '';
-  return `<section class="rp-map"><h2>Carte et parcours</h2><img src="${url}" alt="Carte IGN avec le parcours en bleu marine"><p class="rp-note" style="margin-top:6px">Parcours en bleu marine ; <b style="color:#17a34a">petits carrés verts avec une tente</b> : endroits qui semblent plats (pente faible d'après le modèle d'altitude, à moins de 50 m du chemin) où l'on peut peut-être poser la tente — c'est une aide, pas une garantie : à vérifier sur place (sol, eau, vent, autorisation)${marks.length?' ; bivouacs N1, N2… en orange':''}. D = départ${Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200?' et arrivée':', A = arrivée'} ; les ronds blancs numérotés sont les kilomètres.</p></section>`;
+  return `<section class="rp-map"><h2>Carte et parcours</h2><img src="${url}" alt="Carte IGN avec le parcours en bleu marine"><p class="rp-note" style="margin-top:6px">Parcours en bleu marine ; <b style="color:#17a34a">petits carrés verts avec une tente</b> : endroits qui semblent plats (pente faible d'après le modèle d'altitude, à moins de 50 m du chemin) où l'on peut peut-être poser la tente — c'est une aide, pas une garantie : à vérifier sur place (sol, eau, vent, autorisation)${marks.length?' ; bivouacs N1, N2… en orange':''}${WL.length?' ; <b style="color:#0b7fd1">ronds bleus E1, E2…</b> : points d’eau (liste plus bas)':''}. D = départ${Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200?' et arrivée':', A = arrivée'} ; les ronds blancs numérotés sont les kilomètres.</p></section>`;
 }
 function reportProfileSVG(D){
   const tr=D.tr,narrow=innerWidth<640,W=narrow?560:1000,H=narrow?230:250,pl=narrow?62:66,pr=12,pt=14,pb=30,iw=W-pl-pr,ih=H-pt-pb;
@@ -3247,6 +3284,7 @@ function reportHTML(D,wx){
      D.steepUp&&D.steepUp.avg>=10?`<li><b>Passage le plus dur :</b> du km ${fmtKm(tr.rd[D.steepUp.i0])} au km ${fmtKm(tr.rd[D.steepUp.i1])} (${slopeWords(D.steepUp.avg).n.toLowerCase()}).</li>`:'<li><b>Passages raides :</b> aucun vraiment raide, la pente reste douce.</li>',kmMax.mx>=15?`<li><b>Pente maximale :</b> environ <b>${Math.round(kmMax.mx)} %</b> sur 50 m, vers le km ${fmtKm(tr.rd[kmMax.mi])} (détail kilomètre par kilomètre plus bas).</li>`:''].filter(Boolean).join('');
     return `<section class="rp-brief"><h2>En bref</h2><ul>${li}</ul></section>`})()}
   ${reportMapHTML(D,B0)}
+  ${reportWaterHTML(D)}
   ${beginnerHTML(D)}
   <section><h2>Profil du parcours</h2><p class="rp-note">Le chemin vu de côté : la ligne monte quand tu montes. Chaque couleur dit si c’est facile ou raide ; le chiffre blanc est le nombre de mètres montés (+) ou descendus (−) pour 100 m parcourus.</p>${reportProfileSVG(D)}
    <h3 class="rp-h3">Quelle part du parcours est facile ou raide ?</h3><p class="rp-note">Le parcours entier, rangé par type de terrain : plus une couleur est large, plus il y a de kilomètres.</p><div class="rp-dist">${dist}</div><div class="rp-ters">${legend}</div></section>
@@ -3308,6 +3346,7 @@ const REPORT_CSS=`.rp{--ink:#1d2b2d;--mut:#5b6b6c;--line:#dfe5e2;font-family:"Ba
 .rp-days{display:flex;flex-direction:column;gap:8px}.rp-day{border:1px solid var(--line);border-left:6px solid #1d2b2d;border-radius:10px;padding:9px 12px;display:flex;flex-direction:column;gap:2px;font-size:14px;break-inside:avoid}.rp-day b{font-size:16px}.rp-day span{color:var(--mut)}.rp-modesel input[type=time]{width:112px}
 .rp-bivs label{display:inline-flex;align-items:center;gap:4px;font-weight:600;color:var(--ink)}.rp-bivs input{width:76px}.rp-map img{cursor:crosshair}
 .rp-h3{font-family:"Barlow Condensed",sans-serif;font-size:17px;margin:16px 0 4px}.rp-ters{display:flex;flex-direction:column;gap:5px;margin-top:10px}.rp-ter{display:grid;grid-template-columns:14px 1fr auto auto;gap:4px 10px;align-items:center;font-size:14px;font-variant-numeric:tabular-nums}.rp-ter i{width:14px;height:10px;border-radius:5px}.rp-ter small{color:var(--mut)}.rp-ter em{font-style:normal;color:var(--mut);font-size:12.5px;min-width:92px;text-align:right}.rp-ter b{text-align:right}
+.rp-wl{display:grid;gap:6px;margin-top:8px}.rp-wi{display:flex;gap:10px;align-items:flex-start;padding:7px 10px;border:1px solid var(--line);border-left:5px solid #0b7fd1;border-radius:8px;font-size:13.5px;line-height:1.35;break-inside:avoid}.rp-wi>b{flex:none;min-width:34px;color:#0b7fd1;font-size:15px}.rp-water{break-inside:avoid}
 .rp-map img{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:10px}.rp-map{break-inside:avoid}
 @media print{.rp-noprint{display:none}.rp-map img{max-height:22cm;width:auto;max-width:100%;margin:0 auto}}
 .rp-names input[type=text]{width:150px}.rp-cands button small{font-weight:400;color:var(--mut);margin-left:3px}.rp-modesel input{width:84px;border:1px solid #cfd8d4;border-radius:10px;padding:7px 8px;font:inherit;font-weight:600}
@@ -3358,9 +3397,10 @@ async function openReport(tr,places){
   let wx='';
   const wxLine=w=>!w?'':w.sample||!isFinite(w.tmin)?`Météo d'exemple : ${WX[w.kind].label.toLowerCase()}`:`Météo ${tr.planned?'prévue':'du jour'} : ${WX[w.kind].label.toLowerCase()}, ${nf0.format(w.tmin)}${Math.round(w.tmin)!==Math.round(w.tmax)?' à '+nf0.format(w.tmax):''} °C`+(w.rain>=0.5?`, ${nf1.format(w.rain)} mm de pluie`:'');
   if(tr===T&&wxState)wx=wxLine(wxState);
-  const render=()=>{$('reportBody').innerHTML=reportHTML(D,wx);{const keep=lastReport&&lastReport.D===D?lastReport:{};lastReport={D,wx,cands:keep.cands,mapBase:keep.mapBase}}};
+  const render=()=>{$('reportBody').innerHTML=reportHTML(D,wx);{const keep=lastReport&&lastReport.D===D?lastReport:{};lastReport={D,wx,cands:keep.cands,mapBase:keep.mapBase,water:keep.water}}};
   render();$('reportPanel').hidden=false;$('reportPanel').scrollTop=0;
   reportMapBase(tr).catch(()=>null).then(async B=>{if(B){try{B.spots=await reportFlatSpots(tr,B)}catch(e){B.spots=[]}}if(!lastReport||lastReport.D!==D||$('reportPanel').hidden)return;lastReport.mapBase=B;const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(D,lastReport.wx);$('reportPanel').scrollTop=y});
+  reportWater(tr).catch(()=>({ok:false,list:[]})).then(W=>{if(!lastReport||lastReport.D!==D||$('reportPanel').hidden)return;lastReport.water=W;const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(D,lastReport.wx);$('reportPanel').scrollTop=y});
   {Promise.all([nameCands(tr,0),nameCands(tr,tr.N-1)]).then(([a,b])=>{if(!lastReport||lastReport.D!==D||$('reportPanel').hidden||(!a.length&&!b.length))return;lastReport.cands={s:a,e:b};const y=$('reportPanel').scrollTop;$('reportBody').innerHTML=reportHTML(D,lastReport.wx);$('reportPanel').scrollTop=y}).catch(()=>{})}
   if(!wx&&(tr.hasTime||tr.planned)&&tr!==T){const w=await fetchWeather(tr).catch(()=>null);if(w&&!$('reportPanel').hidden){wx=wxLine(w);render()}}
 }
@@ -3462,14 +3502,15 @@ $('reportPdf').addEventListener('click',async()=>{
 const pxLon=(x,z)=>x/(Math.pow(2,z)*256)*360-180,pxLat=(y,z)=>{const n=Math.PI-2*Math.PI*y/(Math.pow(2,z)*256);return Math.atan(Math.sinh(n))*180/Math.PI};
 const nfp=v=>nf0.format(v).replace(/[  ]/g,' ');
 // UNE seule feuille A4 : carte IGN la plus détaillée possible qui contient tout le parcours + liste des tentes en bas
-async function printMapPDF(D,B,onProg){
+async function printMapPDF(D,B,onProg,WL){
+  WL=WL||[];
   await Promise.all(PDF_LIBS.map(l=>loadLib(l[0],l[1])));
   const tr=D.tr,A=areaFor(tr),st=Math.max(1,Math.floor(tr.N/3000)),ll=[];
   for(let i=0;i<tr.N;i+=st){const [la,lo]=A.ll(tr.rx[i],tr.rz[i]);ll.push([la,lo,i])}
   {const [la,lo]=A.ll(tr.rx[tr.N-1],tr.rz[tr.N-1]);ll.push([la,lo,tr.N-1])}
   const spots=(B.spots||[]).filter(q=>q.la!=null).map((q,n)=>({la:q.la,lo:q.lo,i:q.i,n:n+1}));
   const L=RMAP_LAYERS.find(l=>l.k===B.layer)||RMAP_LAYERS[0],ns=spots.length,GPS=ns>0&&ns<=12,FOOT=44,HEAD=64;
-  const listH=pw=>{if(!ns)return 0;const cols=GPS?2:(pw>1600?6:4),rows=Math.ceil(ns/cols);return 46+rows*27};
+  const wCols=pw=>pw>1600?3:2,listH=pw=>{let h=0;if(ns){const cols=GPS?2:(pw>1600?6:4);h+=46+Math.ceil(ns/cols)*27}if(WL.length)h+=46+Math.ceil(WL.length/wCols(pw))*27;return h};
   // zoom le plus fort pour lequel tout le parcours tient sur une feuille (portrait ou paysage)
   let plan=null;
   for(let z=L.max;z>=9&&!plan;z--){
@@ -3499,6 +3540,9 @@ async function printMapPDF(D,B,onProg){
     x.fillStyle='#17a34a';x.fillRect(cx-h,cy-h,2*h,2*h);x.lineWidth=2;x.strokeStyle='#fff';x.strokeRect(cx-h,cy-h,2*h,2*h);
     x.beginPath();x.moveTo(cx-h*.62,cy+h*.5);x.lineTo(cx,cy-h*.58);x.lineTo(cx+h*.62,cy+h*.5);x.closePath();x.fillStyle='#fff';x.fill();
     x.font='700 17px Arial,Helvetica,sans-serif';x.textAlign='left';x.textBaseline='middle';x.lineWidth=4;x.strokeStyle='#fff';x.strokeText(String(s.n),cx+h+4,cy);x.fillStyle='#0b6b30';x.fillText(String(s.n),cx+h+4,cy)}
+  for(const w of WL){const cx=mercX(w.lo,z)-rx,cy=mercY(w.la,z)-ry,r=12;x.beginPath();x.arc(cx,cy,r,0,7);x.fillStyle='#0b7fd1';x.fill();x.lineWidth=2.2;x.strokeStyle='#fff';x.stroke();
+    x.beginPath();x.moveTo(cx,cy-r*.62);x.bezierCurveTo(cx+r*.5,cy-r*.05,cx+r*.42,cy+r*.5,cx,cy+r*.5);x.bezierCurveTo(cx-r*.42,cy+r*.5,cx-r*.5,cy-r*.05,cx,cy-r*.62);x.fillStyle='#fff';x.fill();
+    x.font='700 17px Arial,Helvetica,sans-serif';x.textAlign='left';x.textBaseline='middle';x.lineWidth=4;x.strokeStyle='#fff';x.strokeText('E'+w.n,cx+r+4,cy);x.fillStyle='#0a5a9c';x.fillText('E'+w.n,cx+r+4,cy)}
   const a=[mercX(ll[0][1],z)-rx,mercY(ll[0][0],z)-ry],b=[mercX(ll[ll.length-1][1],z)-rx,mercY(ll[ll.length-1][0],z)-ry],loop=Math.hypot(tr.rx[0]-tr.rx[tr.N-1],tr.rz[0]-tr.rz[tr.N-1])<200;
   if(!loop)bub(b,'A','#1d2b2d','#fff',17);bub(a,loop?'D/A':'D','#1c9a4e','#fff',loop?22:17);
   // échelle + nord
@@ -3512,15 +3556,20 @@ async function printMapPDF(D,B,onProg){
   let nm=tr.name||'Rando';if(nm.length>46)nm=nm.slice(0,44)+'…';
   x.fillStyle='#1d2b2d';x.textAlign='left';x.textBaseline='alphabetic';x.font='700 34px Arial,Helvetica,sans-serif';x.fillText(nm,6,30);
   x.font='500 20px Arial,Helvetica,sans-serif';x.fillStyle='#444';
-  x.fillText(sp(`${fmtKm(tr.total)} km · montées ${nfp(Math.round(beginnerData(D).up))} m · altitude ${nfp(Math.round(tr.eMin))} à ${nfp(Math.round(tr.eMax))} m · ${ns?ns+' emplacement'+(ns>1?'s':'')+' de tente possible'+(ns>1?'s':''):'aucun emplacement de tente repéré'}`),6,56);
+  x.fillText(sp(`${fmtKm(tr.total)} km · montées ${nfp(Math.round(beginnerData(D).up))} m · altitude ${nfp(Math.round(tr.eMin))} à ${nfp(Math.round(tr.eMax))} m · ${ns?ns+' emplacement'+(ns>1?'s':'')+' de tente possible'+(ns>1?'s':''):'aucun emplacement de tente repéré'}${WL.length?` · ${WL.length} point${WL.length>1?'s':''} d’eau`:''}`),6,56);
   // liste des emplacements
-  if(ns){const y0=HEAD+ah+8,cols=GPS?2:(pw>1600?6:4),rows=Math.ceil(ns/cols),cw=pw/cols;
+  let yList=HEAD+ah+8;
+  if(ns){const y0=yList,cols=GPS?2:(pw>1600?6:4),rows=Math.ceil(ns/cols),cw=pw/cols;
     x.fillStyle='#0b6b30';x.font='700 20px Arial,Helvetica,sans-serif';x.textBaseline='middle';x.fillText('Emplacements de tente possibles (n° · km · altitude'+(GPS?' · GPS':'')+')',6,y0+14);
     x.font='500 19px Arial,Helvetica,sans-serif';x.fillStyle='#1d2b2d';
-    spots.forEach((s,k)=>{const c=Math.floor(k/rows),r=k%rows;x.fillText(sp(`${s.n} · km ${fmtKm(tr.rd[s.i])} · ${nfp(Math.round(tr.se[s.i]))} m`+(GPS?` · ${s.la.toFixed(5)}, ${s.lo.toFixed(5)}`:'')),6+c*cw,y0+46+r*27)})}
+    spots.forEach((s,k)=>{const c=Math.floor(k/rows),r=k%rows;x.fillText(sp(`${s.n} · km ${fmtKm(tr.rd[s.i])} · ${nfp(Math.round(tr.se[s.i]))} m`+(GPS?` · ${s.la.toFixed(5)}, ${s.lo.toFixed(5)}`:'')),6+c*cw,y0+46+r*27)});yList=y0+46+rows*27}
+  if(WL.length){const y0=yList,cols=wCols(pw),rows=Math.ceil(WL.length/cols),cw=pw/cols;
+    x.fillStyle='#0a5a9c';x.font='700 20px Arial,Helvetica,sans-serif';x.textAlign='left';x.textBaseline='middle';x.fillText('Points d’eau (E · km · type · distance du chemin) : à vérifier, ils peuvent être à sec',6,y0+14);
+    x.font='500 19px Arial,Helvetica,sans-serif';x.fillStyle='#1d2b2d';
+    WL.forEach((w,k)=>{const c=Math.floor(k/rows),r=k%rows;let t=sp(`E${w.n} · km ${fmtKm(tr.rd[w.i])} · ${waterTxt(tr,w)} · ${Math.max(10,Math.round(w.d/10)*10)} m`);const lim=cols===3?40:60;if(t.length>lim)t=t.slice(0,lim-2)+'…';x.fillText(t,6+c*cw,y0+46+r*27)})}
   // pied de page
   x.fillStyle='#555';x.font='500 16px Arial,Helvetica,sans-serif';x.textBaseline='middle';x.textAlign='left';
-  x.fillText('Carte © IGN · bleu marine = parcours · rond blanc = kilomètre · carré vert = tente possible (modèle d’altitude : à vérifier sur place)',6,ph-20);
+  x.fillText('Carte © IGN · bleu marine = parcours · rond blanc = kilomètre · carré vert = tente possible · rond bleu = point d’eau (à vérifier sur place)',6,ph-20);
   const {jsPDF}=window.jspdf,pdf=new jsPDF({unit:'pt',format:'a4',compress:true,orientation:pw>ph?'landscape':'portrait'});
   pdf.addImage(cv.toDataURL('image/jpeg',.88),'JPEG',0,0,pdf.internal.pageSize.getWidth(),pdf.internal.pageSize.getHeight());
   return {blob:pdf.output('blob'),np:1,z,spots:ns,mpp};
@@ -3531,7 +3580,7 @@ $('reportMapPrint').addEventListener('click',async()=>{
   if(!B){toast(B===undefined?'La carte IGN charge encore : réessaie dans quelques secondes.':'Carte IGN indisponible (pas d’internet, ou parcours hors de France).',6000);return}
   mapPrintBusy=true;b.disabled=true;b.textContent='Carte en cours…';
   try{
-    const r=await printMapPDF(D,B,n=>{b.textContent='Carte… '+n+' tuiles'});
+    const r=await printMapPDF(D,B,n=>{b.textContent='Carte… '+n+' tuiles'},lastReport.water&&lastReport.water.ok?lastReport.water.list:[]);
     const fname=safeName(tr.name)+'-carte-a-imprimer.pdf',f=new File([r.blob],fname,{type:'application/pdf'});
     let done=false;
     if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({title:'Carte : '+tr.name,files:[f]});done=true}catch(e){if(e&&e.name==='AbortError')done=true}}
@@ -5052,7 +5101,7 @@ Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V101", "date": "13/10/2026", "cache": "rr3d-v", "nouveautes": ["Sur les cartes du rapport et sur la carte à imprimer, le parcours est maintenant en bleu marine (plus facile à distinguer des traits rouges de la carte IGN).", "« 🗺️ Carte à imprimer » tient maintenant sur UNE seule feuille A4 : tout le parcours, le plus détaillé possible, avec les tentes numérotées et leur liste (km, altitude) en bas de la feuille.", "Nouveau bouton « 🗺️ Carte à imprimer » dans le rapport : un PDF A4 avec la carte IGN au maximum de détails (zoom 16, jusqu'à 6 pages), le parcours en rouge, les kilomètres, les emplacements de tente numérotés, et une liste des emplacements avec altitude et coordonnées GPS.", "Carte du rapport : beaucoup plus d'endroits plats possibles pour la tente (2 × 3 m). On cherche plus près du chemin, avec des pentes un peu plus tolérantes, et les carrés verts sont moins espacés (jusqu'à 90 sur la carte)."]};
+window.MAJ_APPLI={"nom": "Replay Rando 3D", "version": "V102", "date": "26/10/2026", "cache": "rr3d-v", "nouveautes": ["Points d'eau ajoutés : ronds bleus E1, E2… sur la carte du rapport et sur la carte à imprimer, et une liste dans le rapport (kilomètre, type, distance du chemin, altitude). Ils viennent d'OpenStreetMap, à moins de 150 m du chemin : à vérifier, une source peut être à sec.", "Sur les cartes du rapport et sur la carte à imprimer, le parcours est maintenant en bleu marine (plus facile à distinguer des traits rouges de la carte IGN).", "« 🗺️ Carte à imprimer » tient maintenant sur UNE seule feuille A4 : tout le parcours, le plus détaillé possible, avec les tentes numérotées et leur liste (km, altitude) en bas de la feuille.", "Nouveau bouton « 🗺️ Carte à imprimer » dans le rapport : un PDF A4 avec la carte IGN au maximum de détails (zoom 16, jusqu'à 6 pages), le parcours en rouge, les kilomètres, les emplacements de tente numérotés, et une liste des emplacements avec altitude et coordonnées GPS."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
