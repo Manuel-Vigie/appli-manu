@@ -1,0 +1,835 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Congés</title>
+<link rel="manifest" href="conges-manifest.webmanifest">
+<meta name="theme-color" content="#0e7c86">
+<link rel="icon" href="conges-icon-192.png">
+<link rel="apple-touch-icon" href="conges-apple-touch-icon.png">
+<style>
+  :root {
+    --bg: #faf6ee; --panel: #ffffff; --fg: #1d2b33; --muted: #66747c; --line: #e8e1d3;
+    --accent: #0e7c86; --on-accent: #ffffff; --track: #ece6d9; --we: #f5f0e5;
+    --sun: #f0a202; --crit: #c8442f; --ok: #2f8f4e;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f191c; --panel: #172428; --fg: #e8f0f0; --muted: #96a8ad; --line: #26373c;
+      --accent: #3cc0c6; --on-accent: #062a2d; --track: #243439; --we: #1b2b2f;
+      --sun: #f5b62e; --crit: #ef7a66; --ok: #5fc27f;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 52px max(16px, env(safe-area-inset-right, 0px)) calc(104px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  }
+  main { max-width: 560px; margin: 0 auto; display: grid; gap: 16px; }
+  main[inert] { opacity: .55; }
+  svg.i { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .muted { color: var(--muted); }
+
+  .entete { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .salut { margin: 0; color: var(--muted); font-size: .95rem; }
+  h1 { margin: 0; font-size: 2rem; line-height: 1.1; letter-spacing: -.02em; font-weight: 800; }
+  .rond { width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); color: var(--fg);
+    display: grid; place-items: center; cursor: pointer; flex: none; }
+  .alerte-stock { background: #fdecd0; color: #7a4a00; border-radius: 12px; padding: 10px 12px; font-size: .9rem; }
+
+  .periode { display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .periode .lib { font-weight: 700; min-width: 170px; text-align: center; font-size: 1.02rem; }
+  .petit { width: 44px; height: 44px; border-radius: 50%; border: 0; background: transparent; color: var(--accent); display: grid; place-items: center; cursor: pointer; }
+  .petit:active { background: var(--track); }
+
+  .hero { position: relative; overflow: hidden; border-radius: 24px; padding: 20px 20px 18px; color: #fff;
+    background: linear-gradient(135deg, #0a6370 0%, #0f8088 55%, #1b9a8f 100%); }
+  .hero.enconges { background: linear-gradient(135deg, #b4560f 0%, #d9801a 55%, #e6a02a 100%); }
+  .hero .soleil { position: absolute; right: -22px; top: -22px; width: 150px; height: 150px; opacity: .2; stroke: #fff; stroke-width: 1.4; fill: none; stroke-linecap: round; }
+  .hero .etiq { position: relative; font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 800; opacity: .92; }
+  .hero .gros { position: relative; font-size: 2.1rem; font-weight: 800; line-height: 1.1; margin: 6px 0 6px; letter-spacing: -.01em; }
+  .hero .det { position: relative; font-size: .98rem; opacity: .97; }
+
+  .cpts { display: grid; gap: 12px; }
+  .cpt { display: flex; gap: 16px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 16px; }
+  .anneau { position: relative; width: 98px; height: 98px; flex: none; }
+  .anneau svg { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
+  .anneau .centre { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; line-height: 1.05; }
+  .anneau .centre b { font-size: 1.55rem; font-weight: 800; }
+  .anneau .centre small { color: var(--muted); font-size: .72rem; margin-top: 2px; }
+  .cpt .corps { min-width: 0; flex: 1; }
+  .cpt h3 { margin: 0; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+  .pt { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+  .cpt .reste { margin: 2px 0 0; font-size: .9rem; color: var(--muted); }
+  .cpt .reste.neg { color: var(--crit); font-weight: 700; }
+  .stats { display: flex; gap: 16px; margin-top: 10px; flex-wrap: wrap; }
+  .stats div { font-size: .76rem; color: var(--muted); }
+  .stats b { display: block; font-size: 1.08rem; color: var(--fg); font-weight: 800; }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 14px; min-width: 0; }
+  .panel h2, .liste h2 { margin: 0; font-size: .8rem; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 800; }
+  .calhaut { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .calhaut .mois { font-weight: 800; font-size: 1.05rem; text-transform: capitalize; }
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal .sem { font-size: .7rem; color: var(--muted); text-align: center; font-weight: 800; padding: 2px 0 2px; text-transform: uppercase; }
+  .jour { aspect-ratio: 1; width: 100%; max-width: 56px; justify-self: center; border: 0; border-radius: 12px; background: transparent; color: var(--fg); font-size: .92rem; font-weight: 600;
+    position: relative; cursor: pointer; padding: 0; display: grid; place-items: center; min-width: 0; }
+  .jour.we { color: var(--muted); background: var(--we); }
+  .jour.auj { box-shadow: inset 0 0 0 2.5px var(--accent); font-weight: 800; }
+  .jour.conge { background: var(--c); color: #fff; font-weight: 800; }
+  .jour.demi { background: linear-gradient(135deg, var(--c) 0 50%, var(--ct) 50% 100%); color: var(--fg); text-shadow: 0 0 4px var(--panel), 0 0 2px var(--panel); }
+  .jour.plage { background: var(--ct); color: var(--fg); }
+  .jour.ferie::after { content: ""; position: absolute; bottom: 4px; left: 50%; margin-left: -2.5px; width: 5px; height: 5px; border-radius: 50%; background: var(--sun); }
+  .legende { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: .8rem; color: var(--muted); }
+  .legende span { display: inline-flex; align-items: center; gap: 6px; }
+  .legende .pf { width: 7px; height: 7px; border-radius: 50%; background: var(--sun); }
+
+  .liste { display: grid; gap: 8px; }
+  .liste h2 { margin: 6px 2px 0; }
+  .ligne { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 18px; padding: 12px 14px 12px 0; cursor: pointer; min-height: 64px; overflow: hidden; }
+  .ligne .barre { align-self: stretch; width: 7px; background: var(--c); flex: none; margin-right: 2px; }
+  .ligne .txt { flex: 1; min-width: 0; }
+  .ligne .quand { font-weight: 800; }
+  .ligne .qui { font-size: .86rem; color: var(--muted); overflow-wrap: anywhere; }
+  .ligne .nb { font-weight: 800; color: var(--fg); text-align: right; flex: none; white-space: nowrap; }
+  .ligne.passe { opacity: .72; }
+  .vide { text-align: center; color: var(--muted); padding: 22px 12px; background: var(--panel); border: 1px dashed var(--line); border-radius: 20px; }
+  .vide svg { width: 44px; height: 44px; color: var(--sun); }
+  .vide p { margin: 6px 0 0; }
+  .pied { margin: 4px 6px 0; text-align: center; font-size: .82rem; color: var(--muted); }
+
+  .fab { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 40;
+    height: 56px; padding: 0 24px; border: 0; border-radius: 99px; background: var(--accent); color: var(--on-accent);
+    font-weight: 800; font-size: 1.05rem; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; white-space: nowrap;
+    box-shadow: 0 10px 24px -8px rgba(10, 70, 78, .6); }
+  .fab:active { transform: translateX(-50%) scale(.97); }
+
+  .voile { position: fixed; inset: 0; z-index: 50; background: rgba(8, 20, 24, .52); display: flex; align-items: flex-end; justify-content: center; }
+  .voile[hidden] { display: none; }
+  .feuille { width: 100%; max-width: 520px; max-height: 92vh; max-height: 92dvh; overflow: auto; background: var(--panel); color: var(--fg);
+    border-radius: 26px 26px 0 0; padding: 18px 18px calc(20px + env(safe-area-inset-bottom, 0px)); animation: monte .22s ease-out; }
+  @keyframes monte { from { transform: translateY(30px); opacity: .4; } }
+  @media (prefers-reduced-motion: reduce) { .feuille { animation: none; } }
+  @media (min-width: 700px) { .voile { align-items: center; } .feuille { border-radius: 26px; } }
+  .fhaut { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .fhaut h2 { margin: 0; font-size: 1.3rem; letter-spacing: -.01em; }
+  .champ { display: grid; gap: 6px; margin: 0 0 14px; min-width: 0; }
+  .champ > span, .titrechamp { font-size: .8rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+  .champ input, .champ select { width: 100%; height: 48px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--fg); font: inherit; font-size: 16px; padding: 0 12px; min-width: 0; }
+  .champ input[type=date] { padding-right: 8px; }
+  .deux { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
+  .puces { display: flex; flex-wrap: wrap; gap: 8px; }
+  .puce { border: 1.5px solid var(--line); background: var(--panel); border-radius: 99px; min-height: 44px; padding: 0 14px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+  .puce[aria-pressed="true"] { border-color: var(--c); background: var(--ct); }
+  .coche { display: flex; align-items: center; gap: 12px; min-height: 44px; margin: 0 0 4px; cursor: pointer; }
+  .coche input { width: 22px; height: 22px; accent-color: var(--accent); flex: none; }
+  .resume { background: var(--bg); border-radius: 16px; padding: 12px 14px; margin: 10px 0 14px; min-height: 76px; }
+  .resume .grand { font-size: 1.5rem; font-weight: 800; line-height: 1.15; }
+  .resume .sous { font-size: .9rem; color: var(--muted); margin-top: 2px; }
+  .resume .mal { color: var(--crit); font-weight: 700; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn { min-height: 50px; border-radius: 14px; border: 0; background: var(--accent); color: var(--on-accent); font-weight: 800; padding: 0 20px; cursor: pointer; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.sec { background: transparent; color: var(--accent); border: 1.5px solid var(--line); }
+  .btn.danger { background: transparent; color: var(--crit); border: 1.5px solid var(--crit); }
+  .btn.danger.sur { background: var(--crit); color: #fff; }
+  .section { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 16px; }
+  .section > h3 { margin: 0 0 10px; font-size: 1rem; }
+  .carte { border: 1px solid var(--line); border-radius: 18px; padding: 12px; margin-bottom: 12px; background: var(--bg); }
+  .carte .champ { margin-bottom: 10px; }
+  .carte .champ input { background: var(--panel); }
+  .couleurs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .couleur { width: 36px; height: 36px; border-radius: 50%; border: 3px solid transparent; background: var(--c); cursor: pointer; position: relative; }
+  .couleur[aria-pressed="true"] { border-color: var(--panel); box-shadow: 0 0 0 3px var(--c); }
+  .lien { background: none; border: 0; color: var(--accent); font-weight: 700; padding: 8px 0; cursor: pointer; text-align: left; }
+  .info { background: #e3f4ee; color: #14463b; border-radius: 14px; padding: 12px 14px; margin: 0 0 14px; font-size: .95rem; }
+  @media (prefers-color-scheme: dark) { .info { background: #163a37; color: #cdeee6; } .alerte-stock { background: #4a3611; color: #fbe3b0; } }
+  .msg { min-height: 1.3em; font-size: .9rem; margin: 8px 0 0; }
+  .msg.mal { color: var(--crit); font-weight: 700; }
+  @media print { .fab, .rond, .petit { display: none !important; } }
+</style>
+</head>
+<body>
+<main id="app">
+  <header class="entete">
+    <div>
+      <p class="salut" id="salut"></p>
+      <h1>Mes congés</h1>
+    </div>
+    <button type="button" class="rond" id="btnReglages" aria-label="Réglages">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+    </button>
+  </header>
+  <div id="stockage" class="alerte-stock" hidden>Ce navigateur n'enregistre pas les données : elles seront perdues quand tu fermeras la page. Ouvre l'appli dans Chrome pour qu'elle garde tout.</div>
+  <nav class="periode" aria-label="Année de congés">
+    <button type="button" class="petit" id="perPrec" aria-label="Année précédente"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="lib" id="perLib" aria-live="polite"></div>
+    <button type="button" class="petit" id="perSuiv" aria-label="Année suivante"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+  </nav>
+  <section id="hero" aria-label="Prochain congé"></section>
+  <section class="cpts" id="compteurs" aria-label="Mes compteurs"></section>
+  <section class="panel" id="calendrier" aria-label="Calendrier"></section>
+  <section class="liste" id="liste" aria-label="Liste des congés"></section>
+  <p class="pied">Tes données restent sur cet appareil, rien n'est envoyé en ligne. Pense à faire une sauvegarde de temps en temps (Réglages).</p>
+</main>
+<button type="button" class="fab" id="fab">
+  <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Poser des congés
+</button>
+<div class="voile" id="voile" hidden>
+  <div class="feuille" id="feuille" role="dialog" aria-modal="true" aria-labelledby="fTitre"></div>
+</div>
+<noscript><p style="padding:16px">Cette appli a besoin de JavaScript.</p></noscript>
+
+<script>
+(function () {
+  "use strict";
+  var CLE = "conges-donnees-v1";
+  var MOIS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+  var MOIS_C = ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+  var JOURS = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
+  var JOURS_C = ["dim.","lun.","mar.","mer.","jeu.","ven.","sam."];
+  var COULEURS = ["#0e7c86","#e8604c","#f0a202","#7b5ea7","#4c9f50","#3b7dd8","#d6568b","#5b6b7b"];
+  var ICO = {
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    x: '<path d="M6 6l12 12M18 6L6 18"/>',
+    haut: '<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>',
+    bas: '<path d="M12 16V5M7 9l5-5 5 5M5 20h14"/>',
+    poubelle: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+    gauche: '<path d="M15 5l-7 7 7 7"/>',
+    droite: '<path d="M9 5l7 7-7 7"/>',
+    soleil: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'
+  };
+  function ico(n) { return '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + ICO[n] + '</svg>'; }
+
+  /* ---------- petits outils ---------- */
+  function $(s) { return document.querySelector(s); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function iso(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function parse(s) {
+    var m = /^(\d{4})-(\d\d)-(\d\d)$/.exec(s || ""); if (!m) return null;
+    var d = new Date(+m[1], +m[2] - 1, +m[3]);
+    return d.getMonth() === +m[2] - 1 ? d : null;
+  }
+  function addJ(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+  function aujourdhui() { var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+  function ecart(a, b) { return Math.round((Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 864e5); }
+  function fmtN(n) { n = Math.round(n * 2) / 2; if (n === 0) n = 0; return String(n).replace(".", ","); }
+  function fmtJ(n) { return fmtN(n) + " " + (Math.abs(n) >= 2 ? "jours" : "jour"); }
+  function num(v) { var n = parseFloat(String(v).replace(",", ".")); return isFinite(n) ? Math.max(0, Math.min(366, Math.round(n * 2) / 2)) : 0; }
+  function teinte(hex, a) {
+    var h = String(hex).replace("#", ""); if (h.length !== 6) return "rgba(100,100,100," + a + ")";
+    return "rgba(" + parseInt(h.slice(0, 2), 16) + "," + parseInt(h.slice(2, 4), 16) + "," + parseInt(h.slice(4, 6), 16) + "," + a + ")";
+  }
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  /* ---------- jours fériés (France) ---------- */
+  var cacheFeries = {};
+  function paques(an) {
+    var a = an % 19, b = Math.floor(an / 100), c = an % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25),
+      g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4,
+      l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451),
+      mois = Math.floor((h + l - 7 * m + 114) / 31), jour = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(an, mois - 1, jour);
+  }
+  function feries(an) {
+    if (cacheFeries[an]) return cacheFeries[an];
+    var p = paques(an), f = {};
+    function add(d, nom) { f[iso(d)] = nom; }
+    add(new Date(an, 0, 1), "Jour de l'an"); add(addJ(p, 1), "Lundi de Pâques"); add(new Date(an, 4, 1), "Fête du travail");
+    add(new Date(an, 4, 8), "Victoire 1945"); add(addJ(p, 39), "Ascension"); add(addJ(p, 50), "Lundi de Pentecôte");
+    add(new Date(an, 6, 14), "Fête nationale"); add(new Date(an, 7, 15), "Assomption"); add(new Date(an, 10, 1), "Toussaint");
+    add(new Date(an, 10, 11), "Armistice 1918"); add(new Date(an, 11, 25), "Noël");
+    return (cacheFeries[an] = f);
+  }
+  function ferie(d) { return feries(d.getFullYear())[iso(d)] || null; }
+
+  /* ---------- données ---------- */
+  var D, cleVue, moisVue, stockageOK = true, F = null, modeFeuille = "";
+
+  function defauts() {
+    return {
+      v: 1, prenom: "", mode: "ouvres", debut: 1, accueilFait: false,
+      compteurs: [
+        { id: "cp", nom: "Congés payés", couleur: COULEURS[0], acquis: 25 },
+        { id: "rtt", nom: "RTT", couleur: COULEURS[1], acquis: 0 }
+      ],
+      periodes: {}, conges: []
+    };
+  }
+  function normaliser(o) {
+    var d = defauts();
+    if (!o || typeof o !== "object") return d;
+    d.prenom = typeof o.prenom === "string" ? o.prenom.slice(0, 30) : "";
+    d.mode = o.mode === "ouvrables" ? "ouvrables" : "ouvres";
+    d.debut = (o.debut >= 1 && o.debut <= 12) ? Math.floor(o.debut) : 1;
+    d.accueilFait = !!o.accueilFait;
+    if (Array.isArray(o.compteurs) && o.compteurs.length) {
+      var vus = {};
+      d.compteurs = o.compteurs.slice(0, 8).map(function (c, i) {
+        var id = String((c && c.id) || ("c" + i)).slice(0, 20);
+        while (vus[id]) id += "x";
+        vus[id] = 1;
+        return { id: id, nom: String((c && c.nom) || "Compteur").slice(0, 30),
+          couleur: /^#[0-9a-fA-F]{6}$/.test(c && c.couleur) ? c.couleur : COULEURS[i % COULEURS.length], acquis: num(c && c.acquis) };
+      });
+    }
+    var ids = {}; d.compteurs.forEach(function (c) { ids[c.id] = 1; });
+    if (o.periodes && typeof o.periodes === "object") {
+      Object.keys(o.periodes).forEach(function (k) {
+        if (!/^\d{4}$/.test(k) || !o.periodes[k] || typeof o.periodes[k] !== "object") return;
+        d.periodes[k] = {};
+        Object.keys(o.periodes[k]).forEach(function (cid) {
+          if (!ids[cid]) return; var p = o.periodes[k][cid] || {}, r = {};
+          if (p.acquis != null) r.acquis = num(p.acquis);
+          if (p.report != null) r.report = num(p.report);
+          d.periodes[k][cid] = r;
+        });
+      });
+    }
+    if (Array.isArray(o.conges)) {
+      o.conges.slice(0, 2000).forEach(function (x, i) {
+        if (!x || !ids[x.c] || !parse(x.du) || !parse(x.au) || x.au < x.du) return;
+        d.conges.push({ id: String(x.id || ("i" + i + Date.now().toString(36))).slice(0, 30), c: x.c, du: x.du, au: x.au,
+          demiDebut: !!x.demiDebut, demiFin: !!x.demiFin, note: String(x.note || "").slice(0, 80) });
+      });
+    }
+    return d;
+  }
+  function charger() {
+    var brut = null;
+    try { brut = localStorage.getItem(CLE); } catch (e) { stockageOK = false; }
+    var o = null;
+    if (brut) { try { o = JSON.parse(brut); } catch (e) { o = null; } }
+    D = normaliser(o);
+  }
+  function sauver() {
+    try { localStorage.setItem(CLE, JSON.stringify(D)); stockageOK = true; } catch (e) { stockageOK = false; }
+    $("#stockage").hidden = stockageOK;
+  }
+  function compteur(id) { for (var i = 0; i < D.compteurs.length; i++) if (D.compteurs[i].id === id) return D.compteurs[i]; return D.compteurs[0]; }
+
+  /* ---------- calculs ---------- */
+  function travaille(d) {
+    var w = d.getDay();
+    if (w === 0) return false;
+    if (w === 6 && D.mode !== "ouvrables") return false;
+    return !ferie(d);
+  }
+  function valeurs(c) {
+    var a = parse(c.du), b = parse(c.au), out = [];
+    if (!a || !b || b < a || ecart(a, b) > 400) return out;
+    for (var d = a; d <= b; d = addJ(d, 1)) {
+      if (!travaille(d)) continue;
+      var v = 1;
+      if (c.demiDebut && ecart(a, d) === 0) v = 0.5;
+      if (c.demiFin && ecart(d, b) === 0) v = 0.5;
+      out.push({ d: iso(d), v: v });
+    }
+    return out;
+  }
+  function totalConge(c) { return valeurs(c).reduce(function (s, x) { return s + x.v; }, 0); }
+  function cleDe(d) { return d.getMonth() + 1 >= D.debut ? d.getFullYear() : d.getFullYear() - 1; }
+  function bornes(cle) { return [new Date(cle, D.debut - 1, 1), new Date(cle + 1, D.debut - 1, 0)]; }
+  function libPeriode(cle) {
+    if (D.debut === 1) return String(cle);
+    return cap(MOIS[D.debut - 1]) + " " + cle + " – " + MOIS[D.debut - 2] + " " + (cle + 1);
+  }
+  function params(c, cle) {
+    var p = (D.periodes[cle] || {})[c.id] || {};
+    return { acquis: p.acquis != null ? p.acquis : c.acquis, report: p.report != null ? p.report : 0 };
+  }
+  function stats(c, cle, sauf) {
+    var b = bornes(cle), d0 = iso(b[0]), d1 = iso(b[1]), auj = iso(aujourdhui()), pris = 0, prevu = 0;
+    D.conges.forEach(function (x) {
+      if (x.c !== c.id || x.id === sauf) return;
+      valeurs(x).forEach(function (j) {
+        if (j.d < d0 || j.d > d1) return;
+        if (j.d <= auj) pris += j.v; else prevu += j.v;
+      });
+    });
+    var p = params(c, cle), total = p.acquis + p.report;
+    return { acquis: p.acquis, report: p.report, total: total, pris: pris, prevu: prevu, reste: total - pris - prevu };
+  }
+  function indexJours(sauf) {
+    var m = {};
+    D.conges.forEach(function (x) { if (x.id === sauf) return; valeurs(x).forEach(function (j) { m[j.d] = (m[j.d] || 0) + j.v; }); });
+    return m;
+  }
+  function repriseApres(d) { var r = addJ(d, 1), n = 0; while (!travaille(r) && n++ < 30) r = addJ(r, 1); return r; }
+
+  /* ---------- formats de dates ---------- */
+  function annee(d) { return d.getFullYear() !== aujourdhui().getFullYear() ? " " + d.getFullYear() : ""; }
+  function fmtCourt(d) { return JOURS_C[d.getDay()] + " " + d.getDate() + " " + MOIS_C[d.getMonth()] + annee(d); }
+  function fmtLong(d) { return JOURS[d.getDay()] + " " + d.getDate() + " " + MOIS[d.getMonth()] + annee(d); }
+  function fmtPlage(du, au) {
+    var a = parse(du), b = parse(au);
+    if (du === au) return "Le " + fmtCourt(a);
+    if (a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()) return "Du " + a.getDate() + " au " + b.getDate() + " " + MOIS_C[b.getMonth()] + annee(b);
+    return "Du " + a.getDate() + " " + MOIS_C[a.getMonth()] + (a.getFullYear() !== b.getFullYear() ? " " + a.getFullYear() : "") + " au " + b.getDate() + " " + MOIS_C[b.getMonth()] + annee(b);
+  }
+
+  /* ---------- affichage de l'accueil ---------- */
+  function rSalut() {
+    var h = new Date().getHours(), s = h >= 18 || h < 4 ? "Bonsoir" : "Bonjour";
+    $("#salut").textContent = s + (D.prenom ? " " + D.prenom : "");
+  }
+  function rPeriode() { $("#perLib").textContent = libPeriode(cleVue); }
+  function rHero() {
+    var auj = aujourdhui(), ja = iso(auj), cl = "hero", etiq, gros, det;
+    var suite = D.conges.filter(function (x) { return x.au >= ja; }).sort(function (a, b) { return a.du < b.du ? -1 : a.du > b.du ? 1 : 0; });
+    var x = suite[0];
+    if (!x) { etiq = "Prochain congé"; gros = "Rien de prévu"; det = "Pose ton prochain congé, ça fait du bien."; }
+    else if (x.du <= ja) {
+      cl += " enconges"; etiq = "En ce moment"; gros = "Tu es en congés !";
+      det = "Jusqu'à " + fmtLong(parse(x.au)) + ". Reprise : " + fmtLong(repriseApres(parse(x.au))) + ".";
+    } else {
+      var n = ecart(auj, parse(x.du)); etiq = "Prochain congé";
+      gros = n === 1 ? "Demain" : "Dans " + n + " jours";
+      det = fmtPlage(x.du, x.au) + " · " + fmtJ(totalConge(x)) + " · " + esc(compteur(x.c).nom);
+    }
+    $("#hero").innerHTML = '<div class="' + cl + '"><svg class="soleil" viewBox="0 0 24 24" aria-hidden="true">' + ICO.soleil + '</svg>' +
+      '<div class="etiq">' + etiq + '</div><div class="gros">' + gros + '</div><div class="det">' + det + '</div></div>';
+  }
+  function anneau(s, col) {
+    var R = 40, C = 2 * Math.PI * R, tot = Math.max(s.total, 0.0001), depasse = s.reste < 0;
+    var fp = Math.min(s.pris / tot, 1), fv = Math.min(s.prevu / tot, 1 - fp);
+    function arc(frac, debut, op, couleur) {
+      if (frac <= 0.0001) return "";
+      return '<circle cx="50" cy="50" r="' + R + '" fill="none" style="stroke:' + couleur + '" stroke-opacity="' + op + '" stroke-width="12" stroke-dasharray="' +
+        (frac * C).toFixed(2) + " " + C.toFixed(2) + '" stroke-dashoffset="' + (-debut * C).toFixed(2) + '"/>';
+    }
+    var c = depasse ? "var(--crit)" : col;
+    return '<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="' + R + '" fill="none" style="stroke:var(--track)" stroke-width="12"/>' +
+      arc(fp, 0, 1, c) + arc(fv, fp, 0.42, c) + '</svg>';
+  }
+  function rCompteurs() {
+    var h = D.compteurs.map(function (c) {
+      var s = stats(c, cleVue), neg = s.reste < 0;
+      var reste = neg ? "Tu dépasses de " + fmtJ(-s.reste) : (s.total > 0 ? "à poser sur " + fmtN(s.total) : "Règle ce compteur dans les réglages");
+      return '<article class="cpt"><div class="anneau">' + anneau(s, c.couleur) +
+        '<div class="centre"><b>' + fmtN(s.reste) + '</b><small>' + (Math.abs(s.reste) >= 2 ? "jours" : "jour") + '</small></div></div>' +
+        '<div class="corps"><h3><span class="pt" style="background:' + c.couleur + '"></span>' + esc(c.nom) + '</h3>' +
+        '<p class="reste' + (neg ? " neg" : "") + '">' + reste + '</p>' +
+        '<div class="stats"><div><b>' + fmtN(s.pris) + '</b>pris</div><div><b>' + fmtN(s.prevu) + '</b>prévus</div>' +
+        (s.report ? '<div><b>' + fmtN(s.report) + '</b>reportés</div>' : '') + '</div></div></article>';
+    }).join("");
+    $("#compteurs").innerHTML = h;
+  }
+  function rCalendrier() {
+    var an = moisVue.getFullYear(), mo = moisVue.getMonth(), auj = iso(aujourdhui());
+    var couv = {};
+    D.conges.forEach(function (x) {
+      var a = parse(x.du), b = parse(x.au); if (!a || !b || ecart(a, b) > 400) return;
+      var vals = {}; valeurs(x).forEach(function (j) { vals[j.d] = j.v; });
+      for (var d = a; d <= b; d = addJ(d, 1)) {
+        var k = iso(d);
+        if (d.getMonth() !== mo || d.getFullYear() !== an) continue;
+        var v = vals[k] || 0;
+        if (!couv[k] || v > couv[k].v) couv[k] = { x: x, v: v };
+      }
+    });
+    var h = '<div class="calhaut"><button type="button" class="petit" data-mois="-1" aria-label="Mois précédent">' + ico("gauche") + '</button>' +
+      '<div class="mois" aria-live="polite">' + MOIS[mo] + ' ' + an + '</div>' +
+      '<button type="button" class="petit" data-mois="1" aria-label="Mois suivant">' + ico("droite") + '</button></div><div class="cal">';
+    ["L", "M", "M", "J", "V", "S", "D"].forEach(function (j) { h += '<div class="sem" aria-hidden="true">' + j + '</div>'; });
+    var decal = (new Date(an, mo, 1).getDay() + 6) % 7;
+    for (var i = 0; i < decal; i++) h += "<div></div>";
+    var nbj = new Date(an, mo + 1, 0).getDate();
+    for (var j = 1; j <= nbj; j++) {
+      var d = new Date(an, mo, j), k = iso(d), w = d.getDay(), cls = "jour", st = "", fe = ferie(d), lab = JOURS[w] + " " + j + " " + MOIS[mo];
+      var cv = couv[k];
+      if (w === 0 || w === 6) cls += " we";
+      if (k === auj) cls += " auj";
+      if (fe) { cls += " ferie"; lab += ", " + fe; }
+      if (cv) {
+        var col = compteur(cv.x.c).couleur;
+        st = "--c:" + col + ";--ct:" + teinte(col, 0.2) + ";";
+        if (cv.v >= 1) cls += " conge"; else if (cv.v > 0) cls += " demi"; else cls += " plage";
+        lab += ", congé " + compteur(cv.x.c).nom + (cv.v > 0 && cv.v < 1 ? " (demi-journée)" : "");
+      }
+      h += '<button type="button" class="' + cls + '" data-jour="' + k + '"' + (st ? ' style="' + st + '"' : "") + ' aria-label="' + esc(lab) + '">' + j + '</button>';
+    }
+    h += '</div><div class="legende">';
+    D.compteurs.forEach(function (c) { h += '<span><i class="pt" style="background:' + c.couleur + '"></i>' + esc(c.nom) + '</span>'; });
+    h += '<span><i class="pf"></i>Jour férié</span></div>';
+    $("#calendrier").innerHTML = h;
+  }
+  function ligne(x, passe) {
+    var c = compteur(x.c), t = totalConge(x);
+    return '<button type="button" class="ligne' + (passe ? " passe" : "") + '" data-id="' + esc(x.id) + '" style="--c:' + c.couleur + '">' +
+      '<span class="barre"></span><span class="txt"><div class="quand">' + fmtPlage(x.du, x.au) + '</div>' +
+      '<div class="qui">' + esc(c.nom) + (x.note ? " · " + esc(x.note) : "") + '</div></div></span>' +
+      '<span class="nb">' + fmtN(t) + ' j</span></button>';
+  }
+  function rListe() {
+    var b = bornes(cleVue), d0 = iso(b[0]), d1 = iso(b[1]), ja = iso(aujourdhui());
+    var dans = D.conges.filter(function (x) { return x.au >= d0 && x.du <= d1; });
+    var avenir = dans.filter(function (x) { return x.au >= ja; }).sort(function (a, c) { return a.du < c.du ? -1 : 1; });
+    var passes = dans.filter(function (x) { return x.au < ja; }).sort(function (a, c) { return a.du < c.du ? 1 : -1; });
+    var h = "";
+    if (!dans.length) {
+      h = '<div class="vide"><svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + ICO.soleil + '</svg><p><b>Aucun congé posé pour ' + esc(libPeriode(cleVue)) + '.</b></p><p>Touche « Poser des congés » pour commencer.</p></div>';
+    } else {
+      if (avenir.length) h += "<h2>À venir</h2>" + avenir.map(function (x) { return ligne(x, false); }).join("");
+      if (passes.length) h += "<h2>Déjà pris</h2>" + passes.map(function (x) { return ligne(x, true); }).join("");
+    }
+    $("#liste").innerHTML = h;
+  }
+  function renderTout() { rSalut(); rPeriode(); rHero(); rCompteurs(); rCalendrier(); rListe(); $("#stockage").hidden = stockageOK; }
+
+  /* ---------- feuille (fenêtre du bas) ---------- */
+  function ouvrirFeuille(html, mode) {
+    modeFeuille = mode; $("#feuille").innerHTML = html; $("#voile").hidden = false; $("#feuille").scrollTop = 0;
+    $("#app").inert = true; $("#fab").style.visibility = "hidden";
+    var p = $("#feuille [data-focus]"); if (p) { try { p.focus({ preventScroll: true }); } catch (e) {} }
+  }
+  function fermerFeuille() {
+    if ($("#voile").hidden) return;
+    if (modeFeuille === "reglages") { D.accueilFait = true; sauver(); }
+    $("#voile").hidden = true; $("#feuille").innerHTML = ""; $("#app").inert = false; $("#fab").style.visibility = ""; modeFeuille = ""; F = null;
+    renderTout();
+  }
+
+  /* ----- poser / modifier un congé ----- */
+  function ouvrirConge(id, jour) {
+    var x = null;
+    if (id) D.conges.forEach(function (c) { if (c.id === id) x = c; });
+    if (x) F = { id: x.id, c: x.c, du: x.du, au: x.au, demiDebut: x.demiDebut, demiFin: x.demiFin, note: x.note, sur: false };
+    else {
+      var j = jour || iso(aujourdhui());
+      F = { id: null, c: D.compteurs[0].id, du: j, au: j, demiDebut: false, demiFin: false, note: "", sur: false };
+    }
+    var puces = D.compteurs.map(function (c) {
+      return '<button type="button" class="puce" data-c="' + esc(c.id) + '" style="--c:' + c.couleur + ';--ct:' + teinte(c.couleur, 0.16) + '" aria-pressed="' + (c.id === F.c) + '"><span class="pt" style="background:' + c.couleur + '"></span>' + esc(c.nom) + '</button>';
+    }).join("");
+    var h = '<div class="fhaut"><h2 id="fTitre">' + (x ? "Modifier ce congé" : "Poser des congés") + '</h2>' +
+      '<button type="button" class="rond" data-fermer aria-label="Fermer">' + ico("x") + '</button></div>' +
+      '<div class="champ"><span>Sur quel compteur ?</span><div class="puces" role="group" aria-label="Compteur">' + puces + '</div></div>' +
+      '<div class="deux"><label class="champ"><span>Du</span><input type="date" id="fDu" value="' + F.du + '" data-focus></label>' +
+      '<label class="champ"><span>Au (inclus)</span><input type="date" id="fAu" value="' + F.au + '"></label></div>' +
+      '<label class="coche"><input type="checkbox" id="fDemiD"' + (F.demiDebut ? " checked" : "") + '><span id="fDemiDTxt"></span></label>' +
+      '<label class="coche" id="fDemiFLigne"><input type="checkbox" id="fDemiF"' + (F.demiFin ? " checked" : "") + '><span>Dernier jour : seulement la matinée</span></label>' +
+      '<div class="resume" id="resume" aria-live="polite"></div>' +
+      '<label class="champ"><span>Une note (facultatif)</span><input type="text" id="fNote" maxlength="80" placeholder="Ex. : vacances en famille" value="' + esc(F.note) + '"></label>' +
+      '<div class="actions"><button type="button" class="btn" id="fSave">' + ico("check") + 'Enregistrer</button>' +
+      (x ? '<button type="button" class="btn danger" id="fDel">' + ico("poubelle") + 'Supprimer</button>' : '') + '</div>';
+    ouvrirFeuille(h, "conge"); majResume();
+  }
+  function majResume() {
+    if (modeFeuille !== "conge" || !F) return;
+    var du = parse(F.du), au = parse(F.au), box = $("#resume"), bt = $("#fSave"), memeJour = F.du === F.au;
+    $("#fDemiDTxt").textContent = memeJour ? "Seulement une demi-journée" : "Premier jour : seulement l'après-midi";
+    $("#fDemiFLigne").style.display = memeJour ? "none" : "";
+    function bloque(msg) { box.innerHTML = '<div class="sous mal">' + msg + '</div>'; bt.disabled = true; }
+    if (!du || !au) return bloque("Choisis les deux dates.");
+    if (au < du) return bloque("La date de fin est avant le début.");
+    if (ecart(du, au) > 400) return bloque("C'est trop long : 400 jours au maximum.");
+    var cg = { du: F.du, au: F.au, demiDebut: F.demiDebut, demiFin: memeJour ? false : F.demiFin };
+    var v = valeurs(cg), total = v.reduce(function (s, x) { return s + x.v; }, 0), ign = ecart(du, au) + 1 - v.length;
+    if (!v.length) return bloque("Aucun jour à décompter : ce sont des jours de week-end ou fériés.");
+    var idx = indexJours(F.id), conflit = v.some(function (x) { return (idx[x.d] || 0) + x.v > 1.001; });
+    if (conflit) return bloque("Un autre congé couvre déjà ces jours.");
+    var c = compteur(F.c), cle = cleDe(parse(v[0].d)), b = bornes(cle), d0 = iso(b[0]), d1 = iso(b[1]);
+    var s = stats(c, cle, F.id), dedans = v.filter(function (x) { return x.d >= d0 && x.d <= d1; }).reduce(function (a, x) { return a + x.v; }, 0);
+    var apres = s.reste - dedans;
+    var txt = '<div class="grand">' + fmtJ(total) + ' décompté' + (total >= 2 ? "s" : "") + '</div>';
+    if (ign > 0) txt += '<div class="sous">' + ign + ' jour' + (ign > 1 ? "s" : "") + ' de week-end ou férié non compté' + (ign > 1 ? "s" : "") + '.</div>';
+    txt += apres < 0
+      ? '<div class="sous mal">Attention : ça dépasse de ' + fmtJ(-apres) + ' ton solde « ' + esc(c.nom) + ' » (' + esc(libPeriode(cle)) + ').</div>'
+      : '<div class="sous">Il te restera ' + fmtJ(apres) + ' sur « ' + esc(c.nom) + ' » (' + esc(libPeriode(cle)) + ').</div>';
+    box.innerHTML = txt; bt.disabled = false;
+  }
+  function enregistrerConge() {
+    if (!F) return;
+    var memeJour = F.du === F.au;
+    var obj = { id: F.id || ("c" + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36)), c: F.c, du: F.du, au: F.au,
+      demiDebut: F.demiDebut, demiFin: memeJour ? false : F.demiFin, note: F.note.trim().slice(0, 80) };
+    if (F.id) D.conges = D.conges.map(function (x) { return x.id === F.id ? obj : x; }); else D.conges.push(obj);
+    sauver();
+    var d = parse(obj.du); cleVue = cleDe(d); moisVue = new Date(d.getFullYear(), d.getMonth(), 1);
+    fermerFeuille();
+  }
+  var minuteurSuppr = null;
+  function supprimerConge() {
+    var b = $("#fDel"); if (!b || !F) return;
+    if (!F.sur) {
+      F.sur = true; b.classList.add("sur"); b.innerHTML = ico("poubelle") + "Oui, supprimer";
+      clearTimeout(minuteurSuppr);
+      minuteurSuppr = setTimeout(function () { var bb = $("#fDel"); if (bb && F) { F.sur = false; bb.classList.remove("sur"); bb.innerHTML = ico("poubelle") + "Supprimer"; } }, 4000);
+      return;
+    }
+    D.conges = D.conges.filter(function (x) { return x.id !== F.id; });
+    sauver(); fermerFeuille();
+  }
+
+  /* ----- réglages ----- */
+  function ouvrirReglages(bienvenue) {
+    var cartes = D.compteurs.map(function (c) {
+      var p = params(c, cleVue), prec = stats(c, cleVue - 1), couleurs = COULEURS.map(function (k) {
+        return '<button type="button" class="couleur" data-cid="' + esc(c.id) + '" data-couleur="' + k + '" style="--c:' + k + '" aria-label="Couleur ' + k + '" aria-pressed="' + (k.toLowerCase() === c.couleur.toLowerCase()) + '"></button>';
+      }).join("");
+      var bp = bornes(cleVue - 1), avant = D.conges.some(function (x) { return x.au >= iso(bp[0]) && x.du <= iso(bp[1]); });
+      var rep = (avant && prec.reste > 0 && prec.total > 0 && p.report !== prec.reste)
+        ? '<button type="button" class="lien" data-reporter="' + esc(c.id) + '" data-val="' + prec.reste + '">Reprendre le solde de l\'année précédente (' + fmtJ(prec.reste) + ')</button>' : "";
+      return '<div class="carte"><label class="champ"><span>Nom</span><input type="text" maxlength="30" data-cid="' + esc(c.id) + '" data-k="nom" value="' + esc(c.nom) + '"></label>' +
+        '<div class="couleurs" role="group" aria-label="Couleur">' + couleurs + '</div>' +
+        '<div class="deux"><label class="champ"><span>Jours acquis</span><input type="text" inputmode="decimal" data-cid="' + esc(c.id) + '" data-k="acquis" value="' + fmtN(p.acquis) + '"></label>' +
+        '<label class="champ"><span>Report d\'avant</span><input type="text" inputmode="decimal" data-cid="' + esc(c.id) + '" data-k="report" value="' + fmtN(p.report) + '"></label></div>' + rep +
+        (D.compteurs.length > 1 ? '<button type="button" class="btn danger" data-suppr="' + esc(c.id) + '">' + ico("poubelle") + 'Supprimer ce compteur</button>' : '') + '</div>';
+    }).join("");
+    var moisOpts = MOIS.map(function (m, i) { return '<option value="' + (i + 1) + '"' + (D.debut === i + 1 ? " selected" : "") + '>' + cap(m) + '</option>'; }).join("");
+    var h = '<div class="fhaut"><h2 id="fTitre">' + (bienvenue ? "Bienvenue !" : "Réglages") + '</h2>' +
+      '<button type="button" class="rond" data-fermer aria-label="Fermer">' + ico("x") + '</button></div>' +
+      (bienvenue ? '<p class="info">Règle tes compteurs en 30 secondes (tu pourras tout changer plus tard), puis touche « C\'est parti ».</p>' : '') +
+      '<label class="champ"><span>Ton prénom (facultatif)</span><input type="text" maxlength="30" id="rPrenom" value="' + esc(D.prenom) + '"></label>' +
+      '<div class="section"><h3>Mes compteurs · ' + esc(libPeriode(cleVue)) + '</h3>' + cartes +
+      (D.compteurs.length < 8 ? '<button type="button" class="btn sec" data-ajouter>' + ico("plus") + 'Ajouter un compteur</button>' : '') + '</div>' +
+      '<div class="section"><h3>Comment on compte</h3>' +
+      '<div class="champ"><span>Les jours décomptés</span><div class="puces" role="group" aria-label="Jours décomptés">' +
+      '<button type="button" class="puce" data-mode="ouvres" style="--c:var(--accent);--ct:' + teinte("#0e7c86", 0.16) + '" aria-pressed="' + (D.mode === "ouvres") + '">Jours ouvrés (lundi → vendredi)</button>' +
+      '<button type="button" class="puce" data-mode="ouvrables" style="--c:var(--accent);--ct:' + teinte("#0e7c86", 0.16) + '" aria-pressed="' + (D.mode === "ouvrables") + '">Jours ouvrables (lundi → samedi)</button></div></div>' +
+      '<label class="champ"><span>L\'année de congés commence en</span><select id="rDebut">' + moisOpts + '</select></label>' +
+      '<p class="muted" style="margin:-6px 0 0;font-size:.85rem">Les dimanches et les jours fériés ne sont jamais comptés.</p></div>' +
+      '<div class="section"><h3>Sauvegarde</h3>' +
+      '<p class="muted" style="margin:0 0 10px;font-size:.9rem">Tout est gardé sur cet appareil. Un fichier de sauvegarde te permet de tout retrouver si tu changes de téléphone.</p>' +
+      '<div class="actions"><button type="button" class="btn sec" data-export>' + ico("haut") + 'Sauvegarder</button>' +
+      '<button type="button" class="btn sec" data-import>' + ico("bas") + 'Restaurer</button></div>' +
+      '<input type="file" id="rFichier" accept="application/json,.json" hidden>' +
+      '<div class="actions" style="margin-top:10px"><button type="button" class="btn danger" data-effacer>' + ico("poubelle") + 'Tout effacer</button></div>' +
+      '<p class="msg" id="rMsg" role="status"></p></div>' +
+      '<div class="actions" style="margin-top:6px"><button type="button" class="btn" data-fermer>' + (bienvenue ? "C'est parti" : "Terminé") + '</button></div>';
+    ouvrirFeuille(h, "reglages");
+  }
+  function message(t, mal) { var m = $("#rMsg"); if (m) { m.textContent = t; m.className = "msg" + (mal ? " mal" : ""); } }
+  function reglerCompteur(cid, k, val) {
+    var c = compteur(cid);
+    if (k === "nom") { c.nom = val.slice(0, 30) || "Compteur"; return; }
+    var cle = String(cleVue); D.periodes[cle] = D.periodes[cle] || {}; var p = D.periodes[cle][c.id] = D.periodes[cle][c.id] || {};
+    p[k] = num(val);
+    if (k === "acquis") c.acquis = num(val); /* sert de valeur de départ pour les années suivantes */
+  }
+  function exporter() {
+    try {
+      var blob = new Blob([JSON.stringify(D, null, 1)], { type: "application/json" });
+      var a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+      a.download = "conges-sauvegarde-" + iso(aujourdhui()) + ".json"; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 3000);
+      message("Sauvegarde enregistrée dans tes téléchargements.");
+    } catch (e) { message("La sauvegarde n'a pas marché sur cet appareil.", true); }
+  }
+  function importer(fichier) {
+    if (!fichier) return;
+    var r = new FileReader();
+    r.onload = function () {
+      var o; try { o = JSON.parse(String(r.result)); } catch (e) { return message("Ce fichier n'est pas une sauvegarde de l'appli.", true); }
+      if (!o || !Array.isArray(o.conges) || !Array.isArray(o.compteurs)) return message("Ce fichier n'est pas une sauvegarde de l'appli.", true);
+      D = normaliser(o); D.accueilFait = true; sauver();
+      cleVue = cleDe(aujourdhui()); moisVue = new Date(aujourdhui().getFullYear(), aujourdhui().getMonth(), 1);
+      ouvrirReglages(false); message("Sauvegarde restaurée : " + D.conges.length + " congé" + (D.conges.length > 1 ? "s" : "") + ".");
+    };
+    r.onerror = function () { message("Impossible de lire ce fichier.", true); };
+    r.readAsText(fichier);
+  }
+  var confirmEff = false, minuteurEff = null;
+
+  /* ---------- événements ---------- */
+  document.addEventListener("click", function (e) {
+    if (e.target && e.target.id === "voile") { fermerFeuille(); return; }
+    var t = e.target.closest ? e.target.closest("button") : null; if (!t) return;
+    if (t.id === "fab") { ouvrirConge(null); return; }
+    if (t.id === "btnReglages") { ouvrirReglages(false); return; }
+    if (t.id === "perPrec" || t.id === "perSuiv") {
+      cleVue += t.id === "perPrec" ? -1 : 1;
+      var b = bornes(cleVue), auj = aujourdhui();
+      moisVue = (auj >= b[0] && auj <= b[1]) ? new Date(auj.getFullYear(), auj.getMonth(), 1) : new Date(b[0].getFullYear(), b[0].getMonth(), 1);
+      renderTout(); return;
+    }
+    if (t.hasAttribute("data-mois")) { moisVue = new Date(moisVue.getFullYear(), moisVue.getMonth() + (+t.getAttribute("data-mois")), 1); rCalendrier(); return; }
+    if (t.hasAttribute("data-jour")) {
+      var k = t.getAttribute("data-jour"), trouve = null;
+      D.conges.forEach(function (x) { if (!trouve && x.du <= k && x.au >= k) trouve = x; });
+      if (trouve) ouvrirConge(trouve.id); else ouvrirConge(null, k);
+      return;
+    }
+    if (t.hasAttribute("data-id")) { ouvrirConge(t.getAttribute("data-id")); return; }
+    if (t.hasAttribute("data-fermer")) { fermerFeuille(); return; }
+    if (t.hasAttribute("data-c") && F) {
+      F.c = t.getAttribute("data-c");
+      document.querySelectorAll(".puce[data-c]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-c") === F.c)); });
+      majResume(); return;
+    }
+    if (t.id === "fSave") { enregistrerConge(); return; }
+    if (t.id === "fDel") { supprimerConge(); return; }
+    /* réglages */
+    if (t.hasAttribute("data-couleur")) { compteur(t.getAttribute("data-cid")).couleur = t.getAttribute("data-couleur"); sauver(); ouvrirReglages(false); return; }
+    if (t.hasAttribute("data-mode")) { D.mode = t.getAttribute("data-mode"); sauver();
+      document.querySelectorAll(".puce[data-mode]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-mode") === D.mode)); }); return; }
+    if (t.hasAttribute("data-ajouter")) {
+      var pris = D.compteurs.map(function (c) { return c.couleur.toLowerCase(); }), col = COULEURS.filter(function (k) { return pris.indexOf(k) < 0; })[0] || COULEURS[0];
+      D.compteurs.push({ id: "k" + Date.now().toString(36), nom: "Nouveau compteur", couleur: col, acquis: 0 }); sauver(); ouvrirReglages(false);
+      var sc = $("#feuille"); sc.scrollTop = sc.scrollHeight; return;
+    }
+    if (t.hasAttribute("data-suppr")) {
+      var cid = t.getAttribute("data-suppr"), nb = D.conges.filter(function (x) { return x.c === cid; }).length;
+      if (nb) { message("Ce compteur sert à " + nb + " congé" + (nb > 1 ? "s" : "") + " : supprime-les ou change leur compteur d'abord.", true); return; }
+      if (t.getAttribute("data-sur") !== "1") { t.setAttribute("data-sur", "1"); t.classList.add("sur"); t.innerHTML = ico("poubelle") + "Oui, supprimer"; return; }
+      D.compteurs = D.compteurs.filter(function (c) { return c.id !== cid; }); sauver(); ouvrirReglages(false); return;
+    }
+    if (t.hasAttribute("data-reporter")) { reglerCompteur(t.getAttribute("data-reporter"), "report", String(t.getAttribute("data-val"))); sauver(); ouvrirReglages(false); return; }
+    if (t.hasAttribute("data-export")) { exporter(); return; }
+    if (t.hasAttribute("data-import")) { $("#rFichier").click(); return; }
+    if (t.hasAttribute("data-effacer")) {
+      if (!confirmEff) {
+        confirmEff = true; t.classList.add("sur"); t.innerHTML = ico("poubelle") + "Oui, tout effacer";
+        message("Touche encore une fois pour tout effacer. Pense à sauvegarder avant.", true);
+        clearTimeout(minuteurEff); minuteurEff = setTimeout(function () { confirmEff = false; if (modeFeuille === "reglages") ouvrirReglages(false); }, 5000);
+        return;
+      }
+      confirmEff = false; D = defauts(); sauver(); cleVue = cleDe(aujourdhui()); fermerFeuille(); ouvrirReglages(true);
+    }
+  });
+  document.addEventListener("input", function (e) {
+    var t = e.target;
+    if (t.id === "fDu") { F.du = t.value; if (F.au < F.du || !F.au) { F.au = F.du; $("#fAu").value = F.au; } majResume(); return; }
+    if (t.id === "fAu") { F.au = t.value; majResume(); return; }
+    if (t.id === "fDemiD") { F.demiDebut = t.checked; majResume(); return; }
+    if (t.id === "fDemiF") { F.demiFin = t.checked; majResume(); return; }
+    if (t.id === "fNote") { F.note = t.value; return; }
+    if (t.id === "rPrenom") { D.prenom = t.value.slice(0, 30); sauver(); return; }
+    if (t.hasAttribute && t.hasAttribute("data-k")) { reglerCompteur(t.getAttribute("data-cid"), t.getAttribute("data-k"), t.value); sauver(); }
+  });
+  document.addEventListener("change", function (e) {
+    var t = e.target;
+    if (t.id === "rFichier") { importer(t.files && t.files[0]); t.value = ""; return; }
+    if (t.id === "rDebut") {
+      D.debut = +t.value; sauver(); cleVue = cleDe(aujourdhui()); moisVue = new Date(aujourdhui().getFullYear(), aujourdhui().getMonth(), 1); ouvrirReglages(false); return;
+    }
+    if (t.hasAttribute && t.hasAttribute("data-k") && t.getAttribute("data-k") !== "nom") {
+      var c = compteur(t.getAttribute("data-cid")); t.value = fmtN(params(c, cleVue)[t.getAttribute("data-k")]);
+    }
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") fermerFeuille(); });
+
+  /* ---------- démarrage ---------- */
+  charger();
+  var auj0 = aujourdhui();
+  cleVue = cleDe(auj0); moisVue = new Date(auj0.getFullYear(), auj0.getMonth(), 1);
+  renderTout();
+  if (!D.accueilFait) ouvrirReglages(true);
+  if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
+    try { navigator.serviceWorker.register("conges-sw.js").catch(function () {}); } catch (e) {}
+  }
+})();
+</script>
+<!-- MAJ:debut — pastille de mise à jour commune à toutes les applis (modèle : outils/pastille-maj.html, ne pas modifier ici à la main) -->
+<style>
+#maj-pastille{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:2147483000;
+  display:flex;align-items:center;gap:5px;margin:0;padding:5px 9px;border-radius:99px;border:1px solid rgba(255,255,255,.25);
+  background:rgba(22,30,36,.86);color:#fff;font:700 11.5px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.02em;
+  box-shadow:0 4px 14px -6px rgba(0,0,0,.6);cursor:pointer;-webkit-tap-highlight-color:transparent;backdrop-filter:blur(6px)}
+#maj-pastille .maj-fl{font-size:13px}
+#maj-pastille.maj-nouvelle{background:#1d7a45;border-color:#7fd6a3;animation:maj-pulse 2s ease-in-out infinite}
+@keyframes maj-pulse{50%{box-shadow:0 0 0 5px rgba(29,122,69,.25)}}
+@media (prefers-reduced-motion:reduce){#maj-pastille.maj-nouvelle{animation:none}}
+#maj-panneau{position:fixed;inset:0;z-index:2147483001;display:flex;align-items:flex-start;justify-content:center;
+  padding:calc(52px + env(safe-area-inset-top,0px)) 16px 16px;background:rgba(0,0,0,.45);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#maj-panneau[hidden]{display:none}
+#maj-panneau .maj-boite{width:100%;max-width:360px;max-height:100%;overflow:auto;background:#fff;color:#16202a;border-radius:14px;padding:16px 16px 14px;box-shadow:0 20px 50px -10px rgba(0,0,0,.6)}
+#maj-panneau .maj-nom{font-weight:800;font-size:18px;margin:0 0 2px}
+#maj-panneau .maj-ver{color:#4b5a68;font-size:13.5px;margin:0}
+#maj-panneau .maj-dispo{margin:10px 0 0;padding:8px 10px;border-radius:9px;background:#e3f4ea;color:#14532d;font-weight:600;font-size:13.5px}
+#maj-panneau .maj-t{margin:12px 0 4px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6a7884}
+#maj-panneau ul{margin:0;padding:0 0 0 18px;font-size:13.5px;color:#26323d}
+#maj-panneau li{margin:3px 0}
+#maj-panneau .maj-actions{display:flex;gap:8px;margin-top:14px}
+#maj-panneau button{flex:1;min-height:44px;border-radius:10px;border:1px solid #c9d2da;background:#f3f6f8;color:#16202a;font:700 15px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;cursor:pointer}
+#maj-panneau button.maj-ok{background:#1f4f7a;border-color:#1f4f7a;color:#fff}
+#maj-panneau .maj-msg{margin:10px 0 0;font-size:13px;color:#8a3b12}
+#maj-panneau .maj-msg:empty{display:none}
+@media print{#maj-pastille,#maj-panneau{display:none!important}}
+
+</style>
+<script>
+window.MAJ_APPLI={"nom": "Congés", "version": "V1", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Première version : compteurs de jours restants, calendrier du mois, liste des congés posés."]};
+(function(){
+  "use strict";
+  var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
+  var enLigne=/^https?:$/.test(location.protocol), distante=null;
+  /* nettoie l'adresse après une actualisation (?maj=...) */
+  if(/[?&]maj=/.test(location.search)){ try{ history.replaceState(null,"",location.pathname+location.hash); }catch(e){} }
+
+  var b=document.createElement("button");
+  b.type="button"; b.id="maj-pastille"; b.title=A.nom+" — version et mise à jour";
+  b.innerHTML='<span class="maj-fl" aria-hidden="true">↻</span><span class="maj-txt"></span>';
+  var txt=b.querySelector(".maj-txt");
+  function court(d){ return String(d||"").slice(0,5); }
+  function majTexte(){
+    if(distante&&distante.version!==A.version){ b.classList.add("maj-nouvelle"); txt.textContent="Nouvelle version"; }
+    else { b.classList.remove("maj-nouvelle"); txt.textContent=A.version+" · "+court(A.date); }
+  }
+
+  var p=document.createElement("div");
+  p.id="maj-panneau"; p.hidden=true; p.setAttribute("role","dialog"); p.setAttribute("aria-modal","true"); p.setAttribute("aria-label","Mise à jour");
+  p.innerHTML='<div class="maj-boite"><p class="maj-nom"></p><p class="maj-ver"></p><p class="maj-dispo" hidden></p>'+
+    '<p class="maj-t">Dernières nouveautés</p><ul></ul>'+
+    '<div class="maj-actions"><button type="button" class="maj-ok">↻ Actualiser</button><button type="button" class="maj-fermer">Fermer</button></div>'+
+    '<p class="maj-msg" role="status"></p></div>';
+  var q=function(s){ return p.querySelector(s); };
+  q(".maj-nom").textContent=A.nom;
+  q(".maj-ver").textContent="Version "+A.version+" · mise à jour le "+A.date;
+  (A.nouveautes||[]).slice(0,4).forEach(function(n){ var li=document.createElement("li"); li.textContent=n; q("ul").appendChild(li); });
+
+  function ouvrir(){
+    var d=q(".maj-dispo");
+    if(distante&&distante.version!==A.version){ d.hidden=false; d.textContent="Nouvelle version en ligne : "+distante.version+(distante.date?" du "+distante.date:"")+". Touchez Actualiser."; }
+    else d.hidden=true;
+    q(".maj-msg").textContent=""; p.hidden=false; verifier(true);
+  }
+  function fermer(){ p.hidden=true; }
+  b.addEventListener("click",ouvrir);
+  q(".maj-fermer").addEventListener("click",fermer);
+  p.addEventListener("click",function(e){ if(e.target===p) fermer(); });
+  document.addEventListener("keydown",function(e){ if(e.key==="Escape"&&!p.hidden) fermer(); });
+
+  q(".maj-ok").addEventListener("click",function(){
+    var msg=q(".maj-msg");
+    if(!enLigne){ msg.textContent="Cette page est un fichier ouvert sur l'appareil : ouvrez plutôt l'adresse en ligne."; return; }
+    if(navigator.onLine===false){ msg.textContent="Pas de connexion internet : réessayez plus tard."; return; }
+    msg.textContent="Mise à jour en cours…";
+    var go=function(){ setTimeout(function(){ location.replace(location.pathname+"?maj="+Date.now()+location.hash); },300); };
+    Promise.resolve().then(function(){
+      if(!("serviceWorker" in navigator)) return;
+      return navigator.serviceWorker.getRegistrations().then(function(rs){ return Promise.all(rs.map(function(r){ return r.update().catch(function(){}); })); });
+    }).catch(function(){}).then(function(){
+      if(!("caches" in window)||!A.cache) return;
+      return caches.keys().then(function(ks){ return Promise.all(ks.filter(function(k){ return k.indexOf(A.cache)===0; }).map(function(k){ return caches.delete(k); })); });
+    }).catch(function(){}).then(go,go);
+  });
+
+  var dernier=0;
+  function verifier(force){
+    if(!enLigne||navigator.onLine===false) return;
+    var t=Date.now(); if(!force&&t-dernier<5*60*1000) return; dernier=t;
+    fetch("version.json",{cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(j){
+      if(j&&j.version){ distante=j; majTexte();
+        if(!p.hidden&&j.version!==A.version){ var d=q(".maj-dispo"); d.hidden=false; d.textContent="Nouvelle version en ligne : "+j.version+(j.date?" du "+j.date:"")+". Touchez Actualiser."; } }
+    }).catch(function(){});
+  }
+  function poser(){ document.body.appendChild(b); document.body.appendChild(p); majTexte(); setTimeout(function(){ verifier(true); },1500); }
+  if(document.body) poser(); else document.addEventListener("DOMContentLoaded",poser);
+  document.addEventListener("visibilitychange",function(){ if(!document.hidden) verifier(false); });
+})();
+</script>
+<!-- MAJ:fin -->
+</body>
+</html>

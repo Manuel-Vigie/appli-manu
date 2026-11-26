@@ -1,0 +1,18 @@
+{
+  "name": "Congés",
+  "short_name": "Congés",
+  "description": "Suivre mes congés : combien il me reste, ce que j'ai posé, le calendrier.",
+  "lang": "fr",
+  "id": "./conges.html",
+  "start_url": "./conges.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#faf6ee",
+  "theme_color": "#0e7c86",
+  "icons": [
+    {"src": "conges-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "conges-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "conges-icon-masque-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

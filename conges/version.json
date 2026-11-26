@@ -1,0 +1,16 @@
+{
+ "nom": "Congés",
+ "version": "V1",
+ "date": "26/11/2026",
+ "nouveautes": [
+  "Première version : compteurs de jours restants, calendrier du mois, liste des congés posés."
+ ],
+ "cache": "conges-app-",
+ "sw": {
+  "fichier": "conges-sw.js",
+  "cache": "conges-app-v1"
+ },
+ "fichiers": [
+  "conges.html"
+ ]
+}
