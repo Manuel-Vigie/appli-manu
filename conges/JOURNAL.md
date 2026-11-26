@@ -2,7 +2,7 @@
 
 ## Identité
 Appli pour **suivre mes congés** : combien de jours il reste (un anneau par compteur : congés payés, RTT…), le prochain congé en grand, un calendrier du mois et la liste de ce qui est posé. Pensée pour le téléphone, elle marche aussi sur PC.
-Version actuelle : **V17 · 26/11/2026** (affichée dans la pastille ↻ en haut de l'appli).
+Version actuelle : **V18 · 26/11/2026** (affichée dans la pastille ↻ en haut de l'appli).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/conges/conges.html
@@ -21,7 +21,7 @@ https://manuel-vigie.github.io/appli-manu/conges/conges.html
 2. Menu **⋮ → Installer l'application** (ou « Ajouter à l'écran d'accueil »).
 
 ## Ce que l'appli fait
-- **Apparence (maquette « A : compacte », choisie par Manuel)** : en-tête « Mes congés » avec, à droite, l'année (‹ 2026 ›) et les réglages ; bandeau « prochain congé » bas ; compteurs en **tuiles 2 par 2** (petit anneau, nom, « sur N », « N pris » en orange, une note courte en couleur du thème : prévus / versés au CET) ; liens « Mon bilan » et « Verser dans le CET » sous les tuiles ; calendrier visible dès l'ouverture (jours un peu moins hauts).
+- **Apparence (maquette « A : compacte », choisie par Manuel)** : en-tête « Mes congés » avec, à droite, l'année (‹ 2026 ›) et les réglages ; bandeau « prochain congé » bas ; compteurs en **tuiles 2 par 2** (petit anneau, nom, « sur N », « N pris » en orange, une note courte en couleur du thème : prévus / versés au CET) ; la tuile CET prend la couleur du compteur CET (bordure, fond léger, nom et note ; l'anneau plein = jours disponibles) ; liens « Mon bilan » et « Verser dans le CET » sous les tuiles ; calendrier visible dès l'ouverture (jours un peu moins hauts).
 - **Compteurs** : au départ « Congés annuels » (22,5 jours), « RTT » (6) et « Ancienneté » (3), les vrais chiffres de Manuel ; nom, couleur, jours acquis et report réglables, jusqu'à 8 compteurs. Anneau = pris (plein) + prévus (clair) + reste.
 - **Poser des congés** (bouton en bas, ou sur le calendrier : toucher le premier jour — il se colore et un bandeau apparaît —, puis le dernier jour, même dans un autre mois ; « Un seul jour » ou retoucher le même jour = un jour ; « Annuler » efface le choix ; un jour déjà posé rouvre ce congé) : compteur, dates du/au, demi-journée possible (après-midi du premier jour, matinée du dernier), note. Le nombre de jours décomptés et le solde restant s'affichent en direct. **Partager entre deux compteurs** (case dans la fenêtre) : on choisit le compteur du début du congé, le 2e compteur de la fin et le nombre de jours pris sur ce 2e compteur (par pas d'un demi-jour). Exemple : une semaine = 2 jours « Congés annuels » puis 3 jours « Ancienneté ». Le calendrier montre chaque jour dans la couleur de son compteur (jour coupé en deux couleurs si un jour est partagé), la liste montre « Congés annuels 2 j + Ancienneté 3 j ». Dans les données : `c2` (2e compteur) et `n2` (jours sur le 2e). Un congé de moins d'1 jour ne peut pas être partagé. Un congé qui chevauche un autre ou qui ne contient que des week-ends/fériés ne peut pas être enregistré ; un dépassement du solde est signalé mais permis.
 - **Semaine de 4,5 jours** (Réglages › « Ta semaine de travail », ex. « 4,5 jours : vendredi à demi ») : on choisit le jour où l'on ne travaille qu'une demi-journée ; ce jour-là ne compte que pour 0,5 dans les congés (calendrier en demi-teinte). Réglage global : il s'applique aussi aux congés déjà posés. 1,5 jour = du lundi au mardi avec « Premier jour : seulement l'après-midi » (ou mardi « seulement la matinée »).
@@ -66,3 +66,4 @@ https://manuel-vigie.github.io/appli-manu/conges/conges.html
 - 26/11/2026 — V15 : la liste sous le calendrier est rangée dans des menus déroulants ; correction d'une balise en trop qui faisait sortir « 1 j » de la carte d'un congé. Cache conges-app-v15.
 - 26/11/2026 — V16 : nouvelle apparence (maquette A choisie par Manuel) : compteurs en tuiles, année à côté des réglages, bandeau plus bas, calendrier visible dès l'ouverture. Cache conges-app-v16.
 - 26/11/2026 — V17 : « N pris » affiché sur chaque tuile de compteur, en orange (demande de Manuel). Cache conges-app-v17.
+- 26/11/2026 — V18 : le CET a sa propre couleur sur sa tuile (demande de Manuel) ; la couleur suit celle choisie dans Réglages. Cache conges-app-v18.
