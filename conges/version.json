@@ -1,17 +1,17 @@
 {
  "nom": "Congés",
- "version": "V20",
+ "version": "V21",
  "date": "26/11/2026",
  "nouveautes": [
+  "Le calendrier prend le bleu turquoise du panneau principal : week-ends en blanc, jours de congé en couleurs lumineuses avec un liseré blanc.",
   "Le calendrier change de couleur : fond lin beige, jours de congé et jours fériés en teintes douces, moins flashy.",
   "Sur chaque compteur : « pris » en orange, « prévus » en vert d'eau et « au CET » en bleu, chacun sur sa ligne.",
-  "Le CET a maintenant sa couleur : tuile bleutée, anneau plein et texte bleu.",
-  "Les jours déjà pris s'affichent sur chaque compteur, en orange."
+  "Le CET a maintenant sa couleur : tuile bleutée, anneau plein et texte bleu."
  ],
  "cache": "conges-app-",
  "sw": {
   "fichier": "conges-sw.js",
-  "cache": "conges-app-v20"
+  "cache": "conges-app-v21"
  },
  "fichiers": [
   "conges.html"

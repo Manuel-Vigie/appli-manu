@@ -2,7 +2,7 @@
 
 ## Identité
 Appli pour **suivre mes congés** : combien de jours il reste (un anneau par compteur : congés payés, RTT…), le prochain congé en grand, un calendrier du mois et la liste de ce qui est posé. Pensée pour le téléphone, elle marche aussi sur PC.
-Version actuelle : **V20 · 26/11/2026** (affichée dans la pastille ↻ en haut de l'appli).
+Version actuelle : **V21 · 26/11/2026** (affichée dans la pastille ↻ en haut de l'appli).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/conges/conges.html
@@ -69,3 +69,4 @@ https://manuel-vigie.github.io/appli-manu/conges/conges.html
 - 26/11/2026 — V18 : le CET a sa propre couleur sur sa tuile (demande de Manuel) ; la couleur suit celle choisie dans Réglages. Cache conges-app-v18.
 - 26/11/2026 — V19 : sur les tuiles, pris / prévus / au CET chacun sur sa ligne et dans sa couleur (orange / accent / couleur du CET) pour les distinguer (demande de Manuel). Cache conges-app-v19.
 - 26/11/2026 — V20 : calendrier en teinte « lin » (maquette 6 choisie par Manuel) : fond beige, jours de congé en teintes sourdes (couleur du compteur mélangée au lin), jours fériés rose poudré, texte sombre. Cache conges-app-v20.
+- 26/11/2026 — V21 : calendrier dans le même bleu turquoise que le panneau principal (maquette 16 choisie par Manuel) : week-ends en tuiles blanches à chiffres noirs, jours de congé dans la couleur « lumineuse » de leur compteur (calcul oklch, repli color-mix) avec liseré blanc, férié rose, aujourd'hui en double anneau, premier jour choisi en jaune soleil, pastilles de la légende dans les mêmes couleurs. Cache conges-app-v21.

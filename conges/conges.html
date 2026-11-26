@@ -86,8 +86,12 @@
   .cpt .reste.neg { color: var(--crit); font-weight: 700; }
 
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 14px; min-width: 0; }
-  /* Le calendrier reste toujours en teinte lin, douce et sourde (pas éblouissant), même si le téléphone est en mode sombre. */
-  #calendrier { --panel: #dfd2ba; --base: #efe9dd; --fg: #1d2b33; --muted: #4b5a63; --line: #cfc1a6; --accent: #0e7c86; --we: #d0c2a8; --ferie: #dd9fa1; --ferie-fg: #5e1e26; --sun: #f0a202; color: var(--fg); color-scheme: light; }
+  /* Le calendrier a toujours le même bleu turquoise que le panneau principal (même en mode sombre du téléphone). */
+  #calendrier { background: linear-gradient(135deg, #0a6370 0%, #0f8088 55%, #1b9a8f 100%); border-color: transparent;
+    --fg: #fff; --muted: rgba(255, 255, 255, .86); --line: transparent; --accent: #0e7c86; --we: #fff; --ferie: #f0b4b4; --ferie-fg: #5e1e26; --sun: #f0a202;
+    color: #fff; color-scheme: light; }
+  #calendrier .petit { color: #fff; }
+  #calendrier .petit:active { background: rgba(255, 255, 255, .18); }
   .panel h2, .liste h2 { margin: 0; font-size: .8rem; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 800; }
   .calhaut { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .calhaut .mois { font-weight: 800; font-size: 1.05rem; text-transform: capitalize; }
@@ -95,25 +99,32 @@
   .cal .sem { font-size: .7rem; color: var(--muted); text-align: center; font-weight: 800; padding: 2px 0 2px; text-transform: uppercase; }
   .jour { aspect-ratio: 1.25; width: 100%; max-width: 64px; justify-self: center; border: 0; border-radius: 12px; background: transparent; color: var(--fg); font-size: .92rem; font-weight: 600;
     position: relative; cursor: pointer; padding: 0; display: grid; place-items: center; min-width: 0; }
-  .jour.we { color: var(--muted); background: var(--we); }
-  .jour.auj { box-shadow: inset 0 0 0 2.5px var(--accent); font-weight: 800; }
-  .jour.conge { background: color-mix(in srgb, var(--c) 58%, var(--base)); color: #17252b; font-weight: 800; }
-  .jour.demi { background: linear-gradient(135deg, color-mix(in srgb, var(--c) 58%, var(--base)) 0 50%, color-mix(in srgb, var(--c) 22%, var(--base)) 50% 100%); color: #17252b; text-shadow: none; }
-  .jour.plage { background: color-mix(in srgb, var(--c) 28%, var(--base)); color: var(--fg); }
-  .jour.mixte { background: linear-gradient(135deg, color-mix(in srgb, var(--c) 58%, var(--base)) 0 50%, color-mix(in srgb, var(--c2) 58%, var(--base)) 50% 100%); color: #17252b; font-weight: 800; text-shadow: none; }
+  /* Couleur « lumineuse » de chaque compteur sur le turquoise (repli si le téléphone ne sait pas la calculer). */
+  .jour, .legende .pl { --cv: color-mix(in srgb, var(--c) 45%, #fff); --cv2: color-mix(in srgb, var(--c2) 45%, #fff); }
+  @supports (color: oklch(from red l c h)) {
+    .jour, .legende .pl { --cv: oklch(from var(--c) .85 clamp(.07, c, .17) h); --cv2: oklch(from var(--c2) .85 clamp(.07, c, .17) h); }
+  }
+  .jour.we { color: #0d1b1f; background: var(--we); font-weight: 700; }
+  .jour.auj { font-weight: 800; }
+  .jour.conge { background: var(--cv); color: #14232a; font-weight: 800; box-shadow: inset 0 0 0 2px #fff; }
+  .jour.demi { background: linear-gradient(135deg, var(--cv) 0 50%, rgba(255, 255, 255, .2) 50% 100%); color: #fff; font-weight: 800; text-shadow: 0 0 3px rgba(0, 0, 0, .6); box-shadow: inset 0 0 0 2px #fff; }
+  .jour.plage { background: color-mix(in srgb, var(--cv) 50%, #fff); color: #14232a; font-weight: 800; box-shadow: inset 0 0 0 2px var(--cv); }
+  .jour.mixte { background: linear-gradient(135deg, var(--cv) 0 50%, var(--cv2) 50% 100%); color: #14232a; font-weight: 800; box-shadow: inset 0 0 0 2px #fff; }
   .jour.ferie { background: var(--ferie); color: var(--ferie-fg); font-weight: 800; }
-  .jour.ferie.plage { box-shadow: inset 0 -5px 0 color-mix(in srgb, var(--c) 70%, var(--base)); }
-  .jour.ferie.auj { box-shadow: inset 0 0 0 2.5px var(--accent); }
-  .jour.ferie.plage.auj { box-shadow: inset 0 0 0 2.5px var(--accent), inset 0 -5px 0 color-mix(in srgb, var(--c) 70%, var(--base)); }
+  .jour.ferie.plage { box-shadow: inset 0 -5px 0 var(--cv); }
+  /* « Aujourd'hui » : double anneau blanc + bleu nuit, visible sur toutes les tuiles. */
+  #calendrier .jour.auj { box-shadow: inset 0 0 0 2.5px #fff, inset 0 0 0 4.5px #0b3f47; }
+  #calendrier .jour.ferie.plage.auj { box-shadow: inset 0 0 0 2.5px #fff, inset 0 0 0 4.5px #0b3f47, inset 0 -5px 0 var(--cv); }
   .legende { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: .8rem; color: var(--muted); }
   .legende span { display: inline-flex; align-items: center; gap: 6px; }
-  .selbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px; background: #fff; color: var(--fg); border-radius: 12px; padding: 8px 10px; margin-bottom: 10px; font-size: .88rem; }
+  .selbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px; background: #fff; color: #1d2b33; border-radius: 12px; padding: 8px 10px; margin-bottom: 10px; font-size: .88rem; }
   .selbar button { border: 0; border-radius: 999px; padding: 6px 12px; font: inherit; font-size: .82rem; font-weight: 700; background: var(--accent); color: #fff; cursor: pointer; }
-  .selbar button.sans { background: transparent; color: var(--muted); text-decoration: underline; padding: 6px 4px; }
+  .selbar button.sans { background: transparent; color: #4b5a63; text-decoration: underline; padding: 6px 4px; }
   .selbar .bts { display: flex; align-items: center; gap: 6px; }
-  #calendrier .jour.sel { background: var(--accent); color: #fff; font-weight: 800; box-shadow: none; text-shadow: none; }
+  #calendrier .jour.sel { background: var(--sun); color: #14232a; font-weight: 800; box-shadow: inset 0 0 0 2px #fff; text-shadow: none; }
   .astuce { margin: 8px 0 0; font-size: .8rem; color: var(--muted); }
   .legende .pf { width: 13px; height: 13px; border-radius: 4px; background: var(--ferie); }
+  .legende .pl { background: var(--cv); box-shadow: 0 0 0 1.5px #fff; }
 
   .liste { display: grid; gap: 8px; }
   .liste h2 { margin: 6px 2px 0; }
@@ -582,7 +593,7 @@
       h += '<button type="button" class="' + cls + '" data-jour="' + k + '"' + (st ? ' style="' + st + '"' : "") + ' aria-label="' + esc(lab) + '">' + j + '</button>';
     }
     h += '</div><div class="legende">';
-    D.compteurs.forEach(function (c) { h += '<span><i class="pt" style="background:' + c.couleur + '"></i>' + esc(c.nom) + '</span>'; });
+    D.compteurs.forEach(function (c) { h += '<span><i class="pt pl" style="--c:' + c.couleur + '"></i>' + esc(c.nom) + '</span>'; });
     h += '<span><i class="pf"></i>Jour férié</span></div>';
     if (!SEL) h += '<p class="astuce">Pour poser un congé : touche le premier jour, puis le dernier.</p>';
     $("#calendrier").innerHTML = h;
@@ -1166,7 +1177,7 @@
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Congés", "version": "V20", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Le calendrier change de couleur : fond lin beige, jours de congé et jours fériés en teintes douces, moins flashy.", "Sur chaque compteur : « pris » en orange, « prévus » en vert d'eau et « au CET » en bleu, chacun sur sa ligne.", "Le CET a maintenant sa couleur : tuile bleutée, anneau plein et texte bleu.", "Les jours déjà pris s'affichent sur chaque compteur, en orange."]};
+window.MAJ_APPLI={"nom": "Congés", "version": "V21", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Le calendrier prend le bleu turquoise du panneau principal : week-ends en blanc, jours de congé en couleurs lumineuses avec un liseré blanc.", "Le calendrier change de couleur : fond lin beige, jours de congé et jours fériés en teintes douces, moins flashy.", "Sur chaque compteur : « pris » en orange, « prévus » en vert d'eau et « au CET » en bleu, chacun sur sa ligne.", "Le CET a maintenant sa couleur : tuile bleutée, anneau plein et texte bleu."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
