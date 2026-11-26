@@ -88,7 +88,7 @@
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 14px; min-width: 0; }
   /* Le calendrier a toujours le même bleu turquoise que le panneau principal (même en mode sombre du téléphone). */
   #calendrier { background: linear-gradient(135deg, #0a6370 0%, #0f8088 55%, #1b9a8f 100%); border-color: transparent;
-    --fg: #fff; --muted: rgba(255, 255, 255, .86); --line: transparent; --accent: #0e7c86; --we: #fff; --ferie: #f0b4b4; --ferie-fg: #5e1e26; --sun: #f0a202;
+    --fg: #fff; --muted: rgba(255, 255, 255, .86); --line: transparent; --accent: #0e7c86; --we: #fff; --ferie: #e0454f; --ferie-fg: #ffffff; --sun: #f0a202;
     color: #fff; color-scheme: light; }
   #calendrier .petit { color: #fff; }
   #calendrier .petit:active { background: rgba(255, 255, 255, .18); }
@@ -99,22 +99,25 @@
   .cal .sem { font-size: .7rem; color: var(--muted); text-align: center; font-weight: 800; padding: 2px 0 2px; text-transform: uppercase; }
   .jour { aspect-ratio: 1.25; width: 100%; max-width: 64px; justify-self: center; border: 0; border-radius: 12px; background: transparent; color: var(--fg); font-size: .92rem; font-weight: 600;
     position: relative; cursor: pointer; padding: 0; display: grid; place-items: center; min-width: 0; }
-  /* Couleur « lumineuse » de chaque compteur sur le turquoise (repli si le téléphone ne sait pas la calculer). */
-  .jour, .legende .pl { --cv: color-mix(in srgb, var(--c) 45%, #fff); --cv2: color-mix(in srgb, var(--c2) 45%, #fff); }
+  /* Chaque case de congé a EXACTEMENT la couleur du cercle de son compteur ; seule une couleur trop proche du turquoise du fond (classe pc / pc2) est éclaircie pour rester visible. */
+  .jour, .legende .pl { --cx: var(--c); --cx2: var(--c2); }
+  .jour.pc, .legende .pl.pc { --cx: color-mix(in srgb, var(--c) 55%, #fff); }
+  .jour.pc2 { --cx2: color-mix(in srgb, var(--c2) 55%, #fff); }
   @supports (color: oklch(from red l c h)) {
-    .jour, .legende .pl { --cv: oklch(from var(--c) .85 clamp(.07, c, .17) h); --cv2: oklch(from var(--c2) .85 clamp(.07, c, .17) h); }
+    .jour.pc, .legende .pl.pc { --cx: oklch(from var(--c) .82 calc(c * 1.3) h); }
+    .jour.pc2 { --cx2: oklch(from var(--c2) .82 calc(c * 1.3) h); }
   }
   .jour.we { color: #0d1b1f; background: var(--we); font-weight: 700; }
   .jour.auj { font-weight: 800; }
-  .jour.conge { background: var(--cv); color: #14232a; font-weight: 800; box-shadow: inset 0 0 0 2px #fff; }
-  .jour.demi { background: linear-gradient(135deg, var(--cv) 0 50%, rgba(255, 255, 255, .2) 50% 100%); color: #fff; font-weight: 800; text-shadow: 0 0 3px rgba(0, 0, 0, .6); box-shadow: inset 0 0 0 2px #fff; }
-  .jour.plage { background: color-mix(in srgb, var(--cv) 50%, #fff); color: #14232a; font-weight: 800; box-shadow: inset 0 0 0 2px var(--cv); }
-  .jour.mixte { background: linear-gradient(135deg, var(--cv) 0 50%, var(--cv2) 50% 100%); color: #14232a; font-weight: 800; box-shadow: inset 0 0 0 2px #fff; }
+  .jour.conge { background: var(--cx); color: var(--tx, #14232a); font-weight: 800; box-shadow: inset 0 0 0 2px #fff; }
+  .jour.demi { background: linear-gradient(135deg, var(--cx) 0 50%, rgba(255, 255, 255, .2) 50% 100%); color: var(--tx, #fff); font-weight: 800; text-shadow: var(--ts, 0 0 3px rgba(0, 0, 0, .6)); box-shadow: inset 0 0 0 2px #fff; }
+  .jour.plage { background: color-mix(in srgb, var(--cx) 45%, #fff); color: #14232a; font-weight: 800; box-shadow: inset 0 0 0 2px var(--cx); }
+  .jour.mixte { background: linear-gradient(135deg, var(--cx) 0 50%, var(--cx2) 50% 100%); color: var(--tx, #14232a); font-weight: 800; text-shadow: var(--ts, none); box-shadow: inset 0 0 0 2px #fff; }
   .jour.ferie { background: var(--ferie); color: var(--ferie-fg); font-weight: 800; }
-  .jour.ferie.plage { box-shadow: inset 0 -5px 0 var(--cv); }
+  .jour.ferie.plage { box-shadow: inset 0 -5px 0 var(--cx); }
   /* « Aujourd'hui » : double anneau blanc + bleu nuit, visible sur toutes les tuiles. */
   #calendrier .jour.auj { box-shadow: inset 0 0 0 2.5px #fff, inset 0 0 0 4.5px #0b3f47; }
-  #calendrier .jour.ferie.plage.auj { box-shadow: inset 0 0 0 2.5px #fff, inset 0 0 0 4.5px #0b3f47, inset 0 -5px 0 var(--cv); }
+  #calendrier .jour.ferie.plage.auj { box-shadow: inset 0 0 0 2.5px #fff, inset 0 0 0 4.5px #0b3f47, inset 0 -5px 0 var(--cx); }
   .legende { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: .8rem; color: var(--muted); }
   .legende span { display: inline-flex; align-items: center; gap: 6px; }
   .selbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px; background: #fff; color: #1d2b33; border-radius: 12px; padding: 8px 10px; margin-bottom: 10px; font-size: .88rem; }
@@ -124,7 +127,7 @@
   #calendrier .jour.sel { background: var(--sun); color: #14232a; font-weight: 800; box-shadow: inset 0 0 0 2px #fff; text-shadow: none; }
   .astuce { margin: 8px 0 0; font-size: .8rem; color: var(--muted); }
   .legende .pf { width: 13px; height: 13px; border-radius: 4px; background: var(--ferie); }
-  .legende .pl { background: var(--cv); box-shadow: 0 0 0 1.5px #fff; }
+  .legende .pl { background: var(--cx); box-shadow: 0 0 0 1.5px #fff; }
 
   .liste { display: grid; gap: 8px; }
   .liste h2 { margin: 6px 2px 0; }
@@ -291,6 +294,23 @@
   function teinte(hex, a) {
     var h = String(hex).replace("#", ""); if (h.length !== 6) return "rgba(100,100,100," + a + ")";
     return "rgba(" + parseInt(h.slice(0, 2), 16) + "," + parseInt(h.slice(2, 4), 16) + "," + parseInt(h.slice(4, 6), 16) + "," + a + ")";
+  }
+  /* Calendrier turquoise : repérer une couleur de compteur trop proche du fond, et choisir un texte lisible. */
+  var TEXTE_SOMBRE = "#14232a", TEXTE_CLAIR = "#ffffff";
+  function procheFond(hex) {
+    var h = String(hex).replace("#", ""); if (h.length !== 6) return false;
+    var r = parseInt(h.slice(0, 2), 16) - 15, g = parseInt(h.slice(2, 4), 16) - 128, b = parseInt(h.slice(4, 6), 16) - 136;
+    return Math.sqrt(r * r + g * g + b * b) < 80;
+  }
+  function luminance(hex) {
+    var h = String(hex).replace("#", ""); if (h.length !== 6) return 0.3;
+    var v = [0, 2, 4].map(function (i) { var x = parseInt(h.substr(i, 2), 16) / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); });
+    return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+  }
+  function texteSur(hex) {
+    if (procheFond(hex)) return TEXTE_SOMBRE;
+    var L = luminance(hex);
+    return (1.05 / (L + 0.05)) >= ((L + 0.05) / 0.065) ? TEXTE_CLAIR : TEXTE_SOMBRE;
   }
   function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
@@ -586,14 +606,21 @@
         cv.es.forEach(function (e) { if (cs.indexOf(e.c) < 0) cs.push(e.c); });
         var k1 = compteur(cs[0] || cv.plage), col = k1.couleur;
         st = "--c:" + col + ";--ct:" + teinte(col, 0.3) + ";";
+        if (procheFond(col)) cls += " pc";
         if (!cv.es.length) { cls += " plage"; lab += ", congé " + k1.nom; }
-        else if (cs.length > 1) { var k2 = compteur(cs[1]); st += "--c2:" + k2.couleur + ";"; cls += " mixte"; lab += ", congé " + k1.nom + " et " + k2.nom; }
-        else { cls += tot >= 1 ? " conge" : " demi"; lab += ", congé " + k1.nom + (tot < 1 ? " (demi-journée)" : ""); }
+        else if (cs.length > 1) {
+          var k2 = compteur(cs[1]); st += "--c2:" + k2.couleur + ";"; cls += " mixte"; lab += ", congé " + k1.nom + " et " + k2.nom;
+          if (procheFond(k2.couleur)) cls += " pc2";
+          var clair2 = texteSur(col) === TEXTE_CLAIR && texteSur(k2.couleur) === TEXTE_CLAIR;
+          st += "--tx:" + (clair2 ? TEXTE_CLAIR : TEXTE_SOMBRE) + ";--ts:" + (clair2 ? "0 0 3px rgba(0,0,0,.6)" : "none") + ";";
+        }
+        else if (tot >= 1) { cls += " conge"; st += "--tx:" + texteSur(col) + ";"; lab += ", congé " + k1.nom; }
+        else { cls += " demi"; var pale = procheFond(col); st += "--tx:" + (pale ? TEXTE_SOMBRE : TEXTE_CLAIR) + ";--ts:" + (pale ? "none" : "0 0 3px rgba(0,0,0,.6)") + ";"; lab += ", congé " + k1.nom + " (demi-journée)"; }
       }
       h += '<button type="button" class="' + cls + '" data-jour="' + k + '"' + (st ? ' style="' + st + '"' : "") + ' aria-label="' + esc(lab) + '">' + j + '</button>';
     }
     h += '</div><div class="legende">';
-    D.compteurs.forEach(function (c) { h += '<span><i class="pt pl" style="--c:' + c.couleur + '"></i>' + esc(c.nom) + '</span>'; });
+    D.compteurs.forEach(function (c) { h += '<span><i class="pt pl' + (procheFond(c.couleur) ? " pc" : "") + '" style="--c:' + c.couleur + '"></i>' + esc(c.nom) + '</span>'; });
     h += '<span><i class="pf"></i>Jour férié</span></div>';
     if (!SEL) h += '<p class="astuce">Pour poser un congé : touche le premier jour, puis le dernier.</p>';
     $("#calendrier").innerHTML = h;
@@ -1177,7 +1204,7 @@
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Congés", "version": "V21", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Le calendrier prend le bleu turquoise du panneau principal : week-ends en blanc, jours de congé en couleurs lumineuses avec un liseré blanc.", "Le calendrier change de couleur : fond lin beige, jours de congé et jours fériés en teintes douces, moins flashy.", "Sur chaque compteur : « pris » en orange, « prévus » en vert d'eau et « au CET » en bleu, chacun sur sa ligne.", "Le CET a maintenant sa couleur : tuile bleutée, anneau plein et texte bleu."]};
+window.MAJ_APPLI={"nom": "Congés", "version": "V22", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Calendrier : les cases de congé ont exactement la couleur des cercles des compteurs (le turquoise est juste éclairci pour se voir) ; jours fériés plus rouges.", "Le calendrier prend le bleu turquoise du panneau principal : week-ends en blanc, jours de congé en couleurs lumineuses avec un liseré blanc.", "Le calendrier change de couleur : fond lin beige, jours de congé et jours fériés en teintes douces, moins flashy.", "Sur chaque compteur : « pris » en orange, « prévus » en vert d'eau et « au CET » en bleu, chacun sur sa ligne."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
