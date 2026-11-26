@@ -1,17 +1,17 @@
 {
  "nom": "Congés",
- "version": "V9",
+ "version": "V10",
  "date": "26/11/2026",
  "nouveautes": [
+  "Le bouton « Poser des congés » est plus petit et plus discret, et le gris du calendrier est un peu plus foncé.",
   "Le fond du calendrier est en gris clair, plus doux pour les yeux.",
   "Les jours fériés du calendrier sont maintenant en rouge.",
-  "Le calendrier reste toujours blanc (jours fériés en jaune), même quand le téléphone est en mode sombre.",
-  "Calendrier : les jours fériés sont maintenant des cases remplies (jaune) au lieu d'un point, et les week-ends d'un congé sont plus visibles."
+  "Le calendrier reste toujours blanc (jours fériés en jaune), même quand le téléphone est en mode sombre."
  ],
  "cache": "conges-app-",
  "sw": {
   "fichier": "conges-sw.js",
-  "cache": "conges-app-v9"
+  "cache": "conges-app-v10"
  },
  "fichiers": [
   "conges.html"
