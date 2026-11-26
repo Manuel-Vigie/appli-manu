@@ -1,17 +1,17 @@
 {
  "nom": "Congés",
- "version": "V6",
+ "version": "V7",
  "date": "26/11/2026",
  "nouveautes": [
+  "Le calendrier reste toujours blanc (jours fériés en jaune), même quand le téléphone est en mode sombre.",
   "Calendrier : les jours fériés sont maintenant des cases remplies (jaune) au lieu d'un point, et les week-ends d'un congé sont plus visibles.",
   "Semaine de 4,5 jours : dans les réglages, choisis ta demi-journée libre ; ce jour-là ne compte que pour une demi-journée.",
-  "Quand tu poses un congé, chaque compteur (annuel, RTT, ancienneté) affiche ce qu'il te reste.",
-  "Un congé peut être partagé entre deux compteurs (ex. 2 jours en congés annuels + 3 jours d'ancienneté)."
+  "Quand tu poses un congé, chaque compteur (annuel, RTT, ancienneté) affiche ce qu'il te reste."
  ],
  "cache": "conges-app-",
  "sw": {
   "fichier": "conges-sw.js",
-  "cache": "conges-app-v6"
+  "cache": "conges-app-v7"
  },
  "fichiers": [
   "conges.html"

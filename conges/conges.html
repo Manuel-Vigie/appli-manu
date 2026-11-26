@@ -74,6 +74,8 @@
   .stats b { display: block; font-size: 1.08rem; color: var(--fg); font-weight: 800; }
 
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 14px; min-width: 0; }
+  /* Le calendrier reste toujours blanc (comme en mode clair), même si le téléphone est en mode sombre. */
+  #calendrier { --panel: #ffffff; --fg: #1d2b33; --muted: #66747c; --line: #e8e1d3; --accent: #0e7c86; --we: #f5f0e5; --ferie: #f9dc8a; --ferie-fg: #4a3500; --sun: #f0a202; color: var(--fg); color-scheme: light; }
   .panel h2, .liste h2 { margin: 0; font-size: .8rem; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 800; }
   .calhaut { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .calhaut .mois { font-weight: 800; font-size: 1.05rem; text-transform: capitalize; }
@@ -864,7 +866,7 @@
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Congés", "version": "V6", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Calendrier : les jours fériés sont maintenant des cases remplies (jaune) au lieu d'un point, et les week-ends d'un congé sont plus visibles.", "Semaine de 4,5 jours : dans les réglages, choisis ta demi-journée libre ; ce jour-là ne compte que pour une demi-journée.", "Quand tu poses un congé, chaque compteur (annuel, RTT, ancienneté) affiche ce qu'il te reste.", "Un congé peut être partagé entre deux compteurs (ex. 2 jours en congés annuels + 3 jours d'ancienneté)."]};
+window.MAJ_APPLI={"nom": "Congés", "version": "V7", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Le calendrier reste toujours blanc (jours fériés en jaune), même quand le téléphone est en mode sombre.", "Calendrier : les jours fériés sont maintenant des cases remplies (jaune) au lieu d'un point, et les week-ends d'un congé sont plus visibles.", "Semaine de 4,5 jours : dans les réglages, choisis ta demi-journée libre ; ce jour-là ne compte que pour une demi-journée.", "Quand tu poses un congé, chaque compteur (annuel, RTT, ancienneté) affiche ce qu'il te reste."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
