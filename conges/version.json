@@ -1,14 +1,15 @@
 {
  "nom": "Congés",
- "version": "V1",
+ "version": "V2",
  "date": "26/11/2026",
  "nouveautes": [
+  "Tes vrais compteurs au départ : congés annuels 22,5 jours, RTT 6 jours, ancienneté 3 jours.",
   "Première version : compteurs de jours restants, calendrier du mois, liste des congés posés."
  ],
  "cache": "conges-app-",
  "sw": {
   "fichier": "conges-sw.js",
-  "cache": "conges-app-v1"
+  "cache": "conges-app-v2"
  },
  "fichiers": [
   "conges.html"

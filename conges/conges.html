@@ -260,8 +260,9 @@
     return {
       v: 1, prenom: "", mode: "ouvres", debut: 1, accueilFait: false,
       compteurs: [
-        { id: "cp", nom: "Congés payés", couleur: COULEURS[0], acquis: 25 },
-        { id: "rtt", nom: "RTT", couleur: COULEURS[1], acquis: 0 }
+        { id: "cp", nom: "Congés annuels", couleur: COULEURS[0], acquis: 22.5 },
+        { id: "rtt", nom: "RTT", couleur: COULEURS[1], acquis: 6 },
+        { id: "anc", nom: "Ancienneté", couleur: COULEURS[3], acquis: 3 }
       ],
       periodes: {}, conges: []
     };
@@ -311,6 +312,12 @@
     var o = null;
     if (brut) { try { o = JSON.parse(brut); } catch (e) { o = null; } }
     D = normaliser(o);
+    /* V2 : si l'appli a déjà été ouverte avec les anciens compteurs de départ, jamais modifiés et sans aucun congé posé, on met les nouveaux. */
+    var c = D.compteurs;
+    if (o && D.accueilFait && !D.conges.length && !Object.keys(D.periodes).length && c.length === 2 &&
+        c[0].id === "cp" && c[0].nom === "Congés payés" && c[0].acquis === 25 && c[1].id === "rtt" && c[1].nom === "RTT" && c[1].acquis === 0) {
+      D.compteurs = defauts().compteurs; sauver();
+    }
   }
   function sauver() {
     try { localStorage.setItem(CLE, JSON.stringify(D)); stockageOK = true; } catch (e) { stockageOK = false; }
@@ -760,7 +767,7 @@
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Congés", "version": "V1", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Première version : compteurs de jours restants, calendrier du mois, liste des congés posés."]};
+window.MAJ_APPLI={"nom": "Congés", "version": "V2", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Tes vrais compteurs au départ : congés annuels 22,5 jours, RTT 6 jours, ancienneté 3 jours.", "Première version : compteurs de jours restants, calendrier du mois, liste des congés posés."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
