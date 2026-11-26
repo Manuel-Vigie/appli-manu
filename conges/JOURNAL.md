@@ -2,7 +2,7 @@
 
 ## Identité
 Appli pour **suivre mes congés** : combien de jours il reste (un anneau par compteur : congés payés, RTT…), le prochain congé en grand, un calendrier du mois et la liste de ce qui est posé. Pensée pour le téléphone, elle marche aussi sur PC.
-Version actuelle : **V7 · 26/11/2026** (affichée dans la pastille ↻ en haut de l'appli).
+Version actuelle : **V8 · 26/11/2026** (affichée dans la pastille ↻ en haut de l'appli).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/conges/conges.html
@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/conges/conges.html
 |---|---|
 | `conges.html` | L'appli entière |
 | `conges-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `conges-sw.js` | Mode hors connexion : garde seulement l'enveloppe de l'appli. Contient `CACHE = 'conges-app-v7'` |
+| `conges-sw.js` | Mode hors connexion : garde seulement l'enveloppe de l'appli. Contient `CACHE = 'conges-app-v8'` |
 | `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `conges-icon-192.png`, `-512.png`, `-masque-512.png`, `conges-apple-touch-icon.png` | Icônes (soleil sur la mer) |
 
@@ -26,7 +26,7 @@ https://manuel-vigie.github.io/appli-manu/conges/conges.html
 - **Semaine de 4,5 jours** (Réglages › « Ta semaine de travail », ex. « 4,5 jours : vendredi à demi ») : on choisit le jour où l'on ne travaille qu'une demi-journée ; ce jour-là ne compte que pour 0,5 dans les congés (calendrier en demi-teinte). Réglage global : il s'applique aussi aux congés déjà posés. 1,5 jour = du lundi au mardi avec « Premier jour : seulement l'après-midi » (ou mardi « seulement la matinée »).
 - **Calcul** : dimanches et jours fériés français (Pâques, Ascension, Pentecôte calculés) jamais comptés ; samedis comptés seulement en mode « jours ouvrables » (Réglages). « Pris » = jusqu'à aujourd'hui inclus, « prévus » = après aujourd'hui.
 - **Année de congés** : civile par défaut ; réglable (ex. juin → mai) dans Réglages. Les flèches du haut passent d'une année à l'autre. Le report est saisi par année (lien « Reprendre le solde de l'année précédente » quand l'année d'avant contient des congés).
-- **Calendrier du mois** (toujours en blanc, même si le téléphone est en mode sombre : variables CSS redéfinies sur `#calendrier`) : jours de congé en couleur (demi-journée = moitié), week-end/fériés d'un congé en teinte claire, case jaune remplie = jour férié (avec une barre de la couleur du congé en bas s'il tombe pendant un congé), cercle = aujourd'hui.
+- **Calendrier du mois** (toujours en blanc, même si le téléphone est en mode sombre : variables CSS redéfinies sur `#calendrier`) : jours de congé en couleur (demi-journée = moitié), week-end/fériés d'un congé en teinte claire, case rouge remplie = jour férié (avec une barre de la couleur du congé en bas s'il tombe pendant un congé), cercle = aujourd'hui.
 - **Sauvegarde** (Réglages) : « Sauvegarder » télécharge un fichier `conges-sauvegarde-AAAA-MM-JJ.json` ; « Restaurer » le relit ; « Tout effacer » (confirmation en deux touches).
 
 ## Où sont les données
@@ -50,3 +50,4 @@ https://manuel-vigie.github.io/appli-manu/conges/conges.html
 - 26/11/2026 — V5 : semaine de 4,5 jours (demi-journée libre au choix dans les réglages, comptée 0,5). Cache conges-app-v5.
 - 26/11/2026 — V6 : jours fériés en case remplie (jaune) au lieu d'un point ; teinte des week-ends/fériés d'un congé plus marquée. Cache conges-app-v6.
 - 26/11/2026 — V7 : calendrier toujours blanc (couleurs du mode clair), même quand le téléphone est en mode sombre, à la demande de Manuel. Cache conges-app-v7.
+- 26/11/2026 — V8 : jours fériés du calendrier en rouge (`--ferie` #d6303f, texte blanc) au lieu du jaune. Cache conges-app-v8.

@@ -1,17 +1,17 @@
 {
  "nom": "Congés",
- "version": "V7",
+ "version": "V8",
  "date": "26/11/2026",
  "nouveautes": [
+  "Les jours fériés du calendrier sont maintenant en rouge.",
   "Le calendrier reste toujours blanc (jours fériés en jaune), même quand le téléphone est en mode sombre.",
   "Calendrier : les jours fériés sont maintenant des cases remplies (jaune) au lieu d'un point, et les week-ends d'un congé sont plus visibles.",
-  "Semaine de 4,5 jours : dans les réglages, choisis ta demi-journée libre ; ce jour-là ne compte que pour une demi-journée.",
-  "Quand tu poses un congé, chaque compteur (annuel, RTT, ancienneté) affiche ce qu'il te reste."
+  "Semaine de 4,5 jours : dans les réglages, choisis ta demi-journée libre ; ce jour-là ne compte que pour une demi-journée."
  ],
  "cache": "conges-app-",
  "sw": {
   "fichier": "conges-sw.js",
-  "cache": "conges-app-v7"
+  "cache": "conges-app-v8"
  },
  "fichiers": [
   "conges.html"
