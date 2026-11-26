@@ -30,48 +30,52 @@
     font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     padding: 52px max(16px, env(safe-area-inset-right, 0px)) calc(80px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
   }
-  main { max-width: 560px; margin: 0 auto; display: grid; gap: 16px; }
+  main { max-width: 560px; margin: 0 auto; display: grid; gap: 12px; }
   main[inert] { opacity: .55; }
   svg.i { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
   button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
   :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   .muted { color: var(--muted); }
 
-  .entete { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .entete { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; }
+  .entnav { display: flex; align-items: center; gap: 8px; }
   .salut { margin: 0; color: var(--muted); font-size: .95rem; }
-  h1 { margin: 0; font-size: 2rem; line-height: 1.1; letter-spacing: -.02em; font-weight: 800; }
-  .rond { width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); color: var(--fg);
+  h1 { margin: 0; font-size: 1.6rem; line-height: 1.1; letter-spacing: -.02em; font-weight: 800; }
+  .rond { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); color: var(--fg);
     display: grid; place-items: center; cursor: pointer; flex: none; }
   .alerte-stock { background: #fdecd0; color: #7a4a00; border-radius: 12px; padding: 10px 12px; font-size: .9rem; }
 
-  .periode { display: flex; align-items: center; justify-content: center; gap: 6px; }
-  .periode .lib { font-weight: 700; min-width: 170px; text-align: center; font-size: 1.02rem; }
+  .periode { display: flex; align-items: center; gap: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 1px 2px; }
+  .periode .lib { font-weight: 700; text-align: center; font-size: .95rem; padding: 0 2px; }
+  .periode .petit { width: 34px; height: 36px; }
+  .periode svg.i { width: 18px; height: 18px; }
   .petit { width: 44px; height: 44px; border-radius: 50%; border: 0; background: transparent; color: var(--accent); display: grid; place-items: center; cursor: pointer; }
   .petit:active { background: var(--track); }
 
-  .hero { position: relative; overflow: hidden; border-radius: 24px; padding: 20px 20px 18px; color: #fff;
+  .hero { position: relative; overflow: hidden; border-radius: 18px; padding: 12px 16px; color: #fff;
     background: linear-gradient(135deg, #0a6370 0%, #0f8088 55%, #1b9a8f 100%); }
   .hero.enconges { background: linear-gradient(135deg, #b4560f 0%, #d9801a 55%, #e6a02a 100%); }
-  .hero .soleil { position: absolute; right: -22px; top: -22px; width: 150px; height: 150px; opacity: .2; stroke: #fff; stroke-width: 1.4; fill: none; stroke-linecap: round; }
-  .hero .etiq { position: relative; font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 800; opacity: .92; }
-  .hero .gros { position: relative; font-size: 2.1rem; font-weight: 800; line-height: 1.1; margin: 6px 0 6px; letter-spacing: -.01em; }
-  .hero .det { position: relative; font-size: .98rem; opacity: .97; }
+  .hero .soleil { position: absolute; right: -4px; top: 50%; transform: translateY(-50%); width: 84px; height: 84px; opacity: .22; stroke: #fff; stroke-width: 1.4; fill: none; stroke-linecap: round; }
+  .hero .etiq { position: relative; font-size: .68rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 800; opacity: .92; }
+  .hero .gros { position: relative; font-size: 1.4rem; font-weight: 800; line-height: 1.15; margin: 2px 0 2px; letter-spacing: -.01em; }
+  .hero .det { position: relative; font-size: .82rem; opacity: .97; }
 
-  .cpts { display: grid; gap: 12px; }
-  .cpt { display: flex; gap: 16px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 16px; }
-  .anneau { position: relative; width: 98px; height: 98px; flex: none; }
+  .cpts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cpt { display: flex; gap: 8px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 9px; min-width: 0; }
+  .anneau { position: relative; width: 50px; height: 50px; flex: none; }
   .anneau svg { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
   .anneau .centre { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; line-height: 1.05; }
-  .anneau .centre b { font-size: 1.55rem; font-weight: 800; }
-  .anneau .centre small { color: var(--muted); font-size: .72rem; margin-top: 2px; }
+  .anneau .centre b { font-size: 1rem; font-weight: 800; }
+  .anneau .centre small { color: var(--muted); font-size: .5rem; margin-top: 1px; }
   .cpt .corps { min-width: 0; flex: 1; }
-  .cpt h3 { margin: 0; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
-  .pt { width: 11px; height: 11px; border-radius: 50%; flex: none; }
-  .cpt .reste { margin: 2px 0 0; font-size: .9rem; color: var(--muted); }
+  .cpt h3 { margin: 0; font-size: .8rem; line-height: 1.2; overflow-wrap: anywhere; }
+  .pt { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .cpt .reste { margin: 2px 0 0; font-size: .74rem; color: var(--muted); line-height: 1.25; }
+  .cpt .note { margin: 2px 0 0; font-size: .7rem; font-weight: 700; color: var(--accent); line-height: 1.25; }
+  .liens .lien { font-size: .86rem; padding: 4px 0; text-align: center; }
+  @media (max-width: 340px) { .cpt { gap: 6px; padding: 8px; } .anneau { width: 42px; height: 42px; } .anneau .centre b { font-size: .9rem; } .anneau .centre small { display: none; } .cpt h3 { font-size: .74rem; } }
+  .liens { grid-column: 1 / -1; display: flex; justify-content: center; flex-wrap: wrap; gap: 0 16px; }
   .cpt .reste.neg { color: var(--crit); font-weight: 700; }
-  .stats { display: flex; gap: 16px; margin-top: 10px; flex-wrap: wrap; }
-  .stats div { font-size: .76rem; color: var(--muted); }
-  .stats b { display: block; font-size: 1.08rem; color: var(--fg); font-weight: 800; }
 
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 14px; min-width: 0; }
   /* Le calendrier reste toujours en gris clair (doux, pas éblouissant), même si le téléphone est en mode sombre. */
@@ -79,9 +83,9 @@
   .panel h2, .liste h2 { margin: 0; font-size: .8rem; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 800; }
   .calhaut { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .calhaut .mois { font-weight: 800; font-size: 1.05rem; text-transform: capitalize; }
-  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
   .cal .sem { font-size: .7rem; color: var(--muted); text-align: center; font-weight: 800; padding: 2px 0 2px; text-transform: uppercase; }
-  .jour { aspect-ratio: 1; width: 100%; max-width: 56px; justify-self: center; border: 0; border-radius: 12px; background: transparent; color: var(--fg); font-size: .92rem; font-weight: 600;
+  .jour { aspect-ratio: 1.25; width: 100%; max-width: 64px; justify-self: center; border: 0; border-radius: 12px; background: transparent; color: var(--fg); font-size: .92rem; font-weight: 600;
     position: relative; cursor: pointer; padding: 0; display: grid; place-items: center; min-width: 0; }
   .jour.we { color: var(--muted); background: var(--we); }
   .jour.auj { box-shadow: inset 0 0 0 2.5px var(--accent); font-weight: 800; }
@@ -200,16 +204,18 @@
       <p class="salut" id="salut"></p>
       <h1>Mes congés</h1>
     </div>
-    <button type="button" class="rond" id="btnReglages" aria-label="Réglages">
-      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
-    </button>
+    <div class="entnav">
+      <nav class="periode" aria-label="Année de congés">
+        <button type="button" class="petit" id="perPrec" aria-label="Année précédente"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <div class="lib" id="perLib" aria-live="polite"></div>
+        <button type="button" class="petit" id="perSuiv" aria-label="Année suivante"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+      </nav>
+      <button type="button" class="rond" id="btnReglages" aria-label="Réglages">
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+      </button>
+    </div>
   </header>
   <div id="stockage" class="alerte-stock" hidden>Ce navigateur n'enregistre pas les données : elles seront perdues quand tu fermeras la page. Ouvre l'appli dans Chrome pour qu'elle garde tout.</div>
-  <nav class="periode" aria-label="Année de congés">
-    <button type="button" class="petit" id="perPrec" aria-label="Année précédente"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
-    <div class="lib" id="perLib" aria-live="polite"></div>
-    <button type="button" class="petit" id="perSuiv" aria-label="Année suivante"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-  </nav>
   <section id="hero" aria-label="Prochain congé"></section>
   <section class="cpts" id="compteurs" aria-label="Mes compteurs"></section>
   <section class="panel" id="calendrier" aria-label="Calendrier"></section>
@@ -507,19 +513,21 @@
   }
   function rCompteurs() {
     var h = D.compteurs.map(function (c) {
-      var s = stats(c, cleVue), neg = s.reste < 0;
-      var reste = neg ? "Tu dépasses de " + fmtJ(-s.reste) : (s.total > 0 ? (c.epargne ? "disponibles sur " : "à poser sur ") + fmtN(s.total) : (c.epargne ? "Indique tes jours de CET dans « Mon bilan »" : "Règle ce compteur dans les réglages"));
+      var s = stats(c, cleVue), neg = s.reste < 0, notes = [];
+      var reste = neg ? "Tu dépasses de " + fmtJ(-s.reste) : (s.total > 0 ? (c.epargne ? "disponibles" : "sur " + fmtN(s.total)) : (c.epargne ? "Indique ton CET dans « Mon bilan »" : "Règle ce compteur dans les réglages"));
+      if (s.prevu > 0) notes.push(fmtN(s.prevu) + (s.prevu > 1 ? " prévus" : " prévu"));
+      if (s.verse > 0) notes.push(fmtN(s.verse) + " au CET");
+      if (s.recu > 0) notes.push("+" + fmtN(s.recu) + " versés");
+      if (!notes.length && s.pris > 0) notes.push(fmtN(s.pris) + " pris");
       return '<article class="cpt"><div class="anneau">' + anneau(s, c.couleur) +
         '<div class="centre"><b>' + fmtN(s.reste) + '</b><small>' + (Math.abs(s.reste) >= 2 ? "jours" : "jour") + '</small></div></div>' +
-        '<div class="corps"><h3><span class="pt" style="background:' + c.couleur + '"></span>' + esc(c.nom) + '</h3>' +
+        '<div class="corps"><h3>' + esc(c.nom) + '</h3>' +
         '<p class="reste' + (neg ? " neg" : "") + '">' + reste + '</p>' +
-        '<div class="stats"><div><b>' + fmtN(s.pris) + '</b>pris</div><div><b>' + fmtN(s.prevu) + '</b>prévus</div>' +
-        (s.report ? '<div><b>' + fmtN(s.report) + '</b>reportés</div>' : '') +
-        (s.verse ? '<div><b>' + fmtN(s.verse) + '</b>versés au CET</div>' : '') +
-        (s.recu ? '<div><b>' + fmtN(s.recu) + '</b>versés dedans</div>' : '') + '</div>' +
-        (c.epargne ? '<button type="button" class="lien" data-verser="' + esc(c.id) + '">Verser des jours dans le CET</button>' : '') + '</div></article>';
+        (notes.length ? '<p class="note">' + notes.slice(0, 2).join(" · ") + '</p>' : '') + '</div></article>';
     }).join("");
-    h += '<button type="button" class="lien" data-bilan>Mon bilan ' + esc(libPeriode(cleVue)) + ' : jours déjà pris, CET</button>';
+    var cet = D.compteurs.filter(function (c) { return c.epargne; })[0];
+    h += '<div class="liens"><button type="button" class="lien" data-bilan>Mon bilan ' + esc(libPeriode(cleVue)) + '</button>' +
+      (cet ? '<button type="button" class="lien" data-verser="' + esc(cet.id) + '">Verser dans le CET</button>' : '') + '</div>';
     $("#compteurs").innerHTML = h;
   }
   function rCalendrier() {
@@ -1147,7 +1155,7 @@
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Congés", "version": "V15", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Sous le calendrier, tout est rangé dans des menus déroulants (À venir, Déjà pris, Pris avant l'appli, CET) : touche un titre pour l'ouvrir.", "Poser un congé depuis le calendrier : touche le premier jour, puis le dernier.", "Nouveau « Mon bilan » : tes jours déjà pris et ton CET s'écrivent sur une liste (rien sur le calendrier). Le CET et ses versements s'affichent sous le calendrier.", "Verser des jours dans le CET : sur la carte CET, touche « Verser des jours » (ex. 4,5 jours annuels + 5,5 RTT). Réglages : « Déjà pris avant l'appli » pour partir des bons chiffres."]};
+window.MAJ_APPLI={"nom": "Congés", "version": "V16", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Nouvelle apparence : compteurs en petites tuiles, année à côté des réglages, calendrier visible dès l'ouverture.", "Sous le calendrier, tout est rangé dans des menus déroulants (À venir, Déjà pris, Pris avant l'appli, CET) : touche un titre pour l'ouvrir.", "Poser un congé depuis le calendrier : touche le premier jour, puis le dernier.", "Nouveau « Mon bilan » : tes jours déjà pris et ton CET s'écrivent sur une liste (rien sur le calendrier). Le CET et ses versements s'affichent sous le calendrier."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
