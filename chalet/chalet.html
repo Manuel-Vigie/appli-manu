@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mon chalet</title>
+<link rel="manifest" href="chalet-manifest.webmanifest">
+<meta name="theme-color" content="#2b1a10">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="chalet-icon-192.png">
+<link rel="apple-touch-icon" href="chalet-apple-touch-icon.png">
+<style>
+  :root {
+    --bois: #2b1a10; --bois2: #3d2616; --bois3: #57361f; --trait: #6b4528;
+    --creme: #f6ead2; --creme2: #e6d3ac; --muted: #cdb98f;
+    --rouge: #b3382c; --rouge2: #d4503f; --sapin: #2f5d3a; --or: #e8b04a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bois); color: var(--creme);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column; height: 100dvh; overflow: hidden; overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--or); outline-offset: 2px; }
+
+  header { flex: none; padding: calc(8px + env(safe-area-inset-top, 0px)) 118px 8px max(14px, env(safe-area-inset-left, 0px)); min-height: 52px; }
+  h1 { margin: 0; font: 700 23px/1.1 Georgia, "Times New Roman", serif; letter-spacing: .01em; }
+  header p { margin: 3px 0 0; font-size: 12.5px; color: var(--muted); }
+
+  #zone { flex: 1; position: relative; min-height: 0; background: #3b2616; }
+  #scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  #bandeau { position: absolute; left: 10px; right: 10px; top: 8px; z-index: 2; padding: 8px 12px; border-radius: 12px;
+    background: rgba(232,176,74,.95); color: #3b2209; font-size: 13.5px; font-weight: 600; text-align: center; pointer-events: none; }
+  #bandeau[hidden] { display: none; }
+  #charge { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; pointer-events: none; }
+  #charge[hidden] { display: none; }
+
+  #repli { position: absolute; inset: 0; overflow: auto; padding: 12px max(14px, env(safe-area-inset-left, 0px)) 16px; }
+  #repli[hidden] { display: none; }
+  #repli h2 { margin: 14px 0 6px; font: 700 16px Georgia, serif; }
+  #repli .grille { display: flex; flex-wrap: wrap; gap: 8px; }
+  #repli .note { color: var(--muted); font-size: 13.5px; margin: 0 0 8px; }
+
+  .puce { min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--trait); background: var(--bois3); cursor: pointer; }
+  .puce.on { background: var(--rouge); border-color: #e0705f; font-weight: 700; }
+
+  nav { flex: none; display: flex; gap: 8px; padding: 10px max(12px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+    background: var(--bois2); border-top: 1px solid var(--trait); }
+  nav button { min-height: 50px; min-width: 0; border-radius: 14px; border: 1px solid var(--trait); background: var(--bois3); font-weight: 600; font-size: 14.5px; padding: 0 11px; cursor: pointer; white-space: nowrap; }
+  nav button.actif { background: var(--or); color: #3b2209; border-color: #f3cd82; }
+  nav #b-liste { flex: 1; background: var(--rouge); border-color: #e0705f; font-size: 15.5px; padding: 0 8px; }
+  nav #b-liste b { display: inline-block; min-width: 26px; margin-left: 6px; padding: 3px 8px; border-radius: 99px; background: var(--creme); color: #6b1d14; font-size: 14px; }
+
+  #voile { position: fixed; inset: 0; z-index: 50; background: rgba(10,5,2,.62); display: flex; align-items: flex-end; justify-content: center; }
+  #voile[hidden] { display: none; }
+  #feuille { width: 100%; max-width: 520px; max-height: 90dvh; overflow: auto; background: var(--bois2); border: 1px solid var(--trait); border-bottom: 0;
+    border-radius: 20px 20px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px)); }
+  #feuille h2 { margin: 0 0 12px; font: 700 20px Georgia, "Times New Roman", serif; }
+  #feuille label { display: block; margin: 12px 0 5px; font-size: 13.5px; color: var(--muted); }
+  #feuille input[type=text], #feuille select { width: 100%; min-height: 48px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--trait); background: #25160d; font-size: 17px; }
+  #feuille .case { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 15px; color: var(--creme); }
+  #feuille .case input { width: 22px; height: 22px; accent-color: var(--rouge2); }
+  #feuille .actions { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+  #feuille .actions button { flex: 1; min-height: 50px; border-radius: 14px; border: 1px solid var(--trait); background: var(--bois3); font-weight: 600; font-size: 16px; cursor: pointer; }
+  #feuille .actions .ok { background: var(--rouge); border-color: #e0705f; }
+  #feuille .actions .danger { background: #2a1a1a; border-color: #8a4137; color: #ffb4a8; }
+  #feuille .actions .danger.sur { background: #8c2a20; color: #fff; }
+  #feuille .msg { margin: 10px 0 0; font-size: 14px; color: #ffb4a8; min-height: 1em; }
+  #feuille .vide { color: var(--muted); margin: 6px 0 0; }
+  #feuille .rub { margin: 14px 0 6px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  #feuille .grille { display: flex; flex-wrap: wrap; gap: 8px; }
+  #feuille .puce { background: var(--bois3); font-size: 16px; }
+  #feuille .puce::after { content: " ✓"; color: var(--or); }
+  #feuille .aide { margin: 0 0 4px; font-size: 13.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mon chalet</h1>
+  <p>Touchez un produit : il avance et rejoint votre liste.</p>
+</header>
+
+<div id="zone">
+  <canvas id="scene" tabindex="0" role="img" aria-label="Étagères du chalet en 3D. Glissez pour parcourir, touchez un produit pour l'ajouter à la liste à acheter."></canvas>
+  <div id="bandeau" hidden>Mode rangement : touchez un produit ou une étiquette pour la modifier.</div>
+  <div id="charge">Le chalet se prépare…</div>
+  <div id="repli" hidden></div>
+</div>
+
+<nav>
+  <button type="button" id="b-ajout">＋ Ajouter</button>
+  <button type="button" id="b-rang">✎ Ranger</button>
+  <button type="button" id="b-liste">À acheter<b id="n-achat">0</b></button>
+</nav>
+
+<div id="voile" hidden><div id="feuille" role="dialog" aria-modal="true"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  function h(tag, props, kids) {
+    var e = document.createElement(tag);
+    for (var k in (props || {})) {
+      if (k === 'text') e.textContent = props[k];
+      else if (k === 'class') e.className = props[k];
+      else if (k.slice(0, 2) === 'on') e.addEventListener(k.slice(2), props[k]);
+      else e.setAttribute(k, props[k]);
+    }
+    (kids || []).forEach(function (c) { if (c) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return e;
+  }
+
+  /* ============================== Données ============================== */
+  var CLE = 'chalet-donnees-v1';
+  var PAR_RANGEE = 4;
+  function uid() { return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function defaut() {
+    function r(nom, l) { return { id: uid(), nom: nom, produits: l.map(function (n) { return { id: uid(), nom: n }; }) }; }
+    return { rubriques: [
+      r('Garde-manger', ['Café', 'Pâtes', 'Riz', 'Huile']),
+      r('Frais', ['Beurre', 'Lait', 'Œufs', 'Fromage']),
+      r('Maison', ['Savon', 'Éponges', 'Lessive', 'Essuie-tout']),
+      r('Matériel', ['Ampoules', 'Piles', 'Vis', 'Gaz'])
+    ], achat: {} };
+  }
+  function charger() {
+    try {
+      var t = localStorage.getItem(CLE);
+      if (t) {
+        var o = JSON.parse(t);
+        if (o && Array.isArray(o.rubriques)) {
+          o.achat = o.achat || {};
+          var ids = {};
+          o.rubriques.forEach(function (r) { r.produits = r.produits || []; r.produits.forEach(function (p) { ids[p.id] = 1; }); });
+          Object.keys(o.achat).forEach(function (k) { if (!ids[k]) delete o.achat[k]; });
+          return o;
+        }
+      }
+    } catch (e) {}
+    return defaut();
+  }
+  var D = charger();
+  function sauver() { try { localStorage.setItem(CLE, JSON.stringify(D)); } catch (e) {} }
+  sauver();
+  function trouverProd(id) {
+    for (var i = 0; i < D.rubriques.length; i++) for (var j = 0; j < D.rubriques[i].produits.length; j++)
+      if (D.rubriques[i].produits[j].id === id) return D.rubriques[i].produits[j];
+    return null;
+  }
+  function rubDe(id) {
+    for (var i = 0; i < D.rubriques.length; i++) for (var j = 0; j < D.rubriques[i].produits.length; j++)
+      if (D.rubriques[i].produits[j].id === id) return D.rubriques[i];
+    return null;
+  }
+  function rubParId(id) { return D.rubriques.filter(function (r) { return r.id === id; })[0] || null; }
+  function nbAchat() { return Object.keys(D.achat).length; }
+  function hash(s) { var x = 7; for (var i = 0; i < s.length; i++) x = (x * 31 + s.charCodeAt(i)) >>> 0; return x; }
+
+  /* ============================== Interface ============================== */
+  var modeRangement = false;
+  var voile = $('#voile'), feuille = $('#feuille');
+  function fermer() { voile.hidden = true; feuille.innerHTML = ''; }
+  function ouvrir(noeuds) { feuille.innerHTML = ''; noeuds.forEach(function (n) { feuille.appendChild(n); }); voile.hidden = false; }
+  voile.addEventListener('pointerdown', function (e) { if (e.target === voile) fermer(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !voile.hidden) fermer(); });
+
+  function majBarre() {
+    $('#n-achat').textContent = nbAchat();
+    $('#b-rang').textContent = modeRangement ? '✓ Terminé' : '✎ Ranger';
+    $('#b-rang').classList.toggle('actif', modeRangement);
+    $('#bandeau').hidden = !modeRangement;
+    if (!G.ok) dessinerRepli();
+  }
+  function vibrer() { try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {} }
+
+  function basculer(id) {
+    if (D.achat[id]) delete D.achat[id]; else D.achat[id] = true;
+    sauver(); vibrer();
+    if (G.ok) G.maj(id);
+    majBarre();
+    if (!voile.hidden && feuille.getAttribute('data-vue') === 'liste') feuilleListe();
+  }
+  function toucherProduit(id) {
+    var p = trouverProd(id); if (!p) return;
+    if (modeRangement) feuilleProduit(p); else basculer(id);
+  }
+  function toucherRub(id) { var r = rubParId(id); if (r && modeRangement) feuilleRubrique(r); }
+
+  function msgZone() { return h('p', { class: 'msg', role: 'alert' }); }
+
+  function feuilleProduit(p) {
+    var ajout = !p;
+    var rub0 = ajout ? (D.rubriques[0] ? D.rubriques[0].id : '+') : rubDe(p.id).id;
+    var inNom = h('input', { type: 'text', maxlength: '28', autocomplete: 'off', placeholder: 'Allumettes', id: 'f-nom' });
+    inNom.value = p ? p.nom : '';
+    var sel = h('select', { id: 'f-rub' }, D.rubriques.map(function (r) { return h('option', { value: r.id, text: r.nom }); })
+      .concat([h('option', { value: '+', text: '＋ Nouvelle rubrique…' })]));
+    sel.value = rub0;
+    var inRub = h('input', { type: 'text', maxlength: '24', autocomplete: 'off', placeholder: 'Nom de la nouvelle rubrique', 'aria-label': 'Nom de la nouvelle rubrique' });
+    var blocRub = h('div', {}, [inRub]); blocRub.hidden = sel.value !== '+';
+    sel.addEventListener('change', function () { blocRub.hidden = sel.value !== '+'; if (!blocRub.hidden) inRub.focus(); });
+    var cb = h('input', { type: 'checkbox', id: 'f-achat' }); cb.checked = true;
+    var msg = msgZone();
+    var btnSup = null;
+    var actions = [h('button', { type: 'submit', class: 'ok', text: ajout ? 'Ajouter' : 'Enregistrer' })];
+    if (!ajout) {
+      btnSup = h('button', { type: 'button', class: 'danger', text: 'Supprimer' });
+      var arme = false;
+      btnSup.addEventListener('click', function () {
+        if (!arme) { arme = true; btnSup.classList.add('sur'); btnSup.textContent = 'Toucher encore pour supprimer'; return; }
+        var r = rubDe(p.id); r.produits = r.produits.filter(function (x) { return x.id !== p.id; });
+        delete D.achat[p.id]; sauver(); fermer(); G.ok && G.reconstruire(); majBarre();
+      });
+      actions.push(btnSup);
+    }
+    actions.push(h('button', { type: 'button', text: 'Annuler', onclick: fermer }));
+    var f = h('form', { novalidate: 'novalidate' }, [
+      h('h2', { text: ajout ? 'Ajouter un produit' : 'Modifier le produit' }),
+      h('label', { for: 'f-nom', text: 'Nom du produit' }), inNom,
+      h('label', { for: 'f-rub', text: 'Rubrique (l\'étagère)' }), sel, blocRub,
+      ajout ? h('label', { class: 'case' }, [cb, 'Mettre aussi dans la liste à acheter']) : null,
+      msg, h('div', { class: 'actions' }, actions)
+    ]);
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var nom = inNom.value.replace(/\s+/g, ' ').trim();
+      if (!nom) { msg.textContent = 'Écrivez le nom du produit.'; inNom.focus(); return; }
+      var rub;
+      if (sel.value === '+') {
+        var rn = inRub.value.replace(/\s+/g, ' ').trim();
+        if (!rn) { msg.textContent = 'Écrivez le nom de la nouvelle rubrique.'; inRub.focus(); return; }
+        rub = { id: uid(), nom: rn, produits: [] }; D.rubriques.push(rub);
+      } else rub = rubParId(sel.value);
+      var id;
+      if (ajout) {
+        id = uid(); rub.produits.push({ id: id, nom: nom });
+        if (cb.checked) D.achat[id] = true;
+      } else {
+        id = p.id; p.nom = nom;
+        var ancienne = rubDe(p.id);
+        if (ancienne !== rub) { ancienne.produits = ancienne.produits.filter(function (x) { return x.id !== p.id; }); rub.produits.push(p); }
+      }
+      sauver(); fermer(); if (G.ok) { G.reconstruire(); G.montrer(id); } majBarre();
+    });
+    feuille.removeAttribute('data-vue');
+    ouvrir([f]);
+    if (ajout) setTimeout(function () { inNom.focus(); }, 60);
+  }
+
+  function feuilleRubrique(r) {
+    var inNom = h('input', { type: 'text', maxlength: '24', autocomplete: 'off', id: 'f-rn' }); inNom.value = r.nom;
+    var msg = msgZone();
+    var sup = h('button', { type: 'button', class: 'danger', text: 'Supprimer la rubrique' });
+    var arme = false;
+    sup.addEventListener('click', function () {
+      if (r.produits.length) { msg.textContent = 'Retirez d\'abord les produits de cette rubrique.'; return; }
+      if (!arme) { arme = true; sup.classList.add('sur'); sup.textContent = 'Toucher encore pour supprimer'; return; }
+      D.rubriques = D.rubriques.filter(function (x) { return x !== r; }); sauver(); fermer(); G.ok && G.reconstruire(); majBarre();
+    });
+    var f = h('form', { novalidate: 'novalidate' }, [
+      h('h2', { text: 'Modifier la rubrique' }),
+      h('label', { for: 'f-rn', text: 'Nom de la rubrique' }), inNom, msg,
+      h('div', { class: 'actions' }, [h('button', { type: 'submit', class: 'ok', text: 'Enregistrer' }), sup, h('button', { type: 'button', text: 'Annuler', onclick: fermer })])
+    ]);
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var nom = inNom.value.replace(/\s+/g, ' ').trim();
+      if (!nom) { msg.textContent = 'Écrivez un nom.'; return; }
+      r.nom = nom; sauver(); fermer(); G.ok && G.reconstruire(); majBarre();
+    });
+    feuille.removeAttribute('data-vue');
+    ouvrir([f]);
+  }
+
+  function feuilleListe() {
+    var n = nbAchat(), blocs = [h('h2', { text: n ? 'À acheter (' + n + ')' : 'À acheter' })];
+    if (!n) {
+      blocs.push(h('p', { class: 'vide', text: 'Rien à acheter pour l\'instant. Touchez un produit sur l\'étagère : il avance et arrive ici.' }));
+    } else {
+      blocs.push(h('p', { class: 'aide', text: 'Touchez un produit quand il est dans le panier : il retourne sur son étagère.' }));
+      D.rubriques.forEach(function (r) {
+        var l = r.produits.filter(function (p) { return D.achat[p.id]; });
+        if (!l.length) return;
+        blocs.push(h('p', { class: 'rub', text: r.nom }));
+        blocs.push(h('div', { class: 'grille' }, l.map(function (p) {
+          return h('button', { type: 'button', class: 'puce', text: p.nom, 'aria-label': p.nom + ', dans le panier', onclick: function () { basculer(p.id); } });
+        })));
+      });
+    }
+    var actions = [];
+    if (n) {
+      var vider = h('button', { type: 'button', class: 'danger', text: 'Tout vider' }), arme = false;
+      vider.addEventListener('click', function () {
+        if (!arme) { arme = true; vider.classList.add('sur'); vider.textContent = 'Toucher encore pour tout vider'; return; }
+        D.achat = {}; sauver(); if (G.ok) G.majTout(); majBarre(); feuilleListe();
+      });
+      actions.push(vider);
+    }
+    actions.push(h('button', { type: 'button', class: 'ok', text: 'Fermer', onclick: fermer }));
+    blocs.push(h('div', { class: 'actions' }, actions));
+    ouvrir(blocs); feuille.setAttribute('data-vue', 'liste');
+  }
+
+  $('#b-ajout').addEventListener('click', function () { feuilleProduit(null); });
+  $('#b-liste').addEventListener('click', feuilleListe);
+  $('#b-rang').addEventListener('click', function () { modeRangement = !modeRangement; if (G.ok) G.majTout(); majBarre(); });
+
+  /* Secours sans 3D : simple liste de boutons rangés par rubrique */
+  function dessinerRepli() {
+    var z = $('#repli'); z.hidden = false; z.innerHTML = '';
+    z.appendChild(h('p', { class: 'note', text: 'La 3D n\'est pas disponible ici : voici vos étagères en liste.' }));
+    D.rubriques.forEach(function (r) {
+      var t = h('h2', { text: r.nom }); if (modeRangement) { t.style.cursor = 'pointer'; t.addEventListener('click', function () { toucherRub(r.id); }); }
+      z.appendChild(t);
+      z.appendChild(h('div', { class: 'grille' }, r.produits.map(function (p) {
+        return h('button', { type: 'button', class: 'puce' + (D.achat[p.id] ? ' on' : ''), text: p.nom, onclick: function () { toucherProduit(p.id); } });
+      })));
+    });
+  }
+
+  /* ============================== Scène 3D ============================== */
+  var G = { ok: false, maj: function () {}, majTout: function () {}, reconstruire: function () {}, montrer: function () {} };
+
+  function demarrer3D() {
+    if (typeof THREE === 'undefined') return false;
+    var canvas = $('#scene'), zone = $('#zone');
+    var renderer;
+    try { renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true }); } catch (e) { return false; }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setClearColor(0x3b2616);
+    canvas.addEventListener('webglcontextlost', function (e) { e.preventDefault(); });
+    canvas.addEventListener('webglcontextrestored', function () { location.reload(); });
+
+    var scene = new THREE.Scene();
+    var cam = new THREE.PerspectiveCamera(36, 1, 0.1, 80);
+    var TAN = Math.tan(18 * Math.PI / 180);
+    var meuble = new THREE.Group(); scene.add(meuble);
+    var items = [], cibles = [], parId = {};
+
+    /* ---- mesures du meuble (en mètres) ---- */
+    var LARG = 3.6, COTE = 0.2, INT = LARG - 2 * COTE, PROF = 0.7;
+    var RH = 1.0, BT = 0.26, SOCLE = 0.22, CAP = 0.06, HW = 2.0, RHT = 1.5, VUE_L = 4.25;
+    var IW = 0.64, IGAP = 0.12;
+    var HAUT = 6;
+
+    function C(hex) { return new THREE.Color(hex).convertSRGBToLinear(); }
+
+    /* ---- textures dessinées (bois, tapis, étiquettes) ---- */
+    function aleat(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+    function teinte(c, d) { return 'rgb(' + [0, 1, 2].map(function (i) { return Math.max(0, Math.min(255, Math.round(c[i] + d))); }).join(',') + ')'; }
+    function boisCanvas(taille, o) {
+      var c = document.createElement('canvas'); c.width = c.height = taille;
+      var g = c.getContext('2d'), R = aleat(o.seed), n = o.planches, L = taille / n;
+      function pt(a, l) { return o.vertical ? [a, l] : [l, a]; }
+      for (var i = 0; i < n; i++) {
+        var a0 = i * L, p0 = pt(a0, 0);
+        g.fillStyle = teinte(o.base, (R() - 0.5) * o.var);
+        g.fillRect(p0[0], p0[1], o.vertical ? L : taille, o.vertical ? taille : L);
+        var nv = Math.round(L / 2.2);
+        for (var k = 0; k < nv; k++) {
+          var a = a0 + R() * L, ph = R() * 6.28, fr = 0.006 + R() * 0.02, am = 1 + R() * 3;
+          g.strokeStyle = 'rgba(' + o.veine + ',' + (0.06 + R() * 0.17).toFixed(3) + ')'; g.lineWidth = 0.6 + R() * 1.5;
+          g.beginPath();
+          for (var l = 0; l <= taille; l += 8) {
+            var q = pt(a + Math.sin(l * fr + ph) * am, l);
+            if (l === 0) g.moveTo(q[0], q[1]); else g.lineTo(q[0], q[1]);
+          }
+          g.stroke();
+        }
+        if (R() < o.noeuds) {
+          var q2 = pt(a0 + L * (0.3 + R() * 0.4), R() * taille);
+          for (var r = 4; r >= 1; r--) {
+            g.beginPath();
+            g.ellipse(q2[0], q2[1], o.vertical ? 4 * r : 9 * r, o.vertical ? 9 * r : 4 * r, 0, 0, 6.2832);
+            g.strokeStyle = 'rgba(' + o.veine + ',0.4)'; g.lineWidth = 1.3; g.stroke();
+            if (r === 1) { g.fillStyle = 'rgba(' + o.veine + ',0.55)'; g.fill(); }
+          }
+        }
+        var j = pt(a0, 0);
+        g.fillStyle = 'rgba(25,10,2,0.55)'; g.fillRect(j[0], j[1], o.vertical ? 2 : taille, o.vertical ? taille : 2);
+      }
+      return c;
+    }
+    function tex(canvas, rx, ry) {
+      var t = new THREE.CanvasTexture(canvas);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry);
+      t.encoding = THREE.sRGBEncoding; t.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+      t.partage = true; return t;
+    }
+    function mat(opts) { var m = new THREE.MeshStandardMaterial(opts); m.partage = true; return m; }
+
+    var cvMur = boisCanvas(512, { seed: 3, planches: 5, vertical: true, base: [206, 152, 94], var: 26, veine: '95,55,22', noeuds: 0.7 });
+    var cvSol = boisCanvas(512, { seed: 8, planches: 4, vertical: false, base: [116, 76, 44], var: 22, veine: '40,18,6', noeuds: 0.6 });
+    var cvPoutre = boisCanvas(512, { seed: 5, planches: 1, vertical: false, base: [128, 82, 46], var: 0, veine: '50,24,8', noeuds: 0.9 });
+    var cvCote = boisCanvas(512, { seed: 6, planches: 1, vertical: true, base: [122, 77, 42], var: 0, veine: '50,24,8', noeuds: 0.9 });
+    var cvFond = boisCanvas(512, { seed: 9, planches: 4, vertical: true, base: [92, 58, 34], var: 18, veine: '30,12,2', noeuds: 0.5 });
+    var cvToit = boisCanvas(512, { seed: 11, planches: 1, vertical: false, base: [84, 54, 33], var: 0, veine: '25,10,2', noeuds: 0.8 });
+    var cvPignon = boisCanvas(512, { seed: 13, planches: 5, vertical: true, base: [190, 136, 80], var: 24, veine: '95,55,22', noeuds: 0.6 });
+
+    var M = {
+      mur: mat({ map: tex(cvMur, 24, 24), roughness: 0.95 }),
+      sol: mat({ map: tex(cvSol, 24, 10), roughness: 0.9 }),
+      poutre: mat({ map: tex(cvPoutre, 2.4, 1), roughness: 0.8 }),
+      cote: mat({ map: tex(cvCote, 1, 3), roughness: 0.8 }),
+      fond: mat({ map: tex(cvFond, 3.2, 1), roughness: 0.95 }),
+      toit: mat({ map: tex(cvToit, 2.4, 1), roughness: 0.85 }),
+      pignon: mat({ map: tex(cvPignon, 1, 1), roughness: 0.9 }),
+      neige: mat({ color: C('#f4f8ff'), emissive: C('#1b2430'), roughness: 1 }),
+      fer: mat({ color: C('#241f1c'), roughness: 0.5, metalness: 0.6 }),
+      glace: mat({ color: C('#d4ecf8'), roughness: 0.15, transparent: true, opacity: 0.85 }),
+      lampe: new THREE.MeshBasicMaterial({ color: C('#ffd27a') }),
+      coeur: mat({ color: C('#a8372a'), roughness: 0.7, side: THREE.DoubleSide }),
+      liege: mat({ color: C('#b58850'), roughness: 0.9 })
+    };
+    M.lampe.partage = true;
+
+    /* tapis à carreaux rouges */
+    (function () {
+      var c = document.createElement('canvas'); c.width = c.height = 256; var g = c.getContext('2d');
+      g.fillStyle = '#f1e6d0'; g.fillRect(0, 0, 256, 256);
+      g.fillStyle = 'rgba(176,44,36,.55)';
+      for (var i = 0; i < 4; i++) { g.fillRect(i * 64 + 16, 0, 32, 256); g.fillRect(0, i * 64 + 16, 256, 32); }
+      var t = tex(c, 6, 2.6); M.tapis = mat({ map: t, roughness: 1 });
+    })();
+
+    /* ---- décor fixe : mur, sol, tapis, lumières ---- */
+    var mur = new THREE.Mesh(new THREE.PlaneGeometry(24, 24), M.mur);
+    mur.position.set(0, 8, -PROF / 2 - 0.03); mur.receiveShadow = true; scene.add(mur);
+    var sol = new THREE.Mesh(new THREE.PlaneGeometry(24, 10), M.sol);
+    sol.rotation.x = -Math.PI / 2; sol.position.set(0, 0, 4.6); sol.receiveShadow = true; scene.add(sol);
+    var tapis = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 1.4), M.tapis);
+    tapis.rotation.x = -Math.PI / 2; tapis.position.set(0, 0.012, 1.35); tapis.receiveShadow = true; scene.add(tapis);
+
+    scene.add(new THREE.HemisphereLight(C('#ffeed6'), C('#6a4224'), 0.95));
+    var soleil = new THREE.DirectionalLight(C('#ffe3b8'), 0.85);
+    soleil.castShadow = true; soleil.shadow.mapSize.set(2048, 2048); soleil.shadow.bias = -0.0004; soleil.shadow.radius = 3;
+    scene.add(soleil); scene.add(soleil.target);
+
+    /* ---- étiquettes dessinées ---- */
+    function etiquette(nom, couleur) {
+      var W = 256, H = 192, c = document.createElement('canvas'); c.width = W; c.height = H; var g = c.getContext('2d');
+      g.fillStyle = '#f3e5c2'; g.fillRect(0, 0, W, H);
+      g.strokeStyle = couleur; g.lineWidth = 7; g.strokeRect(9, 9, W - 18, H - 18);
+      g.lineWidth = 2; g.strokeRect(19, 19, W - 38, H - 38);
+      var dispo = W - 56, pol = 'Georgia,"Times New Roman",serif';
+      function larg(t, px) { g.font = 'bold ' + px + 'px ' + pol; return g.measureText(t).width; }
+      function taille(t, max) { for (var px = max; px > 18; px -= 2) if (larg(t, px) <= dispo) return px; return 18; }
+      var px1 = taille(nom, 62), lignes = [nom], px = px1;
+      for (var i = 1; i < nom.length - 1; i++) {
+        var ch = nom.charAt(i), a, b;
+        if (ch === ' ') { a = nom.slice(0, i); b = nom.slice(i + 1); }
+        else if (ch === '-') { a = nom.slice(0, i + 1); b = nom.slice(i + 1); }
+        else continue;
+        var p2 = Math.min(taille(a, 54), taille(b, 54));
+        if (p2 > px1 * 1.12 && p2 > px) { px = p2; lignes = [a, b]; }
+      }
+      g.fillStyle = '#3b2209'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = 'bold ' + px + 'px ' + pol;
+      if (lignes.length === 1) g.fillText(lignes[0], W / 2, H / 2 + 3);
+      else { g.fillText(lignes[0], W / 2, H / 2 - px * 0.56); g.fillText(lignes[1], W / 2, H / 2 + px * 0.6); }
+      var t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; return t;
+    }
+    function plaque(nom) {
+      var W = 640, H = 160, c = document.createElement('canvas'); c.width = W; c.height = H; var g = c.getContext('2d');
+      g.fillStyle = '#ecd9ab'; g.beginPath(); g.moveTo(14, 4); g.arcTo(W - 4, 4, W - 4, H - 4, 18); g.arcTo(W - 4, H - 4, 4, H - 4, 18); g.arcTo(4, H - 4, 4, 4, 18); g.arcTo(4, 4, W - 4, 4, 18); g.fill();
+      g.strokeStyle = '#6d4220'; g.lineWidth = 7; g.stroke();
+      g.lineWidth = 2.5; g.strokeRect(20, 20, W - 40, H - 40);
+      var px = 92, pol = 'Georgia,"Times New Roman",serif';
+      for (; px > 30; px -= 2) { g.font = 'bold ' + px + 'px ' + pol; if (g.measureText(nom).width <= W - 70) break; }
+      g.fillStyle = '#3b2209'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(nom, W / 2, H / 2 + 5);
+      var t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; return t;
+    }
+    function enseigne() {
+      var W = 640, H = 210, c = document.createElement('canvas'); c.width = W; c.height = H; var g = c.getContext('2d');
+      g.drawImage(boisCanvas(256, { seed: 21, planches: 1, vertical: false, base: [178, 124, 70], var: 0, veine: '70,35,12', noeuds: 0 }), 0, 0, W, H);
+      g.strokeStyle = '#4a2a12'; g.lineWidth = 10; g.strokeRect(8, 8, W - 16, H - 16);
+      g.lineWidth = 3; g.strokeRect(24, 24, W - 48, H - 48);
+      /* petites montagnes */
+      g.fillStyle = '#4a2a12'; g.beginPath(); g.moveTo(52, 150); g.lineTo(96, 76); g.lineTo(124, 118); g.lineTo(148, 90); g.lineTo(190, 150); g.closePath(); g.fill();
+      g.fillStyle = '#f4f8ff'; g.beginPath(); g.moveTo(96, 76); g.lineTo(82, 100); g.lineTo(92, 96); g.lineTo(100, 104); g.lineTo(108, 94); g.closePath(); g.fill();
+      g.fillStyle = '#2a1608'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = 'italic bold 88px Georgia,"Times New Roman",serif';
+      g.fillStyle = 'rgba(255,230,190,.45)'; g.fillText('Mon chalet', 408, 112);
+      g.fillStyle = '#2a1608'; g.fillText('Mon chalet', 406, 108);
+      var t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; t.partage = false; return t;
+    }
+    function pastilleTag() {
+      var c = document.createElement('canvas'); c.width = c.height = 96; var g = c.getContext('2d');
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(48, 48, 46, 0, 6.2832); g.fill();
+      g.fillStyle = '#c63a2b'; g.beginPath(); g.arc(48, 48, 38, 0, 6.2832); g.fill();
+      g.fillStyle = '#fff'; g.font = 'bold 60px Georgia,serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('!', 48, 52);
+      var t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.partage = true; return t;
+    }
+    var TAG = pastilleTag();
+
+    var PAL = ['#a63a2c', '#2f5d3a', '#d19a2a', '#b98a54', '#37587f', '#7a4a2e', '#6b7f4a'];
+
+    /* ---- construction d'un produit (bocal ou boîte) ---- */
+    function creerItem(p, style, x, yb) {
+      var hh = 0.46 + (hash(p.nom) % 5) * 0.03, coul = PAL[hash(p.nom + 'c') % PAL.length];
+      var g = new THREE.Group(); g.position.set(x, yb, 0.0);
+      var lt = etiquette(p.nom, coul);
+      var matCorps = new THREE.MeshStandardMaterial({ color: C(coul), roughness: style === 'bocal' ? 0.4 : 0.85 });
+      var matEti = new THREE.MeshStandardMaterial({ map: lt, roughness: 0.9 });
+      var lw = IW * 0.86, lh = lw * 0.75, corps, eti, couvercle, hit, front;
+      if (style === 'bocal') {
+        var r = IW / 2; front = r;
+        corps = new THREE.Mesh(new THREE.CylinderGeometry(r, r, hh, 30), matCorps); corps.position.y = hh / 2;
+        var arc = lw / (r * 1.012);
+        eti = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.012, r * 1.012, lh, 24, 1, true, -arc / 2, arc), matEti); eti.position.y = hh * 0.48;
+        couvercle = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.92, r * 0.92, 0.05, 28), M.liege); couvercle.position.y = hh + 0.025;
+        var bouton = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.04, 14), M.liege); bouton.position.y = hh + 0.07; bouton.castShadow = true; g.add(bouton);
+      } else {
+        var d = IW * 0.8; front = d / 2;
+        corps = new THREE.Mesh(new THREE.BoxGeometry(IW, hh, d), matCorps); corps.position.y = hh / 2;
+        eti = new THREE.Mesh(new THREE.PlaneGeometry(lw, lh), matEti); eti.position.set(0, hh * 0.48, d / 2 + 0.004);
+        couvercle = new THREE.Mesh(new THREE.BoxGeometry(IW * 1.04, 0.045, d * 1.04), M.liege); couvercle.position.y = hh + 0.022;
+      }
+      [corps, couvercle].forEach(function (m) { m.castShadow = true; m.receiveShadow = true; });
+      eti.receiveShadow = true;
+      var tag = new THREE.Mesh(new THREE.CircleGeometry(0.09, 24), new THREE.MeshBasicMaterial({ map: TAG, transparent: true }));
+      tag.position.set(IW * 0.3, hh * 0.9, front + 0.012); tag.visible = false;
+      hit = new THREE.Mesh(new THREE.BoxGeometry(IW * 1.08, hh + 0.12, front * 2), new THREE.MeshBasicMaterial());
+      hit.position.y = (hh + 0.12) / 2; hit.visible = false; hit.userData = { type: 'produit', id: p.id };
+      g.add(corps, eti, couvercle, tag, hit);
+      meuble.add(g); cibles.push(hit);
+      var it = { id: p.id, g: g, y0: yb, a: D.achat[p.id] ? 1 : 0, tag: tag, mat: matCorps, hit: hit };
+      items.push(it); parId[p.id] = it; return it;
+    }
+
+    function nettoyer(grp) {
+      for (var i = grp.children.length - 1; i >= 0; i--) {
+        var o = grp.children[i]; grp.remove(o);
+        o.traverse(function (n) {
+          if (n.geometry) n.geometry.dispose();
+          [].concat(n.material || []).forEach(function (m) {
+            if (m.partage) return;
+            if (m.map && !m.map.partage) m.map.dispose();
+            m.dispose();
+          });
+        });
+      }
+    }
+
+    function boite(w, hh, d, m, x, y, z, ombre) {
+      var o = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d), m); o.position.set(x, y, z);
+      o.castShadow = ombre !== false; o.receiveShadow = true; meuble.add(o); return o;
+    }
+
+    /* ---- le meuble complet : étagères, toit enneigé, enseigne, lanternes ---- */
+    function reconstruire() {
+      nettoyer(meuble); items.length = 0; cibles.length = 0; parId = {};
+      var rangs = [];
+      D.rubriques.forEach(function (r, ri) {
+        var morceaux = [];
+        for (var i = 0; i < r.produits.length; i += PAR_RANGEE) morceaux.push(r.produits.slice(i, i + PAR_RANGEE));
+        if (!morceaux.length) morceaux.push([]);
+        morceaux.forEach(function (l, j) { rangs.push({ rub: r, prods: l, suite: j > 0, style: ri % 2 === 0 ? 'bocal' : 'boite' }); });
+      });
+      if (!rangs.length) rangs.push({ rub: null, prods: [], suite: false, style: 'boite' });
+      var R = rangs.length;
+      var yTop = SOCLE + R * RH + BT + CAP;
+      HAUT = yTop + RHT + 0.3;
+
+      /* corps du meuble */
+      boite(COTE, yTop, PROF, M.cote, -(LARG - COTE) / 2, yTop / 2, 0);
+      boite(COTE, yTop, PROF, M.cote, (LARG - COTE) / 2, yTop / 2, 0);
+      boite(INT, SOCLE, PROF - 0.06, M.cote, 0, SOCLE / 2, -0.02);
+      boite(LARG + 0.16, CAP, PROF + 0.12, M.poutre, 0, yTop - CAP / 2, 0.02);
+      for (var k = 0; k < R; k++) {
+        var fond = new THREE.Mesh(new THREE.PlaneGeometry(INT, RH), M.fond);
+        fond.position.set(0, SOCLE + k * RH + RH / 2, -PROF / 2 + 0.035); fond.receiveShadow = true; meuble.add(fond);
+      }
+      for (var b = 0; b <= R; b++) boite(INT + 0.02, BT, PROF, M.poutre, 0, SOCLE + b * RH + BT / 2, 0);
+
+      /* rangées : la première rubrique est en haut */
+      rangs.forEach(function (rg, i) {
+        var kk = R - 1 - i, yb = SOCLE + kk * RH + BT;
+        if (rg.rub) {
+          var pl = new THREE.Mesh(new THREE.PlaneGeometry(0.88, 0.22), new THREE.MeshStandardMaterial({ map: plaque(rg.suite ? rg.rub.nom + ' · suite' : rg.rub.nom), roughness: 0.8 }));
+          pl.position.set(-INT / 2 + 0.1 + 0.44, yb - BT / 2, PROF / 2 + 0.004); pl.userData = { type: 'rubrique', id: rg.rub.id };
+          meuble.add(pl); cibles.push(pl);
+        }
+        rg.prods.forEach(function (p, j) {
+          creerItem(p, rg.style, -INT / 2 + 0.14 + IW / 2 + j * (IW + IGAP), yb);
+        });
+      });
+
+      /* toit de chalet avec neige */
+      var zc = 0.12, Dr = 0.95, Lr = Math.sqrt(HW * HW + RHT * RHT), al = Math.atan2(RHT, HW);
+      [-1, 1].forEach(function (s) {
+        var nx = Math.sin(al) * s, ny = Math.cos(al);
+        var planche = boite(Lr + 0.14, 0.09, Dr, M.toit, s * HW / 2 + nx * 0.045, yTop + RHT / 2 + ny * 0.045, zc);
+        planche.rotation.z = -s * al;
+        var neige = boite(Lr * 0.97, 0.11, Dr + 0.05, M.neige, s * HW / 2 + nx * 0.11, yTop + RHT / 2 + ny * 0.11, zc + 0.01);
+        neige.rotation.z = -s * al;
+      });
+      var faite = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, Dr + 0.05, 14), M.neige);
+      faite.rotation.x = Math.PI / 2; faite.position.set(0, yTop + RHT + 0.07, zc + 0.01); faite.castShadow = true; meuble.add(faite);
+      /* glaçons sur le bord avant du toit */
+      var gr = aleat(77), zf = zc + Dr / 2 - 0.03;
+      [-1, 1].forEach(function (s) {
+        for (var q = 0; q < 8; q++) {
+          var t = 0.12 + q * 0.108 + gr() * 0.05, hg = 0.07 + gr() * 0.17;
+          var ix = s * t * HW, iy = yTop + RHT - t * RHT - 0.03 - hg / 2;
+          var gl = new THREE.Mesh(new THREE.ConeGeometry(0.021, hg, 8), M.glace);
+          gl.rotation.x = Math.PI; gl.position.set(ix, iy, zf); meuble.add(gl);
+        }
+      });
+
+      /* pignon en planches */
+      var sh = new THREE.Shape(); sh.moveTo(-(HW - 0.12), 0); sh.lineTo(HW - 0.12, 0); sh.lineTo(0, RHT - 0.1); sh.closePath();
+      var pig = new THREE.Mesh(new THREE.ShapeGeometry(sh), M.pignon);
+      var zg = PROF / 2 - 0.02; pig.position.set(0, yTop, zg); pig.receiveShadow = true; meuble.add(pig);
+
+      /* enseigne */
+      var te = enseigne();
+      var matEns = [M.poutre, M.poutre, M.poutre, M.poutre, new THREE.MeshStandardMaterial({ map: te, roughness: 0.8 }), M.poutre];
+      var ens = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.42, 0.07), matEns);
+      ens.position.set(0, yTop + 0.56, zg + 0.045); ens.castShadow = true; ens.receiveShadow = true; meuble.add(ens);
+      [[-0.6, 0.17], [0.6, 0.17], [-0.6, -0.17], [0.6, -0.17]].forEach(function (p) {
+        var cl = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 8), M.fer); cl.position.set(p[0], yTop + 0.56 + p[1], zg + 0.085); meuble.add(cl);
+      });
+      /* cœur découpé */
+      var hs = new THREE.Shape(); hs.moveTo(0.25, 0.25);
+      hs.bezierCurveTo(0.25, 0.25, 0.2, 0, 0, 0); hs.bezierCurveTo(-0.3, 0, -0.3, 0.35, -0.3, 0.35);
+      hs.bezierCurveTo(-0.3, 0.55, -0.1, 0.77, 0.25, 0.95); hs.bezierCurveTo(0.6, 0.77, 0.8, 0.55, 0.8, 0.35);
+      hs.bezierCurveTo(0.8, 0.35, 0.8, 0, 0.5, 0); hs.bezierCurveTo(0.35, 0, 0.25, 0.25, 0.25, 0.25);
+      var gc = new THREE.ExtrudeGeometry(hs, { depth: 0.18, bevelEnabled: false }); gc.center(); gc.scale(0.26, 0.26, 0.26);
+      var coeur = new THREE.Mesh(gc, M.coeur); coeur.rotation.z = Math.PI; coeur.position.set(0, yTop + 1.0, zg + 0.03); coeur.castShadow = true; meuble.add(coeur);
+      /* lanternes */
+      [-1, 1].forEach(function (s) {
+        var lx = s * 1.0, ly = yTop + 0.42, lz = zg + 0.15;
+        var tige = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.15, 8), M.fer); tige.rotation.x = Math.PI / 2; tige.position.set(lx, ly + 0.2, zg + 0.075); meuble.add(tige);
+        var chaine = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.08, 6), M.fer); chaine.position.set(lx, ly + 0.16, lz); meuble.add(chaine);
+        var verre = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.15, 12), M.lampe); verre.position.set(lx, ly, lz); meuble.add(verre);
+        var toitL = new THREE.Mesh(new THREE.ConeGeometry(0.095, 0.07, 4), M.fer); toitL.rotation.y = Math.PI / 4; toitL.position.set(lx, ly + 0.108, lz); meuble.add(toitL);
+        boite(0.11, 0.025, 0.11, M.fer, lx, ly - 0.088, lz, false);
+        [[1, 1], [-1, 1], [1, -1], [-1, -1]].forEach(function (c) { boite(0.008, 0.15, 0.008, M.fer, lx + c[0] * 0.056, ly, lz + c[1] * 0.056, false); });
+        var lum = new THREE.PointLight(C('#ffb35a'), 0.9, 4.5, 2); lum.position.set(lx, ly, lz + 0.18); meuble.add(lum);
+      });
+
+      /* lumière principale : cadrée sur le meuble */
+      soleil.position.set(-3.2, HAUT * 0.62 + 2, 5.5); soleil.target.position.set(0, HAUT / 2, 0);
+      var sc = soleil.shadow.camera; sc.left = -3; sc.right = 3; sc.top = HAUT / 2 + 1.2; sc.bottom = -HAUT / 2 - 1.2; sc.near = 1; sc.far = 24; sc.updateProjectionMatrix();
+      teinter(); borner(); demander();
+    }
+
+    function teinter() {
+      items.forEach(function (it) { it.tag.visible = !!D.achat[it.id]; });
+    }
+
+    /* ---- caméra : on fait défiler le meuble de haut en bas ---- */
+    var vue = { yaw: 0, zoom: 1, ty: 0, vy: 0 };
+    var asp = 0.7;
+    function dist() {
+      /* téléphone (portrait) : on cadre la largeur du chalet ; écran large : on recule pour voir plus de hauteur */
+      var d1 = (VUE_L / 2) / (TAN * asp), d2 = (Math.min(HAUT, 6.4) / 2) / TAN;
+      return Math.max(d1, 0.8 * d2) / vue.zoom;
+    }
+    function limites() {
+      var hh = dist() * TAN, mx = HAUT - hh + 0.1, mn = -0.45 + hh;
+      if (mx < mn) { var m = (mx + mn) / 2; return [m, m]; }
+      return [mn, mx];
+    }
+    function borner() { var l = limites(); vue.ty = Math.max(l[0], Math.min(l[1], vue.ty)); }
+    function placer() {
+      borner();
+      var d = dist(), e = 0.1;
+      cam.position.set(Math.sin(vue.yaw) * d * Math.cos(e), vue.ty + d * Math.sin(e), Math.cos(vue.yaw) * d * Math.cos(e));
+      cam.lookAt(0, vue.ty, 0);
+    }
+    function pxParM() { return canvas.clientHeight / (2 * dist() * TAN); }
+
+    var raf = 0, enMain = false;
+    function etape() {
+      var bouge = false;
+      items.forEach(function (it) {
+        var cible = D.achat[it.id] ? 1 : 0, dd = cible - it.a;
+        if (Math.abs(dd) > 0.003) { it.a += dd * 0.2; bouge = true; } else it.a = cible;
+        it.g.position.z = it.a * 0.42; it.g.position.y = it.y0 + it.a * 0.03;
+        var s = 1 + it.a * 0.07; it.g.scale.set(s, s, s);
+      });
+      if (!enMain) {
+        if (Math.abs(vue.yaw) > 0.002) { vue.yaw *= 0.9; bouge = true; } else vue.yaw = 0;
+        if (Math.abs(vue.vy) > 0.0006) { vue.ty += vue.vy; vue.vy *= 0.93; bouge = true; } else vue.vy = 0;
+      }
+      placer(); renderer.render(scene, cam);
+      return bouge || enMain;
+    }
+    function boucle() { raf = 0; if (etape()) raf = requestAnimationFrame(boucle); }
+    function demander() { if (!raf) raf = requestAnimationFrame(boucle); }
+
+    function redim() {
+      var r = zone.getBoundingClientRect(), w = Math.max(50, Math.round(r.width)), hgt = Math.max(50, Math.round(r.height));
+      renderer.setSize(w, hgt, false); asp = w / hgt; cam.aspect = asp; cam.updateProjectionMatrix(); demander();
+    }
+    if (window.ResizeObserver) new ResizeObserver(redim).observe(zone); else window.addEventListener('resize', redim);
+
+    /* ---- gestes : glisser = défiler, pincer = zoomer, toucher = choisir ---- */
+    var ptr = {}, depart = null, pince = null, dernier = 0;
+    function nbPtr() { return Object.keys(ptr).length; }
+    canvas.addEventListener('pointerdown', function (e) {
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+      ptr[e.pointerId] = { x: e.clientX, y: e.clientY };
+      enMain = true; vue.vy = 0;
+      if (nbPtr() === 1) depart = { x: e.clientX, y: e.clientY, t: Date.now(), d: 0 };
+      else if (nbPtr() === 2) { var k = Object.keys(ptr), a = ptr[k[0]], b = ptr[k[1]]; pince = { d0: Math.hypot(a.x - b.x, a.y - b.y), z0: vue.zoom }; if (depart) depart.d = 99; }
+      canvas.style.cursor = 'grabbing'; demander();
+    });
+    canvas.addEventListener('pointermove', function (e) {
+      var p = ptr[e.pointerId]; if (!p) return;
+      var dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+      if (nbPtr() === 1) {
+        if (depart) depart.d += Math.abs(dx) + Math.abs(dy);
+        var dv = dy / pxParM(); vue.ty += dv; vue.vy = dv; dernier = Date.now();
+        vue.yaw = Math.max(-0.5, Math.min(0.5, vue.yaw - dx * 0.003));
+      } else if (nbPtr() === 2 && pince) {
+        var k = Object.keys(ptr), a = ptr[k[0]], b = ptr[k[1]];
+        vue.zoom = Math.max(1, Math.min(2.4, pince.z0 * Math.hypot(a.x - b.x, a.y - b.y) / pince.d0));
+      }
+      demander();
+    });
+    function fin(e) {
+      if (!ptr[e.pointerId]) return;
+      var seul = nbPtr() === 1; delete ptr[e.pointerId];
+      if (nbPtr() < 2) pince = null;
+      if (!nbPtr()) {
+        enMain = false; canvas.style.cursor = 'grab';
+        if (Date.now() - dernier > 90) vue.vy = 0;
+        if (seul && depart && depart.d < 10 && Date.now() - depart.t < 600 && e.type === 'pointerup') choisir(e.clientX, e.clientY);
+        depart = null;
+      }
+      demander();
+    }
+    canvas.addEventListener('pointerup', fin); canvas.addEventListener('pointercancel', fin);
+    canvas.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      if (e.ctrlKey) vue.zoom = Math.max(1, Math.min(2.4, vue.zoom * (e.deltaY < 0 ? 1.08 : 0.92)));
+      else vue.ty -= e.deltaY / pxParM();
+      demander();
+    }, { passive: false });
+    canvas.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowUp') vue.ty += 0.6; else if (e.key === 'ArrowDown') vue.ty -= 0.6; else return;
+      e.preventDefault(); demander();
+    });
+
+    var rc = new THREE.Raycaster(), vec = new THREE.Vector2();
+    function choisir(cx, cy) {
+      var r = canvas.getBoundingClientRect();
+      vec.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+      placer(); cam.updateMatrixWorld(); meuble.updateMatrixWorld(true);
+      rc.setFromCamera(vec, cam);
+      var hits = rc.intersectObjects(cibles, false);
+      if (!hits.length) return;
+      var u = hits[0].object.userData;
+      if (u.type === 'produit') toucherProduit(u.id); else if (u.type === 'rubrique') toucherRub(u.id);
+    }
+
+    /* ---- liens avec le reste de l'appli ---- */
+    G.ok = true;
+    G.reconstruire = reconstruire;
+    G.maj = function (id) { teinter(); demander(); };
+    G.majTout = function () { teinter(); demander(); };
+    G.montrer = function (id) {
+      var it = parId[id]; if (!it) return;
+      vue.ty = it.y0 + 0.5; demander();
+    };
+    G.etat = function () { return { items: items.length, cibles: cibles.length, ty: vue.ty, haut: HAUT, zoom: vue.zoom }; };
+    G.ecran = function (type, id) {
+      var o = cibles.filter(function (c) { return c.userData.type === type && c.userData.id === id; })[0];
+      if (!o) return null;
+      placer(); cam.updateMatrixWorld(); meuble.updateMatrixWorld(true);
+      var v = new THREE.Vector3(); o.getWorldPosition(v); v.project(cam);
+      var r = canvas.getBoundingClientRect();
+      return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height };
+    };
+    window.__chalet = G;
+
+    redim(); reconstruire(); vue.ty = limites()[1]; demander();
+    return true;
+  }
+
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    try { navigator.serviceWorker.register('chalet-sw.js').catch(function () {}); } catch (e) {}
+  }
+  var ok3D = false;
+  try { ok3D = demarrer3D(); } catch (e) { ok3D = false; if (window.console) console.error(e); }
+  $('#charge').hidden = true;
+  if (!ok3D) { $('#scene').style.display = 'none'; G.ok = false; }
+  majBarre();
+})();
+</script>
+<!-- MAJ:debut — pastille de mise à jour commune à toutes les applis (modèle : outils/pastille-maj.html, ne pas modifier ici à la main) -->
+<style>
+#maj-pastille{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:2147483000;
+  display:flex;align-items:center;gap:5px;margin:0;padding:5px 9px;border-radius:99px;border:1px solid rgba(255,255,255,.25);
+  background:rgba(22,30,36,.86);color:#fff;font:700 11.5px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.02em;
+  box-shadow:0 4px 14px -6px rgba(0,0,0,.6);cursor:pointer;-webkit-tap-highlight-color:transparent;backdrop-filter:blur(6px)}
+#maj-pastille .maj-fl{font-size:13px}
+#maj-pastille.maj-nouvelle{background:#1d7a45;border-color:#7fd6a3;animation:maj-pulse 2s ease-in-out infinite}
+@keyframes maj-pulse{50%{box-shadow:0 0 0 5px rgba(29,122,69,.25)}}
+@media (prefers-reduced-motion:reduce){#maj-pastille.maj-nouvelle{animation:none}}
+#maj-panneau{position:fixed;inset:0;z-index:2147483001;display:flex;align-items:flex-start;justify-content:center;
+  padding:calc(52px + env(safe-area-inset-top,0px)) 16px 16px;background:rgba(0,0,0,.45);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#maj-panneau[hidden]{display:none}
+#maj-panneau .maj-boite{width:100%;max-width:360px;max-height:100%;overflow:auto;background:#fff;color:#16202a;border-radius:14px;padding:16px 16px 14px;box-shadow:0 20px 50px -10px rgba(0,0,0,.6)}
+#maj-panneau .maj-nom{font-weight:800;font-size:18px;margin:0 0 2px}
+#maj-panneau .maj-ver{color:#4b5a68;font-size:13.5px;margin:0}
+#maj-panneau .maj-dispo{margin:10px 0 0;padding:8px 10px;border-radius:9px;background:#e3f4ea;color:#14532d;font-weight:600;font-size:13.5px}
+#maj-panneau .maj-t{margin:12px 0 4px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6a7884}
+#maj-panneau ul{margin:0;padding:0 0 0 18px;font-size:13.5px;color:#26323d}
+#maj-panneau li{margin:3px 0}
+#maj-panneau .maj-actions{display:flex;gap:8px;margin-top:14px}
+#maj-panneau button{flex:1;min-height:44px;border-radius:10px;border:1px solid #c9d2da;background:#f3f6f8;color:#16202a;font:700 15px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;cursor:pointer}
+#maj-panneau button.maj-ok{background:#1f4f7a;border-color:#1f4f7a;color:#fff}
+#maj-panneau .maj-msg{margin:10px 0 0;font-size:13px;color:#8a3b12}
+#maj-panneau .maj-msg:empty{display:none}
+@media print{#maj-pastille,#maj-panneau{display:none!important}}
+
+</style>
+<script>
+window.MAJ_APPLI={"nom": "Mon chalet", "version": "V1", "date": "26/11/2026", "cache": "chalet-app-", "nouveautes": ["Première version : vos courses et votre matériel rangés sur des étagères en 3D dans un chalet.", "Touchez un produit : il avance et rejoint la liste « À acheter ».", "Glissez pour parcourir les étagères, pincez pour zoomer.", "Bouton « Ranger » pour ajouter, renommer ou supprimer produits et rubriques."]};
+(function(){
+  "use strict";
+  var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
+  var enLigne=/^https?:$/.test(location.protocol), distante=null;
+  /* nettoie l'adresse après une actualisation (?maj=...) */
+  if(/[?&]maj=/.test(location.search)){ try{ history.replaceState(null,"",location.pathname+location.hash); }catch(e){} }
+
+  var b=document.createElement("button");
+  b.type="button"; b.id="maj-pastille"; b.title=A.nom+" — version et mise à jour";
+  b.innerHTML='<span class="maj-fl" aria-hidden="true">↻</span><span class="maj-txt"></span>';
+  var txt=b.querySelector(".maj-txt");
+  function court(d){ return String(d||"").slice(0,5); }
+  function majTexte(){
+    if(distante&&distante.version!==A.version){ b.classList.add("maj-nouvelle"); txt.textContent="Nouvelle version"; }
+    else { b.classList.remove("maj-nouvelle"); txt.textContent=A.version+" · "+court(A.date); }
+  }
+
+  var p=document.createElement("div");
+  p.id="maj-panneau"; p.hidden=true; p.setAttribute("role","dialog"); p.setAttribute("aria-modal","true"); p.setAttribute("aria-label","Mise à jour");
+  p.innerHTML='<div class="maj-boite"><p class="maj-nom"></p><p class="maj-ver"></p><p class="maj-dispo" hidden></p>'+
+    '<p class="maj-t">Dernières nouveautés</p><ul></ul>'+
+    '<div class="maj-actions"><button type="button" class="maj-ok">↻ Actualiser</button><button type="button" class="maj-fermer">Fermer</button></div>'+
+    '<p class="maj-msg" role="status"></p></div>';
+  var q=function(s){ return p.querySelector(s); };
+  q(".maj-nom").textContent=A.nom;
+  q(".maj-ver").textContent="Version "+A.version+" · mise à jour le "+A.date;
+  (A.nouveautes||[]).slice(0,4).forEach(function(n){ var li=document.createElement("li"); li.textContent=n; q("ul").appendChild(li); });
+
+  function ouvrir(){
+    var d=q(".maj-dispo");
+    if(distante&&distante.version!==A.version){ d.hidden=false; d.textContent="Nouvelle version en ligne : "+distante.version+(distante.date?" du "+distante.date:"")+". Touchez Actualiser."; }
+    else d.hidden=true;
+    q(".maj-msg").textContent=""; p.hidden=false; verifier(true);
+  }
+  function fermer(){ p.hidden=true; }
+  b.addEventListener("click",ouvrir);
+  q(".maj-fermer").addEventListener("click",fermer);
+  p.addEventListener("click",function(e){ if(e.target===p) fermer(); });
+  document.addEventListener("keydown",function(e){ if(e.key==="Escape"&&!p.hidden) fermer(); });
+
+  q(".maj-ok").addEventListener("click",function(){
+    var msg=q(".maj-msg");
+    if(!enLigne){ msg.textContent="Cette page est un fichier ouvert sur l'appareil : ouvrez plutôt l'adresse en ligne."; return; }
+    if(navigator.onLine===false){ msg.textContent="Pas de connexion internet : réessayez plus tard."; return; }
+    msg.textContent="Mise à jour en cours…";
+    var go=function(){ setTimeout(function(){ location.replace(location.pathname+"?maj="+Date.now()+location.hash); },300); };
+    Promise.resolve().then(function(){
+      if(!("serviceWorker" in navigator)) return;
+      return navigator.serviceWorker.getRegistrations().then(function(rs){ return Promise.all(rs.map(function(r){ return r.update().catch(function(){}); })); });
+    }).catch(function(){}).then(function(){
+      if(!("caches" in window)||!A.cache) return;
+      return caches.keys().then(function(ks){ return Promise.all(ks.filter(function(k){ return k.indexOf(A.cache)===0; }).map(function(k){ return caches.delete(k); })); });
+    }).catch(function(){}).then(go,go);
+  });
+
+  var dernier=0;
+  function verifier(force){
+    if(!enLigne||navigator.onLine===false) return;
+    var t=Date.now(); if(!force&&t-dernier<5*60*1000) return; dernier=t;
+    fetch("version.json",{cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(j){
+      if(j&&j.version){ distante=j; majTexte();
+        if(!p.hidden&&j.version!==A.version){ var d=q(".maj-dispo"); d.hidden=false; d.textContent="Nouvelle version en ligne : "+j.version+(j.date?" du "+j.date:"")+". Touchez Actualiser."; } }
+    }).catch(function(){});
+  }
+  function poser(){ document.body.appendChild(b); document.body.appendChild(p); majTexte(); setTimeout(function(){ verifier(true); },1500); }
+  if(document.body) poser(); else document.addEventListener("DOMContentLoaded",poser);
+  document.addEventListener("visibilitychange",function(){ if(!document.hidden) verifier(false); });
+})();
+</script>
+<!-- MAJ:fin -->
+</body>
+</html>

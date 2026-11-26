@@ -1,0 +1,19 @@
+{
+ "nom": "Mon chalet",
+ "version": "V1",
+ "date": "26/11/2026",
+ "nouveautes": [
+  "Première version : vos courses et votre matériel rangés sur des étagères en 3D dans un chalet.",
+  "Touchez un produit : il avance et rejoint la liste « À acheter ».",
+  "Glissez pour parcourir les étagères, pincez pour zoomer.",
+  "Bouton « Ranger » pour ajouter, renommer ou supprimer produits et rubriques."
+ ],
+ "cache": "chalet-app-",
+ "sw": {
+  "fichier": "chalet-sw.js",
+  "cache": "chalet-app-v1"
+ },
+ "fichiers": [
+  "chalet.html"
+ ]
+}

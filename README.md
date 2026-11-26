@@ -12,6 +12,7 @@ La marche à suivre pour Claude est dans **CLAUDE.md** ; les outils communs dans
 | Mes Photos (appli Android, remplaçante simple : range par date et regarde) | https://github.com/Manuel-Vigie/appli-manu/releases (fichier `MesPhotos.apk`, pas une page web) | [JOURNAL](mes-photos-android/JOURNAL.md) |
 | Suivi GitHub (place restante en pourcentage et bouton Nettoyer ; ne modifie rien) | https://manuel-vigie.github.io/appli-manu/suivi-github/suivi-github.html | [JOURNAL](suivi-github/JOURNAL.md) |
 | Congés (compteurs de jours restants, calendrier, liste ; données sur le téléphone seulement) | https://manuel-vigie.github.io/appli-manu/conges/conges.html | [JOURNAL](conges/JOURNAL.md) |
+| Mon chalet (courses et matériel pour la maison de montagne, rangés sur des étagères 3D ; données sur le téléphone seulement) | https://manuel-vigie.github.io/appli-manu/chalet/chalet.html | [JOURNAL](chalet/JOURNAL.md) |
 
 ## Règles
 - Un dossier par appli, noms sans espaces ni accents, adresse du type `…/NOM/NOM.html`.
