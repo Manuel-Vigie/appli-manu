@@ -72,11 +72,14 @@
   .pt { width: 10px; height: 10px; border-radius: 50%; flex: none; }
   .cpt .reste { margin: 2px 0 0; font-size: .74rem; color: var(--muted); line-height: 1.25; }
   .cpt.cet { border-color: var(--c); background: var(--panel); background: color-mix(in srgb, var(--c) 7%, var(--panel)); }
-  .cpt.cet .note, .cpt.cet h3 { color: var(--c); color: color-mix(in srgb, var(--c) 78%, #000); }
-  @media (prefers-color-scheme: dark) { .cpt.cet .note, .cpt.cet h3 { color: var(--c); color: color-mix(in srgb, var(--c) 65%, #fff); } }
+  .cpt.cet h3 { color: var(--c); color: color-mix(in srgb, var(--c) 78%, #000); }
+  @media (prefers-color-scheme: dark) { .cpt.cet h3 { color: var(--c); color: color-mix(in srgb, var(--c) 65%, #fff); } }
   .cpt .pris { margin: 1px 0 0; font-size: .74rem; line-height: 1.25; color: #b4560f; font-weight: 700; }
   @media (prefers-color-scheme: dark) { .cpt .pris { color: #f2a65a; } }
-  .cpt .note { margin: 2px 0 0; font-size: .7rem; font-weight: 700; color: var(--accent); line-height: 1.25; }
+  .cpt .prevu, .cpt .vcet { margin: 1px 0 0; font-size: .74rem; font-weight: 700; line-height: 1.25; }
+  .cpt .prevu { color: var(--accent); }
+  .cpt .vcet { color: var(--c); color: color-mix(in srgb, var(--c) 78%, #000); }
+  @media (prefers-color-scheme: dark) { .cpt .vcet { color: var(--c); color: color-mix(in srgb, var(--c) 65%, #fff); } }
   .liens .lien { font-size: .86rem; padding: 4px 0; text-align: center; }
   @media (max-width: 340px) { .cpt { gap: 6px; padding: 8px; } .anneau { width: 42px; height: 42px; } .anneau .centre b { font-size: .9rem; } .anneau .centre small { display: none; } .cpt h3 { font-size: .74rem; } }
   .liens { grid-column: 1 / -1; display: flex; justify-content: center; flex-wrap: wrap; gap: 0 16px; }
@@ -518,18 +521,20 @@
   }
   function rCompteurs() {
     var h = D.compteurs.map(function (c) {
-      var s = stats(c, cleVue), neg = s.reste < 0, notes = [];
+      var s = stats(c, cleVue), neg = s.reste < 0, notes = "";
       var reste = neg ? "Tu dépasses de " + fmtJ(-s.reste) : (s.total > 0 ? (c.epargne ? "disponibles" : "sur " + fmtN(s.total)) : (c.epargne ? "Indique ton CET dans « Mon bilan »" : "Règle ce compteur dans les réglages"));
-      if (s.prevu > 0) notes.push(fmtN(s.prevu) + (s.prevu > 1 ? " prévus" : " prévu"));
-      if (s.verse > 0) notes.push(fmtN(s.verse) + " au CET");
-      if (s.recu > 0) notes.push("+" + fmtN(s.recu) + " versés");
+      /* trois couleurs pour ne pas confondre : pris (orange), prévus (couleur de l'appli), versés au CET (couleur du CET) */
+      var cetC = (D.compteurs.filter(function (x) { return x.epargne; })[0] || { couleur: "#3b7bdb" }).couleur;
+      if (s.prevu > 0) notes += '<p class="prevu">' + fmtN(s.prevu) + (s.prevu > 1 ? " prévus" : " prévu") + '</p>';
+      if (s.verse > 0) notes += '<p class="vcet" style="--c:' + cetC + '">' + fmtN(s.verse) + ' au CET</p>';
+      if (s.recu > 0) notes += '<p class="vcet" style="--c:' + c.couleur + '">+' + fmtN(s.recu) + ' versés</p>';
       /* CET : l'anneau montre ce qui reste (couleur pleine = jours disponibles) */
       var sa = c.epargne ? { total: s.total, pris: Math.max(s.reste, 0), prevu: 0, verse: 0, reste: s.reste } : s;
       return '<article class="cpt' + (c.epargne ? ' cet' : '') + '" style="--c:' + c.couleur + '"><div class="anneau">' + anneau(sa, c.couleur) +
         '<div class="centre"><b>' + fmtN(s.reste) + '</b><small>' + (Math.abs(s.reste) >= 2 ? "jours" : "jour") + '</small></div></div>' +
         '<div class="corps"><h3>' + esc(c.nom) + '</h3>' +
         '<p class="reste' + (neg ? " neg" : "") + '">' + reste + '</p>' + (s.pris > 0 ? '<p class="pris">' + fmtN(s.pris) + ' pris</p>' : '') +
-        (notes.length ? '<p class="note">' + notes.slice(0, 2).join(" · ") + '</p>' : '') + '</div></article>';
+        notes + '</div></article>';
     }).join("");
     var cet = D.compteurs.filter(function (c) { return c.epargne; })[0];
     h += '<div class="liens"><button type="button" class="lien" data-bilan>Mon bilan ' + esc(libPeriode(cleVue)) + '</button>' +
@@ -1161,7 +1166,7 @@
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Congés", "version": "V18", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Le CET a maintenant sa couleur : tuile bleutée, anneau plein et texte bleu.", "Les jours déjà pris s'affichent sur chaque compteur, en orange.", "Nouvelle apparence : compteurs en petites tuiles, année à côté des réglages, calendrier visible dès l'ouverture.", "Sous le calendrier, tout est rangé dans des menus déroulants (À venir, Déjà pris, Pris avant l'appli, CET) : touche un titre pour l'ouvrir."]};
+window.MAJ_APPLI={"nom": "Congés", "version": "V19", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Sur chaque compteur : « pris » en orange, « prévus » en vert d'eau et « au CET » en bleu, chacun sur sa ligne.", "Le CET a maintenant sa couleur : tuile bleutée, anneau plein et texte bleu.", "Les jours déjà pris s'affichent sur chaque compteur, en orange.", "Nouvelle apparence : compteurs en petites tuiles, année à côté des réglages, calendrier visible dès l'ouverture."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;

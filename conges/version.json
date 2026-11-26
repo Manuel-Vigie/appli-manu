@@ -1,17 +1,17 @@
 {
  "nom": "Congés",
- "version": "V18",
+ "version": "V19",
  "date": "26/11/2026",
  "nouveautes": [
+  "Sur chaque compteur : « pris » en orange, « prévus » en vert d'eau et « au CET » en bleu, chacun sur sa ligne.",
   "Le CET a maintenant sa couleur : tuile bleutée, anneau plein et texte bleu.",
   "Les jours déjà pris s'affichent sur chaque compteur, en orange.",
-  "Nouvelle apparence : compteurs en petites tuiles, année à côté des réglages, calendrier visible dès l'ouverture.",
-  "Sous le calendrier, tout est rangé dans des menus déroulants (À venir, Déjà pris, Pris avant l'appli, CET) : touche un titre pour l'ouvrir."
+  "Nouvelle apparence : compteurs en petites tuiles, année à côté des réglages, calendrier visible dès l'ouverture."
  ],
  "cache": "conges-app-",
  "sw": {
   "fichier": "conges-sw.js",
-  "cache": "conges-app-v18"
+  "cache": "conges-app-v19"
  },
  "fichiers": [
   "conges.html"
