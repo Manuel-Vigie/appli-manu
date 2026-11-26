@@ -159,6 +159,11 @@
   .pas button { width: 48px; height: 48px; border-radius: 50%; border: 1.5px solid var(--line); background: var(--panel); color: var(--accent); display: grid; place-items: center; cursor: pointer; }
   .pas button:disabled { opacity: .35; cursor: not-allowed; }
   .pas b { min-width: 84px; text-align: center; font-size: 1.3rem; }
+  .vlig { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .vlig .vnom { min-width: 0; font-weight: 700; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+  .vlig small { font-weight: 600; color: var(--muted); }
+  .vsaisie { display: flex; align-items: center; gap: 8px; flex: none; }
+  .vsaisie input { width: 76px; height: 44px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--fg); font: inherit; font-size: 16px; text-align: center; }
   .couleurs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
   .couleur { width: 36px; height: 36px; border-radius: 50%; border: 3px solid transparent; background: var(--c); cursor: pointer; position: relative; }
   .couleur[aria-pressed="true"] { border-color: var(--panel); box-shadow: 0 0 0 3px var(--c); }
@@ -268,7 +273,7 @@
   function ferie(d) { return feries(d.getFullYear())[iso(d)] || null; }
 
   /* ---------- données ---------- */
-  var D, cleVue, moisVue, stockageOK = true, F = null, modeFeuille = "";
+  var D, cleVue, moisVue, stockageOK = true, F = null, V = null, modeFeuille = "";
 
   function defauts() {
     return {
@@ -279,7 +284,7 @@
         { id: "anc", nom: "Ancienneté", couleur: COULEURS[3], acquis: 3 },
         { id: "cet", nom: "CET", couleur: COULEURS[5], acquis: 0, epargne: true }
       ],
-      periodes: {}, conges: []
+      periodes: {}, conges: [], versements: []
     };
   }
   function normaliser(o) {
@@ -310,6 +315,7 @@
           if (!ids[cid]) return; var p = o.periodes[k][cid] || {}, r = {};
           if (p.acquis != null) r.acquis = num(p.acquis);
           if (p.report != null) r.report = num(p.report);
+          if (p.dejaPris != null) r.dejaPris = num(p.dejaPris);
           d.periodes[k][cid] = r;
         });
       });
@@ -321,6 +327,13 @@
           demiDebut: !!x.demiDebut, demiFin: !!x.demiFin, note: String(x.note || "").slice(0, 80) };
         if (x.c2 && ids[x.c2] && x.c2 !== x.c && num(x.n2) > 0) { nc.c2 = x.c2; nc.n2 = num(x.n2); }
         d.conges.push(nc);
+      });
+    }
+    if (Array.isArray(o.versements)) {
+      o.versements.slice(0, 500).forEach(function (x, i) {
+        if (!x || !ids[x.de] || !ids[x.vers] || !parse(x.date)) return;
+        var n = num(x.n); if (!(n > 0)) return;
+        d.versements.push({ id: String(x.id || ("v" + i + Date.now().toString(36))).slice(0, 30), de: x.de, vers: x.vers, n: n, date: x.date });
       });
     }
     return d;
@@ -401,7 +414,7 @@
   }
   function params(c, cle) {
     var p = (D.periodes[cle] || {})[c.id] || {};
-    return { acquis: p.acquis != null ? p.acquis : c.acquis, report: p.report != null ? p.report : 0 };
+    return { acquis: p.acquis != null ? p.acquis : c.acquis, report: p.report != null ? p.report : 0, dejaPris: p.dejaPris != null ? p.dejaPris : 0 };
   }
   function stats(c, cle, sauf) {
     var b = bornes(cle), d0 = iso(b[0]), d1 = iso(b[1]), auj = iso(aujourdhui()), pris = 0, prevu = 0;
@@ -413,8 +426,14 @@
         if (j.d <= auj) pris += j.v; else prevu += j.v;
       });
     });
-    var p = c.epargne ? { acquis: c.acquis, report: 0 } : params(c, cle), total = p.acquis + p.report;
-    return { acquis: p.acquis, report: p.report, total: total, pris: pris, prevu: prevu, reste: total - pris - prevu, epargne: !!c.epargne };
+    var verse = 0, recu = 0, b0 = iso(b[0]), b1 = iso(b[1]);
+    D.versements.forEach(function (x) {
+      if (c.epargne) { if (x.vers === c.id) recu += x.n; }
+      else if (x.de === c.id && x.date >= b0 && x.date <= b1) verse += x.n;
+    });
+    var p = c.epargne ? { acquis: c.acquis, report: 0, dejaPris: 0 } : params(c, cle), total = p.acquis + p.report + recu;
+    pris += p.dejaPris || 0;
+    return { acquis: p.acquis, report: p.report, total: total, pris: pris, prevu: prevu, verse: verse, recu: recu, reste: total - pris - prevu - verse, epargne: !!c.epargne };
   }
   function indexJours(sauf) {
     var m = {};
@@ -458,7 +477,7 @@
   }
   function anneau(s, col) {
     var R = 40, C = 2 * Math.PI * R, tot = Math.max(s.total, 0.0001), depasse = s.reste < 0;
-    var fp = Math.min(s.pris / tot, 1), fv = Math.min(s.prevu / tot, 1 - fp);
+    var fp = Math.min((s.pris + (s.verse || 0)) / tot, 1), fv = Math.min(s.prevu / tot, 1 - fp);
     function arc(frac, debut, op, couleur) {
       if (frac <= 0.0001) return "";
       return '<circle cx="50" cy="50" r="' + R + '" fill="none" style="stroke:' + couleur + '" stroke-opacity="' + op + '" stroke-width="12" stroke-dasharray="' +
@@ -477,7 +496,10 @@
         '<div class="corps"><h3><span class="pt" style="background:' + c.couleur + '"></span>' + esc(c.nom) + '</h3>' +
         '<p class="reste' + (neg ? " neg" : "") + '">' + reste + '</p>' +
         '<div class="stats"><div><b>' + fmtN(s.pris) + '</b>pris</div><div><b>' + fmtN(s.prevu) + '</b>prévus</div>' +
-        (s.report ? '<div><b>' + fmtN(s.report) + '</b>reportés</div>' : '') + '</div></div></article>';
+        (s.report ? '<div><b>' + fmtN(s.report) + '</b>reportés</div>' : '') +
+        (s.verse ? '<div><b>' + fmtN(s.verse) + '</b>versés au CET</div>' : '') +
+        (s.recu ? '<div><b>' + fmtN(s.recu) + '</b>versés dedans</div>' : '') + '</div>' +
+        (c.epargne ? '<button type="button" class="lien" data-verser="' + esc(c.id) + '">Verser des jours dans le CET</button>' : '') + '</div></article>';
     }).join("");
     $("#compteurs").innerHTML = h;
   }
@@ -544,6 +566,12 @@
       if (avenir.length) h += "<h2>À venir</h2>" + avenir.map(function (x) { return ligne(x, false); }).join("");
       if (passes.length) h += "<h2>Déjà pris</h2>" + passes.map(function (x) { return ligne(x, true); }).join("");
     }
+    var vs = D.versements.filter(function (x) { return x.date >= d0 && x.date <= d1; }).sort(function (a, c) { return a.date < c.date ? 1 : -1; });
+    if (vs.length) h += "<h2>Versés au CET</h2>" + vs.map(function (x) {
+      var src = compteur(x.de);
+      return '<button type="button" class="ligne" data-verser="' + esc(x.vers) + '" style="--c:' + src.couleur + '"><span class="barre"></span><span class="txt"><div class="quand">' + fmtCourt(parse(x.date)) +
+        '</div><div class="qui">' + esc(src.nom) + ' → ' + esc(compteur(x.vers).nom) + '</div></span><span class="nb">' + fmtN(x.n) + ' j</span></button>';
+    }).join("");
     $("#liste").innerHTML = h;
   }
   function renderTout() { rSalut(); rPeriode(); rHero(); rCompteurs(); rCalendrier(); rListe(); $("#stockage").hidden = stockageOK; }
@@ -557,7 +585,7 @@
   function fermerFeuille() {
     if ($("#voile").hidden) return;
     if (modeFeuille === "reglages") { D.accueilFait = true; sauver(); }
-    $("#voile").hidden = true; $("#feuille").innerHTML = ""; $("#app").inert = false; $("#fab").style.visibility = ""; modeFeuille = ""; F = null;
+    $("#voile").hidden = true; $("#feuille").innerHTML = ""; $("#app").inert = false; $("#fab").style.visibility = ""; modeFeuille = ""; F = null; V = null;
     renderTout();
   }
 
@@ -683,6 +711,60 @@
     sauver(); fermerFeuille();
   }
 
+  /* ----- verser des jours dans le CET ----- */
+  function ouvrirVersement(cetId) {
+    var cet = compteur(cetId); if (!cet || !cet.epargne) return;
+    V = { vers: cet.id, date: iso(aujourdhui()), n: {}, sur: "" };
+    var lignes = D.compteurs.filter(function (c) { return !c.epargne; }).map(function (c) {
+      return '<div class="vlig"><div class="vnom"><span class="pt" style="background:' + c.couleur + '"></span>' + esc(c.nom) + ' <small data-vreste="' + esc(c.id) + '"></small></div>' +
+        '<div class="vsaisie"><button type="button" class="lien" data-vtout="' + esc(c.id) + '">Tout</button>' +
+        '<input type="text" inputmode="decimal" data-v="' + esc(c.id) + '" value="0" aria-label="Jours à verser depuis ' + esc(c.nom) + '"></div></div>';
+    }).join("");
+    var h = '<div class="fhaut"><h2 id="fTitre">Verser des jours dans le CET</h2>' +
+      '<button type="button" class="rond" data-fermer aria-label="Fermer">' + ico("x") + '</button></div>' +
+      '<p class="muted" style="margin:0 0 12px;font-size:.92rem">Tu transformes des jours de congés ou de RTT en jours de CET : ils sont retirés de ces compteurs et ajoutés à « ' + esc(cet.nom) + ' ».</p>' +
+      '<label class="champ"><span>Date du versement</span><input type="date" id="vDate" value="' + V.date + '"></label>' +
+      '<div class="titrechamp" style="margin-bottom:2px">Combien de jours verser depuis…</div>' + lignes +
+      '<div class="resume" id="vResume" aria-live="polite"></div>' +
+      '<div class="actions"><button type="button" class="btn" id="vSave">' + ico("check") + 'Verser au CET</button></div><div id="vListe"></div>';
+    ouvrirFeuille(h, "versement"); rVersementsListe(); majVersement();
+  }
+  function rVersementsListe() {
+    var z = $("#vListe"); if (!z || !V) return;
+    var l = D.versements.filter(function (x) { return x.vers === V.vers; }).sort(function (a, c) { return a.date < c.date ? 1 : -1; });
+    z.innerHTML = l.length ? '<div class="section"><h3>Déjà versés</h3>' + l.map(function (x) {
+      return '<div class="vlig"><div class="vnom">' + fmtCourt(parse(x.date)) + ' · ' + fmtN(x.n) + ' j <small>depuis ' + esc(compteur(x.de).nom) + '</small></div>' +
+        '<button type="button" class="btn danger' + (V.sur === x.id ? " sur" : "") + '" style="flex:none;min-height:40px;padding:0 12px" data-vdel="' + esc(x.id) + '">' + (V.sur === x.id ? "Oui, annuler" : "Annuler") + '</button></div>';
+    }).join("") + '</div>' : "";
+  }
+  function majVersement() {
+    if (modeFeuille !== "versement" || !V) return;
+    var bt = $("#vSave"), box = $("#vResume"), d = parse(V.date);
+    if (!d) { box.innerHTML = '<div class="sous mal">Choisis la date.</div>'; bt.disabled = true; return; }
+    var cle = cleDe(d), cet = compteur(V.vers), total = 0, mal = "", apres = [];
+    D.compteurs.filter(function (c) { return !c.epargne; }).forEach(function (c) {
+      var s = stats(c, cle), n = V.n[c.id] || 0, el = document.querySelector('small[data-vreste="' + c.id + '"]');
+      if (el) el.textContent = "reste " + fmtN(s.reste) + " j";
+      total += n;
+      if (n > s.reste + 0.001) mal = "Tu ne peux pas verser plus que ce qu'il te reste sur « " + esc(c.nom) + " » (" + fmtJ(Math.max(0, s.reste)) + ").";
+      if (n > 0) apres.push(esc(c.nom) + " : " + fmtJ(s.reste - n));
+    });
+    if (mal) { box.innerHTML = '<div class="sous mal">' + mal + '</div>'; bt.disabled = true; return; }
+    if (!(total > 0)) { box.innerHTML = '<div class="sous">Indique combien de jours verser (ou touche « Tout »).</div>'; bt.disabled = true; return; }
+    var avant = stats(cet, cle).reste;
+    box.innerHTML = '<div class="grand">' + fmtJ(total) + ' dans le CET</div><div class="sous">Il te restera : ' + apres.join(" · ") + '.</div>' +
+      '<div class="sous">« ' + esc(cet.nom) + ' » passera de ' + fmtJ(avant) + ' à ' + fmtJ(avant + total) + '.</div>';
+    bt.disabled = false;
+  }
+  function enregistrerVersement() {
+    if (!V || !parse(V.date)) return;
+    D.compteurs.filter(function (c) { return !c.epargne; }).forEach(function (c) {
+      var n = V.n[c.id] || 0;
+      if (n > 0) D.versements.push({ id: "v" + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36), de: c.id, vers: V.vers, n: n, date: V.date });
+    });
+    sauver(); fermerFeuille();
+  }
+
   /* ----- réglages ----- */
   function ouvrirReglages(bienvenue) {
     var cartes = D.compteurs.map(function (c) {
@@ -693,10 +775,11 @@
       var rep = (avant && prec.reste > 0 && prec.total > 0 && p.report !== prec.reste)
         ? '<button type="button" class="lien" data-reporter="' + esc(c.id) + '" data-val="' + prec.reste + '">Reprendre le solde de l\'année précédente (' + fmtJ(prec.reste) + ')</button>' : "";
       var champs = c.epargne
-        ? '<label class="champ"><span>Jours dans le CET (au total)</span><input type="text" inputmode="decimal" data-cid="' + esc(c.id) + '" data-k="acquis" value="' + fmtN(c.acquis) + '"></label>' +
-          '<p class="muted" style="margin:-4px 0 10px;font-size:.85rem">Ce compteur ne repart pas à zéro chaque année. Quand tu verses des jours dans ton CET, ajoute-les ici.</p>'
+        ? '<label class="champ"><span>Jours déjà dans le CET</span><input type="text" inputmode="decimal" data-cid="' + esc(c.id) + '" data-k="acquis" value="' + fmtN(c.acquis) + '"></label>' +
+          '<p class="muted" style="margin:-4px 0 10px;font-size:.85rem">Ce compteur ne repart pas à zéro chaque année. Les jours que tu verses avec « Verser des jours dans le CET » (sur l\'accueil) s\'ajoutent tout seuls.</p>'
         : '<div class="deux"><label class="champ"><span>Jours acquis</span><input type="text" inputmode="decimal" data-cid="' + esc(c.id) + '" data-k="acquis" value="' + fmtN(p.acquis) + '"></label>' +
-          '<label class="champ"><span>Report d\'avant</span><input type="text" inputmode="decimal" data-cid="' + esc(c.id) + '" data-k="report" value="' + fmtN(p.report) + '"></label></div>' + rep;
+          '<label class="champ"><span>Report d\'avant</span><input type="text" inputmode="decimal" data-cid="' + esc(c.id) + '" data-k="report" value="' + fmtN(p.report) + '"></label></div>' +
+          '<label class="champ"><span>Déjà pris avant l\'appli</span><input type="text" inputmode="decimal" data-cid="' + esc(c.id) + '" data-k="dejaPris" value="' + fmtN(p.dejaPris) + '"></label>' + rep;
       return '<div class="carte"><label class="champ"><span>Nom</span><input type="text" maxlength="30" data-cid="' + esc(c.id) + '" data-k="nom" value="' + esc(c.nom) + '"></label>' +
         '<div class="couleurs" role="group" aria-label="Couleur">' + couleurs + '</div>' +
         champs +
@@ -795,6 +878,17 @@
       majResume(); return;
     }
     if ((t.id === "fMoins" || t.id === "fPlus") && F) { F.n2 = (F.n2 || 1) + (t.id === "fPlus" ? 0.5 : -0.5); majResume(); return; }
+    if (t.hasAttribute("data-verser")) { ouvrirVersement(t.getAttribute("data-verser")); return; }
+    if (t.hasAttribute("data-vtout") && V) {
+      var vc = compteur(t.getAttribute("data-vtout")), vr = Math.max(0, stats(vc, cleDe(parse(V.date) || aujourdhui())).reste);
+      V.n[vc.id] = vr; var vi = document.querySelector('input[data-v="' + vc.id + '"]'); if (vi) vi.value = fmtN(vr); majVersement(); return;
+    }
+    if (t.id === "vSave") { enregistrerVersement(); return; }
+    if (t.hasAttribute("data-vdel") && V) {
+      var vid = t.getAttribute("data-vdel");
+      if (V.sur !== vid) { V.sur = vid; rVersementsListe(); return; }
+      D.versements = D.versements.filter(function (x) { return x.id !== vid; }); sauver(); V.sur = ""; rVersementsListe(); majVersement(); return;
+    }
     if (t.id === "fSave") { enregistrerConge(); return; }
     if (t.id === "fDel") { supprimerConge(); return; }
     /* réglages */
@@ -807,8 +901,8 @@
       var sc = $("#feuille"); sc.scrollTop = sc.scrollHeight; return;
     }
     if (t.hasAttribute("data-suppr")) {
-      var cid = t.getAttribute("data-suppr"), nb = D.conges.filter(function (x) { return x.c === cid || x.c2 === cid; }).length;
-      if (nb) { message("Ce compteur sert à " + nb + " congé" + (nb > 1 ? "s" : "") + " : supprime-les ou change leur compteur d'abord.", true); return; }
+      var cid = t.getAttribute("data-suppr"), nb = D.conges.filter(function (x) { return x.c === cid || x.c2 === cid; }).length + D.versements.filter(function (x) { return x.de === cid || x.vers === cid; }).length;
+      if (nb) { message("Ce compteur sert à " + nb + " congé" + (nb > 1 ? "s" : "") + " ou versement" + (nb > 1 ? "s" : "") + " : supprime-les d'abord.", true); return; }
       if (t.getAttribute("data-sur") !== "1") { t.setAttribute("data-sur", "1"); t.classList.add("sur"); t.innerHTML = ico("poubelle") + "Oui, supprimer"; return; }
       D.compteurs = D.compteurs.filter(function (c) { return c.id !== cid; }); sauver(); ouvrirReglages(false); return;
     }
@@ -827,6 +921,8 @@
   });
   document.addEventListener("input", function (e) {
     var t = e.target;
+    if (t.id === "vDate" && V) { V.date = t.value; majVersement(); return; }
+    if (t.hasAttribute && t.hasAttribute("data-v") && V) { V.n[t.getAttribute("data-v")] = num(t.value); majVersement(); return; }
     if (t.id === "fDu") { F.du = t.value; if (F.au < F.du || !F.au) { F.au = F.du; $("#fAu").value = F.au; } majResume(); return; }
     if (t.id === "fAu") { F.au = t.value; majResume(); return; }
     if (t.id === "fDemiD") { F.demiDebut = t.checked; majResume(); return; }
@@ -838,6 +934,7 @@
   });
   document.addEventListener("change", function (e) {
     var t = e.target;
+    if (t.hasAttribute && t.hasAttribute("data-v") && V) { t.value = fmtN(V.n[t.getAttribute("data-v")] || 0); return; }
     if (t.id === "rFichier") { importer(t.files && t.files[0]); t.value = ""; return; }
     if (t.hasAttribute && t.hasAttribute("data-epargne")) { compteur(t.getAttribute("data-epargne")).epargne = t.checked; sauver(); ouvrirReglages(false); return; }
     if (t.id === "rSemaine") { D.demiLibre = +t.value; sauver(); return; }
@@ -890,7 +987,7 @@
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Congés", "version": "V11", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Nouveau compteur CET (compte épargne temps) : pose des jours dessus, ils sont déduits de ton CET. Indique ton solde dans les réglages.", "Le bouton « Poser des congés » est plus petit et plus discret, et le gris du calendrier est un peu plus foncé.", "Le fond du calendrier est en gris clair, plus doux pour les yeux.", "Les jours fériés du calendrier sont maintenant en rouge."]};
+window.MAJ_APPLI={"nom": "Congés", "version": "V12", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Verser des jours dans le CET : sur la carte CET, touche « Verser des jours » (ex. 4,5 jours annuels + 5,5 RTT). Réglages : « Déjà pris avant l'appli » pour partir des bons chiffres.", "Nouveau compteur CET (compte épargne temps) : pose des jours dessus, ils sont déduits de ton CET. Indique ton solde dans les réglages.", "Le bouton « Poser des congés » est plus petit et plus discret, et le gris du calendrier est un peu plus foncé.", "Le fond du calendrier est en gris clair, plus doux pour les yeux."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;

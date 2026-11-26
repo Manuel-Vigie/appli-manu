@@ -1,17 +1,17 @@
 {
  "nom": "Congés",
- "version": "V11",
+ "version": "V12",
  "date": "26/11/2026",
  "nouveautes": [
+  "Verser des jours dans le CET : sur la carte CET, touche « Verser des jours » (ex. 4,5 jours annuels + 5,5 RTT). Réglages : « Déjà pris avant l'appli » pour partir des bons chiffres.",
   "Nouveau compteur CET (compte épargne temps) : pose des jours dessus, ils sont déduits de ton CET. Indique ton solde dans les réglages.",
   "Le bouton « Poser des congés » est plus petit et plus discret, et le gris du calendrier est un peu plus foncé.",
-  "Le fond du calendrier est en gris clair, plus doux pour les yeux.",
-  "Les jours fériés du calendrier sont maintenant en rouge."
+  "Le fond du calendrier est en gris clair, plus doux pour les yeux."
  ],
  "cache": "conges-app-",
  "sw": {
   "fichier": "conges-sw.js",
-  "cache": "conges-app-v11"
+  "cache": "conges-app-v12"
  },
  "fichiers": [
   "conges.html"
