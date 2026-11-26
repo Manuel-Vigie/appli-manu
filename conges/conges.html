@@ -71,6 +71,8 @@
   .cpt h3 { margin: 0; font-size: .8rem; line-height: 1.2; overflow-wrap: anywhere; }
   .pt { width: 10px; height: 10px; border-radius: 50%; flex: none; }
   .cpt .reste { margin: 2px 0 0; font-size: .74rem; color: var(--muted); line-height: 1.25; }
+  .cpt .pris { margin: 1px 0 0; font-size: .74rem; line-height: 1.25; color: #b4560f; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .cpt .pris { color: #f2a65a; } }
   .cpt .note { margin: 2px 0 0; font-size: .7rem; font-weight: 700; color: var(--accent); line-height: 1.25; }
   .liens .lien { font-size: .86rem; padding: 4px 0; text-align: center; }
   @media (max-width: 340px) { .cpt { gap: 6px; padding: 8px; } .anneau { width: 42px; height: 42px; } .anneau .centre b { font-size: .9rem; } .anneau .centre small { display: none; } .cpt h3 { font-size: .74rem; } }
@@ -518,11 +520,10 @@
       if (s.prevu > 0) notes.push(fmtN(s.prevu) + (s.prevu > 1 ? " prévus" : " prévu"));
       if (s.verse > 0) notes.push(fmtN(s.verse) + " au CET");
       if (s.recu > 0) notes.push("+" + fmtN(s.recu) + " versés");
-      if (!notes.length && s.pris > 0) notes.push(fmtN(s.pris) + " pris");
       return '<article class="cpt"><div class="anneau">' + anneau(s, c.couleur) +
         '<div class="centre"><b>' + fmtN(s.reste) + '</b><small>' + (Math.abs(s.reste) >= 2 ? "jours" : "jour") + '</small></div></div>' +
         '<div class="corps"><h3>' + esc(c.nom) + '</h3>' +
-        '<p class="reste' + (neg ? " neg" : "") + '">' + reste + '</p>' +
+        '<p class="reste' + (neg ? " neg" : "") + '">' + reste + '</p>' + (s.pris > 0 ? '<p class="pris">' + fmtN(s.pris) + ' pris</p>' : '') +
         (notes.length ? '<p class="note">' + notes.slice(0, 2).join(" · ") + '</p>' : '') + '</div></article>';
     }).join("");
     var cet = D.compteurs.filter(function (c) { return c.epargne; })[0];
@@ -1155,7 +1156,7 @@
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Congés", "version": "V16", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Nouvelle apparence : compteurs en petites tuiles, année à côté des réglages, calendrier visible dès l'ouverture.", "Sous le calendrier, tout est rangé dans des menus déroulants (À venir, Déjà pris, Pris avant l'appli, CET) : touche un titre pour l'ouvrir.", "Poser un congé depuis le calendrier : touche le premier jour, puis le dernier.", "Nouveau « Mon bilan » : tes jours déjà pris et ton CET s'écrivent sur une liste (rien sur le calendrier). Le CET et ses versements s'affichent sous le calendrier."]};
+window.MAJ_APPLI={"nom": "Congés", "version": "V17", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Les jours déjà pris s'affichent sur chaque compteur, en orange.", "Nouvelle apparence : compteurs en petites tuiles, année à côté des réglages, calendrier visible dès l'ouverture.", "Sous le calendrier, tout est rangé dans des menus déroulants (À venir, Déjà pris, Pris avant l'appli, CET) : touche un titre pour l'ouvrir.", "Poser un congé depuis le calendrier : touche le premier jour, puis le dernier."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
