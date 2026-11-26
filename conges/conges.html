@@ -12,14 +12,14 @@
   :root {
     --bg: #faf6ee; --panel: #ffffff; --fg: #1d2b33; --muted: #66747c; --line: #e8e1d3;
     --accent: #0e7c86; --on-accent: #ffffff; --track: #ece6d9; --we: #f5f0e5;
-    --sun: #f0a202; --crit: #c8442f; --ok: #2f8f4e;
+    --sun: #f0a202; --crit: #c8442f; --ok: #2f8f4e; --ferie: #f9dc8a; --ferie-fg: #4a3500;
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #0f191c; --panel: #172428; --fg: #e8f0f0; --muted: #96a8ad; --line: #26373c;
       --accent: #3cc0c6; --on-accent: #062a2d; --track: #243439; --we: #1b2b2f;
-      --sun: #f5b62e; --crit: #ef7a66; --ok: #5fc27f;
+      --sun: #f5b62e; --crit: #ef7a66; --ok: #5fc27f; --ferie: #6f5514; --ferie-fg: #fbe7ad;
       color-scheme: dark;
     }
   }
@@ -87,10 +87,13 @@
   .jour.demi { background: linear-gradient(135deg, var(--c) 0 50%, var(--ct) 50% 100%); color: var(--fg); text-shadow: 0 0 4px var(--panel), 0 0 2px var(--panel); }
   .jour.plage { background: var(--ct); color: var(--fg); }
   .jour.mixte { background: linear-gradient(135deg, var(--c) 0 50%, var(--c2) 50% 100%); color: #fff; font-weight: 800; text-shadow: 0 0 3px rgba(0, 0, 0, .35); }
-  .jour.ferie::after { content: ""; position: absolute; bottom: 4px; left: 50%; margin-left: -2.5px; width: 5px; height: 5px; border-radius: 50%; background: var(--sun); }
+  .jour.ferie { background: var(--ferie); color: var(--ferie-fg); font-weight: 800; }
+  .jour.ferie.plage { box-shadow: inset 0 -5px 0 var(--c); }
+  .jour.ferie.auj { box-shadow: inset 0 0 0 2.5px var(--accent); }
+  .jour.ferie.plage.auj { box-shadow: inset 0 0 0 2.5px var(--accent), inset 0 -5px 0 var(--c); }
   .legende { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: .8rem; color: var(--muted); }
   .legende span { display: inline-flex; align-items: center; gap: 6px; }
-  .legende .pf { width: 7px; height: 7px; border-radius: 50%; background: var(--sun); }
+  .legende .pf { width: 13px; height: 13px; border-radius: 4px; background: var(--ferie); }
 
   .liste { display: grid; gap: 8px; }
   .liste h2 { margin: 6px 2px 0; }
@@ -491,7 +494,7 @@
         var tot = cv.es.reduce(function (s, e) { return s + e.v; }, 0), cs = [];
         cv.es.forEach(function (e) { if (cs.indexOf(e.c) < 0) cs.push(e.c); });
         var k1 = compteur(cs[0] || cv.plage), col = k1.couleur;
-        st = "--c:" + col + ";--ct:" + teinte(col, 0.2) + ";";
+        st = "--c:" + col + ";--ct:" + teinte(col, 0.3) + ";";
         if (!cv.es.length) { cls += " plage"; lab += ", congé " + k1.nom; }
         else if (cs.length > 1) { var k2 = compteur(cs[1]); st += "--c2:" + k2.couleur + ";"; cls += " mixte"; lab += ", congé " + k1.nom + " et " + k2.nom; }
         else { cls += tot >= 1 ? " conge" : " demi"; lab += ", congé " + k1.nom + (tot < 1 ? " (demi-journée)" : ""); }
@@ -861,7 +864,7 @@
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Congés", "version": "V5", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Semaine de 4,5 jours : dans les réglages, choisis ta demi-journée libre ; ce jour-là ne compte que pour une demi-journée.", "Quand tu poses un congé, chaque compteur (annuel, RTT, ancienneté) affiche ce qu'il te reste.", "Un congé peut être partagé entre deux compteurs (ex. 2 jours en congés annuels + 3 jours d'ancienneté).", "Tes vrais compteurs au départ : congés annuels 22,5 jours, RTT 6 jours, ancienneté 3 jours."]};
+window.MAJ_APPLI={"nom": "Congés", "version": "V6", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Calendrier : les jours fériés sont maintenant des cases remplies (jaune) au lieu d'un point, et les week-ends d'un congé sont plus visibles.", "Semaine de 4,5 jours : dans les réglages, choisis ta demi-journée libre ; ce jour-là ne compte que pour une demi-journée.", "Quand tu poses un congé, chaque compteur (annuel, RTT, ancienneté) affiche ce qu'il te reste.", "Un congé peut être partagé entre deux compteurs (ex. 2 jours en congés annuels + 3 jours d'ancienneté)."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
