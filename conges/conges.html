@@ -130,6 +130,7 @@
   .puces { display: flex; flex-wrap: wrap; gap: 8px; }
   .puce { border: 1.5px solid var(--line); background: var(--panel); border-radius: 99px; min-height: 44px; padding: 0 14px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
   .puce[aria-pressed="true"] { border-color: var(--c); background: var(--ct); }
+  .puce small { font-size: .8rem; font-weight: 600; color: var(--muted); }
   .coche { display: flex; align-items: center; gap: 12px; min-height: 44px; margin: 0 0 4px; cursor: pointer; }
   .coche input { width: 22px; height: 22px; accent-color: var(--accent); flex: none; }
   .resume { background: var(--bg); border-radius: 16px; padding: 12px 14px; margin: 10px 0 14px; min-height: 76px; }
@@ -549,7 +550,7 @@
       F = { id: null, c: D.compteurs[0].id, du: j, au: j, demiDebut: false, demiFin: false, note: "", sur: false, rep: false, c2: "", n2: 0 };
     }
     var puces = D.compteurs.map(function (c) {
-      return '<button type="button" class="puce" data-c="' + esc(c.id) + '" style="--c:' + c.couleur + ';--ct:' + teinte(c.couleur, 0.16) + '" aria-pressed="' + (c.id === F.c) + '"><span class="pt" style="background:' + c.couleur + '"></span>' + esc(c.nom) + '</button>';
+      return '<button type="button" class="puce" data-c="' + esc(c.id) + '" style="--c:' + c.couleur + ';--ct:' + teinte(c.couleur, 0.16) + '" aria-pressed="' + (c.id === F.c) + '"><span class="pt" style="background:' + c.couleur + '"></span>' + esc(c.nom) + ' <small data-reste="' + esc(c.id) + '"></small></button>';
     }).join("");
     var h = '<div class="fhaut"><h2 id="fTitre">' + (x ? "Modifier ce congé" : "Poser des congés") + '</h2>' +
       '<button type="button" class="rond" data-fermer aria-label="Fermer">' + ico("x") + '</button></div>' +
@@ -575,7 +576,7 @@
     if (F.rep && (!F.c2 || F.c2 === F.c)) F.c2 = autreCompteur();
     $("#fRepTitre").textContent = "Le début est pris sur « " + compteur(F.c).nom + " », la fin sur :";
     z.innerHTML = D.compteurs.filter(function (c) { return c.id !== F.c; }).map(function (c) {
-      return '<button type="button" class="puce" data-c2="' + esc(c.id) + '" style="--c:' + c.couleur + ';--ct:' + teinte(c.couleur, 0.16) + '" aria-pressed="' + (c.id === F.c2) + '"><span class="pt" style="background:' + c.couleur + '"></span>' + esc(c.nom) + '</button>';
+      return '<button type="button" class="puce" data-c2="' + esc(c.id) + '" style="--c:' + c.couleur + ';--ct:' + teinte(c.couleur, 0.16) + '" aria-pressed="' + (c.id === F.c2) + '"><span class="pt" style="background:' + c.couleur + '"></span>' + esc(c.nom) + ' <small data-reste="' + esc(c.id) + '"></small></button>';
     }).join("");
   }
   /* partage effectif (ou null si le congé est trop court pour être partagé) */
@@ -587,8 +588,16 @@
     var n = Math.max(0.5, Math.min(t - 0.5, Math.round((F.n2 || 1) * 2) / 2)); F.n2 = n;
     return { c2: F.c2, n2: n, total: t };
   }
+  function majPuces() {
+    var d = parse(F.du) || aujourdhui(), cle = cleDe(d);
+    D.compteurs.forEach(function (c) {
+      var txt = "reste " + fmtN(stats(c, cle, F.id).reste) + " j";
+      document.querySelectorAll('small[data-reste="' + c.id + '"]').forEach(function (el) { el.textContent = txt; });
+    });
+  }
   function majResume() {
     if (modeFeuille !== "conge" || !F) return;
+    majPuces();
     var du = parse(F.du), au = parse(F.au), box = $("#resume"), bt = $("#fSave"), memeJour = F.du === F.au;
     $("#fDemiDTxt").textContent = memeJour ? "Seulement une demi-journée" : "Premier jour : seulement l'après-midi";
     $("#fDemiFLigne").style.display = memeJour ? "none" : "";
@@ -842,7 +851,7 @@
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Congés", "version": "V3", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Un congé peut être partagé entre deux compteurs (ex. 2 jours en congés annuels + 3 jours d'ancienneté).", "Tes vrais compteurs au départ : congés annuels 22,5 jours, RTT 6 jours, ancienneté 3 jours."]};
+window.MAJ_APPLI={"nom": "Congés", "version": "V4", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Quand tu poses un congé, chaque compteur (annuel, RTT, ancienneté) affiche ce qu'il te reste.", "Un congé peut être partagé entre deux compteurs (ex. 2 jours en congés annuels + 3 jours d'ancienneté).", "Tes vrais compteurs au départ : congés annuels 22,5 jours, RTT 6 jours, ancienneté 3 jours."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;

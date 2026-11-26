@@ -2,7 +2,7 @@
 
 ## Identité
 Appli pour **suivre mes congés** : combien de jours il reste (un anneau par compteur : congés payés, RTT…), le prochain congé en grand, un calendrier du mois et la liste de ce qui est posé. Pensée pour le téléphone, elle marche aussi sur PC.
-Version actuelle : **V3 · 26/11/2026** (affichée dans la pastille ↻ en haut de l'appli).
+Version actuelle : **V4 · 26/11/2026** (affichée dans la pastille ↻ en haut de l'appli).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/conges/conges.html
@@ -12,7 +12,7 @@ https://manuel-vigie.github.io/appli-manu/conges/conges.html
 |---|---|
 | `conges.html` | L'appli entière |
 | `conges-manifest.webmanifest` | Nom, icônes, adresse de démarrage (`start_url`) |
-| `conges-sw.js` | Mode hors connexion : garde seulement l'enveloppe de l'appli. Contient `CACHE = 'conges-app-v3'` |
+| `conges-sw.js` | Mode hors connexion : garde seulement l'enveloppe de l'appli. Contient `CACHE = 'conges-app-v4'` |
 | `version.json` | Version et date lues par la pastille ↻ (voir CLAUDE.md) |
 | `conges-icon-192.png`, `-512.png`, `-masque-512.png`, `conges-apple-touch-icon.png` | Icônes (soleil sur la mer) |
 
@@ -45,3 +45,4 @@ https://manuel-vigie.github.io/appli-manu/conges/conges.html
 - 26/11/2026 — V1 : première version (compteurs, calendrier, liste, réglages, sauvegarde). Cache conges-app-v1.
 - 26/11/2026 — V2 : compteurs de départ réglés sur les vrais chiffres de Manuel (22,5 / 6 / 3). Si l'appli avait déjà été ouverte avec les anciens compteurs de départ (25 / 0), jamais modifiés et sans congé posé, ils sont remplacés automatiquement. Cache conges-app-v2.
 - 26/11/2026 — V3 : à la demande de Manuel (« différencier les annuels avec l'ancienneté »), un congé peut être partagé entre deux compteurs (jours du début sur le 1er, jours de la fin sur le 2e). Cache conges-app-v3.
+- 26/11/2026 — V4 : dans « Poser des congés » (et dans le choix du deuxième compteur), chaque compteur affiche son solde (« reste 22,5 j »). Cache conges-app-v4.
