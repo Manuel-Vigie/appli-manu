@@ -86,6 +86,7 @@
   .jour.conge { background: var(--c); color: #fff; font-weight: 800; }
   .jour.demi { background: linear-gradient(135deg, var(--c) 0 50%, var(--ct) 50% 100%); color: var(--fg); text-shadow: 0 0 4px var(--panel), 0 0 2px var(--panel); }
   .jour.plage { background: var(--ct); color: var(--fg); }
+  .jour.mixte { background: linear-gradient(135deg, var(--c) 0 50%, var(--c2) 50% 100%); color: #fff; font-weight: 800; text-shadow: 0 0 3px rgba(0, 0, 0, .35); }
   .jour.ferie::after { content: ""; position: absolute; bottom: 4px; left: 50%; margin-left: -2.5px; width: 5px; height: 5px; border-radius: 50%; background: var(--sun); }
   .legende { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: .8rem; color: var(--muted); }
   .legende span { display: inline-flex; align-items: center; gap: 6px; }
@@ -146,6 +147,10 @@
   .carte { border: 1px solid var(--line); border-radius: 18px; padding: 12px; margin-bottom: 12px; background: var(--bg); }
   .carte .champ { margin-bottom: 10px; }
   .carte .champ input { background: var(--panel); }
+  .pas { display: flex; align-items: center; gap: 14px; }
+  .pas button { width: 48px; height: 48px; border-radius: 50%; border: 1.5px solid var(--line); background: var(--panel); color: var(--accent); display: grid; place-items: center; cursor: pointer; }
+  .pas button:disabled { opacity: .35; cursor: not-allowed; }
+  .pas b { min-width: 84px; text-align: center; font-size: 1.3rem; }
   .couleurs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
   .couleur { width: 36px; height: 36px; border-radius: 50%; border: 3px solid transparent; background: var(--c); cursor: pointer; position: relative; }
   .couleur[aria-pressed="true"] { border-color: var(--panel); box-shadow: 0 0 0 3px var(--c); }
@@ -200,6 +205,7 @@
   var ICO = {
     plus: '<path d="M12 5v14M5 12h14"/>',
     check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    moins: '<path d="M5 12h14"/>',
     x: '<path d="M6 6l12 12M18 6L6 18"/>',
     haut: '<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>',
     bas: '<path d="M12 16V5M7 9l5-5 5 5M5 20h14"/>',
@@ -300,8 +306,10 @@
     if (Array.isArray(o.conges)) {
       o.conges.slice(0, 2000).forEach(function (x, i) {
         if (!x || !ids[x.c] || !parse(x.du) || !parse(x.au) || x.au < x.du) return;
-        d.conges.push({ id: String(x.id || ("i" + i + Date.now().toString(36))).slice(0, 30), c: x.c, du: x.du, au: x.au,
-          demiDebut: !!x.demiDebut, demiFin: !!x.demiFin, note: String(x.note || "").slice(0, 80) });
+        var nc = { id: String(x.id || ("i" + i + Date.now().toString(36))).slice(0, 30), c: x.c, du: x.du, au: x.au,
+          demiDebut: !!x.demiDebut, demiFin: !!x.demiFin, note: String(x.note || "").slice(0, 80) };
+        if (x.c2 && ids[x.c2] && x.c2 !== x.c && num(x.n2) > 0) { nc.c2 = x.c2; nc.n2 = num(x.n2); }
+        d.conges.push(nc);
       });
     }
     return d;
@@ -340,9 +348,28 @@
       var v = 1;
       if (c.demiDebut && ecart(a, d) === 0) v = 0.5;
       if (c.demiFin && ecart(d, b) === 0) v = 0.5;
-      out.push({ d: iso(d), v: v });
+      out.push({ d: iso(d), v: v, c: c.c });
+    }
+    /* congé partagé : la fin du congé (n2 jours) est prise sur le 2e compteur, le début sur le 1er */
+    if (c.c2 && c.n2 > 0) {
+      var res = [], rest = c.n2;
+      for (var i = out.length - 1; i >= 0; i--) {
+        var e = out[i], t = Math.min(e.v, rest); rest -= t;
+        if (t > 0) res.unshift({ d: e.d, v: t, c: c.c2 });
+        if (e.v - t > 0) res.unshift({ d: e.d, v: e.v - t, c: c.c });
+      }
+      return res;
     }
     return out;
+  }
+  function repartition(x) {
+    var m = {}, ordre = [];
+    valeurs(x).forEach(function (j) { if (!(j.c in m)) { m[j.c] = 0; ordre.push(j.c); } m[j.c] += j.v; });
+    return ordre.map(function (id) { return { c: compteur(id), v: m[id] }; });
+  }
+  function nomsConge(x) {
+    var p = repartition(x);
+    return p.length ? p.map(function (q) { return q.c.nom; }).join(" + ") : compteur(x.c).nom;
   }
   function totalConge(c) { return valeurs(c).reduce(function (s, x) { return s + x.v; }, 0); }
   function cleDe(d) { return d.getMonth() + 1 >= D.debut ? d.getFullYear() : d.getFullYear() - 1; }
@@ -358,9 +385,9 @@
   function stats(c, cle, sauf) {
     var b = bornes(cle), d0 = iso(b[0]), d1 = iso(b[1]), auj = iso(aujourdhui()), pris = 0, prevu = 0;
     D.conges.forEach(function (x) {
-      if (x.c !== c.id || x.id === sauf) return;
+      if (x.id === sauf) return;
       valeurs(x).forEach(function (j) {
-        if (j.d < d0 || j.d > d1) return;
+        if (j.c !== c.id || j.d < d0 || j.d > d1) return;
         if (j.d <= auj) pris += j.v; else prevu += j.v;
       });
     });
@@ -402,7 +429,7 @@
     } else {
       var n = ecart(auj, parse(x.du)); etiq = "Prochain congé";
       gros = n === 1 ? "Demain" : "Dans " + n + " jours";
-      det = fmtPlage(x.du, x.au) + " · " + fmtJ(totalConge(x)) + " · " + esc(compteur(x.c).nom);
+      det = fmtPlage(x.du, x.au) + " · " + fmtJ(totalConge(x)) + " · " + esc(nomsConge(x));
     }
     $("#hero").innerHTML = '<div class="' + cl + '"><svg class="soleil" viewBox="0 0 24 24" aria-hidden="true">' + ICO.soleil + '</svg>' +
       '<div class="etiq">' + etiq + '</div><div class="gros">' + gros + '</div><div class="det">' + det + '</div></div>';
@@ -437,12 +464,12 @@
     var couv = {};
     D.conges.forEach(function (x) {
       var a = parse(x.du), b = parse(x.au); if (!a || !b || ecart(a, b) > 400) return;
-      var vals = {}; valeurs(x).forEach(function (j) { vals[j.d] = j.v; });
+      var ent = {}; valeurs(x).forEach(function (j) { (ent[j.d] = ent[j.d] || []).push(j); });
       for (var d = a; d <= b; d = addJ(d, 1)) {
         var k = iso(d);
         if (d.getMonth() !== mo || d.getFullYear() !== an) continue;
-        var v = vals[k] || 0;
-        if (!couv[k] || v > couv[k].v) couv[k] = { x: x, v: v };
+        var cc = couv[k] = couv[k] || { es: [], plage: x.c };
+        (ent[k] || []).forEach(function (j) { cc.es.push(j); });
       }
     });
     var h = '<div class="calhaut"><button type="button" class="petit" data-mois="-1" aria-label="Mois précédent">' + ico("gauche") + '</button>' +
@@ -459,10 +486,13 @@
       if (k === auj) cls += " auj";
       if (fe) { cls += " ferie"; lab += ", " + fe; }
       if (cv) {
-        var col = compteur(cv.x.c).couleur;
+        var tot = cv.es.reduce(function (s, e) { return s + e.v; }, 0), cs = [];
+        cv.es.forEach(function (e) { if (cs.indexOf(e.c) < 0) cs.push(e.c); });
+        var k1 = compteur(cs[0] || cv.plage), col = k1.couleur;
         st = "--c:" + col + ";--ct:" + teinte(col, 0.2) + ";";
-        if (cv.v >= 1) cls += " conge"; else if (cv.v > 0) cls += " demi"; else cls += " plage";
-        lab += ", congé " + compteur(cv.x.c).nom + (cv.v > 0 && cv.v < 1 ? " (demi-journée)" : "");
+        if (!cv.es.length) { cls += " plage"; lab += ", congé " + k1.nom; }
+        else if (cs.length > 1) { var k2 = compteur(cs[1]); st += "--c2:" + k2.couleur + ";"; cls += " mixte"; lab += ", congé " + k1.nom + " et " + k2.nom; }
+        else { cls += tot >= 1 ? " conge" : " demi"; lab += ", congé " + k1.nom + (tot < 1 ? " (demi-journée)" : ""); }
       }
       h += '<button type="button" class="' + cls + '" data-jour="' + k + '"' + (st ? ' style="' + st + '"' : "") + ' aria-label="' + esc(lab) + '">' + j + '</button>';
     }
@@ -472,10 +502,12 @@
     $("#calendrier").innerHTML = h;
   }
   function ligne(x, passe) {
-    var c = compteur(x.c), t = totalConge(x);
+    var c = compteur(x.c), t = totalConge(x), parts = repartition(x), barre = "";
+    var qui = parts.length > 1 ? parts.map(function (q) { return esc(q.c.nom) + " " + fmtN(q.v) + " j"; }).join(" + ") : esc(c.nom);
+    if (parts.length > 1) barre = ' style="background:linear-gradient(to bottom,' + parts[0].c.couleur + ' 50%,' + parts[1].c.couleur + ' 50%)"';
     return '<button type="button" class="ligne' + (passe ? " passe" : "") + '" data-id="' + esc(x.id) + '" style="--c:' + c.couleur + '">' +
-      '<span class="barre"></span><span class="txt"><div class="quand">' + fmtPlage(x.du, x.au) + '</div>' +
-      '<div class="qui">' + esc(c.nom) + (x.note ? " · " + esc(x.note) : "") + '</div></div></span>' +
+      '<span class="barre"' + barre + '></span><span class="txt"><div class="quand">' + fmtPlage(x.du, x.au) + '</div>' +
+      '<div class="qui">' + qui + (x.note ? " · " + esc(x.note) : "") + '</div></div></span>' +
       '<span class="nb">' + fmtN(t) + ' j</span></button>';
   }
   function rListe() {
@@ -511,10 +543,10 @@
   function ouvrirConge(id, jour) {
     var x = null;
     if (id) D.conges.forEach(function (c) { if (c.id === id) x = c; });
-    if (x) F = { id: x.id, c: x.c, du: x.du, au: x.au, demiDebut: x.demiDebut, demiFin: x.demiFin, note: x.note, sur: false };
+    if (x) F = { id: x.id, c: x.c, du: x.du, au: x.au, demiDebut: x.demiDebut, demiFin: x.demiFin, note: x.note, sur: false, rep: !!(x.c2 && x.n2 > 0), c2: x.c2 || "", n2: x.n2 || 0 };
     else {
       var j = jour || iso(aujourdhui());
-      F = { id: null, c: D.compteurs[0].id, du: j, au: j, demiDebut: false, demiFin: false, note: "", sur: false };
+      F = { id: null, c: D.compteurs[0].id, du: j, au: j, demiDebut: false, demiFin: false, note: "", sur: false, rep: false, c2: "", n2: 0 };
     }
     var puces = D.compteurs.map(function (c) {
       return '<button type="button" class="puce" data-c="' + esc(c.id) + '" style="--c:' + c.couleur + ';--ct:' + teinte(c.couleur, 0.16) + '" aria-pressed="' + (c.id === F.c) + '"><span class="pt" style="background:' + c.couleur + '"></span>' + esc(c.nom) + '</button>';
@@ -526,11 +558,34 @@
       '<label class="champ"><span>Au (inclus)</span><input type="date" id="fAu" value="' + F.au + '"></label></div>' +
       '<label class="coche"><input type="checkbox" id="fDemiD"' + (F.demiDebut ? " checked" : "") + '><span id="fDemiDTxt"></span></label>' +
       '<label class="coche" id="fDemiFLigne"><input type="checkbox" id="fDemiF"' + (F.demiFin ? " checked" : "") + '><span>Dernier jour : seulement la matinée</span></label>' +
+      (D.compteurs.length > 1 ? '<label class="coche"><input type="checkbox" id="fRep"' + (F.rep ? " checked" : "") + '><span>Partager entre deux compteurs</span></label>' +
+        '<div class="carte" id="fRepBox"' + (F.rep ? "" : " hidden") + '><div class="champ"><span id="fRepTitre"></span><div class="puces" id="fPuces2" role="group" aria-label="Deuxième compteur"></div></div>' +
+        '<div class="champ" style="margin-bottom:0"><span>Jours pris sur ce deuxième compteur</span><div class="pas"><button type="button" id="fMoins" aria-label="Un demi-jour de moins">' + ico("moins") + '</button>' +
+        '<b id="fN2">1</b><button type="button" id="fPlus" aria-label="Un demi-jour de plus">' + ico("plus") + '</button></div></div>' +
+        '<p class="muted" id="fRepNote" style="margin:8px 0 0;font-size:.85rem"></p></div>' : '') +
       '<div class="resume" id="resume" aria-live="polite"></div>' +
       '<label class="champ"><span>Une note (facultatif)</span><input type="text" id="fNote" maxlength="80" placeholder="Ex. : vacances en famille" value="' + esc(F.note) + '"></label>' +
       '<div class="actions"><button type="button" class="btn" id="fSave">' + ico("check") + 'Enregistrer</button>' +
       (x ? '<button type="button" class="btn danger" id="fDel">' + ico("poubelle") + 'Supprimer</button>' : '') + '</div>';
-    ouvrirFeuille(h, "conge"); majResume();
+    ouvrirFeuille(h, "conge"); rPuces2(); majResume();
+  }
+  function autreCompteur() { for (var i = 0; i < D.compteurs.length; i++) if (D.compteurs[i].id !== F.c) return D.compteurs[i].id; return ""; }
+  function rPuces2() {
+    var z = $("#fPuces2"); if (!z || !F) return;
+    if (F.rep && (!F.c2 || F.c2 === F.c)) F.c2 = autreCompteur();
+    $("#fRepTitre").textContent = "Le début est pris sur « " + compteur(F.c).nom + " », la fin sur :";
+    z.innerHTML = D.compteurs.filter(function (c) { return c.id !== F.c; }).map(function (c) {
+      return '<button type="button" class="puce" data-c2="' + esc(c.id) + '" style="--c:' + c.couleur + ';--ct:' + teinte(c.couleur, 0.16) + '" aria-pressed="' + (c.id === F.c2) + '"><span class="pt" style="background:' + c.couleur + '"></span>' + esc(c.nom) + '</button>';
+    }).join("");
+  }
+  /* partage effectif (ou null si le congé est trop court pour être partagé) */
+  function splitEff() {
+    if (!F || !F.rep || !F.c2 || F.c2 === F.c) return null;
+    var du = parse(F.du), au = parse(F.au); if (!du || !au || au < du || ecart(du, au) > 400) return null;
+    var t = totalConge({ c: F.c, du: F.du, au: F.au, demiDebut: F.demiDebut, demiFin: F.du === F.au ? false : F.demiFin });
+    if (t < 1) return null;
+    var n = Math.max(0.5, Math.min(t - 0.5, Math.round((F.n2 || 1) * 2) / 2)); F.n2 = n;
+    return { c2: F.c2, n2: n, total: t };
   }
   function majResume() {
     if (modeFeuille !== "conge" || !F) return;
@@ -541,19 +596,31 @@
     if (!du || !au) return bloque("Choisis les deux dates.");
     if (au < du) return bloque("La date de fin est avant le début.");
     if (ecart(du, au) > 400) return bloque("C'est trop long : 400 jours au maximum.");
-    var cg = { du: F.du, au: F.au, demiDebut: F.demiDebut, demiFin: memeJour ? false : F.demiFin };
+    var sp = splitEff();
+    var rb = $("#fRepBox");
+    if (rb) {
+      rb.hidden = !F.rep;
+      if (F.rep && sp) { $("#fN2").textContent = fmtN(sp.n2); $("#fMoins").disabled = sp.n2 <= 0.5; $("#fPlus").disabled = sp.n2 >= sp.total - 0.5; $("#fRepNote").textContent = ""; }
+      else if (F.rep) { $("#fN2").textContent = "—"; $("#fMoins").disabled = true; $("#fPlus").disabled = true; $("#fRepNote").textContent = "Ce congé est trop court pour être partagé (il faut au moins 1 jour)."; }
+    }
+    var cg = { c: F.c, du: F.du, au: F.au, demiDebut: F.demiDebut, demiFin: memeJour ? false : F.demiFin, c2: sp ? sp.c2 : "", n2: sp ? sp.n2 : 0 };
     var v = valeurs(cg), total = v.reduce(function (s, x) { return s + x.v; }, 0), ign = ecart(du, au) + 1 - v.length;
     if (!v.length) return bloque("Aucun jour à décompter : ce sont des jours de week-end ou fériés.");
     var idx = indexJours(F.id), conflit = v.some(function (x) { return (idx[x.d] || 0) + x.v > 1.001; });
     if (conflit) return bloque("Un autre congé couvre déjà ces jours.");
-    var c = compteur(F.c), cle = cleDe(parse(v[0].d)), b = bornes(cle), d0 = iso(b[0]), d1 = iso(b[1]);
-    var s = stats(c, cle, F.id), dedans = v.filter(function (x) { return x.d >= d0 && x.d <= d1; }).reduce(function (a, x) { return a + x.v; }, 0);
-    var apres = s.reste - dedans;
+    var ordre = [], tot = {}, premier = {};
+    v.forEach(function (e) { if (!(e.c in tot)) { tot[e.c] = 0; premier[e.c] = e.d; ordre.push(e.c); } tot[e.c] += e.v; });
     var txt = '<div class="grand">' + fmtJ(total) + ' décompté' + (total >= 2 ? "s" : "") + '</div>';
+    if (ordre.length > 1) txt += '<div class="sous"><b>' + ordre.map(function (id) { return fmtJ(tot[id]) + ' sur « ' + esc(compteur(id).nom) + ' »'; }).join(" + ") + '</b></div>';
     if (ign > 0) txt += '<div class="sous">' + ign + ' jour' + (ign > 1 ? "s" : "") + ' de week-end ou férié non compté' + (ign > 1 ? "s" : "") + '.</div>';
-    txt += apres < 0
-      ? '<div class="sous mal">Attention : ça dépasse de ' + fmtJ(-apres) + ' ton solde « ' + esc(c.nom) + ' » (' + esc(libPeriode(cle)) + ').</div>'
-      : '<div class="sous">Il te restera ' + fmtJ(apres) + ' sur « ' + esc(c.nom) + ' » (' + esc(libPeriode(cle)) + ').</div>';
+    ordre.forEach(function (id) {
+      var c = compteur(id), cle = cleDe(parse(premier[id])), b = bornes(cle), d0 = iso(b[0]), d1 = iso(b[1]);
+      var s = stats(c, cle, F.id), dedans = v.filter(function (x) { return x.c === id && x.d >= d0 && x.d <= d1; }).reduce(function (a, x) { return a + x.v; }, 0);
+      var apres = s.reste - dedans;
+      txt += apres < 0
+        ? '<div class="sous mal">Attention : ça dépasse de ' + fmtJ(-apres) + ' ton solde « ' + esc(c.nom) + ' » (' + esc(libPeriode(cle)) + ').</div>'
+        : '<div class="sous">Il te restera ' + fmtJ(apres) + ' sur « ' + esc(c.nom) + ' » (' + esc(libPeriode(cle)) + ').</div>';
+    });
     box.innerHTML = txt; bt.disabled = false;
   }
   function enregistrerConge() {
@@ -561,6 +628,7 @@
     var memeJour = F.du === F.au;
     var obj = { id: F.id || ("c" + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36)), c: F.c, du: F.du, au: F.au,
       demiDebut: F.demiDebut, demiFin: memeJour ? false : F.demiFin, note: F.note.trim().slice(0, 80) };
+    var sp = splitEff(); if (sp) { obj.c2 = sp.c2; obj.n2 = sp.n2; }
     if (F.id) D.conges = D.conges.map(function (x) { return x.id === F.id ? obj : x; }); else D.conges.push(obj);
     sauver();
     var d = parse(obj.du); cleVue = cleDe(d); moisVue = new Date(d.getFullYear(), d.getMonth(), 1);
@@ -673,8 +741,14 @@
     if (t.hasAttribute("data-c") && F) {
       F.c = t.getAttribute("data-c");
       document.querySelectorAll(".puce[data-c]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-c") === F.c)); });
+      rPuces2(); majResume(); return;
+    }
+    if (t.hasAttribute("data-c2") && F) {
+      F.c2 = t.getAttribute("data-c2");
+      document.querySelectorAll(".puce[data-c2]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-c2") === F.c2)); });
       majResume(); return;
     }
+    if ((t.id === "fMoins" || t.id === "fPlus") && F) { F.n2 = (F.n2 || 1) + (t.id === "fPlus" ? 0.5 : -0.5); majResume(); return; }
     if (t.id === "fSave") { enregistrerConge(); return; }
     if (t.id === "fDel") { supprimerConge(); return; }
     /* réglages */
@@ -687,7 +761,7 @@
       var sc = $("#feuille"); sc.scrollTop = sc.scrollHeight; return;
     }
     if (t.hasAttribute("data-suppr")) {
-      var cid = t.getAttribute("data-suppr"), nb = D.conges.filter(function (x) { return x.c === cid; }).length;
+      var cid = t.getAttribute("data-suppr"), nb = D.conges.filter(function (x) { return x.c === cid || x.c2 === cid; }).length;
       if (nb) { message("Ce compteur sert à " + nb + " congé" + (nb > 1 ? "s" : "") + " : supprime-les ou change leur compteur d'abord.", true); return; }
       if (t.getAttribute("data-sur") !== "1") { t.setAttribute("data-sur", "1"); t.classList.add("sur"); t.innerHTML = ico("poubelle") + "Oui, supprimer"; return; }
       D.compteurs = D.compteurs.filter(function (c) { return c.id !== cid; }); sauver(); ouvrirReglages(false); return;
@@ -711,6 +785,7 @@
     if (t.id === "fAu") { F.au = t.value; majResume(); return; }
     if (t.id === "fDemiD") { F.demiDebut = t.checked; majResume(); return; }
     if (t.id === "fDemiF") { F.demiFin = t.checked; majResume(); return; }
+    if (t.id === "fRep") { F.rep = t.checked; if (F.rep && !(F.n2 > 0)) F.n2 = 1; rPuces2(); majResume(); return; }
     if (t.id === "fNote") { F.note = t.value; return; }
     if (t.id === "rPrenom") { D.prenom = t.value.slice(0, 30); sauver(); return; }
     if (t.hasAttribute && t.hasAttribute("data-k")) { reglerCompteur(t.getAttribute("data-cid"), t.getAttribute("data-k"), t.value); sauver(); }
@@ -767,7 +842,7 @@
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Congés", "version": "V2", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Tes vrais compteurs au départ : congés annuels 22,5 jours, RTT 6 jours, ancienneté 3 jours.", "Première version : compteurs de jours restants, calendrier du mois, liste des congés posés."]};
+window.MAJ_APPLI={"nom": "Congés", "version": "V3", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Un congé peut être partagé entre deux compteurs (ex. 2 jours en congés annuels + 3 jours d'ancienneté).", "Tes vrais compteurs au départ : congés annuels 22,5 jours, RTT 6 jours, ancienneté 3 jours."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
