@@ -2,7 +2,7 @@
 
 ## Identité
 Appli pour **suivre mes congés** : combien de jours il reste (un anneau par compteur : congés payés, RTT…), le prochain congé en grand, un calendrier du mois et la liste de ce qui est posé. Pensée pour le téléphone, elle marche aussi sur PC.
-Version actuelle : **V12 · 26/11/2026** (affichée dans la pastille ↻ en haut de l'appli).
+Version actuelle : **V13 · 26/11/2026** (affichée dans la pastille ↻ en haut de l'appli).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/conges/conges.html
@@ -27,6 +27,8 @@ https://manuel-vigie.github.io/appli-manu/conges/conges.html
 - **CET (compte épargne temps)** : compteur « épargne » (case « Compte épargne temps (CET) » sur chaque compteur, réglages). Son solde est un stock qui ne repart pas à zéro chaque année : « Jours déjà dans le CET » = solde de départ ; chaque congé posé sur le CET est déduit, toutes années confondues. Ajouté une seule fois aux données existantes (clé `cetAjoute`), à 0 jour ; un compteur déjà nommé « CET » est reconnu.
 - **Verser des jours dans le CET** (bouton sur la carte CET de l'accueil ; clé `versements` : `{id, de, vers, n, date}`) : on choisit combien de jours prendre sur chaque compteur annuel (bouton « Tout » = tout ce qui reste). Ces jours sont retirés du compteur source (année de la date du versement, affichés « versés au CET ») et ajoutés au CET (cumul toutes années). Les versements s'annulent depuis la même fenêtre (confirmation en deux touches) et sont listés sur l'accueil (« Versés au CET »).
 - **Déjà pris avant l'appli** (Réglages, par compteur et par année, clé `periodes[année][compteur].dejaPris`) : jours déjà consommés avant d'utiliser l'appli ; ils comptent dans « pris » sans toucher aux jours acquis des autres années.
+- **Mon bilan** (lien sous les compteurs de l'accueil, ou toucher une ligne « Pris avant l'appli » / « Déjà dans le CET » de la liste) : une feuille unique pour l'année affichée avec, par compteur, « Déjà pris » et « Versés au CET », plus « Jours déjà dans le CET ». Rien n'est posé sur le calendrier. Le versement créé par le bilan a un identifiant fixe (`b` + compteur + année) : on le modifie sans jamais créer de doublon, et on ne peut pas descendre sous ce qui a été versé à la main. **Lien de pré-remplissage** : `conges.html#bilan&p.<id>=<jours déjà pris>&v.<id>=<jours versés>&cet=<jours déjà dans le CET>` (ex. `#bilan&p.cp=14&p.rtt=0.5&cet=33&v.cp=4.5`, ids = `cp`, `rtt`, `anc`) ouvre la feuille remplie pour l'année en cours ; rien n'est enregistré avant « Enregistrer ». Les chiffres ne sont jamais dans le dépôt, seulement dans le lien donné à Manuel.
+- **Liste sous le calendrier** : « Pris avant l'appli · N jours » (une ligne par compteur) et « CET · N jours » (chaque versement + les jours de départ).
 - **Calcul** : dimanches et jours fériés français (Pâques, Ascension, Pentecôte calculés) jamais comptés ; samedis comptés seulement en mode « jours ouvrables » (Réglages). « Pris » = jusqu'à aujourd'hui inclus, « prévus » = après aujourd'hui.
 - **Année de congés** : civile par défaut ; réglable (ex. juin → mai) dans Réglages. Les flèches du haut passent d'une année à l'autre. Le report est saisi par année (lien « Reprendre le solde de l'année précédente » quand l'année d'avant contient des congés).
 - **Calendrier du mois** (fond toujours gris clair `#d6dadf`, même si le téléphone est en mode sombre : variables CSS redéfinies sur `#calendrier`) : jours de congé en couleur (demi-journée = moitié), week-end/fériés d'un congé en teinte claire, case rouge remplie = jour férié (avec une barre de la couleur du congé en bas s'il tombe pendant un congé), cercle = aujourd'hui.
@@ -58,3 +60,4 @@ https://manuel-vigie.github.io/appli-manu/conges/conges.html
 - 26/11/2026 — V10 : bouton « Poser des congés » plus petit et plus discret (44 px, ombre légère, teinte adoucie en mode sombre) ; gris du calendrier un peu plus foncé (`--panel` #d6dadf, week-ends #c4cacf). Cache conges-app-v10.
 - 26/11/2026 — V11 : compteur CET (compte épargne temps), solde cumulé sans remise à zéro annuelle, ajouté automatiquement (0 jour) aux données existantes. Cache conges-app-v11.
 - 26/11/2026 — V12 : versement de jours dans le CET (compteurs annuels → CET, annulable) et champ « Déjà pris avant l'appli » dans les réglages. Cache conges-app-v12.
+- 26/11/2026 — V13 : « Mon bilan » (jours déjà pris, CET et versements sur une feuille, avec lien de pré-remplissage) ; la liste affiche « Pris avant l'appli » et le CET avec son total. Cache conges-app-v13.

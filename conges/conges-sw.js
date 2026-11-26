@@ -1,5 +1,5 @@
 // Congés : met en cache SEULEMENT l'enveloppe de l'appli. Les congés restent dans le téléphone (localStorage), jamais ici.
-const CACHE = 'conges-app-v12';
+const CACHE = 'conges-app-v13';
 const FILES = ['./conges.html', './conges-manifest.webmanifest',
   './conges-icon-192.png', './conges-icon-512.png', './conges-icon-masque-512.png',
   './conges-apple-touch-icon.png'];
