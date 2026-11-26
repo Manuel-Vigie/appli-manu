@@ -74,8 +74,8 @@
   .stats b { display: block; font-size: 1.08rem; color: var(--fg); font-weight: 800; }
 
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 14px; min-width: 0; }
-  /* Le calendrier reste toujours blanc (comme en mode clair), même si le téléphone est en mode sombre. */
-  #calendrier { --panel: #ffffff; --fg: #1d2b33; --muted: #66747c; --line: #e8e1d3; --accent: #0e7c86; --we: #f5f0e5; --ferie: #d6303f; --ferie-fg: #ffffff; --sun: #f0a202; color: var(--fg); color-scheme: light; }
+  /* Le calendrier reste toujours en gris clair (doux, pas éblouissant), même si le téléphone est en mode sombre. */
+  #calendrier { --panel: #e4e7ea; --fg: #1d2b33; --muted: #56646d; --line: #d3d8dc; --accent: #0e7c86; --we: #d4d9dd; --ferie: #d6303f; --ferie-fg: #ffffff; --sun: #f0a202; color: var(--fg); color-scheme: light; }
   .panel h2, .liste h2 { margin: 0; font-size: .8rem; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 800; }
   .calhaut { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .calhaut .mois { font-weight: 800; font-size: 1.05rem; text-transform: capitalize; }
@@ -866,7 +866,7 @@
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Congés", "version": "V8", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Les jours fériés du calendrier sont maintenant en rouge.", "Le calendrier reste toujours blanc (jours fériés en jaune), même quand le téléphone est en mode sombre.", "Calendrier : les jours fériés sont maintenant des cases remplies (jaune) au lieu d'un point, et les week-ends d'un congé sont plus visibles.", "Semaine de 4,5 jours : dans les réglages, choisis ta demi-journée libre ; ce jour-là ne compte que pour une demi-journée."]};
+window.MAJ_APPLI={"nom": "Congés", "version": "V9", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Le fond du calendrier est en gris clair, plus doux pour les yeux.", "Les jours fériés du calendrier sont maintenant en rouge.", "Le calendrier reste toujours blanc (jours fériés en jaune), même quand le téléphone est en mode sombre.", "Calendrier : les jours fériés sont maintenant des cases remplies (jaune) au lieu d'un point, et les week-ends d'un congé sont plus visibles."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
