@@ -2,7 +2,7 @@
 
 ## Identité
 Appli pour **suivre mes congés** : combien de jours il reste (un anneau par compteur : congés payés, RTT…), le prochain congé en grand, un calendrier du mois et la liste de ce qui est posé. Pensée pour le téléphone, elle marche aussi sur PC.
-Version actuelle : **V14 · 26/11/2026** (affichée dans la pastille ↻ en haut de l'appli).
+Version actuelle : **V15 · 26/11/2026** (affichée dans la pastille ↻ en haut de l'appli).
 
 ## Adresse
 https://manuel-vigie.github.io/appli-manu/conges/conges.html
@@ -28,7 +28,7 @@ https://manuel-vigie.github.io/appli-manu/conges/conges.html
 - **Verser des jours dans le CET** (bouton sur la carte CET de l'accueil ; clé `versements` : `{id, de, vers, n, date}`) : on choisit combien de jours prendre sur chaque compteur annuel (bouton « Tout » = tout ce qui reste). Ces jours sont retirés du compteur source (année de la date du versement, affichés « versés au CET ») et ajoutés au CET (cumul toutes années). Les versements s'annulent depuis la même fenêtre (confirmation en deux touches) et sont listés sur l'accueil (« Versés au CET »).
 - **Déjà pris avant l'appli** (Réglages, par compteur et par année, clé `periodes[année][compteur].dejaPris`) : jours déjà consommés avant d'utiliser l'appli ; ils comptent dans « pris » sans toucher aux jours acquis des autres années.
 - **Mon bilan** (lien sous les compteurs de l'accueil, ou toucher une ligne « Pris avant l'appli » / « Déjà dans le CET » de la liste) : une feuille unique pour l'année affichée avec, par compteur, « Déjà pris » et « Versés au CET », plus « Jours déjà dans le CET ». Rien n'est posé sur le calendrier. Le versement créé par le bilan a un identifiant fixe (`b` + compteur + année) : on le modifie sans jamais créer de doublon, et on ne peut pas descendre sous ce qui a été versé à la main. **Lien de pré-remplissage** : `conges.html#bilan&p.<id>=<jours déjà pris>&v.<id>=<jours versés>&cet=<jours déjà dans le CET>` (ex. `#bilan&p.cp=14&p.rtt=0.5&cet=33&v.cp=4.5`, ids = `cp`, `rtt`, `anc`) ouvre la feuille remplie pour l'année en cours ; rien n'est enregistré avant « Enregistrer ». Les chiffres ne sont jamais dans le dépôt, seulement dans le lien donné à Manuel.
-- **Liste sous le calendrier** : « Pris avant l'appli · N jours » (une ligne par compteur) et « CET · N jours » (chaque versement + les jours de départ).
+- **Liste sous le calendrier**, en **menus déroulants** (`<details class="bloc">`, fermés au départ, l'état ouvert/fermé est gardé tant que l'appli reste ouverte) : « À venir », « Déjà pris » (congés posés), « Pris avant l'appli » (une ligne par compteur) et « CET » (chaque versement + les jours de départ), chacun avec son résumé à droite (nombre de congés ou de jours).
 - **Calcul** : dimanches et jours fériés français (Pâques, Ascension, Pentecôte calculés) jamais comptés ; samedis comptés seulement en mode « jours ouvrables » (Réglages). « Pris » = jusqu'à aujourd'hui inclus, « prévus » = après aujourd'hui.
 - **Année de congés** : civile par défaut ; réglable (ex. juin → mai) dans Réglages. Les flèches du haut passent d'une année à l'autre. Le report est saisi par année (lien « Reprendre le solde de l'année précédente » quand l'année d'avant contient des congés).
 - **Calendrier du mois** (fond toujours gris clair `#d6dadf`, même si le téléphone est en mode sombre : variables CSS redéfinies sur `#calendrier`) : jours de congé en couleur (demi-journée = moitié), week-end/fériés d'un congé en teinte claire, case rouge remplie = jour férié (avec une barre de la couleur du congé en bas s'il tombe pendant un congé), cercle = aujourd'hui.
@@ -62,3 +62,4 @@ https://manuel-vigie.github.io/appli-manu/conges/conges.html
 - 26/11/2026 — V12 : versement de jours dans le CET (compteurs annuels → CET, annulable) et champ « Déjà pris avant l'appli » dans les réglages. Cache conges-app-v12.
 - 26/11/2026 — V13 : « Mon bilan » (jours déjà pris, CET et versements sur une feuille, avec lien de pré-remplissage) ; la liste affiche « Pris avant l'appli » et le CET avec son total. Cache conges-app-v13.
 - 26/11/2026 — V14 : poser un congé directement sur le calendrier en touchant le premier puis le dernier jour. Cache conges-app-v14.
+- 26/11/2026 — V15 : la liste sous le calendrier est rangée dans des menus déroulants ; correction d'une balise en trop qui faisait sortir « 1 j » de la carte d'un congé. Cache conges-app-v15.

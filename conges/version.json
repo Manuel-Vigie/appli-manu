@@ -1,17 +1,17 @@
 {
  "nom": "Congés",
- "version": "V14",
+ "version": "V15",
  "date": "26/11/2026",
  "nouveautes": [
+  "Sous le calendrier, tout est rangé dans des menus déroulants (À venir, Déjà pris, Pris avant l'appli, CET) : touche un titre pour l'ouvrir.",
   "Poser un congé depuis le calendrier : touche le premier jour, puis le dernier.",
   "Nouveau « Mon bilan » : tes jours déjà pris et ton CET s'écrivent sur une liste (rien sur le calendrier). Le CET et ses versements s'affichent sous le calendrier.",
-  "Verser des jours dans le CET : sur la carte CET, touche « Verser des jours » (ex. 4,5 jours annuels + 5,5 RTT). Réglages : « Déjà pris avant l'appli » pour partir des bons chiffres.",
-  "Nouveau compteur CET (compte épargne temps) : pose des jours dessus, ils sont déduits de ton CET. Indique ton solde dans les réglages."
+  "Verser des jours dans le CET : sur la carte CET, touche « Verser des jours » (ex. 4,5 jours annuels + 5,5 RTT). Réglages : « Déjà pris avant l'appli » pour partir des bons chiffres."
  ],
  "cache": "conges-app-",
  "sw": {
   "fichier": "conges-sw.js",
-  "cache": "conges-app-v14"
+  "cache": "conges-app-v15"
  },
  "fichiers": [
   "conges.html"

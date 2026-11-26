@@ -105,6 +105,13 @@
 
   .liste { display: grid; gap: 8px; }
   .liste h2 { margin: 6px 2px 0; }
+  .bloc summary { list-style: none; display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 12px 16px; cursor: pointer; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+  .bloc summary::-webkit-details-marker { display: none; }
+  .bloc summary::after { content: ""; flex: none; width: 9px; height: 9px; margin: 0 2px 3px 2px; border-right: 2.5px solid var(--muted); border-bottom: 2.5px solid var(--muted); transform: rotate(45deg); transition: transform .2s; }
+  .bloc[open] summary::after { transform: rotate(-135deg); margin-bottom: -3px; }
+  .bloc .bt { font-size: .84rem; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; color: var(--fg); }
+  .bloc .br { margin-left: auto; font-size: .92rem; font-weight: 700; color: var(--muted); }
+  .bloc .bcorps { display: grid; gap: 8px; margin-top: 8px; }
   .ligne { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: var(--panel); border: 1px solid var(--line);
     border-radius: 18px; padding: 12px 14px 12px 0; cursor: pointer; min-height: 64px; overflow: hidden; }
   .ligne .barre { align-self: stretch; width: 7px; background: var(--c); flex: none; margin-right: 2px; }
@@ -567,9 +574,17 @@
     if (parts.length > 1) barre = ' style="background:linear-gradient(to bottom,' + parts[0].c.couleur + ' 50%,' + parts[1].c.couleur + ' 50%)"';
     return '<button type="button" class="ligne' + (passe ? " passe" : "") + '" data-id="' + esc(x.id) + '" style="--c:' + c.couleur + '">' +
       '<span class="barre"' + barre + '></span><span class="txt"><div class="quand">' + fmtPlage(x.du, x.au) + '</div>' +
-      '<div class="qui">' + qui + (x.note ? " · " + esc(x.note) : "") + '</div></div></span>' +
+      '<div class="qui">' + qui + (x.note ? " · " + esc(x.note) : "") + '</div></span>' +
       '<span class="nb">' + fmtN(t) + ' j</span></button>';
   }
+  /* menus déroulants sous le calendrier (fermés au départ ; l'état ouvert/fermé est gardé tant que l'appli est ouverte) */
+  var OUV = {};
+  function bloc(id, titre, resume, contenu) {
+    return '<details class="bloc" data-bloc="' + esc(id) + '"' + (OUV[id] ? " open" : "") + '><summary><span class="bt">' + titre + '</span><span class="br">' + esc(resume) + '</span></summary><div class="bcorps">' + contenu + '</div></details>';
+  }
+  document.addEventListener("toggle", function (e) {
+    var t = e.target; if (t && t.getAttribute && t.getAttribute("data-bloc")) OUV[t.getAttribute("data-bloc")] = t.open;
+  }, true);
   function rListe() {
     var b = bornes(cleVue), d0 = iso(b[0]), d1 = iso(b[1]), ja = iso(aujourdhui());
     var dans = D.conges.filter(function (x) { return x.au >= d0 && x.du <= d1; });
@@ -579,27 +594,27 @@
     if (!dans.length) {
       h = '<div class="vide"><svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + ICO.soleil + '</svg><p><b>Aucun congé posé pour ' + esc(libPeriode(cleVue)) + '.</b></p><p>Touche « Poser des congés » pour commencer.</p></div>';
     } else {
-      if (avenir.length) h += "<h2>À venir</h2>" + avenir.map(function (x) { return ligne(x, false); }).join("");
-      if (passes.length) h += "<h2>Déjà pris</h2>" + passes.map(function (x) { return ligne(x, true); }).join("");
+      if (avenir.length) h += bloc("avenir", "À venir", avenir.length + (avenir.length > 1 ? " congés" : " congé"), avenir.map(function (x) { return ligne(x, false); }).join(""));
+      if (passes.length) h += bloc("passes", "Déjà pris", passes.length + (passes.length > 1 ? " congés" : " congé"), passes.map(function (x) { return ligne(x, true); }).join(""));
     }
     /* jours pris avant l'appli : une ligne par compteur, pas sur le calendrier */
     var av = D.compteurs.filter(function (c) { return !c.epargne && params(c, cleVue).dejaPris > 0; });
     if (av.length) {
-      h += "<h2>Pris avant l'appli · " + fmtJ(av.reduce(function (s, c) { return s + params(c, cleVue).dejaPris; }, 0)) + "</h2>" + av.map(function (c) {
+      h += bloc("avant", "Pris avant l'appli", fmtJ(av.reduce(function (s, c) { return s + params(c, cleVue).dejaPris; }, 0)), av.map(function (c) {
         return '<button type="button" class="ligne" data-bilan style="--c:' + c.couleur + '"><span class="barre"></span><span class="txt"><div class="quand">' + esc(c.nom) +
           '</div><div class="qui">Déjà pris, hors calendrier</div></span><span class="nb">' + fmtN(params(c, cleVue).dejaPris) + ' j</span></button>';
-      }).join("");
+      }).join(""));
     }
     /* CET : les jours de départ et chaque versement, avec le total */
     D.compteurs.filter(function (c) { return c.epargne; }).forEach(function (cet) {
       var vs = D.versements.filter(function (x) { return x.vers === cet.id; }).sort(function (a, c) { return a.date < c.date ? 1 : -1; });
       if (!(cet.acquis > 0) && !vs.length) return;
-      h += "<h2>" + esc(cet.nom) + " · " + fmtJ(stats(cet, cleVue).reste) + "</h2>" + vs.map(function (x) {
+      h += bloc("cet-" + cet.id, esc(cet.nom), fmtJ(stats(cet, cleVue).reste), vs.map(function (x) {
         var src = compteur(x.de);
         return '<button type="button" class="ligne" data-verser="' + esc(x.vers) + '" style="--c:' + src.couleur + '"><span class="barre"></span><span class="txt"><div class="quand">' + fmtCourt(parse(x.date)) +
           '</div><div class="qui">' + esc(src.nom) + ' → ' + esc(cet.nom) + '</div></span><span class="nb">+ ' + fmtN(x.n) + ' j</span></button>';
       }).join("") + (cet.acquis > 0
-        ? '<button type="button" class="ligne" data-bilan style="--c:' + cet.couleur + '"><span class="barre"></span><span class="txt"><div class="quand">Déjà dans le CET</div><div class="qui">Au départ, avant l\'appli</div></span><span class="nb">' + fmtN(cet.acquis) + ' j</span></button>' : "");
+        ? '<button type="button" class="ligne" data-bilan style="--c:' + cet.couleur + '"><span class="barre"></span><span class="txt"><div class="quand">Déjà dans le CET</div><div class="qui">Au départ, avant l\'appli</div></span><span class="nb">' + fmtN(cet.acquis) + ' j</span></button>' : ""));
     });
     $("#liste").innerHTML = h;
   }
@@ -1132,7 +1147,7 @@
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Congés", "version": "V14", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Poser un congé depuis le calendrier : touche le premier jour, puis le dernier.", "Nouveau « Mon bilan » : tes jours déjà pris et ton CET s'écrivent sur une liste (rien sur le calendrier). Le CET et ses versements s'affichent sous le calendrier.", "Verser des jours dans le CET : sur la carte CET, touche « Verser des jours » (ex. 4,5 jours annuels + 5,5 RTT). Réglages : « Déjà pris avant l'appli » pour partir des bons chiffres.", "Nouveau compteur CET (compte épargne temps) : pose des jours dessus, ils sont déduits de ton CET. Indique ton solde dans les réglages."]};
+window.MAJ_APPLI={"nom": "Congés", "version": "V15", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Sous le calendrier, tout est rangé dans des menus déroulants (À venir, Déjà pris, Pris avant l'appli, CET) : touche un titre pour l'ouvrir.", "Poser un congé depuis le calendrier : touche le premier jour, puis le dernier.", "Nouveau « Mon bilan » : tes jours déjà pris et ton CET s'écrivent sur une liste (rien sur le calendrier). Le CET et ses versements s'affichent sous le calendrier.", "Verser des jours dans le CET : sur la carte CET, touche « Verser des jours » (ex. 4,5 jours annuels + 5,5 RTT). Réglages : « Déjà pris avant l'appli » pour partir des bons chiffres."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
