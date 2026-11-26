@@ -1,17 +1,17 @@
 {
  "nom": "Congés",
- "version": "V10",
+ "version": "V11",
  "date": "26/11/2026",
  "nouveautes": [
+  "Nouveau compteur CET (compte épargne temps) : pose des jours dessus, ils sont déduits de ton CET. Indique ton solde dans les réglages.",
   "Le bouton « Poser des congés » est plus petit et plus discret, et le gris du calendrier est un peu plus foncé.",
   "Le fond du calendrier est en gris clair, plus doux pour les yeux.",
-  "Les jours fériés du calendrier sont maintenant en rouge.",
-  "Le calendrier reste toujours blanc (jours fériés en jaune), même quand le téléphone est en mode sombre."
+  "Les jours fériés du calendrier sont maintenant en rouge."
  ],
  "cache": "conges-app-",
  "sw": {
   "fichier": "conges-sw.js",
-  "cache": "conges-app-v10"
+  "cache": "conges-app-v11"
  },
  "fichiers": [
   "conges.html"

@@ -272,11 +272,12 @@
 
   function defauts() {
     return {
-      v: 1, prenom: "", mode: "ouvres", demiLibre: 0, debut: 1, accueilFait: false,
+      v: 1, prenom: "", mode: "ouvres", demiLibre: 0, debut: 1, accueilFait: false, cetAjoute: true,
       compteurs: [
         { id: "cp", nom: "Congés annuels", couleur: COULEURS[0], acquis: 22.5 },
         { id: "rtt", nom: "RTT", couleur: COULEURS[1], acquis: 6 },
-        { id: "anc", nom: "Ancienneté", couleur: COULEURS[3], acquis: 3 }
+        { id: "anc", nom: "Ancienneté", couleur: COULEURS[3], acquis: 3 },
+        { id: "cet", nom: "CET", couleur: COULEURS[5], acquis: 0, epargne: true }
       ],
       periodes: {}, conges: []
     };
@@ -289,6 +290,7 @@
     d.demiLibre = (o.demiLibre >= 1 && o.demiLibre <= 5) ? Math.floor(o.demiLibre) : 0;
     d.debut = (o.debut >= 1 && o.debut <= 12) ? Math.floor(o.debut) : 1;
     d.accueilFait = !!o.accueilFait;
+    d.cetAjoute = !!o.cetAjoute;
     if (Array.isArray(o.compteurs) && o.compteurs.length) {
       var vus = {};
       d.compteurs = o.compteurs.slice(0, 8).map(function (c, i) {
@@ -296,7 +298,7 @@
         while (vus[id]) id += "x";
         vus[id] = 1;
         return { id: id, nom: String((c && c.nom) || "Compteur").slice(0, 30),
-          couleur: /^#[0-9a-fA-F]{6}$/.test(c && c.couleur) ? c.couleur : COULEURS[i % COULEURS.length], acquis: num(c && c.acquis) };
+          couleur: /^#[0-9a-fA-F]{6}$/.test(c && c.couleur) ? c.couleur : COULEURS[i % COULEURS.length], acquis: num(c && c.acquis), epargne: !!(c && c.epargne) };
       });
     }
     var ids = {}; d.compteurs.forEach(function (c) { ids[c.id] = 1; });
@@ -334,6 +336,16 @@
     if (o && D.accueilFait && !D.conges.length && !Object.keys(D.periodes).length && c.length === 2 &&
         c[0].id === "cp" && c[0].nom === "Congés payés" && c[0].acquis === 25 && c[1].id === "rtt" && c[1].nom === "RTT" && c[1].acquis === 0) {
       D.compteurs = defauts().compteurs; sauver();
+    }
+    /* V11 : on ajoute une seule fois le compteur CET (compte épargne temps) aux données déjà existantes. */
+    if (o && !D.cetAjoute) {
+      D.cetAjoute = true;
+      D.compteurs.forEach(function (k) { if (/^\s*cet\s*$/i.test(k.nom)) k.epargne = true; });
+      if (!D.compteurs.some(function (k) { return k.epargne; }) && D.compteurs.length < 8) {
+        var idc = "cet"; while (D.compteurs.some(function (k) { return k.id === idc; })) idc += "x";
+        D.compteurs.push({ id: idc, nom: "CET", couleur: COULEURS[5], acquis: 0, epargne: true });
+      }
+      sauver();
     }
   }
   function sauver() {
@@ -393,6 +405,7 @@
   }
   function stats(c, cle, sauf) {
     var b = bornes(cle), d0 = iso(b[0]), d1 = iso(b[1]), auj = iso(aujourdhui()), pris = 0, prevu = 0;
+    if (c.epargne) { d0 = "0000-00-00"; d1 = "9999-99-99"; } /* CET : un stock qui ne repart pas à zéro chaque année */
     D.conges.forEach(function (x) {
       if (x.id === sauf) return;
       valeurs(x).forEach(function (j) {
@@ -400,8 +413,8 @@
         if (j.d <= auj) pris += j.v; else prevu += j.v;
       });
     });
-    var p = params(c, cle), total = p.acquis + p.report;
-    return { acquis: p.acquis, report: p.report, total: total, pris: pris, prevu: prevu, reste: total - pris - prevu };
+    var p = c.epargne ? { acquis: c.acquis, report: 0 } : params(c, cle), total = p.acquis + p.report;
+    return { acquis: p.acquis, report: p.report, total: total, pris: pris, prevu: prevu, reste: total - pris - prevu, epargne: !!c.epargne };
   }
   function indexJours(sauf) {
     var m = {};
@@ -458,7 +471,7 @@
   function rCompteurs() {
     var h = D.compteurs.map(function (c) {
       var s = stats(c, cleVue), neg = s.reste < 0;
-      var reste = neg ? "Tu dépasses de " + fmtJ(-s.reste) : (s.total > 0 ? "à poser sur " + fmtN(s.total) : "Règle ce compteur dans les réglages");
+      var reste = neg ? "Tu dépasses de " + fmtJ(-s.reste) : (s.total > 0 ? (c.epargne ? "disponibles sur " : "à poser sur ") + fmtN(s.total) : (c.epargne ? "Indique tes jours de CET dans les réglages" : "Règle ce compteur dans les réglages"));
       return '<article class="cpt"><div class="anneau">' + anneau(s, c.couleur) +
         '<div class="centre"><b>' + fmtN(s.reste) + '</b><small>' + (Math.abs(s.reste) >= 2 ? "jours" : "jour") + '</small></div></div>' +
         '<div class="corps"><h3><span class="pt" style="background:' + c.couleur + '"></span>' + esc(c.nom) + '</h3>' +
@@ -636,11 +649,13 @@
     }
     ordre.forEach(function (id) {
       var c = compteur(id), cle = cleDe(parse(premier[id])), b = bornes(cle), d0 = iso(b[0]), d1 = iso(b[1]);
+      if (c.epargne) { d0 = "0000-00-00"; d1 = "9999-99-99"; }
+      var suf = c.epargne ? "" : " (" + esc(libPeriode(cle)) + ")";
       var s = stats(c, cle, F.id), dedans = v.filter(function (x) { return x.c === id && x.d >= d0 && x.d <= d1; }).reduce(function (a, x) { return a + x.v; }, 0);
       var apres = s.reste - dedans;
       txt += apres < 0
-        ? '<div class="sous mal">Attention : ça dépasse de ' + fmtJ(-apres) + ' ton solde « ' + esc(c.nom) + ' » (' + esc(libPeriode(cle)) + ').</div>'
-        : '<div class="sous">Il te restera ' + fmtJ(apres) + ' sur « ' + esc(c.nom) + ' » (' + esc(libPeriode(cle)) + ').</div>';
+        ? '<div class="sous mal">Attention : ça dépasse de ' + fmtJ(-apres) + ' ton solde « ' + esc(c.nom) + ' »' + suf + '.</div>'
+        : '<div class="sous">Il te restera ' + fmtJ(apres) + ' sur « ' + esc(c.nom) + ' »' + suf + '.</div>';
     });
     box.innerHTML = txt; bt.disabled = false;
   }
@@ -677,10 +692,15 @@
       var bp = bornes(cleVue - 1), avant = D.conges.some(function (x) { return x.au >= iso(bp[0]) && x.du <= iso(bp[1]); });
       var rep = (avant && prec.reste > 0 && prec.total > 0 && p.report !== prec.reste)
         ? '<button type="button" class="lien" data-reporter="' + esc(c.id) + '" data-val="' + prec.reste + '">Reprendre le solde de l\'année précédente (' + fmtJ(prec.reste) + ')</button>' : "";
+      var champs = c.epargne
+        ? '<label class="champ"><span>Jours dans le CET (au total)</span><input type="text" inputmode="decimal" data-cid="' + esc(c.id) + '" data-k="acquis" value="' + fmtN(c.acquis) + '"></label>' +
+          '<p class="muted" style="margin:-4px 0 10px;font-size:.85rem">Ce compteur ne repart pas à zéro chaque année. Quand tu verses des jours dans ton CET, ajoute-les ici.</p>'
+        : '<div class="deux"><label class="champ"><span>Jours acquis</span><input type="text" inputmode="decimal" data-cid="' + esc(c.id) + '" data-k="acquis" value="' + fmtN(p.acquis) + '"></label>' +
+          '<label class="champ"><span>Report d\'avant</span><input type="text" inputmode="decimal" data-cid="' + esc(c.id) + '" data-k="report" value="' + fmtN(p.report) + '"></label></div>' + rep;
       return '<div class="carte"><label class="champ"><span>Nom</span><input type="text" maxlength="30" data-cid="' + esc(c.id) + '" data-k="nom" value="' + esc(c.nom) + '"></label>' +
         '<div class="couleurs" role="group" aria-label="Couleur">' + couleurs + '</div>' +
-        '<div class="deux"><label class="champ"><span>Jours acquis</span><input type="text" inputmode="decimal" data-cid="' + esc(c.id) + '" data-k="acquis" value="' + fmtN(p.acquis) + '"></label>' +
-        '<label class="champ"><span>Report d\'avant</span><input type="text" inputmode="decimal" data-cid="' + esc(c.id) + '" data-k="report" value="' + fmtN(p.report) + '"></label></div>' + rep +
+        champs +
+        '<label class="coche"><input type="checkbox" data-epargne="' + esc(c.id) + '"' + (c.epargne ? " checked" : "") + '><span>Compte épargne temps (CET)</span></label>' +
         (D.compteurs.length > 1 ? '<button type="button" class="btn danger" data-suppr="' + esc(c.id) + '">' + ico("poubelle") + 'Supprimer ce compteur</button>' : '') + '</div>';
     }).join("");
     var semaineOpts = '<option value="0"' + (!D.demiLibre ? " selected" : "") + '>5 jours complets</option>' + [1, 2, 3, 4, 5].map(function (w) {
@@ -714,6 +734,7 @@
   function reglerCompteur(cid, k, val) {
     var c = compteur(cid);
     if (k === "nom") { c.nom = val.slice(0, 30) || "Compteur"; return; }
+    if (c.epargne) { if (k === "acquis") c.acquis = num(val); return; }
     var cle = String(cleVue); D.periodes[cle] = D.periodes[cle] || {}; var p = D.periodes[cle][c.id] = D.periodes[cle][c.id] || {};
     p[k] = num(val);
     if (k === "acquis") c.acquis = num(val); /* sert de valeur de départ pour les années suivantes */
@@ -818,12 +839,13 @@
   document.addEventListener("change", function (e) {
     var t = e.target;
     if (t.id === "rFichier") { importer(t.files && t.files[0]); t.value = ""; return; }
+    if (t.hasAttribute && t.hasAttribute("data-epargne")) { compteur(t.getAttribute("data-epargne")).epargne = t.checked; sauver(); ouvrirReglages(false); return; }
     if (t.id === "rSemaine") { D.demiLibre = +t.value; sauver(); return; }
     if (t.id === "rDebut") {
       D.debut = +t.value; sauver(); cleVue = cleDe(aujourdhui()); moisVue = new Date(aujourdhui().getFullYear(), aujourdhui().getMonth(), 1); ouvrirReglages(false); return;
     }
     if (t.hasAttribute && t.hasAttribute("data-k") && t.getAttribute("data-k") !== "nom") {
-      var c = compteur(t.getAttribute("data-cid")); t.value = fmtN(params(c, cleVue)[t.getAttribute("data-k")]);
+      var c = compteur(t.getAttribute("data-cid")); t.value = fmtN(c.epargne ? c.acquis : params(c, cleVue)[t.getAttribute("data-k")]);
     }
   });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") fermerFeuille(); });
@@ -868,7 +890,7 @@
 
 </style>
 <script>
-window.MAJ_APPLI={"nom": "Congés", "version": "V10", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Le bouton « Poser des congés » est plus petit et plus discret, et le gris du calendrier est un peu plus foncé.", "Le fond du calendrier est en gris clair, plus doux pour les yeux.", "Les jours fériés du calendrier sont maintenant en rouge.", "Le calendrier reste toujours blanc (jours fériés en jaune), même quand le téléphone est en mode sombre."]};
+window.MAJ_APPLI={"nom": "Congés", "version": "V11", "date": "26/11/2026", "cache": "conges-app-", "nouveautes": ["Nouveau compteur CET (compte épargne temps) : pose des jours dessus, ils sont déduits de ton CET. Indique ton solde dans les réglages.", "Le bouton « Poser des congés » est plus petit et plus discret, et le gris du calendrier est un peu plus foncé.", "Le fond du calendrier est en gris clair, plus doux pour les yeux.", "Les jours fériés du calendrier sont maintenant en rouge."]};
 (function(){
   "use strict";
   var A=window.MAJ_APPLI; if(!A||document.getElementById("maj-pastille")) return;
