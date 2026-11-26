@@ -1,5 +1,5 @@
 // Mon chalet : met en cache l'enveloppe de l'appli et la bibliothèque 3D. Les produits restent dans le téléphone (localStorage), jamais ici.
-const CACHE = 'chalet-app-v1';
+const CACHE = 'chalet-app-v2';
 const LIBS = 'chalet-libs';
 const FILES = ['./chalet.html', './chalet-manifest.webmanifest',
   './chalet-icon-192.png', './chalet-icon-512.png', './chalet-icon-masque-512.png',

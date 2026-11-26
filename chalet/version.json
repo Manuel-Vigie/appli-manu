@@ -1,17 +1,17 @@
 {
  "nom": "Mon chalet",
- "version": "V1",
+ "version": "V2",
  "date": "26/11/2026",
  "nouveautes": [
-  "Première version : vos courses et votre matériel rangés sur des étagères en 3D dans un chalet.",
-  "Touchez un produit : il avance et rejoint la liste « À acheter ».",
-  "Glissez pour parcourir les étagères, pincez pour zoomer.",
-  "Bouton « Ranger » pour ajouter, renommer ou supprimer produits et rubriques."
+  "Nouvelle présentation : une armoire de chalet avec des tiroirs. Touchez un tiroir : il s'ouvre et sa liste apparaît.",
+  "Dans chaque tiroir, une liste avec des cases à cocher : cochez quand l'article est dans votre panier, puis « Ranger les articles cochés ».",
+  "« Souvent acheté » : les articles que vous rachetez reviennent en un seul geste. « Ma liste » montre tout d'un coup.",
+  "Glissez pour parcourir l'armoire, pincez pour zoomer."
  ],
  "cache": "chalet-app-",
  "sw": {
   "fichier": "chalet-sw.js",
-  "cache": "chalet-app-v1"
+  "cache": "chalet-app-v2"
  },
  "fichiers": [
   "chalet.html"
